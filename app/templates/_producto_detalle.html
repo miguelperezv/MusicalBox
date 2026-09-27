@@ -2,7 +2,7 @@
 {% set agotado = p.stock <= 0 %}
 <div class="row g-4 mb-detalle">
     <div class="col-md-6">
-        <div class="mb-detalle-img {{ 'soldout' if agotado }}">{{ producto_imagen(p) }}</div>
+        <div class="mb-detalle-img {{ 'soldout' if agotado }}">{{ producto_imagen(p, w=1200) }}</div>
     </div>
     <div class="col-md-6 d-flex flex-column">
         <div class="d-flex flex-wrap gap-2 mb-2">
@@ -14,7 +14,7 @@
         {% if p.lanzamiento %}
         <a class="mb-eyebrow" href="{{ url_for('releases.release', k_lanzamiento=p.lanzamiento.id) }}">{{ p.artista.n_artista.title() ~ ' · ' if p.artista }}{{ p.lanzamiento.n_lanzamiento.title() }}</a>
         {% endif %}
-        <h2 class="h3 mt-1">{{ p.nombre }}</h2>
+        {% if modal %}<h2 class="h3 mt-1">{{ p.nombre }}</h2>{% else %}<h1 class="h3 mt-1">{{ p.nombre }}</h1>{% endif %}
         <div class="fs-3 fw-bold mb-3">{{ p.precio|cop }}</div>
         {% if p.descripcion %}<p class="text-body-secondary">{{ p.descripcion }}</p>{% endif %}
         {% if p.incluye %}

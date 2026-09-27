@@ -119,15 +119,26 @@
 
 {% block scripts %}
 {% if redes %}
-{% if redes.tiktok %}<script async src="https://www.tiktok.com/embed.js"></script>{% endif %}
-{% if redes.instagram %}<script async src="https://www.instagram.com/embed.js"></script>{% endif %}
 <script>
-    //si un embed no carga (post borrado, privado, bloqueado), se oculta solo ese post y el resto sigue
-    setTimeout(function () {
-        document.querySelectorAll('#redes .mb-red').forEach(function (c) { if (!c.querySelector('iframe')) c.remove(); });
-        var s = document.getElementById('redes');
-        if (s && !s.querySelector('.mb-red')) s.remove();
-    }, 10000);
+    //los embeds de Instagram/TikTok pesan ~1,5 MB y ~6 s: se cargan solo cuando la sección entra en pantalla
+    (function () {
+        var seccion = document.getElementById('redes');
+        if (!seccion) return;
+        var scripts = [{% if redes.tiktok %}'https://www.tiktok.com/embed.js'{% endif %}{% if redes.tiktok and redes.instagram %}, {% endif %}{% if redes.instagram %}'https://www.instagram.com/embed.js'{% endif %}];
+        function cargar() {
+            scripts.forEach(function (src) { var s = document.createElement('script'); s.src = src; s.async = true; document.body.appendChild(s); });
+            //si un embed no carga (post borrado, privado, bloqueado), se oculta solo ese post y el resto sigue
+            setTimeout(function () {
+                seccion.querySelectorAll('.mb-red').forEach(function (c) { if (!c.querySelector('iframe')) c.remove(); });
+                if (!seccion.querySelector('.mb-red')) seccion.remove();
+            }, 10000);
+        }
+        if (!('IntersectionObserver' in window)) return cargar();
+        var obs = new IntersectionObserver(function (entradas) {
+            if (entradas.some(function (e) { return e.isIntersecting; })) { obs.disconnect(); cargar(); }
+        }, {rootMargin: '300px'});
+        obs.observe(seccion);
+    })();
 </script>
 {% endif %}
 {% endblock %}

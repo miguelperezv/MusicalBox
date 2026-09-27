@@ -130,3 +130,6 @@ dmypy.json
 
 # capturas de scripts/capturas.py
 .capturas/
+
+# miniaturas de producto (app/store/imagenes.py)
+instance/cache_img/

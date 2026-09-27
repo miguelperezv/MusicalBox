@@ -55,7 +55,7 @@
                 {% set producto, variante, cantidad = l[0], l[1], l[2] %}
                 {% set precio = l[3] if l|length > 3 else producto.p_producto %}
                 <div class="d-flex align-items-center gap-3 py-2 {{ 'border-top' if not loop.first }}">
-                    <div class="mb-thumb flex-shrink-0">{{ product_cover(producto.id, producto.lanzamiento.i_lanzamiento if producto.lanzamiento else '', producto.n_producto) }}</div>
+                    <div class="mb-thumb flex-shrink-0">{{ product_cover(producto.id, producto.lanzamiento.i_lanzamiento if producto.lanzamiento else '', producto.n_producto, w=300) }}</div>
                     <div class="flex-fill min-w-0">
                         <div class="fw-semibold text-truncate">{{ producto.lanzamiento.n_lanzamiento.title() if producto.lanzamiento }}</div>
                         <small class="text-body-secondary">{{ producto.n_producto }}{% if variante %} ({{ variante.nombre }}){% endif %} · {{ cantidad }} × {{ precio|cop }}</small>

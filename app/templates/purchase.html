@@ -31,7 +31,7 @@
                 {% set producto, variante = l.producto, l.variante %}
                 {% set lanz = producto.lanzamiento %}
                 <div class="mb-cart-item">
-                    {{ product_cover(producto.id, lanz.i_lanzamiento if lanz else '', producto.n_producto) }}
+                    {{ product_cover(producto.id, lanz.i_lanzamiento if lanz else '', producto.n_producto, w=300) }}
                     <div class="min-w-0">
                         <div class="small text-body-secondary">{{ 'PACK' if producto.tipo == 'BUNDLE' else producto.k_categoria }}</div>
                         <div class="fw-bold text-truncate">{{ lanz.n_lanzamiento.title() if lanz }}</div>

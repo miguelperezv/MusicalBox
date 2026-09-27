@@ -853,7 +853,7 @@ def get_products_cards(limit=None, k_lanzamiento=None):
             "incluye": [f"{c.cantidad} × {c.componente.n_producto}" + (f" ({c.variante.nombre})" if c.variante else "") for c in p.componentes] if p.tipo == 'BUNDLE' else [],
             "original": es_original(p),
             #pack: imágenes de sus productos para armar el collage (máx. 4)
-            "collage": [{"id": c.componente.id, "respaldo": c.componente.lanzamiento.i_lanzamiento if c.componente.lanzamiento else ''}
+            "collage": [{"id": c.componente.id, "nombre": c.componente.n_producto, "respaldo": c.componente.lanzamiento.i_lanzamiento if c.componente.lanzamiento else ''}
                         for c in p.componentes][:4] if p.tipo == 'BUNDLE' else [],
         })
     return cards

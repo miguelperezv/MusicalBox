@@ -16,6 +16,7 @@ import datetime
 from datetime import timedelta
 from functools import wraps
 from . import carrito
+from .imagenes import imagen_producto
 from .redes import seleccion_para_inicio, leer_url
 from ..db import db
 from .notificaciones import correo_activacion, usuario_de_token
@@ -629,7 +630,14 @@ def thankyou():
 
 @products.route("/image_<int:k_producto>")
 def image(k_producto): 
-    return get_image_by_product((k_producto)) or ("", 404)
+    #?w=300|600|1200: versión redimensionada en WebP con caché
+    respuesta = imagen_producto(k_producto, request.args.get("w", default=600, type=int))
+    if respuesta:
+        return respuesta
+    #sin foto: portada del lanzamiento o logo (evita un 404 por cada tarjeta)
+    producto = get_product_by_id(k_producto)
+    portada = producto.lanzamiento.i_lanzamiento if producto and producto.lanzamiento else None
+    return redirect(portada or url_for('static', filename='imgs/musicalbox.png'))
 
 @products.route("/<int:k_producto>")
 def detalle(k_producto):
