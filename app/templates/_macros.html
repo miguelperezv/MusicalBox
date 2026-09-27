@@ -18,3 +18,19 @@
 <img src="{{ url_for('products.image', k_producto=product_id) }}" alt="{{ alt }}" loading="lazy"
      onerror="this.onerror=null; this.src='{{ fallback_url or url_for('static', filename='imgs/musicalbox.png') }}'; this.classList.add('bg-info');">
 {% endmacro %}
+
+{# sello de merch original Musical Box #}
+{% macro badge_original(texto='Original MB') %}
+<span class="mb-original" title="Merch original Musical Box"><img src="{{ url_for('static', filename='imgs/musicalbox.png') }}" alt="">{{ texto }}</span>
+{% endmacro %}
+
+{# imagen de producto: los packs muestran el collage de sus productos (camiseta + vinilo...) #}
+{% macro producto_imagen(p) %}
+{% if p.collage %}
+<div class="mb-collage mb-collage-{{ p.collage|length }}">
+    {% for c in p.collage %}<div>{{ product_cover(c.id, c.respaldo) }}</div>{% endfor %}
+</div>
+{% else %}
+{{ product_cover(p.id, p.lanzamiento.i_lanzamiento if p.lanzamiento else '', p.nombre) }}
+{% endif %}
+{% endmacro %}

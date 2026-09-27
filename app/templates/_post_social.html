@@ -1,0 +1,9 @@
+<div class="d-flex justify-content-center py-2">
+    {% if social.plataforma == 'tiktok' %}
+    <blockquote class="tiktok-embed" cite="{{ social.url }}" data-video-id="{{ social.id }}" style="max-width: 325px; min-width: 280px; margin: 0;"><section><a href="{{ social.url }}" target="_blank" rel="noopener">Ver en TikTok</a></section></blockquote>
+    <script async src="https://www.tiktok.com/embed.js"></script>
+    {% else %}
+    <blockquote class="instagram-media" data-instgrm-permalink="{{ social.url }}" data-instgrm-version="14" style="max-width: 420px; width: 100%; margin: 0;"><a href="{{ social.url }}" target="_blank" rel="noopener">Ver en Instagram</a></blockquote>
+    <script async src="https://www.instagram.com/embed.js"></script>
+    {% endif %}
+</div>

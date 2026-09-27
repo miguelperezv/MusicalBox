@@ -47,3 +47,22 @@ document.addEventListener('DOMContentLoaded', function () {
         setTimeout(function () { bootstrap.Alert.getOrCreateInstance(a).close(); }, 6000);
     });
 });
+
+// vista rápida: enlaces con data-quickview abren su contenido en el modal (Ctrl/Cmd+clic abre la página)
+document.addEventListener('click', function (e) {
+    var link = e.target.closest('[data-quickview]');
+    if (!link || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    e.preventDefault();
+    var modalEl = document.getElementById('mbModal');
+    var body = modalEl.querySelector('.modal-body');
+    body.innerHTML = '<div class="mb-loading"><div class="spinner-border" role="status"></div></div>';
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    fetch(link.dataset.quickview).then(function (r) { return r.text(); }).then(function (html) {
+        body.innerHTML = html;
+        //los embeds de redes necesitan volver a procesarse al insertarse
+        if (window.instgrm) window.instgrm.Embeds.process();
+        body.querySelectorAll('script[src]').forEach(function (s) {
+            var n = document.createElement('script'); n.src = s.src; n.async = true; document.body.appendChild(n);
+        });
+    });
+});

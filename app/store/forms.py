@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms.validators import DataRequired, NumberRange, Length, Regexp, EqualTo, Optional
-from wtforms import StringField, SelectField, PasswordField, IntegerField, FileField, DateField, EmailField, RadioField
+from wtforms import StringField, SelectField, PasswordField, IntegerField, FileField, DateField, EmailField, RadioField, BooleanField
 from datetime import date, datetime
 from wtforms import widgets as h5widgets
 import pycountry
@@ -51,6 +51,7 @@ class  newReleaseForm(FlaskForm):
     k_artista  = StringField("Artista",validators=[DataRequired()], id="artista")
     f_lanzamiento = DateField("Fecha de Lanzamiento", default=date.today)
     k_genero = GenreSelectField("Genero", id="k_genero")
+    url_social = StringField("Post de Instagram o TikTok (opcional)", render_kw={"placeholder": "https://www.instagram.com/p/... o https://www.tiktok.com/@.../video/..."})
     
 
     
@@ -68,6 +69,7 @@ class newProductForm(FlaskForm):
     stock = IntegerField("Stock", widget=h5widgets.NumberInput(min=0, max=1000), validators=[DataRequired()])
     i_producto = FileField("Imagen del producto")
     k_category = SelectField("Categoria", id="category", choices=[])
+    original_mb = BooleanField("Merch original Musical Box (personalizado por nosotros)")
     tipo = SelectField("Tipo", choices=[('SIMPLE', 'Producto individual'), ('BUNDLE', 'Pack (arma sus productos después)')], default='SIMPLE')
 
     def __init__(self, categories_choices: list = None, *args, **kwargs):

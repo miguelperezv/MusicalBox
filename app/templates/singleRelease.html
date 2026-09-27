@@ -1,66 +1,61 @@
 {% extends "base.html" %}
 {% from "_cards.html" import product_card with context %}
+{% from "_macros.html" import badge_original %}
 
 {% block title %}{{ lanzamiento.n_lanzamiento.title() }}{% endblock %}
-{% block description %}{{ artista.n_artista.title() if artista }} - {{ lanzamiento.n_lanzamiento.title() }} en vinilo, CD y cassette en Musical Box.{% endblock %}
+{% block description %}{{ artista.n_artista.title() if artista }} - {{ lanzamiento.n_lanzamiento.title() }}: merch, vinilos y ediciones en Musical Box.{% endblock %}
 
 {% block contenido %}
-<div class="container">
-    <nav aria-label="breadcrumb" class="mt-4">
-        <ol class="breadcrumb small">
-            <li class="breadcrumb-item"><a href="{{ url_for('releases.home_releases') }}">Lanzamientos</a></li>
-            <li class="breadcrumb-item active" aria-current="page">{{ lanzamiento.n_lanzamiento.title() }}</li>
-        </ol>
-    </nav>
-
-    <section class="mb-release-hero p-3 p-md-4 mb-5">
-        <div class="row g-4 align-items-center">
-            <div class="col-md-5 col-lg-4">
-                {% if lanzamiento.i_lanzamiento %}
-                <img class="cover-lg" src="{{ lanzamiento.i_lanzamiento }}" alt="Portada de {{ lanzamiento.n_lanzamiento }}">
-                {% endif %}
-            </div>
-            <div class="col-md-7 col-lg-8">
-                {% if artista %}
-                <a class="mb-eyebrow" href="{{ url_for('artists.artist', k_artista=artista.id) }}">{{ artista.n_artista.title() }}</a>
-                {% endif %}
-                <h1 class="mt-1 mb-3">{{ lanzamiento.n_lanzamiento.title() }}</h1>
-                <div class="d-flex flex-wrap gap-2 mb-3">
+<section class="mb-release-band">
+    <div class="container py-4">
+        <div class="d-flex align-items-center gap-3 gap-md-4">
+            {% if lanzamiento.i_lanzamiento %}
+            <img class="mb-release-mini" src="{{ lanzamiento.i_lanzamiento }}" alt="Portada de {{ lanzamiento.n_lanzamiento }}">
+            {% endif %}
+            <div class="min-w-0 flex-fill">
+                {% if artista %}<a class="mb-eyebrow text-white-50" href="{{ url_for('artists.artist', k_artista=artista.id) }}">{{ artista.n_artista.title() }}</a>{% endif %}
+                <h1 class="h2 mb-2 text-white text-truncate">{{ lanzamiento.n_lanzamiento.title() }}</h1>
+                <div class="d-flex flex-wrap align-items-center gap-2">
                     {% for g in generos %}<span class="mb-chip">{{ g.k_genero }}</span>{% endfor %}
+                    {% if lanzamiento.f_lanzamiento %}<span class="small text-white-50"><i class="bi bi-calendar3 me-1"></i>{{ lanzamiento.f_lanzamiento }}</span>{% endif %}
+                    {% if original %}{{ badge_original('Merch original') }}{% endif %}
                 </div>
-                <ul class="list-unstyled text-body-secondary mb-4">
-                    {% if lanzamiento.f_lanzamiento %}<li><i class="bi bi-calendar3 me-2"></i>Lanzado el {{ lanzamiento.f_lanzamiento }}</li>{% endif %}
-                    {% if artista and artista.pais_artista %}<li><i class="bi bi-geo-alt me-2"></i>{{ artista.pais_artista }}</li>{% endif %}
-                    <li><i class="bi bi-disc me-2"></i>{{ productos|length }} {{ 'edición disponible' if productos|length == 1 else 'ediciones disponibles' }}</li>
-                </ul>
-                <div class="d-flex flex-wrap gap-2">
-                    <a class="btn btn-primary" href="#ediciones"><i class="bi bi-bag me-1"></i>Ver ediciones</a>
-                    {% if user and user['k_rol'] == 'ADMIN' %}
-                    <a class="btn btn-outline-secondary" href="{{ url_for('dashboard.updaterelease', k_lanzamiento=lanzamiento.id) }}"><i class="bi bi-pencil me-1"></i>Editar</a>
-                    {% endif %}
-                </div>
+            </div>
+            <div class="d-none d-md-flex gap-2">
+                {% if social %}
+                <a class="btn btn-outline-light" href="{{ social.url }}" target="_blank" rel="noopener" data-quickview="{{ url_for('releases.post_lanzamiento', k_lanzamiento=lanzamiento.id) }}">
+                    <i class="bi bi-{{ social.plataforma }} me-1"></i>Ver post</a>
+                {% endif %}
+                {% if user and user['k_rol'] == 'ADMIN' %}
+                <a class="btn btn-outline-light" href="{{ url_for('dashboard.updaterelease', k_lanzamiento=lanzamiento.id) }}" title="Editar"><i class="bi bi-pencil"></i></a>
+                {% endif %}
             </div>
         </div>
-    </section>
+        {% if social %}
+        <a class="btn btn-sm btn-outline-light mt-3 d-md-none" href="{{ social.url }}" target="_blank" rel="noopener" data-quickview="{{ url_for('releases.post_lanzamiento', k_lanzamiento=lanzamiento.id) }}"><i class="bi bi-{{ social.plataforma }} me-1"></i>Ver post</a>
+        {% endif %}
+    </div>
+</section>
 
+<div class="container mt-4">
     {% if packs %}
     <section class="mb-5">
-        <div class="mb-section-title"><div><span class="mb-eyebrow">Ahorra llevando todo</span><h2>Packs</h2></div></div>
-        <div class="row row-cols-2 row-cols-lg-4 g-3 g-lg-4">
+        <div class="mb-section-title"><div><span class="mb-eyebrow">Lleva todo junto</span><h2>Packs</h2></div></div>
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-3 g-lg-4">
             {% for p in packs %}<div class="col">{{ product_card(p, show_release=false) }}</div>{% endfor %}
         </div>
     </section>
     {% endif %}
 
-    <section id="ediciones">
-        <div class="mb-section-title"><h2>{{ 'Por separado' if packs else 'Ediciones y merch' }}</h2></div>
-        <div class="row row-cols-2 row-cols-lg-4 g-3 g-lg-4">
+    <section>
+        <div class="mb-section-title"><div><span class="mb-eyebrow">{{ 'Por separado' if packs else 'Tienda' }}</span><h2>Merch y ediciones</h2></div></div>
+        <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3 g-lg-4">
             {% for p in sueltos %}
             <div class="col">{{ product_card(p, show_release=false) }}</div>
             {% else %}
             <div class="col-12 mb-empty">
                 <i class="bi bi-disc"></i>
-                <p>Aún no tenemos ediciones de este lanzamiento.</p>
+                <p>Aún no tenemos productos de este lanzamiento.</p>
                 <a class="btn btn-primary" href="{{ url_for('solicitud.nueva') }}">Pídelo y te avisamos</a>
             </div>
             {% endfor %}

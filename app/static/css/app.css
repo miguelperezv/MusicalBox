@@ -234,3 +234,39 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 .mb-metodo:has(input:checked) { border-color: var(--mb-aqua) !important; background: #f0fafc; }
 /* redes: Instagram en cuadrícula compacta (el embed oficial pide 326px mínimo; lo ajustamos a la columna) */
 .mb-ig .instagram-media, .mb-ig iframe.instagram-media { min-width: 0 !important; max-width: 100% !important; }
+
+/* ---------- sello Original Musical Box ---------- */
+.mb-original { display: inline-flex; align-items: center; gap: .3rem; background: var(--mb-ink); color: var(--mb-yellow);
+    font-size: .7rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; padding: .2rem .55rem .2rem .25rem; border-radius: 999px; white-space: nowrap; }
+.mb-original img { width: 18px; height: 18px; border-radius: 50%; background: var(--mb-yellow); }
+.mb-original-corner { position: absolute; bottom: .6rem; left: .6rem; z-index: 2; }
+.mb-original-corner .mb-original:empty, .mb-original-corner .mb-original { box-shadow: 0 4px 12px rgba(0,0,0,.25); }
+
+/* ---------- packs: collage de sus productos dentro del cuadrado ---------- */
+.mb-collage { display: grid; width: 100%; height: 100%; gap: 3px; background: #fff; }
+.mb-collage > div { overflow: hidden; background: var(--mb-sky); }
+.mb-collage img { width: 100%; height: 100%; object-fit: cover; }
+.mb-collage-2 { grid-template-columns: 1fr 1fr; }
+.mb-collage-3 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.mb-collage-3 > div:first-child { grid-row: span 2; }
+.mb-collage-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.mb-badge-pack { background: var(--mb-yellow); color: var(--mb-ink); }
+.mb-card-pack { outline: 2px solid var(--mb-yellow); outline-offset: -2px; }
+.mb-card .cover > a { display: block; width: 100%; height: 100%; }
+
+/* ---------- tarjetas de lanzamiento más compactas (5 por fila) ---------- */
+.row-cols-xl-5 .mb-card .body { padding: .7rem .8rem .85rem; }
+.row-cols-xl-5 .mb-card .title { font-size: .92rem; }
+.row-cols-xl-5 .mb-card .artist { font-size: .7rem; }
+
+/* ---------- ficha del lanzamiento: banda compacta, los productos son protagonistas ---------- */
+.mb-release-band { background: linear-gradient(135deg, var(--mb-ink) 0%, #12404c 60%, var(--mb-aqua-dark) 100%); }
+.mb-release-mini { width: 96px; height: 96px; object-fit: cover; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.4); flex-shrink: 0; }
+@media (min-width: 768px) { .mb-release-mini { width: 120px; height: 120px; } }
+
+/* ---------- detalle de producto (página y modal) ---------- */
+.mb-detalle-img { aspect-ratio: 1; border-radius: 14px; overflow: hidden; background: var(--mb-sky); }
+.mb-detalle-img > img { width: 100%; height: 100%; object-fit: cover; }
+.mb-detalle-img.soldout img { filter: grayscale(.8); opacity: .75; }
+.mb-card .cover .mb-original img, .mb-original img { width: 18px !important; height: 18px !important; object-fit: contain !important; transform: none !important; }
+.mb-original-corner { pointer-events: none; }

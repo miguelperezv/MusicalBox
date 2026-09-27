@@ -25,6 +25,7 @@
     {{ field(form.n_lanzamiento_edit, value=lanzamiento.n_lanzamiento) }}
     {{ field(form.k_artista, value=artista.n_artista if artista else '', **{'data-autocomplete': url_for('dashboard.newrelease_artists')}) }}
     {{ field(form.i_lanzamiento, type='url', value=lanzamiento.i_lanzamiento) }}
+    {{ field(form.url_social, value=lanzamiento.url_social or '') }}
     <div class="row">
         {{ field(form.f_lanzamiento, col='col-sm-6 mb-3', value=lanzamiento.f_lanzamiento) }}
         {{ field(form.k_genero, col='col-sm-6 mb-3') }}

@@ -5,6 +5,7 @@
     {{ field(form.n_lanzamiento, placeholder='Ej: Happier Than Ever') }}
     {{ field(form.k_artista, placeholder='Escribe para buscar un artista registrado', **{'data-autocomplete': url_for('dashboard.newrelease_artists')}) }}
     {{ field(form.i_lanzamiento, type='url', placeholder='https://...', help='URL de la portada (imagen cuadrada)') }}
+    {{ field(form.url_social) }}
     <div class="row">
         {{ field(form.f_lanzamiento, col='col-sm-6 mb-3') }}
         {{ field(form.k_genero, col='col-sm-6 mb-3') }}

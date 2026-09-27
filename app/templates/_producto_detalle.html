@@ -1,0 +1,45 @@
+{% from "_macros.html" import producto_imagen, badge_original %}
+{% set agotado = p.stock <= 0 %}
+<div class="row g-4 mb-detalle">
+    <div class="col-md-6">
+        <div class="mb-detalle-img {{ 'soldout' if agotado }}">{{ producto_imagen(p) }}</div>
+    </div>
+    <div class="col-md-6 d-flex flex-column">
+        <div class="d-flex flex-wrap gap-2 mb-2">
+            {% if p.tipo == 'BUNDLE' %}<span class="mb-chip mb-badge-pack"><i class="bi bi-box-seam me-1"></i>PACK</span>
+            {% elif p.categoria %}<span class="mb-chip">{{ p.categoria }}</span>{% endif %}
+            {% if p.original %}{{ badge_original('Original Musical Box') }}{% endif %}
+            {% if agotado %}<span class="mb-chip mb-badge-out">Agotado</span>{% elif p.stock <= 3 %}<span class="mb-chip mb-badge-new">¡Últimos {{ p.stock }}!</span>{% endif %}
+        </div>
+        {% if p.lanzamiento %}
+        <a class="mb-eyebrow" href="{{ url_for('releases.release', k_lanzamiento=p.lanzamiento.id) }}">{{ p.artista.n_artista.title() ~ ' · ' if p.artista }}{{ p.lanzamiento.n_lanzamiento.title() }}</a>
+        {% endif %}
+        <h2 class="h3 mt-1">{{ p.nombre }}</h2>
+        <div class="fs-3 fw-bold mb-3">{{ p.precio|cop }}</div>
+        {% if p.descripcion %}<p class="text-body-secondary">{{ p.descripcion }}</p>{% endif %}
+        {% if p.incluye %}
+        <div class="mb-3"><div class="fw-semibold small mb-1">Este pack incluye</div>
+            <ul class="small mb-0">{% for i in p.incluye %}<li>{{ i }}</li>{% endfor %}</ul>
+        </div>
+        {% endif %}
+        {% if p.original %}<p class="small text-body-secondary"><i class="bi bi-stars me-1"></i>Merch personalizado, diseñado y hecho por Musical Box.</p>{% endif %}
+        <div class="mt-auto">
+            {% if agotado %}
+            <a class="btn btn-outline-secondary w-100" href="{{ url_for('solicitud.nueva') }}"><i class="bi bi-bell me-1"></i>Agotado · Pedirlo</a>
+            {% else %}
+            <form class="d-flex flex-wrap gap-2" action="{{ url_for('purchase.addtocart') }}" method="post">
+                <input type="hidden" name="product_id" value="{{ p.id }}">
+                {% if p.variantes %}
+                <select class="form-select w-100" name="variante_id" required aria-label="Talla o color">
+                    <option value="" selected disabled>Elige talla / color</option>
+                    {% for v in p.variantes %}<option value="{{ v.id }}" {{ 'disabled' if v.stock <= 0 }}>{{ v.nombre }} — {{ 'agotado' if v.stock <= 0 else ('quedan ' ~ v.stock if v.stock <= 3 else 'disponible') }}</option>{% endfor %}
+                </select>
+                {% endif %}
+                <input class="form-control text-center" style="max-width: 5rem" type="number" name="quantity" value="1" min="1" max="{{ p.stock }}" aria-label="Cantidad">
+                <button type="submit" class="btn btn-primary btn-lg flex-fill"><i class="bi bi-bag-plus me-1"></i>Agregar al carrito</button>
+            </form>
+            {% endif %}
+            {% if modal %}<a class="small d-inline-block mt-3" href="{{ url_for('products.detalle', k_producto=p.id) }}">Ver página del producto <i class="bi bi-arrow-right"></i></a>{% endif %}
+        </div>
+    </div>
+</div>

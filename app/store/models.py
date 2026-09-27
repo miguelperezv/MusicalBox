@@ -15,6 +15,8 @@ class Lanzamiento(db.Model):
     n_lanzamiento = db.Column(db.String(100), nullable = False )
     f_lanzamiento = db.Column(db.Date)
     i_lanzamiento = db.Column(db.String(500))
+    #post de Instagram/TikTok sobre el lanzamiento (opcional)
+    url_social = db.Column(db.String(300))
 
 class Artista(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -53,6 +55,8 @@ class Producto(db.Model):
     f_producto = db.Column(db.DateTime, default=datetime.now)
     #SIMPLE: se vende tal cual · BUNDLE: pack que descuenta el stock de sus componentes
     tipo = db.Column(db.String(10), nullable=False, default='SIMPLE', server_default='SIMPLE')
+    #merch personalizado hecho por Musical Box
+    original_mb = db.Column(db.Boolean, nullable=False, default=False, server_default='0')
     #atributos de la relacion
     lanzamiento = db.relationship("Lanzamiento")
     categoria = db.relationship("Categoria")
@@ -207,7 +211,7 @@ class Categoria(db.Model):
 class LanzamientoSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Lanzamiento
-        fields = ["id", "n_lanzamiento", "f_lanzamiento", "i_lanzamiento"]
+        fields = ["id", "n_lanzamiento", "f_lanzamiento", "i_lanzamiento", "url_social"]
 
 class ArtistaSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
@@ -821,6 +825,7 @@ def get_releases_cards(q=None, k_artista=None, limit=None):
             "nuevo": bool(fecha and (datetime.now().date() - fecha).days < 30),
             "agotado": bool(productos) and all(stock_disponible(p) <= 0 for p in productos),
             "precio_desde": min((p.p_producto for p in productos), default=None),
+            "original": any(es_original(p) for p in productos),
         })
         if limit and len(cards) >= limit:
             break
@@ -846,6 +851,10 @@ def get_products_cards(limit=None, k_lanzamiento=None):
             "tipo": p.tipo,
             "variantes": [{"id": v.id, "nombre": v.nombre, "stock": int(v.stock or 0)} for v in p.variantes] if p.tipo != 'BUNDLE' else [],
             "incluye": [f"{c.cantidad} × {c.componente.n_producto}" + (f" ({c.variante.nombre})" if c.variante else "") for c in p.componentes] if p.tipo == 'BUNDLE' else [],
+            "original": es_original(p),
+            #pack: imágenes de sus productos para armar el collage (máx. 4)
+            "collage": [{"id": c.componente.id, "respaldo": c.componente.lanzamiento.i_lanzamiento if c.componente.lanzamiento else ''}
+                        for c in p.componentes][:4] if p.tipo == 'BUNDLE' else [],
         })
     return cards
 
@@ -1185,3 +1194,22 @@ def actualizar_envio(k_invoice, estado):
     p.estado_envio = estado
     db.session.commit()
     return p
+
+
+#merch original Musical Box
+def es_original(producto):
+    #un pack es original si él o alguno de sus productos lo es
+    if producto.original_mb:
+        return True
+    return producto.tipo == 'BUNDLE' and any(c.componente.original_mb for c in producto.componentes)
+
+def lanzamiento_tiene_original(k_lanzamiento):
+    return any(es_original(p) for p in Producto.query.filter_by(k_lanzamiento=k_lanzamiento).all())
+
+
+def producto_card(k_producto):
+    #una sola tarjeta (página y modal del producto)
+    p = db.session.get(Producto, k_producto)
+    if not p:
+        return None
+    return next((c for c in get_products_cards(k_lanzamiento=p.k_lanzamiento) if c["id"] == p.id), None) if p.k_lanzamiento         else next((c for c in get_products_cards() if c["id"] == p.id), None)

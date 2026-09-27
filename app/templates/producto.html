@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}{{ p.nombre }}{% endblock %}
+{% block description %}{{ p.nombre }}{{ ' - ' ~ p.lanzamiento.n_lanzamiento.title() if p.lanzamiento }} en Musical Box. {{ p.descripcion or '' }}{% endblock %}
+
+{% block contenido %}
+<div class="container">
+    <nav aria-label="breadcrumb" class="mt-4">
+        <ol class="breadcrumb small">
+            <li class="breadcrumb-item"><a href="{{ url_for('products.home_products') }}">Productos</a></li>
+            {% if p.lanzamiento %}<li class="breadcrumb-item"><a href="{{ url_for('releases.release', k_lanzamiento=p.lanzamiento.id) }}">{{ p.lanzamiento.n_lanzamiento.title() }}</a></li>{% endif %}
+            <li class="breadcrumb-item active" aria-current="page">{{ p.nombre }}</li>
+        </ol>
+    </nav>
+    <div class="mb-panel p-3 p-md-4">
+        {% include "_producto_detalle.html" %}
+    </div>
+</div>
+{% endblock %}

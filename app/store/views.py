@@ -6,7 +6,7 @@ from .forms import ActivarCuentaForm, CreateUsuarioForm, LoginUsuarioForm,  newR
 from flask import Blueprint, Response, current_app, flash, session, request, g, render_template, redirect, url_for, jsonify, make_response
 #from app.store.models import create_new_user, get_all_artists, get_user_by_email, create_new_artist
 from .models import create_new_user, get_all_artists, get_user_by_email, create_new_artist, get_k_artist_by_name, create_new_release, get_release_by_name, get_releases_with_artists, get_categories, create_new_product, get_k_release_by_name_artista, create_new_category, create_new_genre, create_release_genre, new_admin, get_all_releases, get_artist_by_release, get_categories_by_release, get_release_by_id, get_genres_by_release, get_products_by_release, get_product_by_id, get_artist_by_release, update_release, get_products_with_info, edit_product, create_new_image, get_image_by_product, get_rawimage_by_product, edit_image, get_items_by_id_factura
-from .models import ESTADOS_ENVIO, ESTADOS_CON_ROTULO, opciones_componentes, stock_disponible, get_usuario_por_email, get_artist_by_id, get_releases_cards, get_products_cards, get_admin_stats, edit_user_by_email, get_all_products, get_purchases_by_user, get_all_invoices, get_solicitudes_by_user
+from .models import producto_card, lanzamiento_tiene_original, ESTADOS_ENVIO, ESTADOS_CON_ROTULO, opciones_componentes, stock_disponible, get_usuario_por_email, get_artist_by_id, get_releases_cards, get_products_cards, get_admin_stats, edit_user_by_email, get_all_products, get_purchases_by_user, get_all_invoices, get_solicitudes_by_user
 #import epaycosdk.epayco as epayco
 import json
 import urllib.parse as urlparse
@@ -16,7 +16,7 @@ import datetime
 from datetime import timedelta
 from functools import wraps
 from . import carrito
-from .redes import seleccion_para_inicio
+from .redes import seleccion_para_inicio, leer_url
 from ..db import db
 from .notificaciones import correo_activacion, usuario_de_token
 
@@ -72,7 +72,7 @@ def validate_admin():
 
 @home.route("/")
 def index():
-    return render_template("home.html", releases = get_releases_cards(limit=8), productos = get_products_cards(limit=4),
+    return render_template("home.html", releases = get_releases_cards(limit=10), productos = get_products_cards(limit=4),
                            redes = seleccion_para_inicio())
 
 @home.route("/login", methods=["GET", 'POST'])
@@ -243,6 +243,7 @@ def newrelease():
         k_lanzamiento= create_new_release(k_artista, n_lanzamiento, i_lanzamiento, f_lanzamiento, k_genero)
         print("EL LANZAMIENTO ES: "+str(k_lanzamiento)+" , "+ n_lanzamiento)
         if k_lanzamiento :
+            guardar_url_social(k_lanzamiento, form_new_release.url_social.data)
             release_genre = create_release_genre(k_lanzamiento,  k_genero)
             if release_genre:
                 flash("Lanzamiento Registrado! "+ str(n_lanzamiento) +" - "+ str(k_genero))
@@ -283,6 +284,8 @@ def newproduct():
         #print(image_file.read())
         product = create_new_product(int(k_lanzamiento), n_producto, p_producto, d_producto, stock, i_producto, k_categoria, form_new_product.tipo.data)
         if product:
+            product.original_mb = bool(form_new_product.original_mb.data)
+            db.session.commit()
             if image_file and image_file.filename:
                 create_new_image(product.id, image_file)
             #a la edición, para configurar tallas/colores o el contenido del pack
@@ -416,6 +419,8 @@ def updaterelease(k_lanzamiento):
         
         result = update_release(k_lanzamiento, n_lanzamiento, i_lanzamiento, k_artista, f_lanzamiento, k_genero)
         if result:
+            guardar_url_social(k_lanzamiento, form_edit_release.url_social.data)
+        if result:
             flash("Se actualizó el lanzamiento ["+str(k_lanzamiento)+"-"+str(n_lanzamiento)+"]")
         else:
             flash("No se pudo actualizar ["+str(k_lanzamiento)+"-"+str(n_lanzamiento)+"]")
@@ -480,6 +485,9 @@ def updateproduct(k_producto):
         
         result = edit_product(k_producto, n_producto, d_producto, p_producto, image_file, k_category, stock)
         if result:
+            get_product_by_id(k_producto).original_mb = request.form.get("original_mb") == "y"
+            db.session.commit()
+        if result:
             flash("Se actualizó el producto")
 
         else:
@@ -498,6 +506,7 @@ def updateproduct(k_producto):
         form_edit_product.d_producto.data  = producto.d_producto
         form_edit_product.i_producto.data = None
         form_edit_product.k_category.data = producto.k_categoria
+        form_edit_product.original_mb.data = producto.original_mb
         return render_template("editProduct.html", form = form_edit_product, producto = producto, opciones_componentes = opciones_componentes, stock_disponible = stock_disponible)
     return redirect(url_for('dashboard.editproduct'))
 
@@ -529,7 +538,41 @@ def release(k_lanzamiento):
             return render_template("404.html"), 404
         cards = get_products_cards(k_lanzamiento=k_lanzamiento)
         return render_template("singleRelease.html", artista=artista, lanzamiento=lanzamiento, generos = generos, productos=productos,
-                               packs=[c for c in cards if c["tipo"] == 'BUNDLE'], sueltos=[c for c in cards if c["tipo"] != 'BUNDLE'])
+                               packs=[c for c in cards if c["tipo"] == 'BUNDLE'], sueltos=[c for c in cards if c["tipo"] != 'BUNDLE'],
+                               social=post_social(lanzamiento.get("url_social")), original=any(c["original"] for c in cards))
+
+
+def guardar_url_social(k_lanzamiento, url):
+    #solo se guarda si es un post válido de Instagram/TikTok (vacío = quitarlo)
+    from .models import Lanzamiento
+    lanz = db.session.get(Lanzamiento, int(k_lanzamiento)) if str(k_lanzamiento).isdigit() else None
+    if not lanz:
+        return
+    url = (url or "").strip()
+    social = post_social(url) if url else None
+    if url and not social:
+        flash("El link de redes no es un post de Instagram o TikTok; no se guardó", "warning")
+        return
+    lanz.url_social = social["url"] if social else None
+    db.session.commit()
+
+
+def post_social(url):
+    #{"plataforma", "url", "id"} si el link del lanzamiento es un post válido de Instagram/TikTok
+    for plataforma in ('instagram', 'tiktok'):
+        limpia, id_externo, err = leer_url(plataforma, url)
+        if not err:
+            return {"plataforma": plataforma, "url": limpia, "id": id_externo}
+    return None
+
+
+@releases.route("/<int:k_lanzamiento>/post")
+def post_lanzamiento(k_lanzamiento):
+    #contenido del modal con el post de redes del lanzamiento
+    social = post_social((get_release_by_id(k_lanzamiento) or {}).get("url_social"))
+    if not social:
+        return "", 404
+    return render_template("_post_social.html", social=social)
 
 
 @artists.route("/<int:k_artista>", methods=["GET", "POST"])
@@ -587,6 +630,16 @@ def thankyou():
 @products.route("/image_<int:k_producto>")
 def image(k_producto): 
     return get_image_by_product((k_producto)) or ("", 404)
+
+@products.route("/<int:k_producto>")
+def detalle(k_producto):
+    #página del producto; con ?modal=1 devuelve solo el contenido para la vista rápida
+    p = producto_card(k_producto)
+    if not p:
+        return render_template("404.html"), 404
+    if request.args.get("modal"):
+        return render_template("_producto_detalle.html", p=p, modal=True)
+    return render_template("producto.html", p=p)
 
 @products.route("/", methods=["POST", "GET"])
 def home_products():

@@ -1,4 +1,4 @@
-{% from "_macros.html" import product_cover %}
+{% from "_macros.html" import product_cover, producto_imagen, badge_original %}
 
 {% macro release_card(r) %}
 <article class="mb-card {{ 'soldout' if r.agotado }}">
@@ -12,6 +12,7 @@
             {% if r.nuevo %}<span class="mb-chip mb-badge-new">Nuevo</span>{% endif %}
             {% if r.agotado %}<span class="mb-chip mb-badge-out">Agotado</span>{% endif %}
         </div>
+        {% if r.original %}<div class="mb-original-corner">{{ badge_original('') }}</div>{% endif %}
     </a>
     {% if user and user['k_rol'] == 'ADMIN' %}
     <a class="admin-edit btn btn-sm btn-light shadow-sm position-absolute top-0 end-0 m-2" href="{{ url_for('dashboard.updaterelease', k_lanzamiento=r.id) }}" title="Editar lanzamiento"><i class="bi bi-pencil"></i></a>
@@ -35,14 +36,16 @@
 
 {% macro product_card(p, show_release=true) %}
 {% set agotado = p.stock <= 0 %}
-<article class="mb-card {{ 'soldout' if agotado }}">
+<article class="mb-card {{ 'soldout' if agotado }} {{ 'mb-card-pack' if p.tipo == 'BUNDLE' }}">
     <div class="cover">
-        {{ product_cover(p.id, p.lanzamiento.i_lanzamiento if p.lanzamiento else '', p.nombre) }}
+        <a href="{{ url_for('products.detalle', k_producto=p.id) }}" data-quickview="{{ url_for('products.detalle', k_producto=p.id, modal=1) }}" aria-label="Ver {{ p.nombre }}">{{ producto_imagen(p) }}</a>
         <div class="badges">
-            {% if p.categoria %}<span class="mb-chip bg-white">{{ p.categoria }}</span>{% endif %}
+            {% if p.tipo == 'BUNDLE' %}<span class="mb-chip mb-badge-pack"><i class="bi bi-box-seam me-1"></i>PACK</span>
+            {% elif p.categoria %}<span class="mb-chip bg-white">{{ p.categoria }}</span>{% endif %}
             {% if agotado %}<span class="mb-chip mb-badge-out">Agotado</span>
             {% elif p.stock <= 3 %}<span class="mb-chip mb-badge-new">¡Últimos {{ p.stock }}!</span>{% endif %}
         </div>
+        {% if p.original %}<div class="mb-original-corner">{{ badge_original() }}</div>{% endif %}
         {% if user and user['k_rol'] == 'ADMIN' %}
         <a class="admin-edit btn btn-sm btn-light shadow-sm" href="{{ url_for('dashboard.updateproduct', k_producto=p.id) }}" title="Editar producto"><i class="bi bi-pencil"></i></a>
         {% endif %}
@@ -53,7 +56,7 @@
         <a class="title" href="{{ url_for('releases.release', k_lanzamiento=p.lanzamiento.id) }}">{{ p.lanzamiento.n_lanzamiento.title() }}</a>
         <span class="text-body-secondary small">{{ p.nombre }}</span>
         {% else %}
-        <span class="title">{{ p.nombre }}</span>
+        <a class="title" href="{{ url_for('products.detalle', k_producto=p.id) }}" data-quickview="{{ url_for('products.detalle', k_producto=p.id, modal=1) }}">{{ p.nombre }}</a>
         {% endif %}
         {% if p.descripcion %}<span class="text-body-secondary small">{{ p.descripcion }}</span>{% endif %}
         {% if p.incluye %}<span class="small"><i class="bi bi-box-seam me-1 text-primary"></i>Incluye: {{ p.incluye|join(' + ') }}</span>{% endif %}
