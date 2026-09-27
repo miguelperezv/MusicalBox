@@ -16,6 +16,8 @@ from datetime import datetime
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
+from flask_migrate import upgrade
+
 from app import create_app
 from app.db import db
 from app.store.models import Usuario, Solicitud
@@ -98,6 +100,8 @@ def main():
 
     app = create_app()
     with app.app_context():
+        #crea el esquema con las migraciones (migrations/versions)
+        upgrade(directory=os.path.join(ROOT, "migrations"))
         conn = db.engine.raw_connection()
         try:
             if os.path.exists(args.store):

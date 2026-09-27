@@ -11,9 +11,21 @@ Tienda de CD's, vinilos y cassettes (lanzamientos, productos, carrito, pagos ePa
 ```bash
 py -3.12 -m venv .venv
 .venv\Scripts\python -m pip install -r requirements.txt
-.venv\Scripts\python scripts\migrate_legacy.py   # crea instance/musicalbox.sqlite3 con los datos de ambas apps
+.venv\Scripts\python scripts\migrate_legacy.py   # crea instance/musicalbox.sqlite3 (migraciones + datos de ambas apps)
 .venv\Scripts\python run.py                      # http://127.0.0.1:5000
 ```
+
+### Migraciones (Flask-Migrate / Alembic)
+
+El esquema se versiona en `migrations/versions/`. La app ya no crea tablas al arrancar.
+
+```bash
+.venv\Scriptslask --app run db upgrade                 # aplica las migraciones pendientes
+.venv\Scriptslask --app run db migrate -m "mensaje"    # genera una migración tras cambiar los modelos (revísala antes de aplicarla)
+.venv\Scriptslask --app run db downgrade               # revierte la última
+```
+
+Una BD creada antes de las migraciones se marca como línea base con `flask --app run db stamp 5b10cf662d03`.
 
 Si pip falla con `CERTIFICATE_VERIFY_FAILED` (antivirus/proxy), instala primero `truststore` y usa
 `pip install --use-feature=truststore -r requirements.txt`.

@@ -716,12 +716,6 @@ def edit_user_by_email(email, nombre,apellido,ciudad,direccion, barrio=None, cel
     
 
 #solicitudes de pedido (integrado desde musical_box_manager)
-def seed_roles():
-    for rol in ROLES:
-        if not db.session.get(Rol, rol):
-            db.session.add(Rol(k_rol=rol))
-    db.session.commit()
-
 def get_or_create_cliente(tipo_id, num_id, nombre, apellido, email, direccion, ciudad, barrio, celular):
     #primero por documento, luego por email: así una solicitud queda ligada a la cuenta de la tienda si ya existe
     user = Usuario.query.filter_by(tipo_id=tipo_id, num_id=num_id).first()

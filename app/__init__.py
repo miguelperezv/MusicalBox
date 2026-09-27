@@ -1,9 +1,8 @@
 from flask import Flask, g, render_template
-from .db import db, ma
+from .db import db, ma, migrate
 from .config import DevelopmentConfig
 from .store.views import home, dashboard, releases, artists, purchase, products
 from .store.solicitudes import solicitud
-from .store.models import seed_roles
 
 ACTIVE_ENDPOINTS = [('/',home), ('/dashboard', dashboard), ('/releases', releases), ('/artists', artists), ('/purchase', purchase), ("/products", products), ("/solicitud", solicitud) ]
 
@@ -14,10 +13,8 @@ def create_app(config=DevelopmentConfig):
 
     db.init_app(app)
     ma.init_app(app)
-
-    with app.app_context():
-        db.create_all()
-        seed_roles()
+    #el esquema lo manejan las migraciones: flask --app run db upgrade
+    migrate.init_app(app, db)
 
     # register each active blueprint
     for url, blueprint in ACTIVE_ENDPOINTS:
