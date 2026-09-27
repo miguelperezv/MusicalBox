@@ -1,6 +1,9 @@
 from flask import Flask, g, render_template
 from .db import db, ma, migrate
-from .config import DevelopmentConfig
+import os
+
+import click
+from .config import CONFIGS, DevelopmentConfig
 from .store.views import home, dashboard, releases, artists, purchase, products
 from .store.solicitudes import solicitud
 from .store.pedidos import pedido
@@ -8,10 +11,14 @@ from .store import catalogo_admin  # noqa: F401 (rutas de tallas y packs en el p
 
 ACTIVE_ENDPOINTS = [('/',home), ('/dashboard', dashboard), ('/releases', releases), ('/artists', artists), ('/purchase', purchase), ("/products", products), ("/solicitud", solicitud), ("/pedido", pedido) ]
 
-def create_app(config=DevelopmentConfig):
+def create_app(config=None):
     app = Flask(__name__)
 
+    #APP_CONFIG=production en el servidor (ver docs/DEPLOY_PYTHONANYWHERE.md); por defecto, desarrollo
+    config = config or CONFIGS.get(os.getenv("APP_CONFIG", "development"), DevelopmentConfig)
     app.config.from_object(config)
+    if not app.config.get("SECRET_KEY"):
+        raise RuntimeError("Falta la variable de entorno SECRET_KEY")
 
     db.init_app(app)
     ma.init_app(app)
@@ -21,6 +28,23 @@ def create_app(config=DevelopmentConfig):
     # register each active blueprint
     for url, blueprint in ACTIVE_ENDPOINTS:
         app.register_blueprint(blueprint, url_prefix=url)
+
+    @app.cli.command("crear-admin")
+    @click.argument("email")
+    @click.option("--nombre", default="Admin", help="Nombre del administrador")
+    @click.password_option(help="Contraseña (se pide sin mostrarla)")
+    def crear_admin(email, nombre, password):
+        """Crea un administrador, o convierte en admin una cuenta existente: flask --app run crear-admin correo@x.com"""
+        from .store.models import Usuario, get_usuario_por_email
+        user = get_usuario_por_email(email)
+        if user:
+            user.k_rol, user.pwd_usuario = 'ADMIN', password
+            accion = "actualizado a administrador"
+        else:
+            db.session.add(Usuario(k_rol='ADMIN', n_usuario=nombre[:20], ape_usuario='', email_usuario=email.strip().lower(), pwd_usuario=password))
+            accion = "creado"
+        db.session.commit()
+        click.echo(f"Administrador {email} {accion}.")
 
     @app.template_filter('cop')
     def cop(valor):

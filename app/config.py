@@ -33,9 +33,18 @@ class Config(object):
 
 class ProductionConfig(Config):
     DEBUG = False
+    #en producción la clave secreta es obligatoria y viene del entorno (create_app lo verifica)
+    SECRET_KEY = os.getenv("SECRET_KEY")
+    SESSION_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+    PREFERRED_URL_SCHEME = "https"
     SQLALCHEMY_ENGINE_OPTIONS = {"pool_recycle": 299}
+
 
 class DevelopmentConfig(Config):
     DEBUG=True
     EPAYCO_SIMULACION = True
     SECRET_KEY = '\xfd{H\xe5<\x95\xf9\xe3\x96.5\xd1\x01O<!\xd5\xa2\xa0\x9fR"\xa1\xa8'
+
+
+CONFIGS = {"production": ProductionConfig, "development": DevelopmentConfig}
