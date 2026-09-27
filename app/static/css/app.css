@@ -227,3 +227,8 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
     .mb-navbar .nav-link { padding-inline: .6rem !important; }
     .mb-search { min-width: 150px; }
 }
+.mb-estado-PAGADO { background: #e5f6ea; color: #1f7a3c; }
+.mb-estado-PENDIENTE { background: #fff6d6; color: #8a6d00; }
+.mb-estado-RECHAZADO { background: #fde8e8; color: #b42318; }
+.mb-metodo { cursor: pointer; transition: border-color .15s, background .15s; }
+.mb-metodo:has(input:checked) { border-color: var(--mb-aqua) !important; background: #f0fafc; }

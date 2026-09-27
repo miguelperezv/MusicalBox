@@ -1,0 +1,4 @@
+# herramientas de desarrollo (no necesarias para correr la app)
+-r requirements.txt
+pytest==9.1.1
+playwright

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% from "_macros.html" import field, product_cover %}
+
+{% block title %}Finalizar compra{% endblock %}
+
+{% block contenido %}
+<div class="container">
+    <header class="mb-page-header">
+        <span class="mb-eyebrow">Paso 2 de 3</span>
+        <h1 class="mt-1">¿A dónde enviamos tu pedido?</h1>
+        <p class="text-body-secondary mb-0">No necesitas crear una cuenta. Te enviaremos un enlace para seguir tu pedido.</p>
+    </header>
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <form class="mb-panel p-4" method="POST" action="{{ url_for('purchase.checkout') }}" novalidate>
+                {{ form.hidden_tag() }}
+                <h2 class="h5 mb-3"><i class="bi bi-person me-2 text-primary"></i>Tus datos</h2>
+                {{ field(form.nombre, autocomplete='name') }}
+                <div class="row">
+                    {{ field(form.email, col='col-sm-6 mb-3', autocomplete='email', placeholder='tu@correo.com') }}
+                    {{ field(form.telefono, col='col-sm-6 mb-3', type='tel', autocomplete='tel', placeholder='300 000 0000') }}
+                </div>
+
+                <h2 class="h5 mt-3 mb-3"><i class="bi bi-truck me-2 text-primary"></i>Envío</h2>
+                {{ field(form.ciudad, autocomplete='off', placeholder='Escribe tu municipio o localidad', **{'data-autocomplete': url_for('home.colombia')}) }}
+                <div class="row">
+                    {{ field(form.direccion, col='col-sm-8 mb-3', autocomplete='street-address') }}
+                    {{ field(form.barrio, col='col-sm-4 mb-3') }}
+                </div>
+
+                <h2 class="h5 mt-3 mb-3"><i class="bi bi-credit-card me-2 text-primary"></i>Método de pago</h2>
+                <div class="d-grid gap-2 mb-2">
+                    {% for opcion in form.metodo_pago %}
+                    <label class="border rounded-3 p-3 d-flex align-items-center gap-3 mb-metodo">
+                        {{ opcion(class_='form-check-input mt-0') }}
+                        <span>{{ opcion.label.text }}</span>
+                    </label>
+                    {% endfor %}
+                    {% for e in form.metodo_pago.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                </div>
+                <p class="small text-body-secondary"><i class="bi bi-shield-lock me-1"></i>El pago se hace en el siguiente paso con ePayco.</p>
+
+                <button type="submit" class="btn btn-primary btn-lg w-100 mt-2">Continuar al pago <i class="bi bi-arrow-right ms-1"></i></button>
+            </form>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="mb-panel mb-sticky">
+                <h2 class="h5 mb-3">Tu pedido</h2>
+                {% for producto, cantidad in lineas %}
+                <div class="d-flex align-items-center gap-3 py-2 {{ 'border-top' if not loop.first }}">
+                    <div class="mb-thumb flex-shrink-0">{{ product_cover(producto.id, producto.lanzamiento.i_lanzamiento if producto.lanzamiento else '', producto.n_producto) }}</div>
+                    <div class="flex-fill min-w-0">
+                        <div class="fw-semibold text-truncate">{{ producto.lanzamiento.n_lanzamiento.title() if producto.lanzamiento }}</div>
+                        <small class="text-body-secondary">{{ producto.n_producto }} · {{ cantidad }} × {{ producto.p_producto|cop }}</small>
+                    </div>
+                    <div class="fw-semibold">{{ (producto.p_producto * cantidad)|cop }}</div>
+                </div>
+                {% endfor %}
+                <hr>
+                <div class="d-flex justify-content-between align-items-baseline">
+                    <span class="fw-bold">Total</span><span class="fs-4 fw-bold">{{ total|cop }}</span>
+                </div>
+                <a class="small d-inline-block mt-3" href="{{ url_for('purchase.summary') }}"><i class="bi bi-pencil me-1"></i>Editar carrito</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

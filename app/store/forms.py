@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
-from wtforms.validators import DataRequired, NumberRange
-from wtforms import StringField, SelectField, PasswordField, IntegerField, FileField, DateField, EmailField
+from wtforms.validators import DataRequired, NumberRange, Length, Regexp
+from wtforms import StringField, SelectField, PasswordField, IntegerField, FileField, DateField, EmailField, RadioField
 from datetime import date, datetime
 from wtforms import widgets as h5widgets
 import pycountry
@@ -118,3 +118,19 @@ class RegistroSolicitudForm(FlaskForm):
     email = EmailField('Email', validators=[DataRequired()])
     producto = StringField('Producto', validators=[DataRequired()], render_kw={"placeholder": "Busca en el catálogo o escribe lo que buscas"})
     d_producto = StringField('Detalles', render_kw={"placeholder": "Opcional. Edición, color, formato..."})
+
+
+def _limpiar(valor):
+    return valor.strip() if isinstance(valor, str) else valor
+
+
+class CheckoutForm(FlaskForm):
+    #compra sin cuenta: solo lo necesario para enviar el pedido y cobrarlo
+    nombre = StringField('Nombre completo', validators=[DataRequired(message="Escribe tu nombre"), Length(max=100)], filters=[_limpiar])
+    email = EmailField('Correo', validators=[DataRequired(message="Escribe tu correo"), Length(max=100),
+                                             Regexp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", message="Revisa el correo")], filters=[_limpiar])
+    telefono = StringField('Celular', validators=[DataRequired(message="Escribe un celular de contacto"), Length(max=20)], filters=[_limpiar])
+    ciudad = StringField('Municipio | Ciudad, Departamento', validators=[DataRequired(message="Escribe el municipio"), Length(max=80)], filters=[_limpiar])
+    direccion = StringField('Dirección', validators=[DataRequired(message="Escribe la dirección"), Length(max=200)], filters=[_limpiar])
+    barrio = StringField('Barrio', validators=[Length(max=30)], filters=[_limpiar])
+    metodo_pago = RadioField('Método de pago', validators=[DataRequired(message="Elige un método de pago")])

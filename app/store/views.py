@@ -5,7 +5,7 @@ from flask.wrappers import Request
 from .forms import CreateUsuarioForm, LoginUsuarioForm,  newReleaseForm, newProductForm, newCat_Genre_Artist, newAdmin, editReleaseForm, EditUsuarioForm
 from flask import Blueprint, Response, current_app, flash, session, request, g, render_template, redirect, url_for, jsonify, make_response
 #from app.store.models import create_new_user, get_all_artists, get_user_by_email, create_new_artist
-from .models import create_new_user, get_all_artists, get_user_by_email, create_new_artist, get_k_artist_by_name, create_new_release, get_release_by_name, get_releases_with_artists, get_categories, create_new_product, get_k_release_by_name_artista, create_new_category, create_new_genre, create_release_genre, new_admin, get_all_releases, get_artist_by_release, get_categories_by_release, get_release_by_id, get_genres_by_release, get_products_by_release, get_product_by_id, create_new_invoice, add_items, get_artist_by_release, update_release, get_products_with_info, edit_product, create_new_image, get_image_by_product, get_rawimage_by_product, edit_image, update_stock, get_items_by_id_factura
+from .models import create_new_user, get_all_artists, get_user_by_email, create_new_artist, get_k_artist_by_name, create_new_release, get_release_by_name, get_releases_with_artists, get_categories, create_new_product, get_k_release_by_name_artista, create_new_category, create_new_genre, create_release_genre, new_admin, get_all_releases, get_artist_by_release, get_categories_by_release, get_release_by_id, get_genres_by_release, get_products_by_release, get_product_by_id, get_artist_by_release, update_release, get_products_with_info, edit_product, create_new_image, get_image_by_product, get_rawimage_by_product, edit_image, get_items_by_id_factura
 from .models import get_artist_by_id, get_releases_cards, get_products_cards, get_admin_stats, edit_user_by_email, get_all_products, get_purchases_by_user, get_all_invoices, get_solicitudes_by_user
 #import epaycosdk.epayco as epayco
 import json
@@ -599,50 +599,8 @@ def updatesingle(k_producto, opc):
 
 @purchase.route('/payment', methods=["POST", "GET"])
 def payment():
-    if request.method=='POST':
-        print("SOY POST")
-    
-    if request.method=='GET':
-        print("SOY GET")
-        
-        url = request.url
-        parsed = urlparse.urlparse(url)
-        
-        try:
-            ref_payco= (parse_qs(parsed.query)['ref_payco'])
-        except Exception as e:
-            print("No se obtuvo la ref payco")
-            flash("No se recibió la referencia de pago", "warning")
-            return redirect(url_for('purchase.summary'))
-        
-        myResponse = "https://secure.epayco.co/validation/v1/reference/"+ref_payco[0]
-        r = requests.get(myResponse)
-
-        factura_epayco= (r.json())
-        print(factura_epayco)
-        print(factura_epayco.get("data").get("x_response"))
-        if factura_epayco.get("data").get("x_response") == 'Aceptada':
-            print("La transacción fue exitosa")
-            factura = create_new_invoice(session["purchase"], g.user["id"], factura_epayco.get("data").get("x_id_factura"), factura_epayco.get("data").get("x_ref_payco"))
-            if factura:
-                items = add_items(factura.id, session["purchase"])
-                if items:
-                    print("SE CREÓ LA FACTURA CORRECTAMENTE CON SUS ITEMS")
-                    update_stock(session["purchase"])
-                    session["purchase"] = {}
-                    session["purchase"] = session["purchase"]
-                    return redirect(url_for('purchase.thankyou'))
-                else:
-                    print("ERROR CRITICO NO SE AGREGARON LOS ITEMS")
-            else:
-                print("ERROR CRITICO NO SE AGREGÓ LA FACTURA")
-        else:
-            print("No fue exitosa")
-            flash("No fue exitoso el pago")
-            return redirect(url_for('purchase.payment'))
-        
-        
-
+    #el pago ahora pertenece a un pedido: /purchase/checkout -> /pedido/<token> (ver pedidos.py)
+    return redirect(url_for('purchase.summary'))
         
     
 

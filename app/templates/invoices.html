@@ -6,7 +6,8 @@
                 <tr>
                     <th class="ps-3">#</th>
                     <th>Fecha</th>
-                    <th>Cliente</th>
+                    <th>Estado</th>
+                    <th>Comprador y envío</th>
                     <th>Productos</th>
                     <th class="text-end">Total</th>
                     <th class="pe-3">Ref. ePayco</th>
@@ -17,7 +18,13 @@
                 <tr>
                     <td class="ps-3 text-body-secondary">{{ i.id }}</td>
                     <td class="text-nowrap">{{ i.f_compra.strftime('%d/%m/%Y %H:%M') if i.f_compra }}</td>
-                    <td>{{ i.usuario.n_usuario if i.usuario }} {{ i.usuario.ape_usuario if i.usuario }}<br><small class="text-body-secondary">{{ i.usuario.email_usuario if i.usuario }}</small></td>
+                    <td><span class="mb-estado mb-estado-{{ i.estado }}">{{ i.estado }}</span>{% if i.metodo_pago %}<br><small class="text-body-secondary">{{ i.metodo_pago }}</small>{% endif %}</td>
+                    <td>
+                        {{ i.n_envio or ((i.usuario.n_usuario ~ ' ' ~ i.usuario.ape_usuario) if i.usuario) }}
+                        {% if i.usuario and i.usuario.k_rol == 'CLIENTE' %}<span class="mb-chip" title="Compró sin crear cuenta">invitado</span>{% endif %}
+                        <br><small class="text-body-secondary">{{ i.email_envio or (i.usuario.email_usuario if i.usuario) }}{% if i.tel_envio %} · {{ i.tel_envio }}{% endif %}</small>
+                        {% if i.dir_envio %}<br><small class="text-body-secondary">{{ i.dir_envio }}{% if i.barrio_envio %}, {{ i.barrio_envio }}{% endif %} · {{ i.lugar_envio }}</small>{% endif %}
+                    </td>
                     <td class="small">
                         {% for item in get_items_by_id_factura(i.id) %}
                         {{ item.cant_item|int }} × {{ item.producto.lanzamiento.n_lanzamiento.title() if item.producto and item.producto.lanzamiento }} <span class="text-body-secondary">{{ item.producto.n_producto if item.producto }}</span><br>
@@ -27,7 +34,7 @@
                     <td class="pe-3 small text-body-secondary">{{ i.ref_payco or '—' }}</td>
                 </tr>
                 {% else %}
-                <tr><td colspan="6" class="mb-empty">No hay órdenes de compra</td></tr>
+                <tr><td colspan="7" class="mb-empty">No hay órdenes de compra</td></tr>
                 {% endfor %}
             </tbody>
         </table>

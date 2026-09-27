@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% from "_macros.html" import product_cover %}
+
+{% block title %}Pedido #{{ pedido.id }}{% endblock %}
+{% block head %}<meta name="robots" content="noindex, nofollow">{% endblock %}
+
+{% block contenido %}
+{% set info = {
+    'PENDIENTE': ('bi-hourglass-split', 'text-warning', 'Pendiente de pago'),
+    'PAGADO': ('bi-check-circle-fill', 'text-success', '¡Pago confirmado!'),
+    'RECHAZADO': ('bi-x-circle-fill', 'text-danger', 'Pago no aprobado'),
+}[pedido.estado] %}
+<div class="container">
+    <header class="mb-page-header">
+        <span class="mb-eyebrow">Pedido #{{ pedido.id }} · {{ pedido.f_compra.strftime('%d/%m/%Y %H:%M') if pedido.f_compra }}</span>
+        <h1 class="mt-1"><i class="bi {{ info[0] }} {{ info[1] }} me-2"></i>{{ info[2] }}</h1>
+        {% if pedido.estado == 'PAGADO' %}
+        <p class="text-body-secondary mb-0">Gracias por tu compra, {{ (pedido.n_envio or '').split(' ')[0] }}. Te contactaremos para coordinar el envío.</p>
+        {% else %}
+        <p class="text-body-secondary mb-0">Tu pedido está guardado. Completa el pago para confirmarlo.</p>
+        {% endif %}
+    </header>
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="mb-panel mb-4">
+                <h2 class="h5 mb-3">Productos</h2>
+                {% for item in pedido.items %}
+                {% set producto = item.producto %}
+                <div class="d-flex align-items-center gap-3 py-2 {{ 'border-top' if not loop.first }}">
+                    <div class="mb-thumb flex-shrink-0">{% if producto %}{{ product_cover(producto.id, producto.lanzamiento.i_lanzamiento if producto.lanzamiento else '', producto.n_producto) }}{% endif %}</div>
+                    <div class="flex-fill min-w-0">
+                        <div class="fw-semibold text-truncate">{{ producto.lanzamiento.n_lanzamiento.title() if producto and producto.lanzamiento }}</div>
+                        <small class="text-body-secondary">{{ producto.n_producto if producto }} · {{ item.cant_item|int }} × {{ item.p_item|cop }}</small>
+                    </div>
+                    <div class="fw-semibold">{{ (item.p_item * item.cant_item)|cop }}</div>
+                </div>
+                {% endfor %}
+                <hr>
+                <div class="d-flex justify-content-between align-items-baseline">
+                    <span class="fw-bold">Total</span><span class="fs-4 fw-bold">{{ pedido.total|cop }}</span>
+                </div>
+            </div>
+
+            <div class="mb-panel">
+                <h2 class="h5 mb-3">Envío</h2>
+                <dl class="row mb-0 small">
+                    <dt class="col-sm-4 text-body-secondary fw-normal">Para</dt><dd class="col-sm-8">{{ pedido.n_envio }}</dd>
+                    <dt class="col-sm-4 text-body-secondary fw-normal">Dirección</dt><dd class="col-sm-8">{{ pedido.dir_envio }}{% if pedido.barrio_envio %}, {{ pedido.barrio_envio }}{% endif %}</dd>
+                    <dt class="col-sm-4 text-body-secondary fw-normal">Municipio</dt><dd class="col-sm-8">{{ pedido.lugar_envio }}</dd>
+                    <dt class="col-sm-4 text-body-secondary fw-normal">Contacto</dt><dd class="col-sm-8 mb-0">{{ pedido.tel_envio }} · {{ pedido.email_envio }}</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="mb-panel mb-sticky">
+                {% if pedido.estado in ['PENDIENTE', 'RECHAZADO'] %}
+                <h2 class="h5 mb-2">Pagar {{ pedido.total|cop }}</h2>
+                <p class="small text-body-secondary">Método elegido: {{ pedido.metodo_pago or '—' }}. En ePayco puedes cambiarlo.</p>
+                <!-- Botón de pago ePayco: la respuesta vuelve a este mismo pedido -->
+                <form class="text-center">
+                    <script src="https://checkout.epayco.co/checkout.js"
+                        data-epayco-key="{{ config.EPAYCO_PUBLIC_KEY }}"
+                        class="epayco-button"
+                        data-epayco-amount="{{ pedido.total|int }}"
+                        data-epayco-tax="0"
+                        data-epayco-tax-base="{{ pedido.total|int }}"
+                        data-epayco-name="Musical Box - Pedido {{ pedido.id }}"
+                        data-epayco-description="Pedido {{ pedido.id }} en Musical Box"
+                        data-epayco-invoice="{{ referencia }}"
+                        data-epayco-currency="cop"
+                        data-epayco-country="CO"
+                        data-epayco-test="{{ 'true' if config.EPAYCO_TEST else 'false' }}"
+                        data-epayco-external="false"
+                        data-epayco-name-billing="{{ pedido.n_envio }}"
+                        data-epayco-email-billing="{{ pedido.email_envio }}"
+                        data-epayco-mobilephone-billing="{{ pedido.tel_envio }}"
+                        data-epayco-response="{{ url_for('pedido.respuesta', token=token, _external=True) }}"
+                        data-epayco-confirmation="{{ url_for('pedido.respuesta', token=token, _external=True) }}"
+                        data-epayco-button="https://369969691f476073508a-60bf0867add971908d4f26a64519c2aa.ssl.cf5.rackcdn.com/btns/boton_carro_de_compras_epayco2.png">
+                    </script>
+                </form>
+                {% if simulacion %}
+                <div class="border border-warning rounded-3 p-3 mt-3 small">
+                    <div class="fw-semibold mb-2"><i class="bi bi-tools me-1"></i>Modo desarrollo: simular respuesta de ePayco</div>
+                    <form method="POST" action="{{ url_for('pedido.simular', token=token) }}" class="d-flex gap-2">
+                        <button class="btn btn-sm btn-success" name="resultado" value="aprobado">Pago aprobado</button>
+                        <button class="btn btn-sm btn-outline-danger" name="resultado" value="rechazado">Pago rechazado</button>
+                    </form>
+                </div>
+                {% endif %}
+                <hr>
+                {% endif %}
+
+                <h2 class="h6"><i class="bi bi-link-45deg me-1"></i>Enlace de seguimiento</h2>
+                <p class="small text-body-secondary">Guárdalo: con este enlace puedes ver tu pedido en cualquier momento, sin contraseña. No lo compartas.</p>
+                <div class="input-group input-group-sm">
+                    <input class="form-control" id="enlace-pedido" value="{{ url_for('pedido.ver', token=token, _external=True) }}" readonly aria-label="Enlace del pedido">
+                    <button class="btn btn-outline-secondary" type="button" id="copiar-enlace"><i class="bi bi-clipboard"></i> Copiar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('copiar-enlace').addEventListener('click', function () {
+        var input = document.getElementById('enlace-pedido');
+        navigator.clipboard.writeText(input.value).then(() => { this.innerHTML = '<i class="bi bi-check2"></i> Copiado'; });
+    });
+</script>
+{% endblock %}

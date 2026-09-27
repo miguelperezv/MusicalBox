@@ -58,34 +58,8 @@
                 <div class="d-flex justify-content-between align-items-baseline mb-4">
                     <span class="fw-bold">Total</span><span class="fs-4 fw-bold">{{ total|cop }}</span>
                 </div>
-                {% if not user %}
-                <p class="small text-body-secondary">Para pagar necesitas ingresar a tu cuenta.</p>
-                <a class="btn btn-primary w-100 mb-2" href="{{ url_for('home.login') }}">Ingresar</a>
-                <a class="btn btn-outline-secondary w-100" href="{{ url_for('home.signup') }}">Crear cuenta</a>
-                {% else %}
-                <!-- Botón de pago ePayco (modo pruebas) -->
-                <form class="text-center" action="{{ url_for('purchase.payment') }}" method="POST">
-                    <script src="https://checkout.epayco.co/checkout.js"
-                        data-epayco-key="7c0e3cb9905cc6924cfa41bd822306cf"
-                        data-epayco-private-key="3d1d87bb853a61cd897ff62994f55240"
-                        class="epayco-button"
-                        data-epayco-amount="{{ total }}"
-                        data-epayco-tax="{{ 0 }}"
-                        data-epayco-tax-ico="NaN"
-                        data-epayco-tax-base="{{ total }}"
-                        data-epayco-name="Musical Box"
-                        data-epayco-description="Compra en Musical Box"
-                        data-epayco-currency="cop"
-                        data-epayco-country="CO"
-                        data-epayco-test="true"
-                        data-epayco-external="false"
-                        data-epayco-response="{{ url_for('purchase.payment', _external=True) }}"
-                        data-epayco-confirmation="{{ url_for('purchase.thankyou', _external=True) }}"
-                        data-epayco-button="https://369969691f476073508a-60bf0867add971908d4f26a64519c2aa.ssl.cf5.rackcdn.com/btns/boton_carro_de_compras_epayco2.png">
-                    </script>
-                </form>
-                <p class="small text-body-secondary text-center mt-2 mb-0"><i class="bi bi-shield-lock me-1"></i>Pago seguro con ePayco</p>
-                {% endif %}
+                <a class="btn btn-primary btn-lg w-100" href="{{ url_for('purchase.checkout') }}">Continuar al pago <i class="bi bi-arrow-right ms-1"></i></a>
+                <p class="small text-body-secondary text-center mt-2 mb-0"><i class="bi bi-shield-lock me-1"></i>No necesitas crear cuenta · Pago seguro con ePayco</p>
             </div>
         </div>
     </div>

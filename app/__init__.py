@@ -3,8 +3,9 @@ from .db import db, ma, migrate
 from .config import DevelopmentConfig
 from .store.views import home, dashboard, releases, artists, purchase, products
 from .store.solicitudes import solicitud
+from .store.pedidos import pedido
 
-ACTIVE_ENDPOINTS = [('/',home), ('/dashboard', dashboard), ('/releases', releases), ('/artists', artists), ('/purchase', purchase), ("/products", products), ("/solicitud", solicitud) ]
+ACTIVE_ENDPOINTS = [('/',home), ('/dashboard', dashboard), ('/releases', releases), ('/artists', artists), ('/purchase', purchase), ("/products", products), ("/solicitud", solicitud), ("/pedido", pedido) ]
 
 def create_app(config=DevelopmentConfig):
     app = Flask(__name__)

@@ -30,6 +30,24 @@ Una BD creada antes de las migraciones se marca como línea base con `flask --ap
 Si pip falla con `CERTIFICATE_VERIFY_FAILED` (antivirus/proxy), instala primero `truststore` y usa
 `pip install --use-feature=truststore -r requirements.txt`.
 
+## Pruebas
+
+```bash
+.venv\Scripts\python -m pip install -r requirements-dev.txt
+.venv\Scripts\python -m pytest tests        # BD temporal creada con las migraciones; ePayco simulado
+```
+
+## Compra sin cuenta
+
+Carrito → `/purchase/checkout` (nombre, correo, celular, envío y método de pago; sin contraseña) → pedido PENDIENTE
+→ `/pedido/<token>` con el botón de ePayco → ePayco vuelve a `/pedido/<token>/respuesta`, se valida la referencia
+con su API (pedido y monto exactos) y el pedido pasa a PAGADO (descuenta stock una sola vez) o RECHAZADO.
+
+- El comprador sin cuenta es un `usuario` con rol `CLIENTE`, único por correo: una segunda compra lo reutiliza.
+- El token del enlace es `secrets.token_urlsafe(32)` (256 bits); en la BD solo se guarda su SHA-256.
+- En desarrollo (`EPAYCO_SIMULACION`) la página del pedido tiene botones para simular la respuesta de ePayco.
+- Llaves de ePayco: variables de entorno `EPAYCO_PUBLIC_KEY`, `EPAYCO_PRIVATE_KEY`, `EPAYCO_TEST`.
+
 ## Interfaz
 
 Bootstrap 5.3 + Bootstrap Icons, con el sistema de diseño de la marca en `app/static/css/app.css`

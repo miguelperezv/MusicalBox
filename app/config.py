@@ -11,6 +11,13 @@ class Config(object):
     #SQLALCHEMY_ECHO=True
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     UPLOAD_FOLDER = UPLOAD_FOLDER
+    #ePayco (llaves de pruebas por defecto; en producción van en variables de entorno)
+    EPAYCO_PUBLIC_KEY = os.getenv("EPAYCO_PUBLIC_KEY", "7c0e3cb9905cc6924cfa41bd822306cf")
+    EPAYCO_PRIVATE_KEY = os.getenv("EPAYCO_PRIVATE_KEY", "3d1d87bb853a61cd897ff62994f55240")
+    EPAYCO_TEST = os.getenv("EPAYCO_TEST", "true").lower() == "true"
+    EPAYCO_VALIDATION_URL = "https://secure.epayco.co/validation/v1/reference/"
+    #botones para simular pago aprobado/rechazado sin pasar por ePayco (solo desarrollo)
+    EPAYCO_SIMULACION = False
 
 
 
@@ -20,4 +27,5 @@ class ProductionConfig(Config):
 
 class DevelopmentConfig(Config):
     DEBUG=True
+    EPAYCO_SIMULACION = True
     SECRET_KEY = '\xfd{H\xe5<\x95\xf9\xe3\x96.5\xd1\x01O<!\xd5\xa2\xa0\x9fR"\xa1\xa8'

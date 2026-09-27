@@ -5,6 +5,8 @@ from ..db import db, ma
 from datetime import datetime
 from base64 import b64encode
 import secrets
+import hashlib
+from sqlalchemy.exc import IntegrityError
 
 
 
@@ -341,58 +343,6 @@ def create_release_genre(k_lanzamiento, k_genero):
         return (r_g)
     except:
         return None
-
-def create_new_invoice(cart, user_id, id_factura_payco, ref_payco):
-    print("creando nueva factura")
-    print(cart)
-    invoice = Invoice(k_usuario = user_id, total = get_total(cart), id_factura_payco = id_factura_payco, ref_payco = ref_payco )
-    print("SOO MY INVOICE WILL BE")
-    print(invoice.id)
-    try:
-        db.session.add(invoice)
-        db.session.commit()
-        print("SE CREO LA FACTURA!")
-        return invoice
-    except Exception as e:
-        print("ERROR CRITICO NO SE CREO LA FACTURA! "+ str(e))
-        db.session.rollback()
-        return None
-    
-def add_items(factura_id, cart):
-    for i in cart:
-        item = Item(k_producto = i, k_factura = factura_id, p_item = get_product_by_id(i).p_producto, cant_item = cart[i] )
-        print("SOOO THE ITEM factura es IS")
-        print(item.k_producto)
-        try:
-            db.session.add(item)
-            db.session.commit()
-            print("SE CREO el item")
-        except:
-            print("ERROR CRITICO NO SE CREO el itme :(!")
-            db.session.rollback()
-    return "ok"
-
-def update_stock(cart):
-    
-        for i in cart:
-            try:
-                producto = Producto.query.filter_by(id=i).first()
-                print("Producto "+ str(producto))
-                producto.stock = producto.stock - cart[i]
-                db.session.commit()
-            except Exception as e:
-                print("ERROR EN UPDATE STOCK "+ str(e)+ " en: " + str(i))
-
-          
-
-
-def get_total(items):
-    total =0
-    for p in items:
-        total += get_product_by_id(p).p_producto * items[p]
-    print("EL TOTAL ES:")
-    print(total)
-    return total
 
 def new_admin(email, pwd, guser):
     print(guser)
@@ -873,8 +823,9 @@ def get_products_cards(limit=None):
 def get_admin_stats():
     return {
         "solicitudes_activas": Solicitud.query.filter(Solicitud.estado.in_(['ACTIVO', 'EN PROCESO'])).count(),
-        "ordenes": Invoice.query.count(),
-        "ventas": sum((i.total or 0) for i in Invoice.query.all()),
+        "ordenes": Invoice.query.filter_by(estado='PAGADO').count(),
+        "pendientes": Invoice.query.filter_by(estado='PENDIENTE').count(),
+        "ventas": sum((i.total or 0) for i in Invoice.query.filter_by(estado='PAGADO').all()),
         "productos": Producto.query.count(),
         "agotados": Producto.query.filter(Producto.stock <= 0).count(),
         "lanzamientos": Lanzamiento.query.count(),
@@ -882,3 +833,111 @@ def get_admin_stats():
         "ultimas_solicitudes": Solicitud.query.order_by(db.desc(Solicitud.f_solicitud)).limit(5).all(),
         "ultimas_ordenes": Invoice.query.order_by(db.desc(Invoice.f_compra)).limit(5).all(),
     }
+
+
+#pedidos sin cuenta (checkout de invitado)
+def hash_token(token):
+    #en la BD solo queda el SHA-256: con una copia de la BD no se pueden armar los enlaces /pedido/<token>
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+def get_or_create_comprador(nombre, email, telefono, direccion, ciudad, barrio):
+    #un comprador por correo (sin distinguir mayúsculas); si no existe queda como CLIENTE, sin login
+    email = email.strip().lower()
+    user = Usuario.query.filter(db.func.lower(Usuario.email_usuario) == email).first()
+    if user:
+        #completa lo que falte, no pisa datos de la cuenta (el pedido guarda su propia copia)
+        user.cel_usuario = user.cel_usuario or telefono
+        user.dir_usuario = user.dir_usuario or direccion
+        user.lugar_usuario = user.lugar_usuario or ciudad
+        user.barrio_usuario = user.barrio_usuario or barrio
+        return user
+    partes = nombre.strip().split(maxsplit=1)
+    user = Usuario(k_rol='CLIENTE', n_usuario=partes[0][:20], ape_usuario=(partes[1] if len(partes) > 1 else '')[:20],
+                   email_usuario=email, pwd_usuario=secrets.token_hex(16), cel_usuario=telefono,
+                   dir_usuario=direccion, lugar_usuario=ciudad, barrio_usuario=barrio)
+    db.session.add(user)
+    db.session.flush()
+    return user
+
+def validar_carrito(cart):
+    #devuelve (lineas, total, errores); el stock se revisa aquí y otra vez al confirmar el pago
+    lineas, errores, total = [], [], 0
+    for k_producto, cantidad in (cart or {}).items():
+        producto = db.session.get(Producto, int(k_producto))
+        cantidad = int(cantidad)
+        if not producto or cantidad < 1:
+            errores.append("Un producto de tu carrito ya no está disponible")
+            continue
+        nombre = (producto.lanzamiento.n_lanzamiento.title() + " - " if producto.lanzamiento else "") + (producto.n_producto or "")
+        if cantidad > int(producto.stock or 0):
+            errores.append(f"{nombre}: solo quedan {int(producto.stock or 0)} disponibles")
+            continue
+        lineas.append((producto, cantidad))
+        total += producto.p_producto * cantidad
+    if not lineas and not errores:
+        errores.append("Tu carrito está vacío")
+    return lineas, total, errores
+
+def crear_pedido(cart, datos, k_usuario=None):
+    """Crea el pedido PENDIENTE con sus líneas. Devuelve (pedido, token, errores).
+    El token se entrega una sola vez (enlace de seguimiento); en la BD queda su hash."""
+    lineas, total, errores = validar_carrito(cart)
+    if errores:
+        return None, None, errores
+    for intento in range(2):
+        try:
+            comprador = db.session.get(Usuario, k_usuario) if k_usuario else None
+            if not comprador:
+                comprador = get_or_create_comprador(datos["nombre"], datos["email"], datos["telefono"],
+                                                    datos["direccion"], datos["ciudad"], datos.get("barrio"))
+            #token_urlsafe(32): 32 bytes (256 bits) del generador criptográfico del sistema operativo
+            token = secrets.token_urlsafe(32)
+            pedido = Invoice(k_usuario=comprador.id, total=total, estado='PENDIENTE', metodo_pago=datos.get("metodo_pago"),
+                             token_hash=hash_token(token), token_creado=datetime.now(),
+                             n_envio=datos["nombre"].strip(), email_envio=datos["email"].strip().lower(),
+                             tel_envio=datos["telefono"].strip(), dir_envio=datos["direccion"].strip(),
+                             lugar_envio=datos["ciudad"].strip(), barrio_envio=(datos.get("barrio") or "").strip() or None)
+            db.session.add(pedido)
+            db.session.flush()
+            for producto, cantidad in lineas:
+                db.session.add(Item(k_producto=producto.id, k_factura=pedido.id, cant_item=cantidad, p_item=producto.p_producto))
+            db.session.commit()
+            return pedido, token, []
+        except IntegrityError:
+            #dos compras simultáneas con el mismo correo nuevo: el segundo intento reutiliza el comprador ya creado
+            db.session.rollback()
+    return None, None, ["No pudimos crear tu pedido, intenta de nuevo"]
+
+def get_pedido_por_token(token):
+    if not token or len(token) > 100:
+        return None
+    return Invoice.query.filter_by(token_hash=hash_token(token)).first()
+
+def referencia_epayco(pedido):
+    #número de factura que viaja a ePayco; incluye parte del hash para no chocar si la BD de desarrollo se regenera
+    return f"MB{pedido.id}-{pedido.token_hash[:8]}"
+
+def confirmar_pago(pedido, ref_payco, id_factura_payco=None, franquicia=None):
+    #idempotente: el stock se descuenta una sola vez, en el paso a PAGADO
+    if pedido.estado == 'PAGADO':
+        return pedido
+    pedido.estado = 'PAGADO'
+    pedido.ref_payco = ref_payco
+    pedido.id_factura_payco = id_factura_payco
+    if franquicia:
+        pedido.metodo_pago = f"{pedido.metodo_pago or ''} ({franquicia})".strip()[:30]
+    for item in Item.query.filter_by(k_factura=pedido.id).all():
+        producto = db.session.get(Producto, item.k_producto)
+        if producto:
+            if producto.stock < item.cant_item:
+                print(f"AVISO stock insuficiente al confirmar pedido {pedido.id}: producto {producto.id}")
+            producto.stock = max(0, producto.stock - item.cant_item)
+    db.session.commit()
+    return pedido
+
+def rechazar_pago(pedido, ref_payco):
+    if pedido.estado != 'PAGADO':
+        pedido.estado = 'RECHAZADO'
+        pedido.ref_payco = ref_payco
+        db.session.commit()
+    return pedido

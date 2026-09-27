@@ -42,7 +42,7 @@
             <h1 class="h3 mb-4">Resumen</h1>
             <div class="row row-cols-2 row-cols-xl-4 g-3 mb-4">
                 <div class="col"><div class="mb-stat"><i class="bi bi-send"></i><div class="value mt-2">{{ stats.solicitudes_activas }}</div><div class="label">Solicitudes por atender</div></div></div>
-                <div class="col"><div class="mb-stat"><i class="bi bi-receipt"></i><div class="value mt-2">{{ stats.ordenes }}</div><div class="label">Órdenes · {{ stats.ventas|cop }}</div></div></div>
+                <div class="col"><div class="mb-stat"><i class="bi bi-receipt"></i><div class="value mt-2">{{ stats.ordenes }}</div><div class="label">Pagadas · {{ stats.ventas|cop }}{% if stats.pendientes %} · {{ stats.pendientes }} pendientes{% endif %}</div></div></div>
                 <div class="col"><div class="mb-stat"><i class="bi bi-bag"></i><div class="value mt-2">{{ stats.productos }}</div><div class="label">Productos · {{ stats.agotados }} agotados</div></div></div>
                 <div class="col"><div class="mb-stat"><i class="bi bi-people"></i><div class="value mt-2">{{ stats.clientes }}</div><div class="label">Clientes</div></div></div>
             </div>
@@ -82,8 +82,8 @@
                                     {% for i in stats.ultimas_ordenes %}
                                     <tr>
                                         <td class="text-body-secondary">#{{ i.id }}</td>
-                                        <td>{{ i.usuario.n_usuario if i.usuario }}<br><small class="text-body-secondary">{{ i.f_compra.strftime('%d/%m/%Y') if i.f_compra }}</small></td>
-                                        <td class="text-end fw-semibold">{{ i.total|cop }}</td>
+                                        <td>{{ i.n_envio or (i.usuario.n_usuario if i.usuario) }}<br><small class="text-body-secondary">{{ i.f_compra.strftime('%d/%m/%Y') if i.f_compra }}</small></td>
+                                        <td class="text-end"><span class="fw-semibold">{{ i.total|cop }}</span><br><span class="mb-estado mb-estado-{{ i.estado }}">{{ i.estado }}</span></td>
                                     </tr>
                                     {% else %}
                                     <tr><td class="text-body-secondary">Sin órdenes</td></tr>
