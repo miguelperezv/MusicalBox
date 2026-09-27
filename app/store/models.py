@@ -140,7 +140,7 @@ class Invoice(db.Model):
     f_actualizacion = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     #atributos de la relacion
     usuario = db.relationship("Usuario")
-    items = db.relationship("Item", viewonly=True)
+    items = db.relationship("Item", viewonly=True, order_by="Item.id")
 
 ESTADOS_PEDIDO = ['PENDIENTE', 'PAGADO', 'RECHAZADO']
 METODOS_PAGO = [('TARJETA', 'Tarjeta de crédito o débito'), ('PSE', 'PSE (débito desde tu banco)'), ('EFECTIVO', 'Efectivo (Efecty, Baloto y otros)')]
@@ -791,7 +791,7 @@ def get_catalogo_solicitud():
         artista = get_artist_by_release(p.k_lanzamiento) if p.k_lanzamiento else None
         lanzamiento = p.lanzamiento.n_lanzamiento if p.lanzamiento else ''
         nombre = " - ".join(x for x in [artista.n_artista.title() if artista else '', lanzamiento, p.n_producto or ''] if x)
-        r.append({"id": p.id, "nombre": nombre, "categoria": p.k_categoria, "stock": int(p.stock or 0)})
+        r.append({"id": p.id, "nombre": nombre, "categoria": 'PACK' if p.tipo == 'BUNDLE' else p.k_categoria, "stock": stock_disponible(p)})
     return r
 
 def get_all_invoices():

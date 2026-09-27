@@ -31,7 +31,7 @@
                     <div class="mb-thumb flex-shrink-0">{% if producto %}{{ product_cover(producto.id, producto.lanzamiento.i_lanzamiento if producto.lanzamiento else '', producto.n_producto) }}{% endif %}</div>
                     <div class="flex-fill min-w-0">
                         <div class="fw-semibold text-truncate">{{ producto.lanzamiento.n_lanzamiento.title() if producto and producto.lanzamiento }}</div>
-                        <small class="text-body-secondary">{{ producto.n_producto if producto }} · {{ item.cant_item|int }} × {{ item.p_item|cop }}</small>
+                        <small class="text-body-secondary">{{ producto.n_producto if producto }}{% if item.variante %} ({{ item.variante.nombre }}){% endif %} · {{ item.cant_item|int }} × {{ item.p_item|cop }}</small>
                     </div>
                     <div class="fw-semibold">{{ (item.p_item * item.cant_item)|cop }}</div>
                 </div>

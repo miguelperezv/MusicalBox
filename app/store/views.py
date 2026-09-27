@@ -15,6 +15,7 @@ import requests
 import datetime
 from datetime import timedelta
 from functools import wraps
+from . import carrito
 from ..db import db
 from .notificaciones import correo_activacion, usuario_de_token
 
@@ -530,100 +531,38 @@ def artist(k_artista):
             return render_template("404.html"), 404
         return render_template("releases.html", releases = get_releases_cards(k_artista=k_artista), artista = artista)
 
-@purchase.route("/", methods=["GET", "POST"])
+@purchase.route("/", methods=["GET"])
 def summary():
-    total=0
-    if request.method == 'GET':
-        for p in session["purchase"]:
-            print("sumando")
-            total += get_product_by_id(p).p_producto * session["purchase"][p]
-        resp = make_response(render_template("purchase.html", user=g.user, purchase_cart=g.purchase, get_product_by_id = get_product_by_id, total=float(total), get_release_by_id = get_release_by_id))
-        resp.set_cookie('same-site-cookie', 'foo', samesite='Lax')
-        resp.set_cookie('cross-site-cookie', 'bar', samesite='Lax', secure=True)
-        return resp
-        
-    if request.method == 'POST':
-        None
-
-def MergeDict(dict1, dict2):
-    if isinstance(dict1, list) and isinstance(dict2, list):
-        return dict1 + dict2
-    elif isinstance(dict1, dict) and isinstance(dict2, dict):
-        print("ENTRO A MERGE")
-        return dict(list(dict1.items()) + list(dict2.items()))
+    #el stock por variante y de los packs se revisa aquí, antes de ir a pagar
+    lineas, total, errores = carrito.resumen(session.get("purchase"))
+    return render_template("purchase.html", lineas=lineas, total=total, errores=errores)
 
 
 @purchase.route("/addtocart" ,methods=["POST"])
 def addtocart():
-        try:
-            product_id = request.form.get('product_id')
-            quantity = int(request.form.get("quantity"))
-            print(product_id)
-            print(quantity)
-            if product_id and quantity and request.method=='POST':
-                print("Entro al post")
-                cart={ product_id :quantity }
-                print("cart is")
-                print(cart)
-                if "purchase" in session:
-                    
-                    print(session["purchase"])
-                    if product_id in session["purchase"]:
-                        flash("Ya has agregado este producto a tu carrito!")
-                        
-                    else:
-                        #para arreglar la varuable global
-                        #session["purchase"] = cart
-                        #print("new session purchase")
-                        print(session["purchase"])
-                        session["purchase"] = MergeDict(session["purchase"], cart)
-                        return redirect(request.referrer)
-                else:
-                    session["purchase"] = MergeDict(session["purchase"], cart)
-                    session["purchase"] = cart
-                    return redirect(request.referrer)
-                
-        except Exception as e:
-            print(e)
-        finally:
-            return redirect(request.referrer)
-            
-        
+    k_producto = request.form.get("product_id", type=int)
+    k_variante = request.form.get("variante_id", type=int)
+    cantidad = request.form.get("quantity", default=1, type=int) or 1
+    session["purchase"], mensaje, categoria = carrito.agregar(session.get("purchase"), k_producto, k_variante, cantidad)
+    flash(mensaje, categoria)
+    return redirect(request.referrer or url_for('purchase.summary'))
+
+
 @purchase.route("/remove/<string:k_producto>", methods=["POST", "GET"]) 
 def remove(k_producto):
-    if request.method =='GET':
-        print("SE REMOVERA "+ (k_producto))
-        session["purchase"].pop(k_producto, 0)
-        print("LUEGO DE ELIMINAR!!")
-        print(session["purchase"])
-        session["purchase"] = session["purchase"]
-        return redirect(request.referrer)
+    cart = dict(session.get("purchase") or {})
+    cart.pop(k_producto, None)
+    session["purchase"] = cart
+    return redirect(request.referrer or url_for('purchase.summary'))
+
 
 @purchase.route("/updatesingle<string:k_producto>_<string:opc>", methods=["GET", "POST"])
 def updatesingle(k_producto, opc):
-    if request.method =="GET":
-        print("ENTRANDO A GET")
-        print(k_producto)
-        print(opc)
+    session["purchase"], aviso = carrito.cambiar_cantidad(session.get("purchase"), k_producto, 1 if opc == 'up' else -1)
+    if aviso:
+        flash(aviso, "warning")
+    return redirect(request.referrer or url_for('purchase.summary'))
 
-        if opc == 'up':
-            print("LO QUE TENGO +++++++++++")
-            if(get_product_by_id(k_producto).stock ==  session["purchase"][k_producto] ):
-                flash("No se pueden agregar más productos! ")
-            else:
-                session["purchase"][k_producto] +=1
-                session["purchase"] = session["purchase"]
-            
-        if opc == 'down':
-            if(session["purchase"][k_producto] ==0):
-                session["purchase"].pop(k_producto, 0)
-                session["purchase"] = session["purchase"]
-            else:
-                session["purchase"][k_producto] -=1
-                session["purchase"] = session["purchase"]
-            
-
-        return redirect(request.referrer)
 
 @purchase.route('/payment', methods=["POST", "GET"])
 def payment():

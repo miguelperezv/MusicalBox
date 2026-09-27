@@ -121,7 +121,13 @@ def test_pago_rechazado_no_toca_stock_y_permite_reintentar(client, app, monkeypa
 
 
 def test_no_permite_pedir_mas_que_el_stock(client, app):
+    #el carrito no deja agregar de más, pero el stock puede bajar después (otra persona compró)
     client.post("/purchase/addtocart", data={"product_id": "2", "quantity": "9"}, headers={"Referer": "/"})
+    with client.session_transaction() as s:
+        assert s["purchase"] == {"2": 2}
+    with app.app_context():
+        db.session.get(Producto, 2).stock = 1
+        db.session.commit()
     resp = client.post("/purchase/checkout", data=DATOS_ENVIO)
     assert resp.status_code == 302 and resp.headers["Location"].endswith("/purchase/")
     with app.app_context():

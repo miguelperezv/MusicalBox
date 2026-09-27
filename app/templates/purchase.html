@@ -6,11 +6,11 @@
 {% block contenido %}
 <div class="container">
     <header class="mb-page-header">
-        <span class="mb-eyebrow">Tu compra</span>
+        <span class="mb-eyebrow">Paso 1 de 3</span>
         <h1 class="mt-1">Carrito</h1>
     </header>
 
-    {% if not purchase_cart %}
+    {% if not lineas %}
     <div class="mb-panel mb-empty">
         <i class="bi bi-bag"></i>
         <h2 class="h4 text-body">Tu carrito está vacío</h2>
@@ -18,32 +18,41 @@
         <a class="btn btn-primary" href="{{ url_for('releases.home_releases') }}">Ver lanzamientos</a>
     </div>
     {% else %}
+    {% if errores %}
+    <div class="alert alert-warning">
+        <div class="fw-semibold mb-1"><i class="bi bi-exclamation-triangle me-1"></i>Revisa tu carrito antes de pagar</div>
+        <ul class="mb-0 small">{% for e in errores %}<li>{{ e }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
     <div class="row g-4">
         <div class="col-lg-8">
             <div class="mb-panel py-2">
-                {% for p in purchase_cart %}
-                {% set producto = get_product_by_id(p) %}
-                {% if producto %}
+                {% for l in lineas %}
+                {% set producto, variante = l.producto, l.variante %}
                 {% set lanz = producto.lanzamiento %}
                 <div class="mb-cart-item">
                     {{ product_cover(producto.id, lanz.i_lanzamiento if lanz else '', producto.n_producto) }}
                     <div class="min-w-0">
-                        <div class="small text-body-secondary">{{ producto.k_categoria }}</div>
+                        <div class="small text-body-secondary">{{ 'PACK' if producto.tipo == 'BUNDLE' else producto.k_categoria }}</div>
                         <div class="fw-bold text-truncate">{{ lanz.n_lanzamiento.title() if lanz }}</div>
-                        <div class="small text-body-secondary mb-2">{{ producto.n_producto }}</div>
-                        <div class="mb-stepper">
-                            <a href="{{ url_for('purchase.updatesingle', k_producto=p, opc='down') }}" aria-label="Quitar uno"><i class="bi bi-dash"></i></a>
-                            <span>{{ purchase_cart.get(p) }}</span>
-                            <a href="{{ url_for('purchase.updatesingle', k_producto=p, opc='up') }}" aria-label="Agregar uno"><i class="bi bi-plus"></i></a>
+                        <div class="small text-body-secondary">{{ producto.n_producto }}{% if variante %} · <strong>{{ variante.nombre }}</strong>{% endif %}</div>
+                        {% if l.problema %}<div class="small text-danger fw-semibold"><i class="bi bi-exclamation-circle me-1"></i>{{ l.problema }}</div>{% endif %}
+                        <div class="mb-stepper mt-2">
+                            <a href="{{ url_for('purchase.updatesingle', k_producto=l.clave, opc='down') }}" aria-label="Quitar uno"><i class="bi bi-dash"></i></a>
+                            <span>{{ l.cantidad }}</span>
+                            {% if l.cantidad < l.disponible %}
+                            <a href="{{ url_for('purchase.updatesingle', k_producto=l.clave, opc='up') }}" aria-label="Agregar uno"><i class="bi bi-plus"></i></a>
+                            {% else %}
+                            <a class="text-body-tertiary pe-none" aria-disabled="true" title="No hay más unidades"><i class="bi bi-plus"></i></a>
+                            {% endif %}
                         </div>
                     </div>
                     <div class="text-end">
-                        <div class="fw-bold">{{ (producto.p_producto * purchase_cart.get(p))|cop }}</div>
+                        <div class="fw-bold">{{ l.subtotal|cop }}</div>
                         <div class="small text-body-secondary">{{ producto.p_producto|cop }} c/u</div>
-                        <a class="small text-danger" href="{{ url_for('purchase.remove', k_producto=p) }}"><i class="bi bi-trash3 me-1"></i>Quitar</a>
+                        <a class="small text-danger" href="{{ url_for('purchase.remove', k_producto=l.clave) }}"><i class="bi bi-trash3 me-1"></i>Quitar</a>
                     </div>
                 </div>
-                {% endif %}
                 {% endfor %}
             </div>
             <a class="d-inline-block mt-3" href="{{ url_for('releases.home_releases') }}"><i class="bi bi-arrow-left me-1"></i>Seguir comprando</a>
@@ -52,14 +61,19 @@
         <div class="col-lg-4">
             <div class="mb-panel mb-sticky">
                 <h2 class="h5 mb-3">Resumen</h2>
-                <div class="d-flex justify-content-between mb-2"><span class="text-body-secondary">Productos ({{ purchase_cart.values()|sum }})</span><span>{{ total|cop }}</span></div>
+                <div class="d-flex justify-content-between mb-2"><span class="text-body-secondary">Productos ({{ lineas|sum(attribute='cantidad') }})</span><span>{{ total|cop }}</span></div>
                 <div class="d-flex justify-content-between mb-3"><span class="text-body-secondary">Envío</span><span class="text-body-secondary">Se coordina al confirmar</span></div>
                 <hr>
                 <div class="d-flex justify-content-between align-items-baseline mb-4">
                     <span class="fw-bold">Total</span><span class="fs-4 fw-bold">{{ total|cop }}</span>
                 </div>
+                {% if errores %}
+                <button class="btn btn-primary btn-lg w-100" disabled>Continuar al pago</button>
+                <p class="small text-danger text-center mt-2 mb-0">Ajusta las cantidades marcadas para continuar.</p>
+                {% else %}
                 <a class="btn btn-primary btn-lg w-100" href="{{ url_for('purchase.checkout') }}">Continuar al pago <i class="bi bi-arrow-right ms-1"></i></a>
                 <p class="small text-body-secondary text-center mt-2 mb-0"><i class="bi bi-shield-lock me-1"></i>No necesitas crear cuenta · Pago seguro con ePayco</p>
+                {% endif %}
             </div>
         </div>
     </div>
