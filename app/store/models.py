@@ -735,36 +735,10 @@ def edit_user_by_email(email, nombre,apellido,ciudad,direccion, barrio=None, cel
     
 
 #solicitudes de pedido (integrado desde musical_box_manager)
-def get_or_create_cliente(tipo_id, num_id, nombre, apellido, email, direccion, ciudad, barrio, celular):
-    #primero por documento, luego por email: así una solicitud queda ligada a la cuenta de la tienda si ya existe
-    user = Usuario.query.filter_by(tipo_id=tipo_id, num_id=num_id).first()
-    if not user:
-        user = Usuario.query.filter(db.func.lower(Usuario.email_usuario) == email.lower()).first()
-    try:
-        if user:
-            #completa solo lo que falte, no pisa datos de la cuenta
-            user.tipo_id = user.tipo_id or tipo_id
-            user.num_id = user.num_id or num_id
-            user.cel_usuario = celular or user.cel_usuario
-            user.dir_usuario = direccion or user.dir_usuario
-            user.lugar_usuario = ciudad or user.lugar_usuario
-            user.barrio_usuario = barrio or user.barrio_usuario
-        else:
-            #cliente sin cuenta: contraseña aleatoria, puede reclamar la cuenta registrándose con el mismo email
-            user = Usuario(k_rol='CLIENTE', n_usuario=nombre, ape_usuario=apellido, email_usuario=email,
-                           pwd_usuario=secrets.token_hex(16), tipo_id=tipo_id, num_id=num_id,
-                           dir_usuario=direccion, lugar_usuario=ciudad, barrio_usuario=barrio, cel_usuario=celular)
-            db.session.add(user)
-        db.session.commit()
-        return user, None
-    except Exception as e:
-        print("No se registró el cliente " + str(e))
-        db.session.rollback()
-        return None, str(e)
-
-def create_solicitud(k_usuario, k_producto, n_producto_solicitado, d_producto_solicitado=None):
+def create_solicitud(k_usuario, k_producto, n_producto_solicitado, d_producto_solicitado=None, cel=None, email=None):
     solicitud = Solicitud(k_usuario=k_usuario, k_producto=k_producto, n_producto_solicitado=n_producto_solicitado,
-                          d_producto_solicitado=d_producto_solicitado, estado='ACTIVO')
+                          d_producto_solicitado=d_producto_solicitado, estado='ACTIVO',
+                          cel_contacto=cel, email_contacto=(email or '').strip().lower() or None)
     try:
         db.session.add(solicitud)
         db.session.commit()
@@ -777,14 +751,13 @@ def create_solicitud(k_usuario, k_producto, n_producto_solicitado, d_producto_so
 def get_all_solicitudes():
     return Solicitud.query.order_by(db.desc(Solicitud.f_solicitud)).all()
 
-def get_solicitud_by_id(id):
-    return db.session.get(Solicitud, id)
-
 def get_solicitudes_by_user(email):
-    user = Usuario.query.filter_by(email_usuario=email).first()
-    if not user:
-        return []
-    return Solicitud.query.filter_by(k_usuario=user.id).order_by(db.desc(Solicitud.f_solicitud)).all()
+    #las del usuario y las que dejó solo con su correo de contacto
+    user = get_usuario_por_email(email)
+    filtro = db.func.lower(Solicitud.email_contacto) == (email or '').lower()
+    if user:
+        filtro = db.or_(Solicitud.k_usuario == user.id, filtro)
+    return Solicitud.query.filter(filtro).order_by(db.desc(Solicitud.f_solicitud)).all()
 
 def update_estado_solicitud(id, estado):
     solicitud = db.session.get(Solicitud, id)
@@ -1017,10 +990,15 @@ def validar_carrito(cart):
         errores.append("Tu carrito está vacío")
     return lineas, total, errores
 
-def crear_pedido(cart, datos, k_usuario=None):
+def crear_pedido(cart, datos, k_usuario=None, cotizacion=None):
     """Crea el pedido PENDIENTE con sus líneas. Devuelve (pedido, token, errores).
-    El token se entrega una sola vez (enlace de seguimiento); en la BD queda su hash."""
-    lineas, total, errores = validar_carrito(cart)
+    El token se entrega una sola vez (enlace de seguimiento); en la BD queda su hash.
+    cotizacion=(producto, precio): pedido a la medida ya acordado; no revisa stock (se consigue por encargo)."""
+    if cotizacion:
+        producto, precio = cotizacion
+        lineas, total, errores = [(producto, None, 1, precio)], precio, []
+    else:
+        lineas, total, errores = validar_carrito(cart)
     if errores:
         return None, None, errores
     for intento in range(2):
@@ -1038,9 +1016,9 @@ def crear_pedido(cart, datos, k_usuario=None):
                              lugar_envio=datos["ciudad"].strip(), barrio_envio=(datos.get("barrio") or "").strip() or None)
             db.session.add(pedido)
             db.session.flush()
-            for producto, variante, cantidad in lineas:
+            for producto, variante, cantidad, *precio in lineas:
                 db.session.add(Item(k_producto=producto.id, k_factura=pedido.id, k_variante=variante.id if variante is not None else None,
-                                    cant_item=cantidad, p_item=producto.p_producto))
+                                    cant_item=cantidad, p_item=precio[0] if precio else producto.p_producto))
             db.session.commit()
             return pedido, token, []
         except IntegrityError:
@@ -1062,7 +1040,11 @@ def confirmar_pago(pedido, ref_payco, id_factura_payco=None, franquicia=None):
     if pedido.estado == 'PAGADO':
         return pedido, False
     pedido.estado = 'PAGADO'
+    pedido.estado_envio = pedido.estado_envio or 'POR PREPARAR'
     pedido.ref_payco = ref_payco
+    for s in Solicitud.query.filter_by(k_invoice=pedido.id).all():
+        s.estado = 'COMPRADA'
+        s.k_usuario = s.k_usuario or pedido.k_usuario
     pedido.id_factura_payco = id_factura_payco
     if franquicia:
         pedido.metodo_pago = f"{pedido.metodo_pago or ''} ({franquicia})".strip()[:30]
@@ -1158,3 +1140,48 @@ def eliminar_componente(k_componente):
     db.session.delete(c)
     db.session.commit()
     return k_bundle, None
+
+
+#pedidos a la medida: cotización -> enlace "confirmar compra" -> pedido normal
+def cotizar_solicitud(k_solicitud, k_producto, precio):
+    s = db.session.get(Solicitud, k_solicitud)
+    producto = db.session.get(Producto, k_producto) if k_producto else None
+    if not s or s.estado == 'COMPRADA':
+        return None, "La solicitud no existe o ya se compró"
+    if not producto or producto.tipo == 'BUNDLE' or requiere_variante(producto):
+        return None, "Elige un producto individual del catálogo (créalo en Nuevo producto si no existe)"
+    if not precio or precio <= 0:
+        return None, "Indica el precio acordado"
+    token = secrets.token_urlsafe(32)
+    s.k_producto, s.precio_cotizado, s.token_hash, s.estado = producto.id, precio, hash_token(token), 'COTIZADA'
+    db.session.commit()
+    return token, None
+
+def get_solicitud_por_token(token):
+    if not token or len(token) > 100:
+        return None
+    return Solicitud.query.filter_by(token_hash=hash_token(token)).first()
+
+def datos_envio_previos(email):
+    #última dirección usada con ese correo (copia del pedido) o la del perfil, para reutilizarla
+    if not email:
+        return None
+    email = email.strip().lower()
+    p = (Invoice.query.filter(db.func.lower(Invoice.email_envio) == email, Invoice.dir_envio.isnot(None))
+         .order_by(db.desc(Invoice.f_compra)).first())
+    if p:
+        return {"nombre": p.n_envio, "email": p.email_envio, "telefono": p.tel_envio, "ciudad": p.lugar_envio,
+                "direccion": p.dir_envio, "barrio": p.barrio_envio}
+    u = get_usuario_por_email(email)
+    if u and u.dir_usuario and u.lugar_usuario:
+        return {"nombre": f"{u.n_usuario} {u.ape_usuario}".strip(), "email": u.email_usuario, "telefono": u.cel_usuario,
+                "ciudad": u.lugar_usuario, "direccion": u.dir_usuario, "barrio": u.barrio_usuario}
+    return None
+
+def actualizar_envio(k_invoice, estado):
+    p = db.session.get(Invoice, k_invoice)
+    if not p or p.estado != 'PAGADO' or estado not in ESTADOS_ENVIO:
+        return None
+    p.estado_envio = estado
+    db.session.commit()
+    return p

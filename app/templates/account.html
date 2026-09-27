@@ -32,7 +32,7 @@
                         <small class="text-body-secondary">{{ factura.f_compra.strftime('%d/%m/%Y %H:%M') if factura.f_compra }}{% if factura.id_factura_payco %} · ePayco {{ factura.id_factura_payco }}{% endif %}</small>
                     </div>
                     <div class="text-end">
-                        <span class="mb-estado mb-estado-{{ factura.estado }}">{{ factura.estado|capitalize }}</span>
+                        <span class="mb-estado mb-estado-{{ factura.estado }}">{{ factura.estado|capitalize }}</span>{% if factura.estado_envio %} <span class="mb-estado mb-estado-ACTIVO">{{ factura.estado_envio|capitalize }}</span>{% endif %}
                         <div class="fw-bold fs-5 mt-1">{{ factura.total|cop }}</div>
                     </div>
                 </div>

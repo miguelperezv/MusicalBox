@@ -45,3 +45,24 @@ def componente_nuevo(k_bundle):
 def componente_eliminar(k_componente):
     k_bundle, err = eliminar_componente(k_componente)
     return _volver(k_bundle or request.form.get("k_bundle", type=int), err, "Producto quitado del pack")
+
+
+#órdenes: estado de envío y rótulo (el rótulo es de la orden, con su copia de datos de envío)
+from flask import jsonify, render_template, abort
+from .models import ESTADOS_CON_ROTULO, Invoice, actualizar_envio
+
+
+@dashboard.route("/pedido/<int:k_invoice>/envio", methods=["POST"])
+def pedido_envio(k_invoice):
+    p = actualizar_envio(k_invoice, request.form.get("estado_envio"))
+    if not p:
+        return jsonify({"error": "Solo los pedidos pagados tienen estado de envío"}), 400
+    return jsonify({"estado_envio": p.estado_envio, "rotulo": p.estado_envio in ESTADOS_CON_ROTULO})
+
+
+@dashboard.route("/pedido/<int:k_invoice>/rotulo")
+def pedido_rotulo(k_invoice):
+    p = db.session.get(Invoice, k_invoice)
+    if not p or p.estado_envio not in ESTADOS_CON_ROTULO:
+        abort(404)
+    return render_template("rotulo.html", pedido=p)

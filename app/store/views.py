@@ -6,7 +6,7 @@ from .forms import ActivarCuentaForm, CreateUsuarioForm, LoginUsuarioForm,  newR
 from flask import Blueprint, Response, current_app, flash, session, request, g, render_template, redirect, url_for, jsonify, make_response
 #from app.store.models import create_new_user, get_all_artists, get_user_by_email, create_new_artist
 from .models import create_new_user, get_all_artists, get_user_by_email, create_new_artist, get_k_artist_by_name, create_new_release, get_release_by_name, get_releases_with_artists, get_categories, create_new_product, get_k_release_by_name_artista, create_new_category, create_new_genre, create_release_genre, new_admin, get_all_releases, get_artist_by_release, get_categories_by_release, get_release_by_id, get_genres_by_release, get_products_by_release, get_product_by_id, get_artist_by_release, update_release, get_products_with_info, edit_product, create_new_image, get_image_by_product, get_rawimage_by_product, edit_image, get_items_by_id_factura
-from .models import opciones_componentes, stock_disponible, get_usuario_por_email, get_artist_by_id, get_releases_cards, get_products_cards, get_admin_stats, edit_user_by_email, get_all_products, get_purchases_by_user, get_all_invoices, get_solicitudes_by_user
+from .models import ESTADOS_ENVIO, ESTADOS_CON_ROTULO, opciones_componentes, stock_disponible, get_usuario_por_email, get_artist_by_id, get_releases_cards, get_products_cards, get_admin_stats, edit_user_by_email, get_all_products, get_purchases_by_user, get_all_invoices, get_solicitudes_by_user
 #import epaycosdk.epayco as epayco
 import json
 import urllib.parse as urlparse
@@ -372,7 +372,7 @@ def newadmin():
 @dashboard.route("/invoices", methods=["GET", "POST"])
 def invoices():
 
-    return render_template("invoices.html", invoices = get_all_invoices(), get_items_by_id_factura = get_items_by_id_factura)  
+    return render_template("invoices.html", invoices = get_all_invoices(), get_items_by_id_factura = get_items_by_id_factura, estados_envio = ESTADOS_ENVIO, con_rotulo = ESTADOS_CON_ROTULO)  
 
 @dashboard.route("/editrelease", methods=["GET", "POST"])
 def editrelease():

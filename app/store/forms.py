@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms.validators import DataRequired, NumberRange, Length, Regexp, EqualTo
+from wtforms.validators import DataRequired, NumberRange, Length, Regexp, EqualTo, Optional
 from wtforms import StringField, SelectField, PasswordField, IntegerField, FileField, DateField, EmailField, RadioField
 from datetime import date, datetime
 from wtforms import widgets as h5widgets
@@ -108,17 +108,11 @@ TIPOS_DOCUMENTO = [
 ]
 
 class RegistroSolicitudForm(FlaskForm):
-    tipo_id = SelectField('Tipo Documento', choices=TIPOS_DOCUMENTO, validators=[DataRequired()])
-    num_id = StringField('Número Documento', validators=[DataRequired()])
-    nombre = StringField('Nombre', validators=[DataRequired()])
-    apellido = StringField('Apellido')
-    ciudad = StringField('Municipio | Ciudad, Departamento', validators=[DataRequired()], id="ciudad")
-    direccion = StringField('Dirección', validators=[DataRequired()])
-    barrio = StringField('Barrio')
-    celular = StringField('Celular', validators=[DataRequired()])
-    email = EmailField('Email', validators=[DataRequired()])
-    producto = StringField('Producto', validators=[DataRequired()], render_kw={"placeholder": "Busca en el catálogo o escribe lo que buscas"})
-    d_producto = StringField('Detalles', render_kw={"placeholder": "Opcional. Edición, color, formato..."})
+    #solo lo necesario para buscar el disco y contactar; los datos de envío se piden al confirmar la compra
+    producto = StringField('¿Qué disco buscas?', validators=[DataRequired(message="Cuéntanos qué disco buscas"), Length(max=150)], render_kw={"placeholder": "Busca en el catálogo o escribe artista y disco"})
+    d_producto = StringField('Detalles', validators=[Length(max=200)], render_kw={"placeholder": "Opcional. Edición, color, formato..."})
+    celular = StringField('Celular (WhatsApp)', validators=[DataRequired(message="Déjanos tu celular"), Length(max=20)])
+    email = EmailField('Correo', validators=[Optional(), Length(max=100), Regexp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", message="Revisa el correo")])
 
 
 def _limpiar(valor):

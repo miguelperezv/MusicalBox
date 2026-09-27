@@ -7,51 +7,38 @@
 {% block contenido %}
 <div class="container">
     <div class="row g-4 g-lg-5 py-4">
-        <div class="col-lg-4">
+        <div class="col-lg-5">
             <span class="mb-eyebrow">Pedidos a la medida</span>
             <h1 class="mt-1">¿No lo encuentras? ¡Pídelo!</h1>
             <p class="text-body-secondary">Busca en nuestro catálogo o escribe el disco que quieres. Nosotros lo conseguimos y te lo enviamos.</p>
             <ol class="list-unstyled d-grid gap-3 mt-4">
-                <li class="d-flex gap-3"><span class="mb-step">1</span><span>Cuéntanos qué disco buscas y a dónde enviarlo.</span></li>
-                <li class="d-flex gap-3"><span class="mb-step">2</span><span>Te contactamos por celular o email con precio y tiempos.</span></li>
-                <li class="d-flex gap-3"><span class="mb-step">3</span><span>Lo recibes en tu casa. Sigue el estado en <a href="{{ url_for('home.account') }}">tu cuenta</a>.</span></li>
+                <li class="d-flex gap-3"><span class="mb-step">1</span><span>Cuéntanos qué disco buscas y cómo contactarte.</span></li>
+                <li class="d-flex gap-3"><span class="mb-step">2</span><span>Te escribimos por <strong>WhatsApp</strong> con precio y tiempos.</span></li>
+                <li class="d-flex gap-3"><span class="mb-step">3</span><span>Si te sirve, confirmas tu compra y dirección con el enlace que te enviamos, y lo recibes en tu casa.</span></li>
             </ol>
         </div>
 
-        <div class="col-lg-8">
+        <div class="col-lg-7">
             <form class="mb-panel p-4" method="POST" action="{{ url_for('solicitud.nueva') }}">
                 {{ form.hidden_tag() }}
-                <h2 class="h5 mb-3"><i class="bi bi-disc me-2 text-primary"></i>¿Qué disco buscas?</h2>
                 <div class="mb-3">
                     {{ form.producto.label(class_='form-label') }}
-                    {{ form.producto(class_='form-control', list='producto-list', autocomplete='off') }}
+                    {{ form.producto(class_='form-control' ~ (' is-invalid' if form.producto.errors else ''), list='producto-list', autocomplete='off') }}
                     <datalist id="producto-list"></datalist>
                     <input type="hidden" id="producto-id" name="producto_id">
                     <div id="producto-info" class="form-text"></div>
+                    {% for e in form.producto.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
                 </div>
                 {{ field(form.d_producto) }}
 
-                <h2 class="h5 mt-4 mb-3"><i class="bi bi-person me-2 text-primary"></i>Tus datos</h2>
+                <h2 class="h6 mt-4 mb-3"><i class="bi bi-whatsapp me-2 text-success"></i>¿Cómo te contactamos?</h2>
                 <div class="row">
-                    {{ field(form.nombre, col='col-sm-6 mb-3', autocomplete='given-name') }}
-                    <div class="col-sm-6 mb-3" id="div-apellido">
-                        {{ form.apellido.label(class_='form-label') }}
-                        {{ form.apellido(class_='form-control', autocomplete='family-name') }}
-                    </div>
-                    {{ field(form.tipo_id, col='col-sm-5 mb-3') }}
-                    {{ field(form.num_id, col='col-sm-7 mb-3', inputmode='numeric') }}
-                    {{ field(form.celular, col='col-sm-6 mb-3', type='tel', autocomplete='tel') }}
-                    {{ field(form.email, col='col-sm-6 mb-3', autocomplete='email') }}
-                </div>
-
-                <h2 class="h5 mt-3 mb-3"><i class="bi bi-truck me-2 text-primary"></i>¿A dónde lo enviamos?</h2>
-                {{ field(form.ciudad, **{'data-autocomplete': url_for('home.colombia'), 'placeholder': 'Escribe tu municipio o localidad'}) }}
-                <div class="row">
-                    {{ field(form.direccion, col='col-sm-8 mb-3', autocomplete='street-address') }}
-                    {{ field(form.barrio, col='col-sm-4 mb-3') }}
+                    {{ field(form.celular, col='col-sm-6 mb-3', type='tel', autocomplete='tel', placeholder='300 000 0000', help='Te escribimos por WhatsApp') }}
+                    {{ field(form.email, col='col-sm-6 mb-3', autocomplete='email', placeholder='Opcional', help='Déjanos ambos: así no te perdemos') }}
                 </div>
 
                 <button type="submit" class="btn btn-primary btn-lg w-100 mt-2"><i class="bi bi-send me-2"></i>Enviar solicitud</button>
+                <p class="small text-body-secondary text-center mt-2 mb-0">No pagas nada ahora. Tu dirección te la pedimos solo si confirmas la compra.</p>
             </form>
         </div>
     </div>
@@ -75,8 +62,6 @@
                     list.appendChild(o);
                 });
             });
-
-        // si elige un producto del catálogo guardamos su id, si no queda como pedido especial
         productoInput.addEventListener('input', function () {
             var p = productos[this.value];
             document.getElementById('producto-id').value = p ? p.id : '';
@@ -85,14 +70,6 @@
                                  : '<i class="bi bi-hourglass-split"></i> En catálogo, agotado: lo pedimos para ti')
                   : '<i class="bi bi-stars"></i> Pedido especial: lo buscaremos para ti';
         });
-
-        // para NIT no aplica apellido
-        var tipo = document.getElementById('tipo_id');
-        function toggleApellido() {
-            document.getElementById('div-apellido').style.display = tipo.value === 'nit' ? 'none' : 'block';
-        }
-        tipo.addEventListener('change', toggleApellido);
-        toggleApellido();
     });
 </script>
 {% endblock %}

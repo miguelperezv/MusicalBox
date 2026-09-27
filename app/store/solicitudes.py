@@ -1,7 +1,12 @@
-#solicitudes de pedido y rótulos de envío (integrado desde musical_box_manager)
-from flask import Blueprint, flash, request, g, render_template, redirect, url_for, jsonify
-from .forms import RegistroSolicitudForm
-from .models import get_or_create_cliente, create_solicitud, get_all_solicitudes, get_solicitud_by_id, update_estado_solicitud, get_catalogo_solicitud, get_product_by_id, ESTADOS_SOLICITUD
+#pedidos a la medida: solicitud (disco + contacto) -> cotización por WhatsApp/correo -> confirmar compra (checkout normal)
+from urllib.parse import quote
+
+from flask import Blueprint, flash, request, g, render_template, redirect, url_for, jsonify, session, abort
+from .forms import RegistroSolicitudForm, CheckoutForm
+from .models import (create_solicitud, get_all_solicitudes, update_estado_solicitud, get_catalogo_solicitud, get_product_by_id,
+                     get_usuario_por_email, cotizar_solicitud, get_solicitud_por_token, datos_envio_previos, crear_pedido,
+                     ESTADOS_SOLICITUD, METODOS_PAGO, Solicitud)
+from ..db import db
 from .views import before_request, admin_required
 
 
@@ -13,41 +18,26 @@ solicitud.before_request(before_request)
 def nueva():
     form = RegistroSolicitudForm()
     if request.method == 'GET' and g.user:
-        #si ya tiene cuenta en la tienda, prellenamos sus datos de envío
-        form.nombre.data = g.user.get("n_usuario")
-        form.apellido.data = g.user.get("ape_usuario")
-        form.email.data = g.user.get("email_usuario")
-        form.ciudad.data = g.user.get("lugar_usuario")
-        form.direccion.data = g.user.get("dir_usuario")
-        form.barrio.data = g.user.get("barrio_usuario")
         form.celular.data = g.user.get("cel_usuario")
-        form.num_id.data = g.user.get("num_id")
-        if g.user.get("tipo_id"):
-            form.tipo_id.data = g.user.get("tipo_id")
+        form.email.data = g.user.get("email_usuario")
 
-    if request.method == 'POST':
-        if not form.validate():
-            flash("Revisa los campos obligatorios del formulario", "warning")
-            return render_template('solicitud.html', form=form, user=g.user, purchase_cart=g.purchase)
-
-        user, err = get_or_create_cliente(form.tipo_id.data, form.num_id.data.strip(), form.nombre.data.strip(),
-                                          (form.apellido.data or '').strip(), form.email.data.strip(),
-                                          form.direccion.data, form.ciudad.data, form.barrio.data, form.celular.data)
-        if not user:
-            flash("No pudimos registrar tus datos: " + str(err), "error")
-            return render_template('solicitud.html', form=form, user=g.user, purchase_cart=g.purchase)
-
-        #producto del catálogo si se eligió del autocompletado, si no queda como texto libre
+    if form.validate_on_submit():
+        email = (form.email.data or '').strip().lower() or None
+        #se asocia a una cuenta si ya existe; si no, el comprador se crea al confirmar la compra
+        usuario = get_usuario_por_email(g.user["email_usuario"]) if g.user else (get_usuario_por_email(email) if email else None)
         k_producto = request.form.get("producto_id", type=int)
         if k_producto and not get_product_by_id(k_producto):
             k_producto = None
-        s, err = create_solicitud(user.id, k_producto, form.producto.data.strip(), form.d_producto.data)
+        s, err = create_solicitud(usuario.id if usuario else None, k_producto, form.producto.data.strip(), form.d_producto.data,
+                                  form.celular.data.strip(), email)
         if s:
-            flash("¡Recibimos tu solicitud #" + str(s.id) + "! Te contactaremos pronto", "success")
+            flash("¡Recibimos tu solicitud #" + str(s.id) + "! Te escribiremos por WhatsApp con precio y tiempos.", "success")
             return redirect(url_for('home.index'))
         flash("Error registrando la solicitud: " + str(err), "error")
+    elif request.method == 'POST':
+        flash("Revisa los campos del formulario", "warning")
 
-    return render_template('solicitud.html', form=form, user=g.user, purchase_cart=g.purchase)
+    return render_template('solicitud.html', form=form)
 
 
 @solicitud.route("/productos")
@@ -70,10 +60,52 @@ def estado(id):
     return jsonify({"error": "No se pudo actualizar la solicitud"}), 400
 
 
-@solicitud.route("/<int:id>/rotulo")
+@solicitud.route("/<int:id>/cotizar", methods=["POST"])
 @admin_required
-def rotulo(id):
-    s = get_solicitud_by_id(id)
-    if not s:
-        return "Solicitud no encontrada", 404
-    return render_template('rotulo.html', solicitud=s, usuario=s.usuario)
+def cotizar(id):
+    k_producto = request.form.get("producto", "").split(".")[0].strip()
+    token, err = cotizar_solicitud(id, int(k_producto) if k_producto.isdigit() else None, request.form.get("precio", type=int))
+    if err:
+        return jsonify({"error": err}), 400
+    #el enlace solo se puede ver ahora (en la BD queda su hash); se envía al cliente por WhatsApp o correo
+    enlace = url_for('solicitud.confirmar', token=token, _external=True)
+    s = db.session.get(Solicitud, id)
+    mensaje = (f"¡Hola! Conseguimos tu pedido en Musical Box: {s.producto.lanzamiento.n_lanzamiento.title() + ' - ' if s.producto.lanzamiento else ''}"
+               f"{s.producto.n_producto} por ${int(s.precio_cotizado):,}".replace(",", ".") + f". Confirma tu compra y datos de envío aquí: {enlace}")
+    cel = "".join(c for c in (s.cel_contacto or "") if c.isdigit())
+    return jsonify({"enlace": enlace, "whatsapp": f"https://wa.me/{'57' + cel if len(cel) == 10 else cel}?text={quote(mensaje)}",
+                    "estado": s.estado})
+
+
+@solicitud.route("/confirmar/<token>", methods=["GET", "POST"])
+def confirmar(token):
+    #paso 2 del flujo: el cliente ya recibió precio y tiempos; aquí se piden datos de envío y se paga
+    s = get_solicitud_por_token(token)
+    if not s or not s.producto or not s.precio_cotizado:
+        abort(404)
+    if s.estado == 'COMPRADA':
+        flash("Esta solicitud ya fue pagada. Revisa el enlace del pedido que llegó a tu correo.", "info")
+        return redirect(url_for('home.index'))
+
+    form = CheckoutForm()
+    form.metodo_pago.choices = METODOS_PAGO
+    previos = datos_envio_previos(s.email_contacto or (s.usuario.email_usuario if s.usuario else None))
+    if request.method == 'GET':
+        for campo, valor in (previos or {"email": s.email_contacto, "telefono": s.cel_contacto}).items():
+            if valor and campo in form:
+                form[campo].data = valor
+
+    if form.validate_on_submit():
+        datos = {campo: form[campo].data for campo in ["nombre", "email", "telefono", "ciudad", "direccion", "barrio", "metodo_pago"]}
+        pedido, token_pedido, errores = crear_pedido(None, datos, k_usuario=g.user["id"] if g.user else None,
+                                                     cotizacion=(s.producto, s.precio_cotizado))
+        if errores:
+            for e in errores:
+                flash(e, "warning")
+        else:
+            s.k_invoice = pedido.id
+            db.session.commit()
+            return redirect(url_for('pedido.ver', token=token_pedido))
+
+    return render_template("checkout.html", form=form, lineas=[(s.producto, None, 1, s.precio_cotizado)], total=s.precio_cotizado,
+                           accion=url_for('solicitud.confirmar', token=token), previos=previos, solicitud=s)

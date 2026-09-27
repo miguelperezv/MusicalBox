@@ -10,6 +10,7 @@
                     <th>Comprador y envío</th>
                     <th>Productos</th>
                     <th class="text-end">Total</th>
+                    <th style="min-width: 150px">Envío</th>
                     <th class="pe-3">Ref. ePayco</th>
                 </tr>
             </thead>
@@ -31,12 +32,30 @@
                         {% endfor %}
                     </td>
                     <td class="text-end fw-semibold text-nowrap">{{ i.total|cop }}</td>
+                    <td>
+                        {% if i.estado == 'PAGADO' %}
+                        <select class="form-select form-select-sm estado-envio" data-url="{{ url_for('dashboard.pedido_envio', k_invoice=i.id) }}" aria-label="Estado de envío del pedido {{ i.id }}">
+                            {% for e in estados_envio %}<option value="{{ e }}" {{ 'selected' if e == i.estado_envio }}>{{ e }}</option>{% endfor %}
+                        </select>
+                        <a class="btn btn-sm btn-outline-secondary mt-1 rotulo {{ '' if i.estado_envio in con_rotulo else 'd-none' }}" target="_blank"
+                           href="{{ url_for('dashboard.pedido_rotulo', k_invoice=i.id) }}"><i class="bi bi-printer me-1"></i>Rótulo</a>
+                        {% else %}<span class="text-body-secondary small">—</span>{% endif %}
+                    </td>
                     <td class="pe-3 small text-body-secondary">{{ i.ref_payco or '—' }}</td>
                 </tr>
                 {% else %}
-                <tr><td colspan="7" class="mb-empty">No hay órdenes de compra</td></tr>
+                <tr><td colspan="8" class="mb-empty">No hay órdenes de compra</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
+
+<script>
+    $('.estado-envio').on('change', function () {
+        var select = $(this);
+        $.post(select.data('url'), {estado_envio: select.val()})
+            .done(function (r) { select.siblings('.rotulo').toggleClass('d-none', !r.rotulo); })
+            .fail(function () { select.addClass('is-invalid'); });
+    });
+</script>

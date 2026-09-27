@@ -59,7 +59,7 @@
                                     {% for s in stats.ultimas_solicitudes %}
                                     <tr>
                                         <td class="text-body-secondary">#{{ s.id }}</td>
-                                        <td>{{ s.n_producto_solicitado or '' }}<br><small class="text-body-secondary">{{ s.usuario.n_usuario }} · {{ s.usuario.lugar_usuario or '' }}</small></td>
+                                        <td>{{ s.n_producto_solicitado or '' }}<br><small class="text-body-secondary">{{ s.usuario.n_usuario if s.usuario else s.cel_contacto }}</small></td>
                                         <td class="text-end"><span class="mb-estado mb-estado-{{ s.estado|replace(' ', '-') }}">{{ s.estado }}</span></td>
                                     </tr>
                                     {% else %}
