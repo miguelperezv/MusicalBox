@@ -46,13 +46,52 @@ class Producto(db.Model):
     n_producto = db.Column(db.String(100))
     p_producto = db.Column(db.Numeric(11,2), nullable = False )
     d_producto = db.Column(db.String(200))
+    #stock propio solo para SIMPLE sin variantes; con variantes vive en Variante y en un BUNDLE se calcula
     stock = db.Column(db.Numeric(5,0), nullable=False)
     #i_producto = db.Column(db.String(500))
     
     f_producto = db.Column(db.DateTime, default=datetime.now)
+    #SIMPLE: se vende tal cual · BUNDLE: pack que descuenta el stock de sus componentes
+    tipo = db.Column(db.String(10), nullable=False, default='SIMPLE', server_default='SIMPLE')
     #atributos de la relacion
     lanzamiento = db.relationship("Lanzamiento")
     categoria = db.relationship("Categoria")
+    variantes = db.relationship("Variante", back_populates="producto", order_by="Variante.id")
+    componentes = db.relationship("ProductoComponente", foreign_keys="ProductoComponente.k_bundle", back_populates="bundle")
+
+TIPOS_PRODUCTO = ['SIMPLE', 'BUNDLE']
+
+class Variante(db.Model):
+    #talla/color de un producto (camiseta M negra); cada una con su stock
+    id = db.Column(db.Integer, primary_key=True)
+    k_producto = db.Column(db.Integer, db.ForeignKey("producto.id"), nullable=False, index=True)
+    talla = db.Column(db.String(20))
+    color = db.Column(db.String(30))
+    sku = db.Column(db.String(40), unique=True)
+    stock = db.Column(db.Integer, nullable=False, default=0, server_default='0')
+    __table_args__ = (db.UniqueConstraint('k_producto', 'talla', 'color', name='uq_variante_producto_talla_color'),
+                      db.CheckConstraint('stock >= 0', name='stock_no_negativo'))
+    #atributos de la relacion
+    producto = db.relationship("Producto", back_populates="variantes")
+
+    @property
+    def nombre(self):
+        return " / ".join(x for x in [self.talla, self.color] if x)
+
+class ProductoComponente(db.Model):
+    #qué lleva un bundle: producto (y variante, si el componente tiene tallas/colores) y cuántas unidades
+    __tablename__ = 'producto_componente'
+    id = db.Column(db.Integer, primary_key=True)
+    k_bundle = db.Column(db.Integer, db.ForeignKey("producto.id"), nullable=False, index=True)
+    k_componente = db.Column(db.Integer, db.ForeignKey("producto.id"), nullable=False)
+    k_variante = db.Column(db.Integer, db.ForeignKey("variante.id"))
+    cantidad = db.Column(db.Integer, nullable=False, default=1, server_default='1')
+    __table_args__ = (db.CheckConstraint('cantidad > 0', name='cantidad_positiva'),
+                      db.CheckConstraint('k_bundle <> k_componente', name='no_se_contiene'))
+    #atributos de la relacion
+    bundle = db.relationship("Producto", foreign_keys=[k_bundle], back_populates="componentes")
+    componente = db.relationship("Producto", foreign_keys=[k_componente])
+    variante = db.relationship("Variante")
 
 class Imagen(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -66,13 +105,17 @@ class Imagen(db.Model):
 
 
 class Item(db.Model):
-    k_producto = db.Column(db.Integer, db.ForeignKey("producto.id"), primary_key=True)
-    k_factura = db.Column(db.Integer,db.ForeignKey("invoice.id"), primary_key=True)
+    #línea de pedido; id propio para permitir el mismo producto con distintas variantes en un pedido
+    id = db.Column(db.Integer, primary_key=True)
+    k_producto = db.Column(db.Integer, db.ForeignKey("producto.id"), nullable=False)
+    k_factura = db.Column(db.Integer,db.ForeignKey("invoice.id"), nullable=False, index=True)
+    k_variante = db.Column(db.Integer, db.ForeignKey("variante.id"))
     cant_item = db.Column(db.Numeric(3,0), nullable=False)
     p_item = db.Column(db.Numeric(11,2), nullable=False)
     #atributos de la relacion
     producto = db.relationship("Producto")
     factura = db.relationship("Invoice")
+    variante = db.relationship("Variante")
 
 class Invoice(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -175,7 +218,7 @@ class Lanzamiento_GeneroSchema(ma.SQLAlchemyAutoSchema):
 class ProductoSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Producto
-        fields = ["id", "k_lanzamiento", "k_categoria", "n_producto", "p_producto", "d_producto", 'stock', 'i_producto', 'f_producto']
+        fields = ["id", "k_lanzamiento", "k_categoria", "n_producto", "p_producto", "d_producto", 'stock', 'i_producto', 'f_producto', 'tipo']
 
 class ImagenSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
@@ -186,7 +229,7 @@ class ImagenSchema(ma.SQLAlchemyAutoSchema):
 class ItemSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Item
-        fields = ["k_factura", "k_producto", "cant_item", "p_item"]
+        fields = ["id", "k_factura", "k_producto", "k_variante", "cant_item", "p_item"]
 
 class InvoiceSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
