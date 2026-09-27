@@ -4,6 +4,7 @@ from .config import DevelopmentConfig
 from .store.views import home, dashboard, releases, artists, purchase, products
 from .store.solicitudes import solicitud
 from .store.pedidos import pedido
+from .store import catalogo_admin  # noqa: F401 (rutas de tallas y packs en el panel)
 
 ACTIVE_ENDPOINTS = [('/',home), ('/dashboard', dashboard), ('/releases', releases), ('/artists', artists), ('/purchase', purchase), ("/products", products), ("/solicitud", solicitud), ("/pedido", pedido) ]
 

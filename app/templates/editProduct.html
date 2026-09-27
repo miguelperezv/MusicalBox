@@ -35,5 +35,62 @@
     </div>
     <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Guardar cambios</button>
 </form>
+
+{% if producto.tipo == 'BUNDLE' %}
+<div class="mb-panel mt-4" style="max-width: 760px">
+    <h2 class="h5 mb-1"><i class="bi bi-box-seam me-2 text-primary"></i>Contenido del pack</h2>
+    <p class="small text-body-secondary">Stock del pack hoy: <strong>{{ stock_disponible(producto) }}</strong> (lo que alcance el componente más escaso). Al venderlo se descuenta de cada producto.</p>
+    <table class="table table-sm align-middle">
+        <tbody>
+            {% for c in producto.componentes %}
+            <tr>
+                <td>{{ c.cantidad }} ×</td>
+                <td>{{ c.componente.n_producto }}{% if c.variante %} <span class="mb-chip">{{ c.variante.nombre }}</span>{% endif %}</td>
+                <td class="small text-body-secondary">stock {{ stock_disponible(c.componente, c.variante) }}</td>
+                <td class="text-end">
+                    <form method="POST" action="{{ url_for('dashboard.componente_eliminar', k_componente=c.id) }}"><button class="btn btn-sm btn-outline-danger" title="Quitar"><i class="bi bi-x-lg"></i></button></form>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td class="text-body-secondary">Todavía no tiene productos: no se puede vender.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <form class="row g-2 align-items-end" method="POST" action="{{ url_for('dashboard.componente_nuevo', k_bundle=producto.id) }}">
+        <div class="col-sm-8">
+            <label class="form-label small">Producto</label>
+            <select class="form-select" name="componente" required>
+                <option value="" selected disabled>Elige producto (y talla)</option>
+                {% for valor, texto in opciones_componentes(producto.id) %}<option value="{{ valor }}">{{ texto }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="col-6 col-sm-2"><label class="form-label small">Cantidad</label><input class="form-control" type="number" name="cantidad" value="1" min="1"></div>
+        <div class="col-6 col-sm-2"><button class="btn btn-primary w-100">Agregar</button></div>
+    </form>
+</div>
+{% else %}
+<div class="mb-panel mt-4" style="max-width: 760px">
+    <h2 class="h5 mb-1"><i class="bi bi-rulers me-2 text-primary"></i>Tallas y colores</h2>
+    <p class="small text-body-secondary">{% if producto.variantes %}El stock se maneja por talla/color (el campo Stock de arriba ya no se usa).{% else %}Opcional: si el producto tiene tallas o colores, agrégalos aquí con su stock.{% endif %}</p>
+    {% for v in producto.variantes %}
+    <div class="d-flex flex-wrap align-items-center gap-2 py-2 border-top">
+        <span class="fw-semibold me-auto">{{ v.nombre }}</span>
+        <form class="d-flex gap-2" method="POST" action="{{ url_for('dashboard.variante_editar', k_variante=v.id) }}">
+            <input class="form-control form-control-sm" style="width:7rem" name="sku" value="{{ v.sku or '' }}" placeholder="SKU">
+            <input class="form-control form-control-sm" style="width:5rem" type="number" name="stock" value="{{ v.stock }}" min="0" aria-label="Stock">
+            <button class="btn btn-sm btn-outline-primary">Guardar</button>
+        </form>
+        <form method="POST" action="{{ url_for('dashboard.variante_eliminar', k_variante=v.id) }}"><button class="btn btn-sm btn-outline-danger" title="Eliminar"><i class="bi bi-trash3"></i></button></form>
+    </div>
+    {% endfor %}
+    <form class="row g-2 align-items-end mt-2" method="POST" action="{{ url_for('dashboard.variante_nueva', k_producto=producto.id) }}">
+        <div class="col-6 col-sm-3"><label class="form-label small">Talla</label><input class="form-control" name="talla" placeholder="M"></div>
+        <div class="col-6 col-sm-3"><label class="form-label small">Color</label><input class="form-control" name="color" placeholder="Negro"></div>
+        <div class="col-6 col-sm-2"><label class="form-label small">Stock</label><input class="form-control" type="number" name="stock" value="0" min="0"></div>
+        <div class="col-6 col-sm-2"><label class="form-label small">SKU</label><input class="form-control" name="sku"></div>
+        <div class="col-sm-2"><button class="btn btn-primary w-100">Agregar</button></div>
+    </form>
+</div>
+{% endif %}
 {% endif %}
 {% endblock %}

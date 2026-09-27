@@ -43,11 +43,20 @@
         </div>
     </section>
 
-    <section id="ediciones">
-        <div class="mb-section-title"><h2>Ediciones</h2></div>
+    {% if packs %}
+    <section class="mb-5">
+        <div class="mb-section-title"><div><span class="mb-eyebrow">Ahorra llevando todo</span><h2>Packs</h2></div></div>
         <div class="row row-cols-2 row-cols-lg-4 g-3 g-lg-4">
-            {% for p in productos %}
-            <div class="col">{{ product_card({'id': p.id, 'nombre': p.n_producto, 'lanzamiento': p.lanzamiento, 'artista': artista, 'categoria': p.k_categoria, 'precio': p.p_producto, 'stock': (p.stock or 0)|int, 'descripcion': p.d_producto}, show_release=false) }}</div>
+            {% for p in packs %}<div class="col">{{ product_card(p, show_release=false) }}</div>{% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <section id="ediciones">
+        <div class="mb-section-title"><h2>{{ 'Por separado' if packs else 'Ediciones y merch' }}</h2></div>
+        <div class="row row-cols-2 row-cols-lg-4 g-3 g-lg-4">
+            {% for p in sueltos %}
+            <div class="col">{{ product_card(p, show_release=false) }}</div>
             {% else %}
             <div class="col-12 mb-empty">
                 <i class="bi bi-disc"></i>

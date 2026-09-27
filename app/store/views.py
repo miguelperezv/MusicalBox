@@ -6,7 +6,7 @@ from .forms import ActivarCuentaForm, CreateUsuarioForm, LoginUsuarioForm,  newR
 from flask import Blueprint, Response, current_app, flash, session, request, g, render_template, redirect, url_for, jsonify, make_response
 #from app.store.models import create_new_user, get_all_artists, get_user_by_email, create_new_artist
 from .models import create_new_user, get_all_artists, get_user_by_email, create_new_artist, get_k_artist_by_name, create_new_release, get_release_by_name, get_releases_with_artists, get_categories, create_new_product, get_k_release_by_name_artista, create_new_category, create_new_genre, create_release_genre, new_admin, get_all_releases, get_artist_by_release, get_categories_by_release, get_release_by_id, get_genres_by_release, get_products_by_release, get_product_by_id, get_artist_by_release, update_release, get_products_with_info, edit_product, create_new_image, get_image_by_product, get_rawimage_by_product, edit_image, get_items_by_id_factura
-from .models import get_usuario_por_email, get_artist_by_id, get_releases_cards, get_products_cards, get_admin_stats, edit_user_by_email, get_all_products, get_purchases_by_user, get_all_invoices, get_solicitudes_by_user
+from .models import opciones_componentes, stock_disponible, get_usuario_por_email, get_artist_by_id, get_releases_cards, get_products_cards, get_admin_stats, edit_user_by_email, get_all_products, get_purchases_by_user, get_all_invoices, get_solicitudes_by_user
 #import epaycosdk.epayco as epayco
 import json
 import urllib.parse as urlparse
@@ -279,16 +279,13 @@ def newproduct():
         print("imagefile")
         image_file = request.files['inputImage']
         #print(image_file.read())
-        product = create_new_product(int(k_lanzamiento), n_producto, p_producto, d_producto, stock, i_producto, k_categoria)
+        product = create_new_product(int(k_lanzamiento), n_producto, p_producto, d_producto, stock, i_producto, k_categoria, form_new_product.tipo.data)
         if product:
-            img = create_new_image(product.id, image_file)
-            print("Producto creado exitosamente!!! ")
-            if img:
-                print("Imagen creada !")
-            else:
-                print("No se creó la imagen")
-                return redirect(url_for('home.admin')) 
-            return redirect(url_for('home.admin'))
+            if image_file and image_file.filename:
+                create_new_image(product.id, image_file)
+            #a la edición, para configurar tallas/colores o el contenido del pack
+            flash("Producto creado: configura sus tallas o el contenido del pack si aplica", "success")
+            return redirect(url_for('dashboard.updateproduct', k_producto=product.id))
         else:
             flash("No se pudo registrar")
         return redirect(url_for('home.admin'))
@@ -383,7 +380,11 @@ def editrelease():
     form_edit_release = newReleaseForm()
     lanzamiento = None
     if request.method == 'POST':
-        k_lanzamiento = int (form_edit_release.n_lanzamiento.data.split(".")[0])
+        seleccion = (form_edit_release.n_lanzamiento.data or '').split(".")[0].strip()
+        if not seleccion.isdigit():
+            flash("Elige una opción de la lista", "warning")
+            return redirect(url_for('dashboard.editrelease'))
+        k_lanzamiento = int(seleccion)
         print("SOY POST")
         lanzamiento = get_release_by_id(k_lanzamiento)
         print(lanzamiento)
@@ -438,7 +439,11 @@ def editproduct():
     form_edit_product = newProductForm(categories_choices=categories)
     producto= None
     if request.method == 'POST':
-        k_producto = int (form_edit_product.n_producto.data.split(".")[0])
+        seleccion = (form_edit_product.n_producto.data or '').split(".")[0].strip()
+        if not seleccion.isdigit():
+            flash("Elige una opción de la lista", "warning")
+            return redirect(url_for('dashboard.editproduct'))
+        k_producto = int(seleccion)
         producto = get_product_by_id(k_producto)
         print(producto.p_producto)
         form_edit_product.n_producto_edit.data = producto.n_producto
@@ -447,7 +452,7 @@ def editproduct():
         form_edit_product.d_producto.data  = producto.d_producto
         form_edit_product.i_producto.data = get_rawimage_by_product(producto.id)
         form_edit_product.k_category.data = producto.k_categoria
-    return render_template("editProduct.html", form = form_edit_product, producto = producto, get_image_by_product = get_image_by_product)
+    return render_template("editProduct.html", form = form_edit_product, producto = producto, opciones_componentes = opciones_componentes, stock_disponible = stock_disponible)
 
 @dashboard.route("/updateproduct_<string:k_producto>",  methods=["GET", "POST"])
 def updateproduct(k_producto):
@@ -491,7 +496,7 @@ def updateproduct(k_producto):
         form_edit_product.d_producto.data  = producto.d_producto
         form_edit_product.i_producto.data = None
         form_edit_product.k_category.data = producto.k_categoria
-        return render_template("editProduct.html", form = form_edit_product, producto = producto)
+        return render_template("editProduct.html", form = form_edit_product, producto = producto, opciones_componentes = opciones_componentes, stock_disponible = stock_disponible)
     return redirect(url_for('dashboard.editproduct'))
 
 
@@ -520,7 +525,9 @@ def release(k_lanzamiento):
         productos = get_products_by_release(k_lanzamiento)
         if not lanzamiento:
             return render_template("404.html"), 404
-        return render_template("singleRelease.html", artista=artista, lanzamiento=lanzamiento, generos = generos, productos=productos)
+        cards = get_products_cards(k_lanzamiento=k_lanzamiento)
+        return render_template("singleRelease.html", artista=artista, lanzamiento=lanzamiento, generos = generos, productos=productos,
+                               packs=[c for c in cards if c["tipo"] == 'BUNDLE'], sueltos=[c for c in cards if c["tipo"] != 'BUNDLE'])
 
 
 @artists.route("/<int:k_artista>", methods=["GET", "POST"])

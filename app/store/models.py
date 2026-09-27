@@ -321,8 +321,10 @@ def create_new_release(k_artista, n_lanzamiento,i_lanzamiento, f_lanzamiento, k_
         return None
 
 #n_producto, p_producto, d_producto, stock, i_producto, k_categoria
-def create_new_product(k_lanzamiento, n_producto, p_producto, d_producto, stock, i_producto, k_categoria):
-    product = Producto(k_lanzamiento=k_lanzamiento, n_producto=n_producto, p_producto=p_producto, d_producto=d_producto, stock=stock,k_categoria=k_categoria )
+def create_new_product(k_lanzamiento, n_producto, p_producto, d_producto, stock, i_producto, k_categoria, tipo='SIMPLE'):
+    #un pack no tiene stock propio: se calcula con sus componentes
+    product = Producto(k_lanzamiento=k_lanzamiento, n_producto=n_producto, p_producto=p_producto, d_producto=d_producto,
+                       stock=0 if tipo == 'BUNDLE' else (stock or 0), k_categoria=k_categoria, tipo=tipo if tipo in TIPOS_PRODUCTO else 'SIMPLE')
     try:
         db.session.add(product)
         db.session.commit()
@@ -830,15 +832,17 @@ def get_releases_cards(q=None, k_artista=None, limit=None):
             "generos": generos,
             "categorias": categorias,
             "nuevo": bool(fecha and (datetime.now().date() - fecha).days < 30),
-            "agotado": bool(productos) and all((p.stock or 0) <= 0 for p in productos),
+            "agotado": bool(productos) and all(stock_disponible(p) <= 0 for p in productos),
             "precio_desde": min((p.p_producto for p in productos), default=None),
         })
         if limit and len(cards) >= limit:
             break
     return cards
 
-def get_products_cards(limit=None):
+def get_products_cards(limit=None, k_lanzamiento=None):
     query = Producto.query.order_by(db.desc(Producto.f_producto))
+    if k_lanzamiento:
+        query = query.filter_by(k_lanzamiento=k_lanzamiento)
     if limit:
         query = query.limit(limit)
     cards = []
@@ -850,8 +854,11 @@ def get_products_cards(limit=None):
             "artista": get_artist_by_release(p.k_lanzamiento) if p.k_lanzamiento else None,
             "categoria": p.k_categoria,
             "precio": p.p_producto,
-            "stock": int(p.stock or 0),
+            "stock": stock_disponible(p),
             "descripcion": p.d_producto,
+            "tipo": p.tipo,
+            "variantes": [{"id": v.id, "nombre": v.nombre, "stock": int(v.stock or 0)} for v in p.variantes] if p.tipo != 'BUNDLE' else [],
+            "incluye": [f"{c.cantidad} × {c.componente.n_producto}" + (f" ({c.variante.nombre})" if c.variante else "") for c in p.componentes] if p.tipo == 'BUNDLE' else [],
         })
     return cards
 
@@ -1058,3 +1065,82 @@ def rechazar_pago(pedido, ref_payco):
         pedido.ref_payco = ref_payco
         db.session.commit()
     return pedido
+
+
+#admin de tallas/colores y packs
+def crear_variante(k_producto, talla, color, sku, stock):
+    producto = db.session.get(Producto, k_producto)
+    if not producto or producto.tipo == 'BUNDLE':
+        return None, "Solo los productos individuales tienen tallas o colores"
+    if not (talla or color):
+        return None, "Indica talla, color o ambos"
+    v = Variante(k_producto=k_producto, talla=talla or None, color=color or None, sku=sku or None, stock=max(0, stock or 0))
+    try:
+        db.session.add(v)
+        db.session.commit()
+        return v, None
+    except IntegrityError:
+        db.session.rollback()
+        return None, "Ya existe esa talla/color o ese SKU"
+
+def actualizar_variante(k_variante, stock, sku):
+    v = db.session.get(Variante, k_variante)
+    if not v:
+        return None, "No existe la variante"
+    try:
+        v.stock = max(0, stock or 0)
+        v.sku = sku or None
+        db.session.commit()
+        return v, None
+    except IntegrityError:
+        db.session.rollback()
+        return None, "Ese SKU ya está en uso"
+
+def eliminar_variante(k_variante):
+    v = db.session.get(Variante, k_variante)
+    if not v:
+        return None, "No existe la variante"
+    if Item.query.filter_by(k_variante=v.id).first() or ProductoComponente.query.filter_by(k_variante=v.id).first():
+        return None, "No se puede borrar: ya está en pedidos o packs (déjala en stock 0)"
+    k_producto = v.k_producto
+    db.session.delete(v)
+    db.session.commit()
+    return k_producto, None
+
+def opciones_componentes(excluir=None):
+    #[(valor "producto" o "producto:variante", texto)] de productos individuales, para armar packs
+    opciones = []
+    for p in Producto.query.filter(Producto.tipo != 'BUNDLE').order_by(Producto.k_lanzamiento, Producto.id).all():
+        if p.id == excluir:
+            continue
+        base = nombre_linea(p)
+        if p.variantes:
+            opciones += [(f"{p.id}:{v.id}", f"{base} ({v.nombre})") for v in p.variantes]
+        else:
+            opciones.append((str(p.id), base))
+    return opciones
+
+def agregar_componente(k_bundle, valor, cantidad):
+    bundle = db.session.get(Producto, k_bundle)
+    partes = str(valor or "").split(":")
+    componente = db.session.get(Producto, int(partes[0])) if partes[0].isdigit() else None
+    variante = db.session.get(Variante, int(partes[1])) if len(partes) > 1 and partes[1].isdigit() else None
+    if not bundle or bundle.tipo != 'BUNDLE':
+        return None, "Solo los packs tienen componentes"
+    if not componente or componente.tipo == 'BUNDLE' or componente.id == bundle.id:
+        return None, "Elige un producto individual"
+    if requiere_variante(componente) and (variante is None or variante.k_producto != componente.id):
+        return None, "Elige la talla/color del producto"
+    c = ProductoComponente(k_bundle=bundle.id, k_componente=componente.id, k_variante=variante.id if variante else None, cantidad=max(1, cantidad or 1))
+    db.session.add(c)
+    db.session.commit()
+    return c, None
+
+def eliminar_componente(k_componente):
+    c = db.session.get(ProductoComponente, k_componente)
+    if not c:
+        return None, "No existe"
+    k_bundle = c.k_bundle
+    db.session.delete(c)
+    db.session.commit()
+    return k_bundle, None

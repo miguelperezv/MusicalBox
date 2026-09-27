@@ -68,6 +68,7 @@ class newProductForm(FlaskForm):
     stock = IntegerField("Stock", widget=h5widgets.NumberInput(min=0, max=1000), validators=[DataRequired()])
     i_producto = FileField("Imagen del producto")
     k_category = SelectField("Categoria", id="category", choices=[])
+    tipo = SelectField("Tipo", choices=[('SIMPLE', 'Producto individual'), ('BUNDLE', 'Pack (arma sus productos después)')], default='SIMPLE')
 
     def __init__(self, categories_choices: list = None, *args, **kwargs):
         super().__init__(*args, **kwargs)

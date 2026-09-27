@@ -56,13 +56,22 @@
         <span class="title">{{ p.nombre }}</span>
         {% endif %}
         {% if p.descripcion %}<span class="text-body-secondary small">{{ p.descripcion }}</span>{% endif %}
+        {% if p.incluye %}<span class="small"><i class="bi bi-box-seam me-1 text-primary"></i>Incluye: {{ p.incluye|join(' + ') }}</span>{% endif %}
         <div class="footer">
             <div class="price mb-2">{{ p.precio|cop }}</div>
             {% if agotado %}
             <a class="btn btn-outline-secondary w-100" href="{{ url_for('solicitud.nueva') }}"><i class="bi bi-bell me-1"></i>Pedirlo</a>
             {% else %}
-            <form class="d-flex gap-2" action="{{ url_for('purchase.addtocart') }}" method="post">
+            <form class="d-flex flex-wrap gap-2" action="{{ url_for('purchase.addtocart') }}" method="post">
                 <input type="hidden" name="product_id" value="{{ p.id }}">
+                {% if p.variantes %}
+                <select class="form-select form-select-sm w-100 mb-2" name="variante_id" required aria-label="Talla o color">
+                    <option value="" selected disabled>Elige talla / color</option>
+                    {% for v in p.variantes %}
+                    <option value="{{ v.id }}" {{ 'disabled' if v.stock <= 0 }}>{{ v.nombre }} — {{ 'agotado' if v.stock <= 0 else ('quedan ' ~ v.stock if v.stock <= 3 else 'disponible') }}</option>
+                    {% endfor %}
+                </select>
+                {% endif %}
                 <input class="form-control text-center px-1 d-none d-sm-block" style="max-width: 4.2rem" type="number" name="quantity" value="1" min="1" max="{{ p.stock }}" aria-label="Cantidad">
                 <button type="submit" class="btn btn-primary flex-fill px-2"><i class="bi bi-bag-plus me-1"></i>Agregar</button>
             </form>
