@@ -472,7 +472,7 @@ def get_k_artist_by_name(artista):
     artist_qs = Artista.query.filter_by(n_artista = artista).first()
     artist_schema=ArtistaSchema()
     a = artist_schema.dump(artist_qs)
-    return a['id']
+    return a.get('id')
 
 def get_release_by_name(lanzamiento):
     release_qs = Lanzamiento.query.filter_by(n_lanzamiento = lanzamiento).first()

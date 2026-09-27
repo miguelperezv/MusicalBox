@@ -202,7 +202,10 @@ def newrelease():
     if request.method == 'POST':
         n_lanzamiento = form_new_release.n_lanzamiento.data
         i_lanzamiento = form_new_release.i_lanzamiento.data
-        k_artista =  get_k_artist_by_name(form_new_release.k_artista.data)
+        k_artista =  get_k_artist_by_name((form_new_release.k_artista.data or '').strip().upper())
+        if not k_artista:
+            flash("El artista no existe: créalo primero en Género / categoría / artista", "warning")
+            return redirect(url_for('home.admin'))
         f_lanzamiento = form_new_release.f_lanzamiento.data
         k_genero = form_new_release.k_genero.data
         print(k_genero)
@@ -371,7 +374,10 @@ def updaterelease(k_lanzamiento):
         k_lanzamiento = int (k_lanzamiento)
         n_lanzamiento = form_edit_release.n_lanzamiento_edit.data
         i_lanzamiento = form_edit_release.i_lanzamiento.data
-        k_artista =  get_k_artist_by_name(form_edit_release.k_artista.data)
+        k_artista =  get_k_artist_by_name((form_edit_release.k_artista.data or '').strip().upper())
+        if not k_artista:
+            flash("El artista no existe: créalo primero en Género / categoría / artista", "warning")
+            return redirect(url_for('dashboard.updaterelease', k_lanzamiento=k_lanzamiento))
         f_lanzamiento = form_edit_release.f_lanzamiento.data
         k_genero = form_edit_release.k_genero.data
         print(k_genero)
