@@ -79,8 +79,26 @@ class Invoice(db.Model):
     ref_payco = db.Column(db.String(100))
     f_compra = db.Column(db.DateTime, default=datetime.now)
     total = db.Column(db.Numeric(13,2), nullable=False)
+    #checkout sin cuenta: el pedido existe antes del pago (PENDIENTE) y ePayco lo confirma o rechaza
+    estado = db.Column(db.String(20), nullable=False, default='PENDIENTE', server_default='PENDIENTE')
+    metodo_pago = db.Column(db.String(30))
+    #enlace /pedido/<token>: solo se guarda el SHA-256 del token, nunca el token
+    token_hash = db.Column(db.String(64), unique=True)
+    token_creado = db.Column(db.DateTime)
+    #datos de envío tal como se escribieron en este pedido (no cambian si el comprador edita su perfil)
+    n_envio = db.Column(db.String(100))
+    email_envio = db.Column(db.String(100))
+    tel_envio = db.Column(db.String(20))
+    dir_envio = db.Column(db.String(200))
+    lugar_envio = db.Column(db.String(80))
+    barrio_envio = db.Column(db.String(30))
+    f_actualizacion = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     #atributos de la relacion
     usuario = db.relationship("Usuario")
+    items = db.relationship("Item", viewonly=True)
+
+ESTADOS_PEDIDO = ['PENDIENTE', 'PAGADO', 'RECHAZADO']
+METODOS_PAGO = [('TARJETA', 'Tarjeta de crédito o débito'), ('PSE', 'PSE (débito desde tu banco)'), ('EFECTIVO', 'Efectivo (Efecty, Baloto y otros)')]
 
 class Usuario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
