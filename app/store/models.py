@@ -1,9 +1,10 @@
 #from app.db import db, ma
 from flask.wrappers import Response
 from werkzeug.utils import secure_filename
-from db import db, ma
+from ..db import db, ma
 from datetime import datetime
 from base64 import b64encode
+import secrets
 
 
 
@@ -46,7 +47,7 @@ class Producto(db.Model):
     stock = db.Column(db.Numeric(5,0), nullable=False)
     #i_producto = db.Column(db.String(500))
     
-    f_producto = db.Column(db.DateTime, default= datetime.now())
+    f_producto = db.Column(db.DateTime, default=datetime.now)
     #atributos de la relacion
     lanzamiento = db.relationship("Lanzamiento")
     categoria = db.relationship("Categoria")
@@ -76,7 +77,7 @@ class Invoice(db.Model):
     k_usuario = db.Column(db.Integer, db.ForeignKey("usuario.id"), primary_key= False)
     id_factura_payco = db.Column(db.String(100))
     ref_payco = db.Column(db.String(100))
-    f_compra = db.Column(db.DateTime, default=datetime.now())
+    f_compra = db.Column(db.DateTime, default=datetime.now)
     total = db.Column(db.Numeric(13,2), nullable=False)
     #atributos de la relacion
     usuario = db.relationship("Usuario")
@@ -89,12 +90,36 @@ class Usuario(db.Model):
     email_usuario = db.Column(db.String(50), unique=True, nullable=False)
     pwd_usuario = db.Column(db.String(100), nullable=False)
     dir_usuario = db.Column(db.String(200))
-    lugar_usuario =db.Column(db.String(40))
+    lugar_usuario =db.Column(db.String(80))
+    #datos de envío que vienen del formulario de solicitudes (antes musical_box_manager)
+    tipo_id = db.Column(db.String(4))
+    num_id = db.Column(db.String(12))
+    barrio_usuario = db.Column(db.String(30))
+    cel_usuario = db.Column(db.String(20))
+    f_registro = db.Column(db.DateTime, default=datetime.now)
     #atributo de la relacion
     rol = db.relationship("Rol")
 
 class Rol(db.Model):
     k_rol = db.Column(db.String(20), primary_key=True)
+
+ROLES = ['USER', 'ADMIN', 'CLIENTE']
+
+class Solicitud(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    k_usuario = db.Column(db.Integer, db.ForeignKey("usuario.id"), nullable=False)
+    #producto del catálogo, o texto libre si el cliente pide algo que no tenemos
+    k_producto = db.Column(db.Integer, db.ForeignKey("producto.id"))
+    n_producto_solicitado = db.Column(db.String(150))
+    d_producto_solicitado = db.Column(db.String(200))
+    estado = db.Column(db.String(20), nullable=False, default='ACTIVO')
+    f_solicitud = db.Column(db.DateTime, default=datetime.now)
+    f_actualizacion = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    #atributos de la relacion
+    usuario = db.relationship("Usuario")
+    producto = db.relationship("Producto")
+
+ESTADOS_SOLICITUD = ['ACTIVO', 'EN PROCESO', 'ENVIADO', 'ENTREGADO', 'CANCELADO']
 
 class Categoria(db.Model):
     k_categoria = db.Column(db.String(30), primary_key=True)
@@ -151,7 +176,12 @@ class InvoiceSchema(ma.SQLAlchemyAutoSchema):
 class UsuarioSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Usuario
-        fields = ["id", "k_rol", "n_usuario","ape_usuario", "email_usuario", "pwd_usuario", "dir_usuario", "lugar_usuario"]
+        fields = ["id", "k_rol", "n_usuario","ape_usuario", "email_usuario", "pwd_usuario", "dir_usuario", "lugar_usuario", "tipo_id", "num_id", "barrio_usuario", "cel_usuario"]
+
+class SolicitudSchema(ma.SQLAlchemyAutoSchema):
+    class Meta:
+        model = Solicitud
+        fields = ["id", "k_usuario", "k_producto", "n_producto_solicitado", "d_producto_solicitado", "estado", "f_solicitud"]
 
 class RolSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
@@ -176,7 +206,15 @@ def create_new_user(n_usuario, ape_usuario, email, password):
     print(password)
 
     #k_usuario = "U"+str(len(get_all_users())+1)
-    user = Usuario( k_rol='USER' ,n_usuario =n_usuario,ape_usuario=ape_usuario, email_usuario=email, pwd_usuario=password )
+    #si ya hizo una solicitud sin cuenta (rol CLIENTE), la cuenta se reclama con el mismo email
+    user = Usuario.query.filter_by(email_usuario=email, k_rol='CLIENTE').first()
+    if user:
+        user.k_rol = 'USER'
+        user.n_usuario = n_usuario
+        user.ape_usuario = ape_usuario
+        user.pwd_usuario = password
+    else:
+        user = Usuario( k_rol='USER' ,n_usuario =n_usuario,ape_usuario=ape_usuario, email_usuario=email, pwd_usuario=password )
     
     try:
         db.session.add(user)
@@ -543,6 +581,8 @@ def get_rawimage_by_product(k_producto):
 
 def get_artist_by_release(k_lanzamiento):
     lanz_art = Lanzamiento_Artista.query.filter_by(k_lanzamiento=k_lanzamiento).first()
+    if not lanz_art:
+        return None
     #print(lanz_art)
     artista = Artista.query.filter_by(id = lanz_art.k_artista ).first()
     #print(artista)
@@ -616,8 +656,7 @@ def edit_product(k_producto, n_producto, d_producto, p_producto, i_producto, k_c
                 print("SE ACTUALIZÒ LA IMAGEN")
         else:
             print("No se detectan cambios en la imagen")
-        producto.i_producto = i_producto
-        producto.k_category = k_category
+        producto.k_categoria = k_category
         producto.stock = stock
         db.session.commit()
         db.session.flush()
@@ -673,3 +712,88 @@ def edit_user_by_email(email, nombre,apellido,ciudad,direccion):
         db.session.rollback()
         return None
     
+
+#solicitudes de pedido (integrado desde musical_box_manager)
+def seed_roles():
+    for rol in ROLES:
+        if not db.session.get(Rol, rol):
+            db.session.add(Rol(k_rol=rol))
+    db.session.commit()
+
+def get_or_create_cliente(tipo_id, num_id, nombre, apellido, email, direccion, ciudad, barrio, celular):
+    #primero por documento, luego por email: así una solicitud queda ligada a la cuenta de la tienda si ya existe
+    user = Usuario.query.filter_by(tipo_id=tipo_id, num_id=num_id).first()
+    if not user:
+        user = Usuario.query.filter(db.func.lower(Usuario.email_usuario) == email.lower()).first()
+    try:
+        if user:
+            #completa solo lo que falte, no pisa datos de la cuenta
+            user.tipo_id = user.tipo_id or tipo_id
+            user.num_id = user.num_id or num_id
+            user.cel_usuario = celular or user.cel_usuario
+            user.dir_usuario = direccion or user.dir_usuario
+            user.lugar_usuario = ciudad or user.lugar_usuario
+            user.barrio_usuario = barrio or user.barrio_usuario
+        else:
+            #cliente sin cuenta: contraseña aleatoria, puede reclamar la cuenta registrándose con el mismo email
+            user = Usuario(k_rol='CLIENTE', n_usuario=nombre, ape_usuario=apellido, email_usuario=email,
+                           pwd_usuario=secrets.token_hex(16), tipo_id=tipo_id, num_id=num_id,
+                           dir_usuario=direccion, lugar_usuario=ciudad, barrio_usuario=barrio, cel_usuario=celular)
+            db.session.add(user)
+        db.session.commit()
+        return user, None
+    except Exception as e:
+        print("No se registró el cliente " + str(e))
+        db.session.rollback()
+        return None, str(e)
+
+def create_solicitud(k_usuario, k_producto, n_producto_solicitado, d_producto_solicitado=None):
+    solicitud = Solicitud(k_usuario=k_usuario, k_producto=k_producto, n_producto_solicitado=n_producto_solicitado,
+                          d_producto_solicitado=d_producto_solicitado, estado='ACTIVO')
+    try:
+        db.session.add(solicitud)
+        db.session.commit()
+        return solicitud, None
+    except Exception as e:
+        print("No se creó la solicitud " + str(e))
+        db.session.rollback()
+        return None, str(e)
+
+def get_all_solicitudes():
+    return Solicitud.query.order_by(db.desc(Solicitud.f_solicitud)).all()
+
+def get_solicitud_by_id(id):
+    return db.session.get(Solicitud, id)
+
+def get_solicitudes_by_user(email):
+    user = Usuario.query.filter_by(email_usuario=email).first()
+    if not user:
+        return []
+    return Solicitud.query.filter_by(k_usuario=user.id).order_by(db.desc(Solicitud.f_solicitud)).all()
+
+def update_estado_solicitud(id, estado):
+    solicitud = db.session.get(Solicitud, id)
+    if not solicitud or estado not in ESTADOS_SOLICITUD:
+        return None
+    try:
+        solicitud.estado = estado
+        db.session.commit()
+        return solicitud
+    except Exception as e:
+        print("No se actualizó la solicitud " + str(e))
+        db.session.rollback()
+        return None
+
+def get_catalogo_solicitud():
+    #productos del catálogo con stock para el autocompletado del formulario de solicitud
+    productos = Producto.query.all()
+    r = []
+    for p in productos:
+        artista = get_artist_by_release(p.k_lanzamiento) if p.k_lanzamiento else None
+        lanzamiento = p.lanzamiento.n_lanzamiento if p.lanzamiento else ''
+        nombre = " - ".join(x for x in [artista.n_artista.title() if artista else '', lanzamiento, p.n_producto or ''] if x)
+        r.append({"id": p.id, "nombre": nombre, "categoria": p.k_categoria, "stock": int(p.stock or 0)})
+    return r
+
+def get_all_invoices():
+    return Invoice.query.order_by(db.desc(Invoice.f_compra)).all()

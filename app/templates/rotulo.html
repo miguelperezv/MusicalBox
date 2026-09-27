@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Rótulo solicitud #{{ solicitud.id }}</title>
+    <style>
+        @font-face {
+            font-family: 'BerlinSansFBDemiBold';
+            src: url("{{ url_for('static', filename='fonts/Berlin Sans FB Demi Bold.ttf') }}");
+        }
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .rotulo {
+            width: 14cm;
+            border: 3px solid #3ab7cd;
+            border-radius: 8px;
+            padding: 16px 20px;
+        }
+        .rotulo header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 2px dashed #3ab7cd;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+            font-family: 'BerlinSansFBDemiBold', Arial, sans-serif;
+            font-size: 24px;
+            color: #3ab7cd;
+        }
+        .fila { margin: 6px 0; font-size: 15px; }
+        .fila b { display: inline-block; width: 90px; color: #555; }
+        .destino { font-size: 19px; font-weight: bold; }
+        .pie { margin-top: 12px; font-size: 12px; color: #777; }
+        @media print { .no-print { display: none; } body { margin: 0; } }
+    </style>
+</head>
+<body>
+    <button class="no-print" onclick="window.print()" style="margin-bottom: 12px;">Imprimir</button>
+    <div class="rotulo">
+        <header>
+            <img src="{{ url_for('static', filename='imgs/musicalbox.png') }}" width="50" height="50">
+            musical box · envío #{{ solicitud.id }}
+        </header>
+        <div class="fila"><b>Para:</b> {{ usuario.n_usuario }} {{ usuario.ape_usuario }}</div>
+        <div class="fila"><b>Documento:</b> {{ (usuario.tipo_id or '')|upper }} {{ usuario.num_id or '' }}</div>
+        <div class="fila destino"><b>Destino:</b> {{ usuario.lugar_usuario or '' }}</div>
+        <div class="fila"><b>Dirección:</b> {{ usuario.dir_usuario or '' }}</div>
+        <div class="fila"><b>Barrio:</b> {{ usuario.barrio_usuario or '' }}</div>
+        <div class="fila"><b>Celular:</b> {{ usuario.cel_usuario or '' }}</div>
+        <div class="fila"><b>Contenido:</b> {{ solicitud.n_producto_solicitado or '' }}</div>
+        <div class="pie">Remite: Musical Box · Bogotá, Colombia · CD's, vinilos, cassettes y más</div>
+    </div>
+</body>
+</html>

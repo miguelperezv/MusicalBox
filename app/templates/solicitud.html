@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Solicita tu pedido - Musical Box
+{% endblock %}
+
+{% block contenido %}
+<div class="container my-4" style="max-width: 760px;">
+    <h2>¿No lo encuentras? ¡Pídelo!</h2>
+    <p class="text-muted">Busca en nuestro catálogo o escribe el disco que quieres y nosotros lo conseguimos y te lo enviamos.</p>
+    <form method="POST" action="{{ url_for('solicitud.nueva') }}">
+        {{ form.hidden_tag() }}
+        <div class="form-row">
+            <div class="form-group col-md-6">
+                {{ form.nombre.label }}
+                {{ form.nombre(class="form-control form-control-sm") }}
+            </div>
+            <div class="form-group col-md-6" id="div-apellido">
+                {{ form.apellido.label }}
+                {{ form.apellido(class="form-control form-control-sm") }}
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group col-md-5">
+                {{ form.tipo_id.label }}
+                {{ form.tipo_id(class="form-control form-control-sm") }}
+            </div>
+            <div class="form-group col-md-7">
+                {{ form.num_id.label }}
+                {{ form.num_id(class="form-control form-control-sm") }}
+            </div>
+        </div>
+        <div class="form-group">
+            {{ form.ciudad.label }}
+            {{ form.ciudad(class="form-control form-control-sm", list="ciudad-list", autocomplete="off") }}
+            <datalist id="ciudad-list"></datalist>
+        </div>
+        <div class="form-row">
+            <div class="form-group col-md-8">
+                {{ form.direccion.label }}
+                {{ form.direccion(class="form-control form-control-sm") }}
+            </div>
+            <div class="form-group col-md-4">
+                {{ form.barrio.label }}
+                {{ form.barrio(class="form-control form-control-sm") }}
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group col-md-6">
+                {{ form.celular.label }}
+                {{ form.celular(class="form-control form-control-sm") }}
+            </div>
+            <div class="form-group col-md-6">
+                {{ form.email.label }}
+                {{ form.email(class="form-control form-control-sm") }}
+            </div>
+        </div>
+        <div class="form-group">
+            {{ form.producto.label }}
+            {{ form.producto(class="form-control form-control-sm", list="producto-list", autocomplete="off") }}
+            <datalist id="producto-list"></datalist>
+            <input type="hidden" id="producto-id" name="producto_id">
+            <small id="producto-info" class="form-text text-muted"></small>
+        </div>
+        <div class="form-group">
+            {{ form.d_producto.label }}
+            {{ form.d_producto(class="form-control form-control-sm") }}
+        </div>
+        <button type="submit" class="btn btn-primary">Enviar solicitud</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        fetch('{{ url_for("home.colombia") }}')
+            .then(r => r.json())
+            .then(data => {
+                var list = document.getElementById('ciudad-list');
+                data.forEach(function (c) {
+                    var o = document.createElement('option');
+                    o.value = c;
+                    list.appendChild(o);
+                });
+            });
+
+        var productoInput = document.getElementById('producto');
+        var productos = {};
+        fetch('{{ url_for("solicitud.productos") }}')
+            .then(r => r.json())
+            .then(data => {
+                var list = document.getElementById('producto-list');
+                data.forEach(function (p) {
+                    var label = p.nombre + ' (' + p.categoria + ')';
+                    productos[label] = p;
+                    var o = document.createElement('option');
+                    o.value = label;
+                    list.appendChild(o);
+                });
+            });
+
+        // si elige un producto del catálogo guardamos su id, si no queda como pedido especial
+        productoInput.addEventListener('input', function () {
+            var p = productos[this.value];
+            document.getElementById('producto-id').value = p ? p.id : '';
+            document.getElementById('producto-info').textContent = !this.value ? '' :
+                p ? (p.stock > 0 ? 'En catálogo: ' + p.stock + ' disponibles' : 'En catálogo, agotado: lo pedimos para ti')
+                  : 'Pedido especial: lo buscaremos para ti';
+        });
+
+        // para NIT no aplica apellido
+        var tipo = document.getElementById('tipo_id');
+        function toggleApellido() {
+            document.getElementById('div-apellido').style.display = tipo.value === 'nit' ? 'none' : 'block';
+        }
+        tipo.addEventListener('change', toggleApellido);
+        toggleApellido();
+    });
+</script>
+{% endblock %}

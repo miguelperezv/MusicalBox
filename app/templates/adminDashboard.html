@@ -50,6 +50,7 @@ Panel de Administración
             </li>
             <li>
                 <a href="#" id="invoices"> <i class="fas fa-file-invoice"></i> Ordenes de compra </a>
+                <a href="#" id="solicitudes"> <i class="fas fa-envelope"></i> Solicitudes de pedido </a>
                 <a href="#pageSubmenu" data-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
                     <i class="fas fa-plus-square"></i>
                     Nuevo
@@ -124,7 +125,6 @@ Panel de Administración
         </button>
         <!-- Page Content  -->
         <div id="content">
-                PAGInA PRINCIPAL DE DASHBOARD
                 {%block content%}{%endblock%}
         </div>
     </div>
@@ -208,6 +208,13 @@ Panel de Administración
     $('#editadmin').on('click', function (e){
         e.preventDefault();
         $('#content').load("{{url_for('dashboard.editadmin')}}");
+        })
+    })
+
+    $(document).ready(function (){
+    $('#solicitudes').on('click', function (e){
+        e.preventDefault();
+        $('#content').load("{{url_for('solicitud.lista')}}");
         })
     })
 

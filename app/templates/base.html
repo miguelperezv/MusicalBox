@@ -32,6 +32,7 @@
                     <ul class="largenav pull-right">
                         <li class="upper-links"><a class="links" href="{{url_for('releases.home_releases')}}">Lanzamientos</a></li>
                         <li class="upper-links"><a class="links" href="{{url_for('products.home_products')}}">Productos</a></li>
+                        <li class="upper-links"><a class="links" href="{{url_for('solicitud.nueva')}}">Pide tu disco</a></li>
                         <li class="upper-links"><a class="links" href="http://clashhacks.in/">Catálogo</a></li>
                         <li class="upper-links"><a class="links" href="http://clashhacks.in/">Merch</a></li>
                         <li class="upper-links"><a class="links" href="http://clashhacks.in/">Contacto</a></li>
@@ -96,13 +97,12 @@
             </div>
         </div>
 
-        {% for mesg in get_flashed_messages() %}
-        <div class="alert alert-success" role="alert">
-            <h4 class="alert-heading"> Exito</h4>
-            <p>{{mesg}}</p>
-            <hr>
-            
-          </div>
+        {% set alertas = {'error': 'danger', 'warning': 'warning', 'info': 'info'} %}
+        {% for category, mesg in get_flashed_messages(with_categories=true) %}
+        <div class="alert alert-{{ alertas.get(category, 'success') }} alert-dismissible" role="alert">
+            {{mesg}}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        </div>
         {% endfor %}
         {%block contenido%}
         {%endblock%}

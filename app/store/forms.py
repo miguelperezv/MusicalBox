@@ -1,12 +1,10 @@
 from flask_wtf import FlaskForm
 from wtforms.validators import DataRequired, NumberRange
-from wtforms import StringField, SelectField, PasswordField, IntegerField, FileField
-from wtforms.fields.html5 import DateField
+from wtforms import StringField, SelectField, PasswordField, IntegerField, FileField, DateField, EmailField
 from datetime import date, datetime
-from wtforms.ext.sqlalchemy.fields import QuerySelectField
-from wtforms.widgets import html5 as h5widgets
+from wtforms import widgets as h5widgets
 import pycountry
-from store.models import get_all_genres
+from .models import get_all_genres
 
 class CreateUsuarioForm(FlaskForm):
     name = StringField('Nombre', validators=[DataRequired(message="Ingresa un nombre")])
@@ -31,7 +29,7 @@ class GenreSelectField(SelectField):
     def __init__(self, *args, **kwargs):
         super(GenreSelectField, self).__init__(*args, **kwargs)
         #self.choices = [(country.alpha_2, country.name) for country in pycountry.countries]
-        genres = get_all_genres()
+        genres = get_all_genres() or []
         genres.append({'k_genero' : 'N/A'})
         print( genres)
         self.choices = [(genre['k_genero']) for genre in genres]
@@ -95,3 +93,26 @@ class editReleaseForm(FlaskForm):
     
     n_lanzamiento = StringField("Lanzamiento asociado", id="lanzamiento", render_kw={"placeholder": "Lanzamiento al que se registra el producto"})
 
+
+
+TIPOS_DOCUMENTO = [
+    ('cc', 'Cédula de Ciudadanía'),
+    ('ce', 'Cédula de Extranjería'),
+    ('ti', 'Tarjeta de Identidad'),
+    ('rc', 'Registro Civil'),
+    ('pa', 'Pasaporte'),
+    ('nit', 'NIT'),  # Número de Identificación Tributaria
+]
+
+class RegistroSolicitudForm(FlaskForm):
+    tipo_id = SelectField('Tipo Documento', choices=TIPOS_DOCUMENTO, validators=[DataRequired()])
+    num_id = StringField('Número Documento', validators=[DataRequired()])
+    nombre = StringField('Nombre', validators=[DataRequired()])
+    apellido = StringField('Apellido')
+    ciudad = StringField('Municipio | Ciudad, Departamento', validators=[DataRequired()], id="ciudad")
+    direccion = StringField('Dirección', validators=[DataRequired()])
+    barrio = StringField('Barrio')
+    celular = StringField('Celular', validators=[DataRequired()])
+    email = EmailField('Email', validators=[DataRequired()])
+    producto = StringField('Producto', validators=[DataRequired()], render_kw={"placeholder": "Busca en el catálogo o escribe lo que buscas"})
+    d_producto = StringField('Detalles', render_kw={"placeholder": "Opcional. Edición, color, formato..."})

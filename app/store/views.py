@@ -2,11 +2,11 @@
 #from app.store.forms import CreateUsuarioForm, LoginUsuarioForm, newArtistForm, newReleaseForm
 
 from flask.wrappers import Request
-from store.forms import CreateUsuarioForm, LoginUsuarioForm,  newReleaseForm, newProductForm, newCat_Genre_Artist, newAdmin, editReleaseForm, EditUsuarioForm
-from flask import Blueprint, Response, flash, session, request, g, render_template, redirect, url_for, jsonify, make_response
+from .forms import CreateUsuarioForm, LoginUsuarioForm,  newReleaseForm, newProductForm, newCat_Genre_Artist, newAdmin, editReleaseForm, EditUsuarioForm
+from flask import Blueprint, Response, current_app, flash, session, request, g, render_template, redirect, url_for, jsonify, make_response
 #from app.store.models import create_new_user, get_all_artists, get_user_by_email, create_new_artist
-from store.models import create_new_user, get_all_artists, get_user_by_email, create_new_artist, get_k_artist_by_name, create_new_release, get_release_by_name, get_releases_with_artists, get_categories, create_new_product, get_k_release_by_name_artista, create_new_category, create_new_genre, create_release_genre, new_admin, get_all_releases, get_artist_by_release, get_categories_by_release, get_release_by_id, get_genres_by_release, get_products_by_release, get_product_by_id, create_new_invoice, add_items, get_artist_by_release, update_release, get_products_with_info, edit_product, create_new_image, get_image_by_product, get_rawimage_by_product, edit_image, update_stock
-from store.models import edit_user_by_email, get_all_products, get_purchases_by_user
+from .models import create_new_user, get_all_artists, get_user_by_email, create_new_artist, get_k_artist_by_name, create_new_release, get_release_by_name, get_releases_with_artists, get_categories, create_new_product, get_k_release_by_name_artista, create_new_category, create_new_genre, create_release_genre, new_admin, get_all_releases, get_artist_by_release, get_categories_by_release, get_release_by_id, get_genres_by_release, get_products_by_release, get_product_by_id, create_new_invoice, add_items, get_artist_by_release, update_release, get_products_with_info, edit_product, create_new_image, get_image_by_product, get_rawimage_by_product, edit_image, update_stock, get_items_by_id_factura
+from .models import edit_user_by_email, get_all_products, get_purchases_by_user, get_all_invoices, get_solicitudes_by_user
 #import epaycosdk.epayco as epayco
 import json
 import urllib.parse as urlparse
@@ -14,6 +14,7 @@ from urllib.parse import parse_qs
 import requests
 import datetime
 from datetime import timedelta
+from functools import wraps
 
 
 home = Blueprint('home', __name__)
@@ -29,6 +30,7 @@ products = Blueprint("products", __name__, url_prefix="/products")
 @releases.before_request
 @artists.before_request
 @dashboard.before_request
+@products.before_request
 def before_request():
     if "user" in session:
         g.user = session["user"]
@@ -42,7 +44,24 @@ def before_request():
         g.purchase=None
     
     g.datetime = datetime.datetime
-    print("DATETIME "+ str(g.datetime.now()))
+
+
+def is_admin():
+    return bool(g.get("user")) and g.user.get("k_rol") == 'ADMIN'
+
+def admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not is_admin():
+            flash("Debes ingresar como administrador", "warning")
+            return redirect(url_for('home.login'))
+        return f(*args, **kwargs)
+    return decorated
+
+@dashboard.before_request
+@admin_required
+def validate_admin():
+    pass
 
 
     
@@ -65,10 +84,18 @@ def login():
             print("no existe el usuario")
             flash("No existe el usuario")
             return redirect(url_for('home.index'))
-        elif user['pwd_usuario'] == pwd:
-            flash("Bienvenido")
+        elif user['k_rol'] != 'CLIENTE' and user['pwd_usuario'] == pwd:
+            flash("Bienvenido " + user['n_usuario'])
             session["user"] = user
+            if user['k_rol'] == 'ADMIN':
+                return redirect(url_for('home.admin'))
             return redirect(url_for('home.index', user=g.user, purchase_cart = g.purchase))
+        elif user['k_rol'] == 'CLIENTE':
+            flash("Ya tenemos tus solicitudes, regístrate con este email para crear tu contraseña", "info")
+            return redirect(url_for('home.signup'))
+        else:
+            flash("Contraseña incorrecta", "warning")
+            return redirect(url_for('home.login'))
 
     resp = make_response(render_template('login.html', form=form_login))
     resp.set_cookie('same-site-cookie', 'foo', samesite='Lax')
@@ -109,6 +136,8 @@ def logout():
 
 @home.route("/account", methods=["GET", "POST"])
 def account():
+    if not g.user:
+        return redirect(url_for('home.login'))
 
     edit_usuario = EditUsuarioForm()
     if request.method == "POST":
@@ -137,35 +166,28 @@ def account():
         edit_usuario.address.data = session["user"]["dir_usuario"]
 
         compras = get_purchases_by_user(session["user"]["email_usuario"])
-        print(compras)
+        solicitudes = get_solicitudes_by_user(session["user"]["email_usuario"])
 
-    return render_template("account.html",  user=g.user, purchase_cart = g.purchase, form = edit_usuario, compras = compras, get_product_by_id = get_product_by_id, get_release_by_id = get_release_by_id )
+    return render_template("account.html",  user=g.user, purchase_cart = g.purchase, form = edit_usuario, compras = compras, solicitudes = solicitudes, get_product_by_id = get_product_by_id, get_release_by_id = get_release_by_id )
 
 @home.route("/dashboard", methods=["GET", "POST"])
+@admin_required
 def admin():
     return render_template("adminDashboard.html", user=g.user, purchase_cart = g.purchase)
 
-@home.route("/colombia", methods=["GET", "POST"])
-def colombia():
-    colombiaList = []
-    if request.method == "GET":
-        #r = requests.get('https://raw.githubusercontent.com/marcovega/colombia-json/master/colombia.json')
-        r = requests.get("https://www.datos.gov.co/resource/xdk5-pm3f.json")
-        colombia = json.loads(r.text)
-        
-        #for d in colombia:
-         #   departamento = d["departamento"]
-          #  for c in d["ciudades"]:
-           #     colombiaList.append(c + ", "+ departamento)
-            #    print(c + ", "+ departamento)
-        for d in colombia:
-            colombiaList.append(d["municipio"]+", "+d["departamento"]+" ")
-        print(type(colombia))
-        colombiaList.append("Cali, Valle del Cauca")
-        return jsonify(colombiaList)
-    
+LOCALIDADES_BOGOTA = ["Usaquén", "Chapinero", "Santa Fe", "San Cristóbal", "Usme", "Tunjuelito", "Bosa", "Kennedy",
+    "Fontibón", "Engativá", "Suba", "Barrios Unidos", "Teusaquillo", "Los Mártires", "Antonio Nariño", "Puente Aranda",
+    "La Candelaria", "Rafael Uribe Uribe", "Ciudad Bolívar", "Sumapaz"]
 
-    
+@home.route("/colombia", methods=["GET"])
+def colombia():
+    #municipios DIVIPOLA (datos.gov.co gdxc-w37w) guardados en static/data; Bogotá se reemplaza por sus localidades (del manager)
+    with current_app.open_resource("static/data/municipios_colombia.json") as f:
+        municipios = set(json.load(f))
+    municipios.discard("Bogotá, D.C., Bogotá, D.C.")
+    municipios.update(l + ", Bogotá D.C." for l in LOCALIDADES_BOGOTA)
+    return jsonify(sorted(municipios))
+
 
 #routes del panel de administración
 
@@ -319,7 +341,7 @@ def newadmin():
 @dashboard.route("/invoices", methods=["GET", "POST"])
 def invoices():
 
-    return render_template("invoices.html")  
+    return render_template("invoices.html", invoices = get_all_invoices(), get_items_by_id_factura = get_items_by_id_factura)  
 
 @dashboard.route("/editrelease", methods=["GET", "POST"])
 def editrelease():
@@ -430,7 +452,7 @@ def updateproduct(k_producto):
         form_edit_product.p_producto.data = producto.p_producto
         form_edit_product.stock.data = producto.stock
         form_edit_product.d_producto.data  = producto.d_producto
-        form_edit_product.i_producto.data = producto.i_producto
+        form_edit_product.i_producto.data = None
         form_edit_product.k_category.data = producto.k_categoria
         return render_template("editProduct.html", form = form_edit_product, producto = producto)
     return redirect(url_for('dashboard.editproduct'))
@@ -576,7 +598,8 @@ def payment():
             ref_payco= (parse_qs(parsed.query)['ref_payco'])
         except Exception as e:
             print("No se obtuvo la ref payco")
-            ref_payco= None
+            flash("No se recibió la referencia de pago", "warning")
+            return redirect(url_for('purchase.summary'))
         
         myResponse = "https://secure.epayco.co/validation/v1/reference/"+ref_payco[0]
         r = requests.get(myResponse)
@@ -623,4 +646,4 @@ def home_products():
         products = get_all_products()
     if request.method == "POST":
         None
-    return render_template("products.html", products = products, get_release_by_id=get_release_by_id, get_image_by_product = get_image_by_product)
+    return render_template("products.html", products = products, get_release_by_id=get_release_by_id, get_image_by_product = get_image_by_product, user=g.user, purchase_cart = g.purchase)

@@ -24,6 +24,7 @@ Mic cuenta
  
   <a class="nav-item nav-link" data-toggle="tab" href="#menu1">Mi perfil</a>
   <a class="nav-item nav-link" data-toggle="tab" href="#menu2">Mis compras</a>
+  <a class="nav-item nav-link" data-toggle="tab" href="#menu-solicitudes">Mis solicitudes</a>
   <!--
   <a class="nav-item nav-link disabled" data-toggle="tab" href="#menu3">Disabled</a>
   -->
@@ -104,6 +105,7 @@ Mic cuenta
           <th scope="col">Cantidad</th>
           <th scope="col">Subtotal</th>
           </tr>
+          {%if compra[1]%}
           {%set product = get_product_by_id(compra[1][0].k_producto)%}
           {%set release = get_release_by_id(product.k_lanzamiento)%}
           {%set item = compra[1][0]%}
@@ -118,6 +120,7 @@ Mic cuenta
           <td> {{item.cant_item}}</td>
           <td>OPEN UR MIND</td>
           </tr>
+          {%endif%}
         </tr>
         
         {%endfor%}
@@ -126,6 +129,32 @@ Mic cuenta
     </table>
           
        
+  </div>
+  <div id="menu-solicitudes" class="tab-pane fade">
+    <h3>Mis solicitudes</h3>
+    <a href="{{url_for('solicitud.nueva')}}" class="btn btn-sm btn-primary mb-2">Nueva solicitud</a>
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">#</th>
+          <th scope="col">Fecha</th>
+          <th scope="col">Producto</th>
+          <th scope="col">Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {%for s in solicitudes%}
+        <tr>
+          <td>{{s.id}}</td>
+          <td>{{s.f_solicitud.strftime('%Y-%m-%d') if s.f_solicitud}}</td>
+          <td>{{s.n_producto_solicitado or ''}}{% if s.d_producto_solicitado %} <small class="text-muted">{{s.d_producto_solicitado}}</small>{% endif %}</td>
+          <td>{{s.estado}}</td>
+        </tr>
+        {%else%}
+        <tr><td colspan="4" class="text-muted">No tienes solicitudes</td></tr>
+        {%endfor%}
+      </tbody>
+    </table>
   </div>
   <div id="menu3" class="tab-pane fade">
     <h3>Menu 3</h3>

@@ -1,4 +1,31 @@
-
-
-<H2>PAGINA DE ORDENES DE COMPRA!!!</H2>
-
+<h3>Órdenes de compra</h3>
+<table class="table table-striped table-sm">
+    <thead>
+        <tr>
+            <th scope="col">#</th>
+            <th scope="col">Fecha</th>
+            <th scope="col">Cliente</th>
+            <th scope="col">Productos</th>
+            <th scope="col">Total</th>
+            <th scope="col">Ref. ePayco</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for i in invoices %}
+        <tr>
+            <th scope="row">{{ i.id }}</th>
+            <td>{{ i.f_compra.strftime('%Y-%m-%d %H:%M') if i.f_compra }}</td>
+            <td>{{ i.usuario.n_usuario if i.usuario }} {{ i.usuario.ape_usuario if i.usuario }}<br><span style="font-size: 0.8em">{{ i.usuario.email_usuario if i.usuario }}</span></td>
+            <td>
+                {% for item in get_items_by_id_factura(i.id) %}
+                {{ item.cant_item|int }} × {{ item.producto.n_producto if item.producto }}{% if item.producto and item.producto.lanzamiento %} ({{ item.producto.lanzamiento.n_lanzamiento }}){% endif %}<br>
+                {% endfor %}
+            </td>
+            <td>${{ '{:,.0f}'.format(i.total) }}</td>
+            <td style="font-size: 0.8em">{{ i.ref_payco or '' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-center text-muted">No hay órdenes de compra</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
