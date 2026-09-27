@@ -66,6 +66,29 @@
     </section>
     {% endif %}
 
+    {% if redes %}
+    <section class="mb-5" id="redes">
+        <div class="mb-section-title">
+            <div><span class="mb-eyebrow">Síguenos</span><h2>En nuestras redes</h2></div>
+            <div class="d-flex gap-2">
+                <a class="btn btn-outline-secondary btn-sm" href="https://www.instagram.com/musicalboxcol/" target="_blank" rel="noopener" aria-label="Instagram"><i class="bi bi-instagram"></i></a>
+                <a class="btn btn-outline-secondary btn-sm" href="https://tiktok.com/@musicalboxcol" target="_blank" rel="noopener" aria-label="TikTok"><i class="bi bi-tiktok"></i></a>
+            </div>
+        </div>
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 justify-content-center">
+            {% for p in redes %}
+            <div class="col d-flex justify-content-center mb-red">
+                {% if p.plataforma == 'tiktok' %}
+                <blockquote class="tiktok-embed" cite="{{ p.url }}" data-video-id="{{ p.id_externo }}" style="max-width: 325px; min-width: 280px; margin: 0;"><section><a href="{{ p.url }}" target="_blank" rel="noopener">Ver en TikTok</a></section></blockquote>
+                {% else %}
+                <blockquote class="instagram-media" data-instgrm-permalink="{{ p.url }}" data-instgrm-version="14" style="max-width: 360px; min-width: 280px; width: 100%; margin: 0;"><a href="{{ p.url }}" target="_blank" rel="noopener">Ver en Instagram</a></blockquote>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
     <section class="mb-panel p-4 p-lg-5 d-lg-flex align-items-center justify-content-between gap-4" style="background: linear-gradient(135deg, #fffde0, #e7f5f8);">
         <div>
             <span class="mb-eyebrow">Pedidos a la medida</span>
@@ -81,4 +104,19 @@
         <div class="col"><i class="bi bi-vinyl fs-3 text-primary"></i><h3 class="h6 mt-2 mb-1">Ediciones especiales</h3><p class="text-body-secondary small mb-0">Vinilos de colores, box sets y exclusivos.</p></div>
     </section>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{% if redes %}
+{% if redes|selectattr('plataforma', 'equalto', 'tiktok')|list %}<script async src="https://www.tiktok.com/embed.js"></script>{% endif %}
+{% if redes|selectattr('plataforma', 'equalto', 'instagram')|list %}<script async src="https://www.instagram.com/embed.js"></script>{% endif %}
+<script>
+    //si un embed no carga (post borrado, privado, bloqueado), se oculta solo ese post y el resto sigue
+    setTimeout(function () {
+        document.querySelectorAll('#redes .mb-red').forEach(function (c) { if (!c.querySelector('iframe')) c.remove(); });
+        var s = document.getElementById('redes');
+        if (s && !s.querySelector('.mb-red')) s.remove();
+    }, 10000);
+</script>
+{% endif %}
 {% endblock %}

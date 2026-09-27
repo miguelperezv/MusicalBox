@@ -95,11 +95,15 @@ def verificar_embed(pub):
     if pub.plataforma != 'tiktok':
         pub.error_embed = None
         return None
+    #solo se oculta si TikTok dice que no existe; límites (429), caídas o red: queda visible y el navegador lo omite si no carga
     try:
         r = requests.get("https://www.tiktok.com/oembed", params={"url": pub.url}, timeout=10)
-        pub.error_embed = None if r.status_code == 200 and "html" in (r.json() or {}) else f"TikTok respondió {r.status_code}: el post no existe o es privado"
+        if r.status_code in (400, 404):
+            pub.error_embed = "TikTok dice que el post no existe o es privado"
+        elif r.status_code == 200:
+            pub.error_embed = None if "html" in (r.json() or {}) else "TikTok no devolvió el embed del post"
     except Exception as e:
-        pub.error_embed = f"No se pudo verificar: {str(e)[:120]}"
+        print(f"No se pudo verificar el post {pub.url}: {e}")
     return pub.error_embed
 
 

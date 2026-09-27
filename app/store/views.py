@@ -16,6 +16,7 @@ import datetime
 from datetime import timedelta
 from functools import wraps
 from . import carrito
+from .redes import seleccion_para_inicio
 from ..db import db
 from .notificaciones import correo_activacion, usuario_de_token
 
@@ -71,7 +72,8 @@ def validate_admin():
 
 @home.route("/")
 def index():
-    return render_template("home.html", releases = get_releases_cards(limit=8), productos = get_products_cards(limit=4))
+    return render_template("home.html", releases = get_releases_cards(limit=8), productos = get_products_cards(limit=4),
+                           redes = seleccion_para_inicio())
 
 @home.route("/login", methods=["GET", 'POST'])
 def login():
