@@ -894,22 +894,105 @@ def get_or_create_comprador(nombre, email, telefono, direccion, ciudad, barrio):
     db.session.flush()
     return user
 
+#stock con variantes y bundles
+def requiere_variante(producto):
+    return producto.tipo != 'BUNDLE' and bool(producto.variantes)
+
+def stock_disponible(producto, variante=None):
+    """Unidades que se pueden vender ya.
+    SIMPLE sin variantes: producto.stock · con variantes: la variante (o la suma, si no se indica una)
+    BUNDLE: el mínimo, entre sus componentes, de stock_componente // cantidad."""
+    if producto.tipo == 'BUNDLE':
+        if not producto.componentes:
+            return 0
+        posibles = []
+        for c in producto.componentes:
+            #un componente con tallas/colores debe indicar cuál; los bundles no se anidan
+            if c.componente.tipo == 'BUNDLE' or (requiere_variante(c.componente) and not c.variante):
+                return 0
+            posibles.append(stock_disponible(c.componente, c.variante) // c.cantidad)
+        return min(posibles)
+    if producto.variantes:
+        if variante is not None:
+            return int(variante.stock or 0)
+        return sum(int(v.stock or 0) for v in producto.variantes)
+    return int(producto.stock or 0)
+
+def unidades_de_stock(producto, variante, cantidad):
+    """De qué unidades físicas sale una línea: {('P', id) o ('V', id): cantidad}. Un bundle se expande."""
+    if producto.tipo == 'BUNDLE':
+        demanda = {}
+        for c in producto.componentes:
+            for clave, n in unidades_de_stock(c.componente, c.variante, c.cantidad * cantidad).items():
+                demanda[clave] = demanda.get(clave, 0) + n
+        return demanda
+    if variante is not None:
+        return {('V', variante.id): cantidad}
+    return {('P', producto.id): cantidad}
+
+def descontar_stock(producto, variante, cantidad):
+    #nunca deja stock negativo; devuelve avisos si no alcanzaba
+    avisos = []
+    for (tipo, k), n in unidades_de_stock(producto, variante, cantidad).items():
+        objeto = db.session.get(Variante if tipo == 'V' else Producto, k)
+        if objeto.stock < n:
+            avisos.append(f"stock insuficiente en {'variante' if tipo == 'V' else 'producto'} {k}")
+        objeto.stock = max(0, objeto.stock - n)
+    return avisos
+
+def validar_bundle(bundle):
+    errores = []
+    if not bundle.componentes:
+        errores.append("El pack no tiene productos")
+    for c in bundle.componentes:
+        if c.componente.tipo == 'BUNDLE':
+            errores.append("Un pack no puede contener otro pack")
+        elif requiere_variante(c.componente) and not c.variante:
+            errores.append(f"Indica la talla/color de {c.componente.n_producto}")
+        elif c.variante and c.variante.k_producto != c.k_componente:
+            errores.append(f"La variante no corresponde a {c.componente.n_producto}")
+    return errores
+
+def nombre_linea(producto, variante=None):
+    nombre = (producto.lanzamiento.n_lanzamiento.title() + " - " if producto.lanzamiento else "") + (producto.n_producto or "")
+    return nombre + (f" ({variante.nombre})" if variante is not None and variante.nombre else "")
+
+def clave_carrito(k_producto, k_variante=None):
+    return f"{int(k_producto)}:{int(k_variante)}" if k_variante else str(int(k_producto))
+
 def validar_carrito(cart):
-    #devuelve (lineas, total, errores); el stock se revisa aquí y otra vez al confirmar el pago
-    lineas, errores, total = [], [], 0
-    for k_producto, cantidad in (cart or {}).items():
-        producto = db.session.get(Producto, int(k_producto))
+    """Devuelve (lineas, total, errores) con lineas = [(producto, variante, cantidad)].
+    Claves del carrito: "producto" o "producto:variante". El stock se revisa sumando lo que pide todo el
+    carrito (un bundle cuenta contra el stock de sus componentes) y otra vez al confirmar el pago."""
+    lineas, errores, total, demanda = [], [], 0, {}
+    for clave, cantidad in (cart or {}).items():
+        partes = str(clave).split(":")
+        producto = db.session.get(Producto, int(partes[0])) if partes[0].isdigit() else None
+        variante = db.session.get(Variante, int(partes[1])) if len(partes) > 1 and partes[1].isdigit() else None
         cantidad = int(cantidad)
-        if not producto or cantidad < 1:
+        if not producto or cantidad < 1 or (variante is not None and variante.k_producto != producto.id):
             errores.append("Un producto de tu carrito ya no está disponible")
             continue
-        nombre = (producto.lanzamiento.n_lanzamiento.title() + " - " if producto.lanzamiento else "") + (producto.n_producto or "")
-        if cantidad > int(producto.stock or 0):
-            errores.append(f"{nombre}: solo quedan {int(producto.stock or 0)} disponibles")
+        if requiere_variante(producto) and variante is None:
+            errores.append(f"{nombre_linea(producto)}: elige talla o color")
             continue
-        lineas.append((producto, cantidad))
+        disponible = stock_disponible(producto, variante)
+        if cantidad > disponible:
+            errores.append(f"{nombre_linea(producto, variante)}: solo quedan {disponible} disponibles")
+            continue
+        for unidad, n in unidades_de_stock(producto, variante, cantidad).items():
+            demanda[unidad] = demanda.get(unidad, 0) + n
+        lineas.append((producto, variante, cantidad))
         total += producto.p_producto * cantidad
-    if not lineas and not errores:
+    #lo pedido en total (sueltos + packs) no puede superar el stock de cada unidad física
+    for (tipo, k), n in demanda.items():
+        objeto = db.session.get(Variante if tipo == 'V' else Producto, k)
+        if n > int(objeto.stock or 0):
+            p, v = (objeto.producto, objeto) if tipo == 'V' else (objeto, None)
+            errores.append(f"{nombre_linea(p, v)}: entre productos sueltos y packs pides {n}, solo quedan {int(objeto.stock or 0)}")
+    if errores:
+        return [], 0, errores
+    if not lineas:
         errores.append("Tu carrito está vacío")
     return lineas, total, errores
 
@@ -934,8 +1017,9 @@ def crear_pedido(cart, datos, k_usuario=None):
                              lugar_envio=datos["ciudad"].strip(), barrio_envio=(datos.get("barrio") or "").strip() or None)
             db.session.add(pedido)
             db.session.flush()
-            for producto, cantidad in lineas:
-                db.session.add(Item(k_producto=producto.id, k_factura=pedido.id, cant_item=cantidad, p_item=producto.p_producto))
+            for producto, variante, cantidad in lineas:
+                db.session.add(Item(k_producto=producto.id, k_factura=pedido.id, k_variante=variante.id if variante is not None else None,
+                                    cant_item=cantidad, p_item=producto.p_producto))
             db.session.commit()
             return pedido, token, []
         except IntegrityError:
@@ -962,11 +1046,9 @@ def confirmar_pago(pedido, ref_payco, id_factura_payco=None, franquicia=None):
     if franquicia:
         pedido.metodo_pago = f"{pedido.metodo_pago or ''} ({franquicia})".strip()[:30]
     for item in Item.query.filter_by(k_factura=pedido.id).all():
-        producto = db.session.get(Producto, item.k_producto)
-        if producto:
-            if producto.stock < item.cant_item:
-                print(f"AVISO stock insuficiente al confirmar pedido {pedido.id}: producto {producto.id}")
-            producto.stock = max(0, producto.stock - item.cant_item)
+        if item.producto:
+            for aviso in descontar_stock(item.producto, item.variante, int(item.cant_item)):
+                print(f"AVISO al confirmar pedido {pedido.id}: {aviso}")
     db.session.commit()
     return pedido, True
 

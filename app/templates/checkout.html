@@ -48,12 +48,12 @@
         <div class="col-lg-5">
             <div class="mb-panel mb-sticky">
                 <h2 class="h5 mb-3">Tu pedido</h2>
-                {% for producto, cantidad in lineas %}
+                {% for producto, variante, cantidad in lineas %}
                 <div class="d-flex align-items-center gap-3 py-2 {{ 'border-top' if not loop.first }}">
                     <div class="mb-thumb flex-shrink-0">{{ product_cover(producto.id, producto.lanzamiento.i_lanzamiento if producto.lanzamiento else '', producto.n_producto) }}</div>
                     <div class="flex-fill min-w-0">
                         <div class="fw-semibold text-truncate">{{ producto.lanzamiento.n_lanzamiento.title() if producto.lanzamiento }}</div>
-                        <small class="text-body-secondary">{{ producto.n_producto }} · {{ cantidad }} × {{ producto.p_producto|cop }}</small>
+                        <small class="text-body-secondary">{{ producto.n_producto }}{% if variante %} ({{ variante.nombre }}){% endif %} · {{ cantidad }} × {{ producto.p_producto|cop }}</small>
                     </div>
                     <div class="fw-semibold">{{ (producto.p_producto * cantidad)|cop }}</div>
                 </div>
