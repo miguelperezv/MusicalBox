@@ -20,9 +20,9 @@ py -3.12 -m venv .venv
 El esquema se versiona en `migrations/versions/`. La app ya no crea tablas al arrancar.
 
 ```bash
-.venv\Scriptslask --app run db upgrade                 # aplica las migraciones pendientes
-.venv\Scriptslask --app run db migrate -m "mensaje"    # genera una migración tras cambiar los modelos (revísala antes de aplicarla)
-.venv\Scriptslask --app run db downgrade               # revierte la última
+.venv\Scripts\flask --app run db upgrade                 # aplica las migraciones pendientes
+.venv\Scripts\flask --app run db migrate -m "mensaje"    # genera una migración tras cambiar los modelos (revísala antes de aplicarla)
+.venv\Scripts\flask --app run db downgrade               # revierte la última
 ```
 
 Una BD creada antes de las migraciones se marca como línea base con `flask --app run db stamp 5b10cf662d03`.
