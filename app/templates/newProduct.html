@@ -2,7 +2,14 @@
 <h1 class="h3 mb-4">Nuevo producto</h1>
 <form class="mb-panel" style="max-width: 760px" method="POST" action="{{ url_for('dashboard.newproduct') }}" enctype="multipart/form-data">
     {{ form.csrf_token }}
-    {{ field(form.n_lanzamiento, placeholder='Escribe para buscar el lanzamiento', **{'data-autocomplete': url_for('dashboard.newproduct_releases')}) }}
+    <div class="mb-3">
+        <label class="form-label" for="lanzamiento">Lanzamiento</label>
+        <select class="form-select" name="n_lanzamiento" id="lanzamiento" required>
+            <option value="" disabled {{ 'selected' if not preseleccion }}>Elige el disco al que pertenece</option>
+            {% for l in lanzamientos %}<option value="{{ l }}" {{ 'selected' if l.split('.')[0] == preseleccion|string }}>{{ l.split('. ', 1)[1] if '. ' in l else l }}</option>{% endfor %}
+        </select>
+        <div class="form-text">¿No está? Créalo primero en Lanzamientos.</div>
+    </div>
     <div class="row">
         {{ field(form.n_producto, col='col-sm-8 mb-3') }}
         {{ field(form.k_category, col='col-sm-4 mb-3') }}
@@ -12,7 +19,7 @@
     {{ field(form.d_producto) }}
     <div class="row">
         {{ field(form.p_producto, col='col-sm-6 mb-3', help='En pesos, sin puntos') }}
-        {{ field(form.stock, col='col-sm-6 mb-3') }}
+        {{ field(form.stock, col='col-sm-6 mb-3 campo-stock', help='Si tiene tallas, el stock se pone por talla después') }}
     </div>
     <div class="mb-3">
         <label class="form-label" for="inputImage">Imagen del producto</label>
@@ -20,3 +27,11 @@
     </div>
     <button type="submit" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Crear producto</button>
 </form>
+
+<script>
+    (function () {
+        var tipo = document.getElementById('tipo'), stock = document.querySelector('.campo-stock');
+        function toggle() { stock.style.display = tipo.value === 'BUNDLE' ? 'none' : ''; }
+        tipo.addEventListener('change', toggle); toggle();
+    })();
+</script>

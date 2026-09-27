@@ -1,0 +1,44 @@
+{% extends "adminDashboard.html" %}
+{% from "_macros.html" import product_cover, badge_original %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <h1 class="h3 mb-0">Productos</h1>
+    <div class="d-flex gap-2">
+        <input class="form-control" style="max-width: 260px" type="search" id="filtro" placeholder="Buscar producto, disco, artista...">
+        <a class="btn btn-primary text-nowrap" href="#" data-load="{{ url_for('dashboard.newproduct') }}"><i class="bi bi-plus-lg me-1"></i>Nuevo</a>
+    </div>
+</div>
+<div class="mb-panel p-0">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" id="tabla">
+            <thead><tr><th class="ps-3">Producto</th><th>Lanzamiento</th><th>Tipo</th><th class="text-end">Precio</th><th class="text-end">Stock</th><th class="pe-3 text-end"></th></tr></thead>
+            <tbody>
+                {% for f in filas %}{% set p = f.p %}
+                <tr>
+                    <td class="ps-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="mb-thumb flex-shrink-0">{{ product_cover(p.id, p.lanzamiento.i_lanzamiento if p.lanzamiento else '', p.n_producto, w=300) }}</div>
+                            <div><div class="fw-semibold">{{ p.n_producto or '(sin nombre)' }}</div>{% if f.original %}{{ badge_original() }}{% endif %}</div>
+                        </div>
+                    </td>
+                    <td class="small">{{ f.artista.n_artista.title() ~ ' · ' if f.artista }}{{ p.lanzamiento.n_lanzamiento.title() if p.lanzamiento else '—' }}</td>
+                    <td class="small">{% if p.tipo == 'BUNDLE' %}<span class="mb-chip mb-badge-pack">PACK</span>{% else %}{{ p.k_categoria or '' }}{% if p.variantes %} · {{ p.variantes|length }} tallas{% endif %}{% endif %}</td>
+                    <td class="text-end text-nowrap">{{ p.p_producto|cop }}</td>
+                    <td class="text-end">{% if f.stock <= 0 %}<span class="mb-estado mb-estado-RECHAZADO">Agotado</span>{% else %}{{ f.stock }}{% endif %}</td>
+                    <td class="pe-3 text-end text-nowrap">
+                        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('products.detalle', k_producto=p.id) }}" target="_blank" title="Ver en la tienda"><i class="bi bi-box-arrow-up-right"></i></a>
+                        <a class="btn btn-sm btn-primary" href="{{ url_for('dashboard.updateproduct', k_producto=p.id) }}"><i class="bi bi-pencil me-1"></i>Editar</a>
+                    </td>
+                </tr>
+                {% else %}<tr><td colspan="6" class="mb-empty">Todavía no hay productos</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+<script>
+    document.getElementById('filtro').addEventListener('input', function () {
+        var q = this.value.toLowerCase();
+        document.querySelectorAll('#tabla tbody tr').forEach(function (tr) { tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none'; });
+    });
+</script>
+{% endblock %}

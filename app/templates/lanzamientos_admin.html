@@ -1,0 +1,42 @@
+{% extends "adminDashboard.html" %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <h1 class="h3 mb-0">Lanzamientos</h1>
+    <div class="d-flex gap-2">
+        <input class="form-control" style="max-width: 260px" type="search" id="filtro" placeholder="Buscar disco o artista...">
+        <a class="btn btn-primary text-nowrap" href="#" data-load="{{ url_for('dashboard.newrelease') }}"><i class="bi bi-plus-lg me-1"></i>Nuevo</a>
+    </div>
+</div>
+<div class="mb-panel p-0">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" id="tabla">
+            <thead><tr><th class="ps-3">Lanzamiento</th><th>Fecha</th><th class="text-center">Productos</th><th class="pe-3 text-end"></th></tr></thead>
+            <tbody>
+                {% for f in filas %}{% set l = f.l %}
+                <tr>
+                    <td class="ps-3">
+                        <div class="d-flex align-items-center gap-2">
+                            {% if l.i_lanzamiento %}<img src="{{ l.i_lanzamiento }}" alt="" width="48" height="48" class="rounded object-fit-cover flex-shrink-0">{% endif %}
+                            <div><div class="fw-semibold">{{ l.n_lanzamiento.title() }}</div><div class="small text-body-secondary">{{ f.artista.n_artista.title() if f.artista else 'Sin artista' }}{% if l.url_social %} · <i class="bi bi-link-45deg"></i> post{% endif %}</div></div>
+                        </div>
+                    </td>
+                    <td class="small text-nowrap">{{ l.f_lanzamiento or '' }}</td>
+                    <td class="text-center">{{ f.productos }}</td>
+                    <td class="pe-3 text-end text-nowrap">
+                        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('releases.release', k_lanzamiento=l.id) }}" target="_blank" title="Ver en la tienda"><i class="bi bi-box-arrow-up-right"></i></a>
+                        <a class="btn btn-sm btn-outline-primary" href="{{ url_for('dashboard.productos_admin') }}?lanzamiento={{ l.id }}" data-load="{{ url_for('dashboard.newproduct', lanzamiento=l.id) }}" title="Agregar producto a este lanzamiento"><i class="bi bi-bag-plus"></i></a>
+                        <a class="btn btn-sm btn-primary" href="{{ url_for('dashboard.updaterelease', k_lanzamiento=l.id) }}"><i class="bi bi-pencil me-1"></i>Editar</a>
+                    </td>
+                </tr>
+                {% else %}<tr><td colspan="4" class="mb-empty">Todavía no hay lanzamientos</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+<script>
+    document.getElementById('filtro').addEventListener('input', function () {
+        var q = this.value.toLowerCase();
+        document.querySelectorAll('#tabla tbody tr').forEach(function (tr) { tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none'; });
+    });
+</script>
+{% endblock %}

@@ -139,3 +139,22 @@ def redes_verificar(k):
     redes.verificar_embed(pub)
     db.session.commit()
     return _volver_redes(pub.error_embed, "El post se ve bien")
+
+
+#listados del catálogo: ver todo y entrar a editar con un clic (en vez de buscar escribiendo)
+from .models import Producto, Lanzamiento, get_artist_by_release, stock_disponible, es_original
+
+
+@dashboard.route("/productos")
+def productos_admin():
+    productos = Producto.query.order_by(Producto.k_lanzamiento, Producto.id).all()
+    filas = [{"p": p, "artista": get_artist_by_release(p.k_lanzamiento) if p.k_lanzamiento else None,
+              "stock": stock_disponible(p), "original": es_original(p)} for p in productos]
+    return render_template("productos_admin.html", filas=filas)
+
+
+@dashboard.route("/lanzamientos")
+def lanzamientos_admin():
+    filas = [{"l": l, "artista": get_artist_by_release(l.id), "productos": Producto.query.filter_by(k_lanzamiento=l.id).count()}
+             for l in Lanzamiento.query.order_by(db.desc(Lanzamiento.f_lanzamiento)).all()]
+    return render_template("lanzamientos_admin.html", filas=filas)

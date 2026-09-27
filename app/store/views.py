@@ -252,7 +252,7 @@ def newrelease():
         else:
             flash("No se pudo registrar")
         return redirect(url_for('home.admin'))
-    return render_template("newRelease.html", form = form_new_release )
+    return render_template("newRelease.html", form = form_new_release, artistas = sorted(a['n_artista'] for a in get_all_artists()))
 
 @dashboard.route("/newrelease_artists")
 def newrelease_artists():
@@ -295,7 +295,8 @@ def newproduct():
         else:
             flash("No se pudo registrar")
         return redirect(url_for('home.admin'))
-    return render_template("newProduct.html", form=form_new_product)
+    return render_template("newProduct.html", form=form_new_product, lanzamientos=get_releases_with_artists() or [],
+                           preseleccion=request.args.get("lanzamiento", ""))
 
 @dashboard.route("/newproduct_releases")
 def newproduct_releases():
@@ -399,7 +400,7 @@ def editrelease():
             
         else:
             form_edit_release.k_genero.data = "N/A"
-    return render_template("editRelease.html", form = form_edit_release, get_artist_by_release = get_artist_by_release,  lanzamiento = lanzamiento)
+    return render_template("editRelease.html", form = form_edit_release, get_artist_by_release = get_artist_by_release,  lanzamiento = lanzamiento, artistas = sorted(a['n_artista'] for a in get_all_artists()))
 
 
 @dashboard.route("/updaterelease_<string:k_lanzamiento>", methods=["GET", "POST"])
@@ -438,7 +439,7 @@ def updaterelease(k_lanzamiento):
             form_edit_release.k_genero.data = "N/A"
         
     
-    return render_template("editRelease.html", form = form_edit_release, get_artist_by_release = get_artist_by_release,  lanzamiento = lanzamiento)
+    return render_template("editRelease.html", form = form_edit_release, get_artist_by_release = get_artist_by_release,  lanzamiento = lanzamiento, artistas = sorted(a['n_artista'] for a in get_all_artists()))
 
 
 @dashboard.route("/editproduct",  methods=["GET", "POST"])
@@ -455,7 +456,7 @@ def editproduct():
         producto = get_product_by_id(k_producto)
         print(producto.p_producto)
         form_edit_product.n_producto_edit.data = producto.n_producto
-        form_edit_product.p_producto.data = producto.p_producto
+        form_edit_product.p_producto.data = int(producto.p_producto or 0)
         form_edit_product.stock.data = producto.stock
         form_edit_product.d_producto.data  = producto.d_producto
         form_edit_product.i_producto.data = get_rawimage_by_product(producto.id)
@@ -502,7 +503,7 @@ def updateproduct(k_producto):
         producto = get_product_by_id(k_producto)
         print(producto.p_producto)
         form_edit_product.n_producto_edit.data = producto.n_producto
-        form_edit_product.p_producto.data = producto.p_producto
+        form_edit_product.p_producto.data = int(producto.p_producto or 0)
         form_edit_product.stock.data = producto.stock
         form_edit_product.d_producto.data  = producto.d_producto
         form_edit_product.i_producto.data = None

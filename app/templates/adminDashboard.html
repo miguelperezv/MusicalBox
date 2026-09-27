@@ -19,11 +19,9 @@
                 <a class="nav-link" href="#" data-load="{{ url_for('dashboard.invoices') }}"><i class="bi bi-receipt"></i>Órdenes de compra</a>
 
                 <div class="section">Catálogo</div>
-                <a class="nav-link" href="#" data-load="{{ url_for('dashboard.newrelease') }}"><i class="bi bi-vinyl"></i>Nuevo lanzamiento</a>
-                <a class="nav-link" href="#" data-load="{{ url_for('dashboard.newproduct') }}"><i class="bi bi-bag-plus"></i>Nuevo producto</a>
-                <a class="nav-link" href="#" data-load="{{ url_for('dashboard.newgenre_category_artist') }}"><i class="bi bi-tags"></i>Género / categoría / artista</a>
-                <a class="nav-link {{ 'active' if request.endpoint in ['dashboard.editrelease', 'dashboard.updaterelease'] }}" href="{{ url_for('dashboard.editrelease') }}"><i class="bi bi-pencil-square"></i>Editar lanzamiento</a>
-                <a class="nav-link {{ 'active' if request.endpoint in ['dashboard.editproduct', 'dashboard.updateproduct'] }}" href="{{ url_for('dashboard.editproduct') }}"><i class="bi bi-pencil"></i>Editar producto</a>
+                <a class="nav-link {{ 'active' if request.endpoint in ['dashboard.lanzamientos_admin', 'dashboard.editrelease', 'dashboard.updaterelease'] }}" href="{{ url_for('dashboard.lanzamientos_admin') }}"><i class="bi bi-vinyl"></i>Lanzamientos</a>
+                <a class="nav-link {{ 'active' if request.endpoint in ['dashboard.productos_admin', 'dashboard.editproduct', 'dashboard.updateproduct'] }}" href="{{ url_for('dashboard.productos_admin') }}"><i class="bi bi-bag"></i>Productos y packs</a>
+                <a class="nav-link" href="#" data-load="{{ url_for('dashboard.newgenre_category_artist') }}"><i class="bi bi-tags"></i>Artistas, géneros y categorías</a>
 
                 <div class="section">Sitio</div>
                 <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.redes_admin' }}" href="{{ url_for('dashboard.redes_admin') }}"><i class="bi bi-camera-reels"></i>Redes en el inicio</a>

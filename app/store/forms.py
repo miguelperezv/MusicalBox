@@ -43,14 +43,14 @@ class  newReleaseForm(FlaskForm):
     
     #es una mouskerramienta que nos ayudará en la parte de edición del lanzamiento ;)
     #ya que ejemplifico mismo formulario en la vista de edición y quiero evitar conflictos con el otro stringfield
-    n_lanzamiento_edit =  StringField("Nombre del lanzamiento [EDICIÓN]", id="lanzamiento", validators=[DataRequired()])
+    n_lanzamiento_edit =  StringField("Nombre del lanzamiento", id="n_lanzamiento_edit", validators=[DataRequired()])
     
     
     n_lanzamiento = StringField("Nombre del lanzamiento", id="lanzamiento", validators=[DataRequired()])
     i_lanzamiento = StringField("Imagen del lanzamiento", validators=[DataRequired()])
     k_artista  = StringField("Artista",validators=[DataRequired()], id="artista")
     f_lanzamiento = DateField("Fecha de Lanzamiento", default=date.today)
-    k_genero = GenreSelectField("Genero", id="k_genero")
+    k_genero = GenreSelectField("Género", id="k_genero")
     url_social = StringField("Post de Instagram o TikTok (opcional)", render_kw={"placeholder": "https://www.instagram.com/p/... o https://www.tiktok.com/@.../video/..."})
     
 
@@ -60,7 +60,7 @@ class newProductForm(FlaskForm):
 
     #es una mouskerramienta que nos ayudará en la parte de edición del lanzamiento ;)
     #ya que ejemplifico mismo formulario en la vista de edición y quiero evitar conflictos con el otro stringfield
-    n_producto_edit =  StringField("Nombre del lanzamiento [EDICIÓN]", id="lanzamiento", validators=[])
+    n_producto_edit =  StringField("Nombre del producto", id="n_producto_edit", validators=[])
     
     n_lanzamiento = StringField("Lanzamiento asociado", id="lanzamiento", render_kw={"placeholder": "Lanzamiento al que se registra el producto"})
     n_producto = StringField("Nombre del producto", id="producto" , render_kw={"placeholder": "Opcional. Amplía el nombre (ej: +VinylBox Set)"})
@@ -68,7 +68,7 @@ class newProductForm(FlaskForm):
     d_producto = StringField("Descripción", render_kw={"placeholder": "Opcional. Información adicional"})
     stock = IntegerField("Stock", widget=h5widgets.NumberInput(min=0, max=1000), validators=[DataRequired()])
     i_producto = FileField("Imagen del producto")
-    k_category = SelectField("Categoria", id="category", choices=[])
+    k_category = SelectField("Categoría", id="category", choices=[])
     original_mb = BooleanField("Merch original Musical Box (personalizado por nosotros)")
     tipo = SelectField("Tipo", choices=[('SIMPLE', 'Producto individual'), ('BUNDLE', 'Pack (arma sus productos después)')], default='SIMPLE')
 
@@ -85,10 +85,10 @@ class CountrySelectField(SelectField):
         self.choices = [(country.name) for country in pycountry.countries]
 
 class newCat_Genre_Artist(FlaskForm):
-    genre = StringField("Nuevo Género")
-    category = StringField("Nueva Categoría")
+    genre = StringField("Nombre del género")
+    category = StringField("Nombre de la categoría")
     n_artist = StringField('Nombre del Artista', validators=[DataRequired()])
-    country = CountrySelectField("Pais de origen" )
+    country = CountrySelectField("País de origen", default="Colombia")
 
 class newAdmin(FlaskForm):
     email = StringField("Ingresa el email del nuevo usuario ADMINISTRADOR")

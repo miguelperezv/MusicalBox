@@ -3,7 +3,14 @@
 <form class="mb-panel" style="max-width: 760px" method="POST" action="{{ url_for('dashboard.newrelease') }}">
     {{ form.csrf_token }}
     {{ field(form.n_lanzamiento, placeholder='Ej: Happier Than Ever') }}
-    {{ field(form.k_artista, placeholder='Escribe para buscar un artista registrado', **{'data-autocomplete': url_for('dashboard.newrelease_artists')}) }}
+    <div class="mb-3">
+        <label class="form-label" for="artista">Artista</label>
+        <select class="form-select" name="k_artista" id="artista" required>
+            <option value="" disabled {{ 'selected' if not '' }}>Elige el artista</option>
+            {% for a in artistas %}<option value="{{ a }}" {{ 'selected' if a == '' }}>{{ a.title() }}</option>{% endfor %}
+        </select>
+        <div class="form-text">¿No está? Créalo en Artistas, géneros y categorías.</div>
+    </div>
     {{ field(form.i_lanzamiento, type='url', placeholder='https://...', help='URL de la portada (imagen cuadrada)') }}
     {{ field(form.url_social) }}
     <div class="row">

@@ -28,7 +28,12 @@
     {{ field(form.original_mb) }}
     <div class="row">
         {{ field(form.p_producto, col='col-sm-6 mb-3') }}
+        {% if producto.tipo == 'BUNDLE' or producto.variantes %}
+        <div class="col-sm-6 mb-3"><label class="form-label">Stock</label><div class="form-control bg-light text-body-secondary">{{ 'Se calcula con sus productos' if producto.tipo == 'BUNDLE' else 'Se maneja por talla (abajo)' }}</div>
+            <input type="hidden" name="stock" value="{{ producto.stock|int }}"></div>
+        {% else %}
         {{ field(form.stock, col='col-sm-6 mb-3') }}
+        {% endif %}
     </div>
     <div class="mb-3">
         <label class="form-label" for="inputImage">Cambiar imagen</label>

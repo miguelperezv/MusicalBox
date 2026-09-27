@@ -23,7 +23,14 @@
         </div>
     </div>
     {{ field(form.n_lanzamiento_edit, value=lanzamiento.n_lanzamiento) }}
-    {{ field(form.k_artista, value=artista.n_artista if artista else '', **{'data-autocomplete': url_for('dashboard.newrelease_artists')}) }}
+    <div class="mb-3">
+        <label class="form-label" for="artista">Artista</label>
+        <select class="form-select" name="k_artista" id="artista" required>
+            <option value="" disabled {{ 'selected' if not (artista.n_artista if artista else '') }}>Elige el artista</option>
+            {% for a in artistas %}<option value="{{ a }}" {{ 'selected' if a == (artista.n_artista if artista else '') }}>{{ a.title() }}</option>{% endfor %}
+        </select>
+        <div class="form-text">¿No está? Créalo en Artistas, géneros y categorías.</div>
+    </div>
     {{ field(form.i_lanzamiento, type='url', value=lanzamiento.i_lanzamiento) }}
     {{ field(form.url_social, value=lanzamiento.url_social or '') }}
     <div class="row">
