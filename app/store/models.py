@@ -126,6 +126,8 @@ class Invoice(db.Model):
     total = db.Column(db.Numeric(13,2), nullable=False)
     #checkout sin cuenta: el pedido existe antes del pago (PENDIENTE) y ePayco lo confirma o rechaza
     estado = db.Column(db.String(20), nullable=False, default='PENDIENTE', server_default='PENDIENTE')
+    #logística, separada del pago: se activa cuando el pedido queda PAGADO
+    estado_envio = db.Column(db.String(20))
     metodo_pago = db.Column(db.String(30))
     #enlace /pedido/<token>: solo se guarda el SHA-256 del token, nunca el token
     token_hash = db.Column(db.String(64), unique=True)
@@ -143,6 +145,9 @@ class Invoice(db.Model):
     items = db.relationship("Item", viewonly=True, order_by="Item.id")
 
 ESTADOS_PEDIDO = ['PENDIENTE', 'PAGADO', 'RECHAZADO']
+ESTADOS_ENVIO = ['POR PREPARAR', 'EN PREPARACION', 'ENVIADO', 'ENTREGADO']
+#el rótulo solo tiene sentido cuando el pedido se está preparando o ya salió
+ESTADOS_CON_ROTULO = ['EN PREPARACION', 'ENVIADO']
 METODOS_PAGO = [('TARJETA', 'Tarjeta de crédito o débito'), ('PSE', 'PSE (débito desde tu banco)'), ('EFECTIVO', 'Efectivo (Efecty, Baloto y otros)')]
 
 class Usuario(db.Model):
@@ -170,7 +175,14 @@ ROLES = ['USER', 'ADMIN', 'CLIENTE']
 
 class Solicitud(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    k_usuario = db.Column(db.Integer, db.ForeignKey("usuario.id"), nullable=False)
+    #opcional: una solicitud puede llegar solo con celular (el comprador se crea al confirmar la compra)
+    k_usuario = db.Column(db.Integer, db.ForeignKey("usuario.id"))
+    cel_contacto = db.Column(db.String(20))
+    email_contacto = db.Column(db.String(100))
+    #cotización: precio acordado, enlace "confirmar compra" (solo se guarda el hash) y la orden que resultó
+    precio_cotizado = db.Column(db.Numeric(11,2))
+    token_hash = db.Column(db.String(64), unique=True)
+    k_invoice = db.Column(db.Integer, db.ForeignKey("invoice.id"))
     #producto del catálogo, o texto libre si el cliente pide algo que no tenemos
     k_producto = db.Column(db.Integer, db.ForeignKey("producto.id"))
     n_producto_solicitado = db.Column(db.String(150))
@@ -181,8 +193,10 @@ class Solicitud(db.Model):
     #atributos de la relacion
     usuario = db.relationship("Usuario")
     producto = db.relationship("Producto")
+    pedido = db.relationship("Invoice")
 
-ESTADOS_SOLICITUD = ['ACTIVO', 'EN PROCESO', 'ENVIADO', 'ENTREGADO', 'CANCELADO']
+#ENVIADO/ENTREGADO quedan solo como historial de las solicitudes antiguas (el envío ahora es de la orden)
+ESTADOS_SOLICITUD = ['ACTIVO', 'EN PROCESO', 'COTIZADA', 'COMPRADA', 'CANCELADO']
 
 class Categoria(db.Model):
     k_categoria = db.Column(db.String(30), primary_key=True)
