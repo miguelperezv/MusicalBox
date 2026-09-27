@@ -39,7 +39,10 @@ class PublicacionSocial(db.Model):
 
 PLATAFORMAS = {'tiktok': 'TikTok', 'instagram': 'Instagram'}
 MODOS = {'ultimas_n': 'Últimas N', 'random_n_de_m': 'N al azar de las últimas M'}
-DEFAULTS = {'redes.activa': '0', 'redes.modo': 'ultimas_n', 'redes.n': '3', 'redes.m': '10'}
+#cada plataforma se configura aparte: Instagram en cuadrícula (últimas 9 = 3x3) y TikTok 1 al azar
+DEFAULTS = {'redes.activa': '0',
+            'redes.instagram.modo': 'ultimas_n', 'redes.instagram.n': '9', 'redes.instagram.m': '9',
+            'redes.tiktok.modo': 'random_n_de_m', 'redes.tiktok.n': '1', 'redes.tiktok.m': '10'}
 _PATRONES = {
     'tiktok': re.compile(r"^https?://(www\.|m\.)?tiktok\.com/@[\w.\-]+/(video|photo)/(\d{8,25})"),
     'instagram': re.compile(r"^https?://(www\.)?instagram\.com/(p|reel|tv)/([\w\-]{5,40})"),
@@ -61,18 +64,26 @@ def set_config(valores):
 
 
 def config_redes():
-    return {"activa": get_config('redes.activa') == '1', "modo": get_config('redes.modo'),
-            "n": int(get_config('redes.n')), "m": int(get_config('redes.m'))}
+    cfg = {"activa": get_config('redes.activa') == '1'}
+    for plat in PLATAFORMAS:
+        cfg[plat] = {"modo": get_config(f'redes.{plat}.modo'), "n": int(get_config(f'redes.{plat}.n')),
+                     "m": int(get_config(f'redes.{plat}.m'))}
+    return cfg
 
 
-def guardar_config_redes(activa, modo, n, m):
-    if modo not in MODOS:
-        return "Modo no válido"
-    if not n or n < 1 or not m or m < 1:
-        return "N y M deben ser mayores que 0"
-    if modo == 'random_n_de_m' and n > m:
-        return "En modo al azar, N no puede ser mayor que M"
-    set_config({'redes.activa': '1' if activa else '0', 'redes.modo': modo, 'redes.n': n, 'redes.m': m})
+def guardar_config_redes(activa, por_plataforma):
+    #por_plataforma = {"instagram": (modo, n, m), "tiktok": (modo, n, m)}
+    valores = {'redes.activa': '1' if activa else '0'}
+    for plat, (modo, n, m) in por_plataforma.items():
+        nombre = PLATAFORMAS[plat]
+        if modo not in MODOS:
+            return f"{nombre}: modo no válido"
+        if n is None or n < 0 or not m or m < 1:
+            return f"{nombre}: N debe ser 0 o más (0 = no mostrar) y M mayor que 0"
+        if modo == 'random_n_de_m' and n > m:
+            return f"{nombre}: en modo al azar, N no puede ser mayor que M"
+        valores.update({f'redes.{plat}.modo': modo, f'redes.{plat}.n': n, f'redes.{plat}.m': m})
+    set_config(valores)
     return None
 
 
@@ -133,25 +144,34 @@ def mover_publicacion(pub, direccion):
     db.session.commit()
 
 
-def publicaciones_visibles():
-    return (PublicacionSocial.query.filter_by(activo=True).filter(PublicacionSocial.error_embed.is_(None))
-            .order_by(PublicacionSocial.orden, PublicacionSocial.id.desc()).all())
+def publicaciones_visibles(plataforma=None):
+    q = PublicacionSocial.query.filter_by(activo=True).filter(PublicacionSocial.error_embed.is_(None))
+    if plataforma:
+        q = q.filter_by(plataforma=plataforma)
+    return q.order_by(PublicacionSocial.orden, PublicacionSocial.id.desc()).all()
 
 
-def seleccion_para_inicio():
-    """Publicaciones a mostrar en el inicio, o None si la sección está apagada o no hay nada."""
-    cfg = config_redes()
-    if not cfg["activa"]:
-        return None
-    visibles = publicaciones_visibles()
+def _seleccion(plataforma, cfg):
+    visibles = publicaciones_visibles(plataforma)
     if cfg["modo"] == 'ultimas_n':
-        return visibles[:cfg["n"]] or None
+        return visibles[:cfg["n"]]
     conjunto = visibles[:cfg["m"]]
     #firma: si cambia la configuración o el conjunto, se sortea de nuevo; si no, se repite lo de esta sesión
     firma = hashlib.sha256(repr((cfg, [(p.id, p.f_actualizacion) for p in conjunto])).encode()).hexdigest()[:16]
-    guardado = session.get("redes_sorteo") or {}
+    sorteos = dict(session.get("redes_sorteo") or {})
+    guardado = sorteos.get(plataforma) or {}
     por_id = {p.id: p for p in conjunto}
     if guardado.get("firma") != firma or not all(i in por_id for i in guardado.get("ids", [])):
         guardado = {"firma": firma, "ids": [p.id for p in random.sample(conjunto, min(cfg["n"], len(conjunto)))]}
-        session["redes_sorteo"] = guardado
-    return [por_id[i] for i in guardado["ids"]] or None
+        sorteos[plataforma] = guardado
+        session["redes_sorteo"] = sorteos
+    return [por_id[i] for i in guardado["ids"]]
+
+
+def seleccion_para_inicio():
+    """{"instagram": [...], "tiktok": [...]} para el inicio, o None si la sección está apagada o no hay nada."""
+    cfg = config_redes()
+    if not cfg["activa"]:
+        return None
+    sel = {plat: _seleccion(plat, cfg[plat]) for plat in PLATAFORMAS}
+    return sel if any(sel.values()) else None

@@ -75,16 +75,27 @@
                 <a class="btn btn-outline-secondary btn-sm" href="https://tiktok.com/@musicalboxcol" target="_blank" rel="noopener" aria-label="TikTok"><i class="bi bi-tiktok"></i></a>
             </div>
         </div>
-        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 justify-content-center">
-            {% for p in redes %}
-            <div class="col d-flex justify-content-center mb-red">
-                {% if p.plataforma == 'tiktok' %}
-                <blockquote class="tiktok-embed" cite="{{ p.url }}" data-video-id="{{ p.id_externo }}" style="max-width: 325px; min-width: 280px; margin: 0;"><section><a href="{{ p.url }}" target="_blank" rel="noopener">Ver en TikTok</a></section></blockquote>
-                {% else %}
-                <blockquote class="instagram-media" data-instgrm-permalink="{{ p.url }}" data-instgrm-version="14" style="max-width: 360px; min-width: 280px; width: 100%; margin: 0;"><a href="{{ p.url }}" target="_blank" rel="noopener">Ver en Instagram</a></blockquote>
-                {% endif %}
+        <div class="row g-4">
+            {% if redes.instagram %}
+            <div class="{{ 'col-xl-9' if redes.tiktok else 'col-12' }}">
+                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3 mb-ig">
+                    {% for p in redes.instagram %}
+                    <div class="col d-flex justify-content-center mb-red">
+                        <blockquote class="instagram-media" data-instgrm-permalink="{{ p.url }}" data-instgrm-version="14" style="min-width: 0; width: 100%; margin: 0;"><a href="{{ p.url }}" target="_blank" rel="noopener">Ver en Instagram</a></blockquote>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
-            {% endfor %}
+            {% endif %}
+            {% if redes.tiktok %}
+            <div class="{{ 'col-xl-3' if redes.instagram else 'col-12' }} d-flex flex-column align-items-center gap-3">
+                {% for p in redes.tiktok %}
+                <div class="mb-red">
+                    <blockquote class="tiktok-embed" cite="{{ p.url }}" data-video-id="{{ p.id_externo }}" style="max-width: 325px; min-width: 280px; margin: 0;"><section><a href="{{ p.url }}" target="_blank" rel="noopener">Ver en TikTok</a></section></blockquote>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
     </section>
     {% endif %}
@@ -108,8 +119,8 @@
 
 {% block scripts %}
 {% if redes %}
-{% if redes|selectattr('plataforma', 'equalto', 'tiktok')|list %}<script async src="https://www.tiktok.com/embed.js"></script>{% endif %}
-{% if redes|selectattr('plataforma', 'equalto', 'instagram')|list %}<script async src="https://www.instagram.com/embed.js"></script>{% endif %}
+{% if redes.tiktok %}<script async src="https://www.tiktok.com/embed.js"></script>{% endif %}
+{% if redes.instagram %}<script async src="https://www.instagram.com/embed.js"></script>{% endif %}
 <script>
     //si un embed no carga (post borrado, privado, bloqueado), se oculta solo ese post y el resto sigue
     setTimeout(function () {

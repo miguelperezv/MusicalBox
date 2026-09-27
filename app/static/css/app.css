@@ -232,3 +232,5 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 .mb-estado-RECHAZADO { background: #fde8e8; color: #b42318; }
 .mb-metodo { cursor: pointer; transition: border-color .15s, background .15s; }
 .mb-metodo:has(input:checked) { border-color: var(--mb-aqua) !important; background: #f0fafc; }
+/* redes: Instagram en cuadrícula compacta (el embed oficial pide 326px mínimo; lo ajustamos a la columna) */
+.mb-ig .instagram-media, .mb-ig iframe.instagram-media { min-width: 0 !important; max-width: 100% !important; }

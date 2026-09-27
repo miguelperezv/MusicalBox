@@ -80,12 +80,13 @@ def _volver_redes(err=None, ok=None):
 @dashboard.route("/redes")
 def redes_admin():
     cfg = redes.config_redes()
-    visibles = len(redes.publicaciones_visibles())
     avisos = []
-    if cfg["n"] > visibles:
-        avisos.append(f"Pediste mostrar {cfg['n']} publicaciones pero solo hay {visibles} activas sin error: se mostrarán {visibles}.")
-    if cfg["modo"] == 'random_n_de_m' and cfg["m"] > visibles:
-        avisos.append(f"El sorteo es entre las últimas {cfg['m']}, pero solo hay {visibles} disponibles.")
+    for plat, nombre in redes.PLATAFORMAS.items():
+        visibles, c = len(redes.publicaciones_visibles(plat)), cfg[plat]
+        if c["n"] > visibles:
+            avisos.append(f"{nombre}: pediste mostrar {c['n']} pero solo hay {visibles} visibles; se mostrarán {visibles}.")
+        elif c["modo"] == 'random_n_de_m' and c["m"] > visibles:
+            avisos.append(f"{nombre}: el sorteo es entre las últimas {c['m']}, pero solo hay {visibles}.")
     pubs = redes.PublicacionSocial.query.order_by(redes.PublicacionSocial.orden, redes.PublicacionSocial.id.desc()).all()
     return render_template("redes_admin.html", cfg=cfg, pubs=pubs, avisos=avisos, plataformas=redes.PLATAFORMAS, modos=redes.MODOS)
 
@@ -93,7 +94,8 @@ def redes_admin():
 @dashboard.route("/redes/config", methods=["POST"])
 def redes_config():
     f = request.form
-    err = redes.guardar_config_redes(f.get("activa") == "1", f.get("modo"), f.get("n", type=int), f.get("m", type=int))
+    por_plat = {p: (f.get(f"{p}_modo"), f.get(f"{p}_n", type=int), f.get(f"{p}_m", type=int)) for p in redes.PLATAFORMAS}
+    err = redes.guardar_config_redes(f.get("activa") == "1", por_plat)
     return _volver_redes(err, "Configuración guardada")
 
 
