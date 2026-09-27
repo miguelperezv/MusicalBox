@@ -1,4 +1,5 @@
 from flask import Flask, g, render_template
+from flask_wtf.csrf import CSRFProtect
 from .db import db, ma, migrate
 import os
 
@@ -20,6 +21,10 @@ def create_app(config=None):
     if not app.config.get("SECRET_KEY"):
         raise RuntimeError("Falta la variable de entorno SECRET_KEY")
 
+    # Inicializar protección CSRF
+    csrf = CSRFProtect()
+    csrf.init_app(app)
+
     db.init_app(app)
     ma.init_app(app)
     #el esquema lo manejan las migraciones: flask --app run db upgrade
@@ -36,12 +41,13 @@ def create_app(config=None):
     def crear_admin(email, nombre, password):
         """Crea un administrador, o convierte en admin una cuenta existente: flask --app run crear-admin correo@x.com"""
         from .store.models import Usuario, get_usuario_por_email
+        from .store.seguridad import hash_password
         user = get_usuario_por_email(email)
         if user:
-            user.k_rol, user.pwd_usuario = 'ADMIN', password
+            user.k_rol, user.pwd_usuario = 'ADMIN', hash_password(password)
             accion = "actualizado a administrador"
         else:
-            db.session.add(Usuario(k_rol='ADMIN', n_usuario=nombre[:20], ape_usuario='', email_usuario=email.strip().lower(), pwd_usuario=password))
+            db.session.add(Usuario(k_rol='ADMIN', n_usuario=nombre[:20], ape_usuario='', email_usuario=email.strip().lower(), pwd_usuario=hash_password(password)))
             accion = "creado"
         db.session.commit()
         click.echo(f"Administrador {email} {accion}.")

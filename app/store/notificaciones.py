@@ -22,6 +22,7 @@ def _serializer():
 
 
 def _huella(user):
+    # Para mantener compatibilidad con las contraseñas ya cifradas, usamos el hash directamente
     return hashlib.sha256(user.pwd_usuario.encode("utf-8")).hexdigest()[:16]
 
 

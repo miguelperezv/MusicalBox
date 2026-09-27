@@ -7,6 +7,7 @@ from base64 import b64encode
 import secrets
 import hashlib
 from sqlalchemy.exc import IntegrityError
+from .seguridad import hash_password, check_password
 
 
 
@@ -108,6 +109,33 @@ class Imagen(db.Model):
     
 
 
+class ReservaStock(db.Model):
+    """Tabla para almacenar las reservas de stock temporal mientras se procesa un pedido."""
+    __tablename__ = 'reserva_stock'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    k_invoice = db.Column(db.Integer, db.ForeignKey("invoice.id"), nullable=False, index=True)
+    # Tipo de elemento reservado: 'P' para Producto, 'V' para Variante
+    tipo_elemento = db.Column(db.String(1), nullable=False)
+    # ID del elemento (producto o variante)
+    k_elemento = db.Column(db.Integer, nullable=False)
+    # Cantidad reservada
+    cantidad = db.Column(db.Integer, nullable=False)
+    # Fecha de creación de la reserva
+    f_creacion = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    # Fecha de expiración de la reserva (por defecto 30 minutos)
+    f_expiracion = db.Column(db.DateTime, nullable=False)
+    
+    # Relaciones
+    invoice = db.relationship("Invoice", backref="reservas_stock")
+    
+    __table_args__ = (
+        db.UniqueConstraint('k_invoice', 'tipo_elemento', 'k_elemento', name='uq_reserva_invoice_elemento'),
+        db.CheckConstraint("tipo_elemento IN ('P', 'V')", name='chk_tipo_elemento'),
+        db.CheckConstraint('cantidad > 0', name='chk_cantidad_positiva')
+    )
+
+
 class Item(db.Model):
     #línea de pedido; id propio para permitir el mismo producto con distintas variantes en un pedido
     id = db.Column(db.Integer, primary_key=True)
@@ -144,6 +172,8 @@ class Invoice(db.Model):
     lugar_envio = db.Column(db.String(80))
     barrio_envio = db.Column(db.String(30))
     f_actualizacion = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    #campo para indicar si el stock ha sido reservado
+    stock_reservado = db.Column(db.Boolean, default=False, server_default='0')
     #atributos de la relacion
     usuario = db.relationship("Usuario")
     items = db.relationship("Item", viewonly=True, order_by="Item.id")
@@ -284,7 +314,7 @@ class CategoriaSchemaJSON(ma.SQLAlchemyAutoSchema):
 #mis consultas 
 def create_new_user(n_usuario, ape_usuario, email, password):
     #las cuentas CLIENTE (compras/solicitudes sin cuenta) no se reclaman aquí: se activan con el enlace del correo
-    user = Usuario( k_rol='USER' ,n_usuario =n_usuario,ape_usuario=ape_usuario, email_usuario=email.strip().lower(), pwd_usuario=password )
+    user = Usuario( k_rol='USER' ,n_usuario =n_usuario,ape_usuario=ape_usuario, email_usuario=email.strip().lower(), pwd_usuario=hash_password(password) )
     try:
         db.session.add(user)
         db.session.commit()
@@ -400,9 +430,10 @@ def create_release_genre(k_lanzamiento, k_genero):
         return None
 
 def new_admin(email, pwd, guser):
+    from .seguridad import check_password
     print(guser)
     print(pwd)
-    if guser['pwd_usuario'] == pwd:
+    if check_password(pwd, guser['pwd_usuario']):
         
         try:
             Usuario.query.filter_by(email_usuario = email).update({"k_rol": 'ADMIN' })
@@ -891,7 +922,7 @@ def get_or_create_comprador(nombre, email, telefono, direccion, ciudad, barrio):
         return user
     partes = nombre.strip().split(maxsplit=1)
     user = Usuario(k_rol='CLIENTE', n_usuario=partes[0][:20], ape_usuario=(partes[1] if len(partes) > 1 else '')[:20],
-                   email_usuario=email, pwd_usuario=secrets.token_hex(16), cel_usuario=telefono,
+                   email_usuario=email, pwd_usuario=hash_password(secrets.token_hex(16)), cel_usuario=telefono,
                    dir_usuario=direccion, lugar_usuario=ciudad, barrio_usuario=barrio)
     db.session.add(user)
     db.session.flush()
@@ -1028,6 +1059,14 @@ def crear_pedido(cart, datos, k_usuario=None, cotizacion=None):
             for producto, variante, cantidad, *precio in lineas:
                 db.session.add(Item(k_producto=producto.id, k_factura=pedido.id, k_variante=variante.id if variante is not None else None,
                                     cant_item=cantidad, p_item=precio[0] if precio else producto.p_producto))
+            
+            # Reservar stock para el pedido
+            if not cotizacion:  # No reservar stock para pedidos a la medida
+                exito, errores_reserva = reservar_stock_pedido(pedido, [(producto, variante, cantidad) for producto, variante, cantidad, *precio in lineas])
+                if not exito:
+                    db.session.rollback()
+                    return None, None, errores_reserva
+            
             db.session.commit()
             return pedido, token, []
         except IntegrityError:
@@ -1048,6 +1087,27 @@ def confirmar_pago(pedido, ref_payco, id_factura_payco=None, franquicia=None):
     #idempotente: el stock se descuenta una sola vez, en el paso a PAGADO. Devuelve (pedido, pago_nuevo)
     if pedido.estado == 'PAGADO':
         return pedido, False
+    
+    # Si el stock ya estaba reservado, simplemente marcamos el pedido como pagado
+    # y eliminamos las reservas (el stock ya fue descontado al crear el pedido)
+    if pedido.stock_reservado:
+        pedido.estado = 'PAGADO'
+        pedido.estado_envio = pedido.estado_envio or 'POR PREPARAR'
+        pedido.ref_payco = ref_payco
+        
+        # Eliminar las reservas de stock (el stock ya fue descontado)
+        ReservaStock.query.filter_by(k_invoice=pedido.id).delete()
+        
+        for s in Solicitud.query.filter_by(k_invoice=pedido.id).all():
+            s.estado = 'COMPRADA'
+            s.k_usuario = s.k_usuario or pedido.k_usuario
+        pedido.id_factura_payco = id_factura_payco
+        if franquicia:
+            pedido.metodo_pago = f"{pedido.metodo_pago or ''} ({franquicia})".strip()[:30]
+        db.session.commit()
+        return pedido, True
+    
+    # Si no había reserva de stock, descontamos el stock normalmente
     pedido.estado = 'PAGADO'
     pedido.estado_envio = pedido.estado_envio or 'POR PREPARAR'
     pedido.ref_payco = ref_payco
@@ -1068,8 +1128,93 @@ def rechazar_pago(pedido, ref_payco):
     if pedido.estado != 'PAGADO':
         pedido.estado = 'RECHAZADO'
         pedido.ref_payco = ref_payco
+        # Liberar la reserva de stock si existe
+        if pedido.stock_reservado:
+            liberar_reserva_stock(pedido.id)
         db.session.commit()
     return pedido
+
+
+def limpiar_reservas_expiradas():
+    """Limpia las reservas de stock que han expirado y libera el stock correspondiente."""
+    from datetime import datetime
+    
+    # Obtener todas las reservas expiradas
+    reservas_expiradas = ReservaStock.query.filter(
+        ReservaStock.f_expiracion < datetime.now()
+    ).all()
+    
+    # Liberar el stock de cada reserva expirada
+    for reserva in reservas_expiradas:
+        liberar_reserva_stock(reserva.k_invoice)
+    
+    return len(reservas_expiradas)
+
+
+def reservar_stock_pedido(pedido, lineas):
+    """Reserva el stock necesario para un pedido y crea registros de reserva."""
+    from datetime import datetime, timedelta
+    
+    # Verificar que el pedido aún no tenga stock reservado
+    if pedido.stock_reservado:
+        return True, []
+    
+    # Calcular la cantidad total de cada elemento que se necesita
+    demanda_total = {}
+    for producto, variante, cantidad in lineas:
+        # Para cada línea, calcular las unidades físicas necesarias
+        for (tipo, k), n in unidades_de_stock(producto, variante, cantidad).items():
+            clave = (tipo, k)
+            demanda_total[clave] = demanda_total.get(clave, 0) + n
+    
+    # Verificar disponibilidad de stock para toda la demanda
+    errores = []
+    for (tipo, k), cantidad_necesaria in demanda_total.items():
+        if tipo == 'P':  # Producto
+            elemento = db.session.get(Producto, k)
+            nombre_elemento = elemento.n_producto if elemento else f"Producto {k}"
+        else:  # Variante
+            elemento = db.session.get(Variante, k)
+            nombre_elemento = elemento.nombre if elemento else f"Variante {k}"
+        
+        if not elemento:
+            errores.append(f"Elemento no encontrado: {nombre_elemento}")
+            continue
+            
+        stock_disponible = int(elemento.stock or 0)
+        if stock_disponible < cantidad_necesaria:
+            errores.append(f"No hay suficiente stock de {nombre_elemento}: se necesitan {cantidad_necesaria}, disponibles {stock_disponible}")
+    
+    # Si hay errores, no reservar nada
+    if errores:
+        return False, errores
+    
+    # Reservar el stock y crear registros de reserva
+    try:
+        for (tipo, k), cantidad_necesaria in demanda_total.items():
+            # Descontar el stock disponible
+            elemento = db.session.get(Variante if tipo == 'V' else Producto, k)
+            elemento.stock = int(elemento.stock or 0) - cantidad_necesaria
+            
+            # Crear registro de reserva
+            reserva = ReservaStock(
+                k_invoice=pedido.id,
+                tipo_elemento=tipo,
+                k_elemento=k,
+                cantidad=cantidad_necesaria,
+                f_expiracion=datetime.now() + timedelta(minutes=30)  # Expira en 30 minutos
+            )
+            db.session.add(reserva)
+        
+        # Marcar el pedido como con stock reservado
+        pedido.stock_reservado = True
+        db.session.commit()
+        
+        return True, []
+    except Exception as e:
+        # En caso de error, revertir los cambios
+        db.session.rollback()
+        return False, [f"Error al reservar stock: {str(e)}"]
 
 
 #admin de tallas/colores y packs
@@ -1213,3 +1358,65 @@ def producto_card(k_producto):
     if not p:
         return None
     return next((c for c in get_products_cards(k_lanzamiento=p.k_lanzamiento) if c["id"] == p.id), None) if p.k_lanzamiento         else next((c for c in get_products_cards() if c["id"] == p.id), None)
+
+
+def liberar_reserva_stock(k_invoice):
+    """Libera el stock reservado para un pedido y elimina las reservas."""
+    from datetime import datetime, timedelta
+    
+    # Obtener todas las reservas para este pedido
+    reservas = ReservaStock.query.filter_by(k_invoice=k_invoice).all()
+    
+    # Liberar el stock reservado
+    for reserva in reservas:
+        if reserva.tipo_elemento == 'P':  # Producto
+            producto = db.session.get(Producto, reserva.k_elemento)
+            if producto:
+                producto.stock = (producto.stock or 0) + reserva.cantidad
+        elif reserva.tipo_elemento == 'V':  # Variante
+            variante = db.session.get(Variante, reserva.k_elemento)
+            if variante:
+                variante.stock = (variante.stock or 0) + reserva.cantidad
+        
+        # Eliminar la reserva
+        db.session.delete(reserva)
+    
+    # Marcar el pedido como no reservado
+    pedido = db.session.get(Invoice, k_invoice)
+    if pedido:
+        pedido.stock_reservado = False
+    
+    db.session.commit()
+
+
+def limpiar_reservas_expiradas():
+    """Limpia las reservas de stock que han expirado y libera el stock correspondiente."""
+    from datetime import datetime
+    
+    # Obtener todas las reservas expiradas
+    reservas_expiradas = ReservaStock.query.filter(
+        ReservaStock.f_expiracion < datetime.now()
+    ).all()
+    
+    # Liberar el stock de cada reserva expirada
+    for reserva in reservas_expiradas:
+        # Liberar el stock reservado
+        if reserva.tipo_elemento == 'P':  # Producto
+            producto = db.session.get(Producto, reserva.k_elemento)
+            if producto:
+                producto.stock = (producto.stock or 0) + reserva.cantidad
+        elif reserva.tipo_elemento == 'V':  # Variante
+            variante = db.session.get(Variante, reserva.k_elemento)
+            if variante:
+                variante.stock = (variante.stock or 0) + reserva.cantidad
+        
+        # Eliminar la reserva
+        db.session.delete(reserva)
+        
+        # Marcar el pedido como no reservado
+        pedido = db.session.get(Invoice, reserva.k_invoice)
+        if pedido:
+            pedido.stock_reservado = False
+    
+    db.session.commit()
+    return len(reservas_expiradas)

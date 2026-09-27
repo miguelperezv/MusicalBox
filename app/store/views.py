@@ -78,6 +78,7 @@ def index():
 
 @home.route("/login", methods=["GET", 'POST'])
 def login():
+    from .seguridad import check_password
     form_login = LoginUsuarioForm()
 
     if request.method == 'POST':
@@ -89,7 +90,7 @@ def login():
         if not user:
             flash("No existe una cuenta con ese correo", "warning")
             return redirect(url_for('home.login'))
-        elif user['k_rol'] != 'CLIENTE' and user['pwd_usuario'] == pwd:
+        elif user['k_rol'] != 'CLIENTE' and check_password(pwd, user['pwd_usuario']):
             flash("Bienvenido " + user['n_usuario'])
             session["user"] = user
             if user['k_rol'] == 'ADMIN':
@@ -145,12 +146,13 @@ def signup():
 @home.route("/activar/<token>", methods=["GET", "POST"])
 def activar(token):
     #enlace que llega por correo para crear la contraseña de una cuenta CLIENTE (ver notificaciones.py)
+    from .seguridad import hash_password
     usuario = usuario_de_token(token)
     if not usuario:
         return render_template("activar.html", invalido=True), 400
     form = ActivarCuentaForm()
     if form.validate_on_submit():
-        usuario.pwd_usuario = form.pwd.data
+        usuario.pwd_usuario = hash_password(form.pwd.data)
         usuario.k_rol = 'USER'
         db.session.commit()
         session["user"] = get_user_by_email(usuario.email_usuario)

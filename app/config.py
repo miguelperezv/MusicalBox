@@ -19,6 +19,15 @@ class Config(object):
     #botones para simular pago aprobado/rechazado sin pasar por ePayco (solo desarrollo)
     EPAYCO_SIMULACION = False
     #correo (ver app/correo.py): consola en desarrollo, smtp cuando se configure un proveedor
+    #Para usar correo real, establece MAIL_BACKEND=smtp y configura las variables MAIL_*
+    #Ejemplo para Gmail:
+    #MAIL_BACKEND=smtp
+    #MAIL_SERVER=smtp.gmail.com
+    #MAIL_PORT=587
+    #MAIL_USERNAME=tu-correo@gmail.com
+    #MAIL_PASSWORD=tu-app-password  # Usa App Password de Google, no la contraseña normal
+    #MAIL_USE_TLS=true
+    #MAIL_FROM=tu-correo@gmail.com
     MAIL_BACKEND = os.getenv("MAIL_BACKEND", "consola")
     MAIL_SERVER = os.getenv("MAIL_SERVER", "localhost")
     MAIL_PORT = int(os.getenv("MAIL_PORT", 587))

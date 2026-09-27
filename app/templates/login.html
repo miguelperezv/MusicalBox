@@ -12,6 +12,7 @@
         </div>
         <div class="mb-panel">
             <form method="POST" action="{{ url_for('home.login') }}">
+                {{ form.csrf_token }}
                 {{ field(form.email_usuario, type='email', autocomplete='email', placeholder='tu@correo.com') }}
                 {{ field(form.pwd_usuario, autocomplete='current-password') }}
                 <button type="submit" class="btn btn-primary w-100 mt-2">Ingresar</button>
