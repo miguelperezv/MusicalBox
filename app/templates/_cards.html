@@ -12,7 +12,7 @@
             {% if r.nuevo %}<span class="mb-chip mb-badge-new">Nuevo</span>{% endif %}
             {% if r.agotado %}<span class="mb-chip mb-badge-out">Agotado</span>{% endif %}
         </div>
-        {% if r.original %}<div class="mb-original-corner">{{ badge_original('') }}</div>{% endif %}
+        {% if r.original %}<div class="mb-original-corner">{{ badge_original('Original') }}</div>{% endif %}
     </a>
     {% if user and user['k_rol'] == 'ADMIN' %}
     <a class="admin-edit btn btn-sm btn-light shadow-sm position-absolute top-0 end-0 m-2" href="{{ url_for('dashboard.updaterelease', k_lanzamiento=r.id) }}" title="Editar lanzamiento"><i class="bi bi-pencil"></i></a>
@@ -38,7 +38,7 @@
 {% set agotado = p.stock <= 0 %}
 <article class="mb-card {{ 'soldout' if agotado }} {{ 'mb-card-pack' if p.tipo == 'BUNDLE' }}">
     <div class="cover">
-        <a href="{{ url_for('products.detalle', k_producto=p.id) }}" data-quickview="{{ url_for('products.detalle', k_producto=p.id, modal=1) }}" aria-label="Ver {{ p.nombre }}">{{ producto_imagen(p) }}</a>
+        <a class="mb-cover-link" href="{{ url_for('products.detalle', k_producto=p.id) }}" data-quickview="{{ url_for('products.detalle', k_producto=p.id, modal=1) }}" aria-label="Ver {{ p.nombre }}">{{ producto_imagen(p) }}</a>
         <div class="badges">
             {% if p.tipo == 'BUNDLE' %}<span class="mb-chip mb-badge-pack"><i class="bi bi-box-seam me-1"></i>PACK</span>
             {% elif p.categoria %}<span class="mb-chip bg-white">{{ p.categoria }}</span>{% endif %}

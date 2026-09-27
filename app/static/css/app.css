@@ -252,7 +252,8 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 .mb-collage-4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
 .mb-badge-pack { background: var(--mb-yellow); color: var(--mb-ink); }
 .mb-card-pack { outline: 2px solid var(--mb-yellow); outline-offset: -2px; }
-.mb-card .cover > a { display: block; width: 100%; height: 100%; }
+.mb-card .cover > .mb-cover-link { display: block; width: 100%; height: 100%; }
+.mb-card .cover .admin-edit { position: absolute; top: .6rem; right: .6rem; z-index: 3; width: 34px; height: 34px; padding: 0; display: grid; place-items: center; border-radius: 50%; }
 
 /* ---------- tarjetas de lanzamiento más compactas (5 por fila) ---------- */
 .row-cols-xl-5 .mb-card .body { padding: .7rem .8rem .85rem; }
@@ -270,3 +271,11 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 .mb-detalle-img.soldout img { filter: grayscale(.8); opacity: .75; }
 .mb-card .cover .mb-original img, .mb-original img { width: 18px !important; height: 18px !important; object-fit: contain !important; transform: none !important; }
 .mb-original-corner { pointer-events: none; }
+.mb-card > .admin-edit { z-index: 3; width: 34px; height: 34px; padding: 0; display: grid; place-items: center; border-radius: 50%; }
+/* redes: mientras carga el embed, tarjeta con ícono en vez de un enlace suelto */
+#redes blockquote.instagram-media, #redes blockquote.tiktok-embed {
+    min-height: 320px; width: 100%; background: #fff; border: 1px dashed #d5dee4 !important; border-radius: 14px !important;
+    display: grid; place-items: center; box-shadow: none !important; }
+#redes blockquote a, #redes blockquote section a { font-weight: 600; color: var(--mb-ink-2); }
+#redes blockquote.instagram-media > a::before { content: "\F437"; font-family: "bootstrap-icons"; display: block; font-size: 2rem; text-align: center; color: #c13584; }
+#redes blockquote.tiktok-embed section a::before { content: "\F6CC"; font-family: "bootstrap-icons"; display: block; font-size: 2rem; text-align: center; color: var(--mb-ink); }
