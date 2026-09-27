@@ -15,7 +15,7 @@
         <span class="mb-eyebrow">Pedido #{{ pedido.id }} · {{ pedido.f_compra.strftime('%d/%m/%Y %H:%M') if pedido.f_compra }}</span>
         <h1 class="mt-1"><i class="bi {{ info[0] }} {{ info[1] }} me-2"></i>{{ info[2] }}</h1>
         {% if pedido.estado == 'PAGADO' %}
-        <p class="text-body-secondary mb-0">Gracias por tu compra, {{ (pedido.n_envio or '').split(' ')[0] }}. Te contactaremos para coordinar el envío.</p>
+        <p class="text-body-secondary mb-0">Gracias por tu compra, {{ (pedido.n_envio or '').split(' ')[0] }}. Te enviamos la confirmación a <strong>{{ pedido.email_envio }}</strong> y te contactaremos para coordinar el envío.</p>
         {% else %}
         <p class="text-body-secondary mb-0">Tu pedido está guardado. Completa el pago para confirmarlo.</p>
         {% endif %}

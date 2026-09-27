@@ -222,27 +222,19 @@ class CategoriaSchemaJSON(ma.SQLAlchemyAutoSchema):
 
 #mis consultas 
 def create_new_user(n_usuario, ape_usuario, email, password):
-    print(email)
-    print(password)
-
-    #k_usuario = "U"+str(len(get_all_users())+1)
-    #si ya hizo una solicitud sin cuenta (rol CLIENTE), la cuenta se reclama con el mismo email
-    user = Usuario.query.filter_by(email_usuario=email, k_rol='CLIENTE').first()
-    if user:
-        user.k_rol = 'USER'
-        user.n_usuario = n_usuario
-        user.ape_usuario = ape_usuario
-        user.pwd_usuario = password
-    else:
-        user = Usuario( k_rol='USER' ,n_usuario =n_usuario,ape_usuario=ape_usuario, email_usuario=email, pwd_usuario=password )
-    
+    #las cuentas CLIENTE (compras/solicitudes sin cuenta) no se reclaman aquí: se activan con el enlace del correo
+    user = Usuario( k_rol='USER' ,n_usuario =n_usuario,ape_usuario=ape_usuario, email_usuario=email.strip().lower(), pwd_usuario=password )
     try:
         db.session.add(user)
         db.session.commit()
         return user
     except Exception as e:
         print ("No se registró el usuario "+ str(e))
+        db.session.rollback()
         return None
+
+def get_usuario_por_email(email):
+    return Usuario.query.filter(db.func.lower(Usuario.email_usuario) == (email or '').strip().lower()).first()
     
 
 def create_new_artist(n_artista, pais_artista):
@@ -918,9 +910,9 @@ def referencia_epayco(pedido):
     return f"MB{pedido.id}-{pedido.token_hash[:8]}"
 
 def confirmar_pago(pedido, ref_payco, id_factura_payco=None, franquicia=None):
-    #idempotente: el stock se descuenta una sola vez, en el paso a PAGADO
+    #idempotente: el stock se descuenta una sola vez, en el paso a PAGADO. Devuelve (pedido, pago_nuevo)
     if pedido.estado == 'PAGADO':
-        return pedido
+        return pedido, False
     pedido.estado = 'PAGADO'
     pedido.ref_payco = ref_payco
     pedido.id_factura_payco = id_factura_payco
@@ -933,7 +925,7 @@ def confirmar_pago(pedido, ref_payco, id_factura_payco=None, franquicia=None):
                 print(f"AVISO stock insuficiente al confirmar pedido {pedido.id}: producto {producto.id}")
             producto.stock = max(0, producto.stock - item.cant_item)
     db.session.commit()
-    return pedido
+    return pedido, True
 
 def rechazar_pago(pedido, ref_payco):
     if pedido.estado != 'PAGADO':

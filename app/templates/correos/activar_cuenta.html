@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="es">
+<body style="margin:0;background:#f5f8fa;font-family:Arial,Helvetica,sans-serif;color:#0f1c24;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f8fa;padding:24px 12px;">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;">
+    <tr><td style="background:#0f1c24;padding:20px 28px;color:#fffb25;font-size:22px;font-weight:bold;">musical box</td></tr>
+    <tr><td style="padding:28px;">
+        <h1 style="margin:0 0 12px;font-size:22px;">Crea tu contraseña</h1>
+        <p style="margin:0 0 20px;color:#5f7380;">Hola {{ usuario.n_usuario }}, con una contraseña podrás ver todas tus compras y solicitudes de <strong>{{ usuario.email_usuario }}</strong> en un solo lugar.</p>
+        <p style="margin:0 0 20px;text-align:center;">
+            <a href="{{ enlace_activacion }}" style="display:inline-block;background:#1d8aa0;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 28px;border-radius:999px;">Crear contraseña</a>
+        </p>
+        <p style="margin:0;color:#5f7380;font-size:12px;">El enlace vence en {{ config.ACTIVACION_MAX_DIAS }} días. Si no fuiste tú, ignora este correo: nadie podrá entrar sin este enlace.</p>
+    </td></tr>
+    <tr><td style="padding:16px 28px;background:#f5f8fa;color:#5f7380;font-size:12px;">Musical Box · Bogotá, Colombia</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>

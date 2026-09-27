@@ -19,6 +19,7 @@ def app(tmp_path):
         TESTING = True
         WTF_CSRF_ENABLED = False
         EPAYCO_SIMULACION = False
+        MAIL_BACKEND = "memoria"
         SQLALCHEMY_DATABASE_URI = "sqlite:///" + str(tmp_path / "test.sqlite3").replace("\\", "/")
 
     app = create_app(TestConfig)

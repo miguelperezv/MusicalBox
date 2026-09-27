@@ -48,6 +48,16 @@ con su API (pedido y monto exactos) y el pedido pasa a PAGADO (descuenta stock u
 - En desarrollo (`EPAYCO_SIMULACION`) la página del pedido tiene botones para simular la respuesta de ePayco.
 - Llaves de ePayco: variables de entorno `EPAYCO_PUBLIC_KEY`, `EPAYCO_PRIVATE_KEY`, `EPAYCO_TEST`.
 
+### Correos
+
+Al pagarse un pedido se envía la confirmación con el enlace de seguimiento y, si el comprador no tiene contraseña,
+un enlace opcional para crearla (firmado, vence en 7 días, de un solo uso y solo viaja por correo).
+Si el correo falla, el pedido queda igual.
+
+- Desarrollo (`MAIL_BACKEND=consola`, por defecto): el correo se imprime y se guarda como `.eml` en `instance/correos/`.
+- Producción: `MAIL_BACKEND=smtp` con `MAIL_SERVER`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_USE_TLS`, `MAIL_FROM`.
+- Registrarse o ingresar con un correo que solo compró/pidió sin cuenta envía ese enlace al correo (no activa la cuenta directo).
+
 ## Interfaz
 
 Bootstrap 5.3 + Bootstrap Icons, con el sistema de diseño de la marca en `app/static/css/app.css`

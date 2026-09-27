@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<body style="margin:0;background:#f5f8fa;font-family:Arial,Helvetica,sans-serif;color:#0f1c24;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f8fa;padding:24px 12px;">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;">
+    <tr><td style="background:#0f1c24;padding:20px 28px;color:#fffb25;font-size:22px;font-weight:bold;">musical box</td></tr>
+    <tr><td style="padding:28px;">
+        <p style="margin:0 0 6px;color:#1d8aa0;font-size:12px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;">Pedido #{{ pedido.id }}</p>
+        <h1 style="margin:0 0 12px;font-size:24px;">¡Pago confirmado!</h1>
+        <p style="margin:0 0 20px;color:#5f7380;">Hola {{ (pedido.n_envio or '').split(' ')[0] }}, recibimos el pago de tu pedido. Te contactaremos para coordinar el envío.</p>
+
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #edf1f4;">
+            {% for item in pedido.items %}
+            <tr>
+                <td style="padding:10px 0;border-bottom:1px solid #edf1f4;">
+                    <strong>{{ item.producto.lanzamiento.n_lanzamiento.title() if item.producto and item.producto.lanzamiento }}</strong><br>
+                    <span style="color:#5f7380;font-size:13px;">{{ item.producto.n_producto if item.producto }} · {{ item.cant_item|int }} × {{ item.p_item|cop }}</span>
+                </td>
+                <td align="right" style="padding:10px 0;border-bottom:1px solid #edf1f4;font-weight:bold;">{{ (item.p_item * item.cant_item)|cop }}</td>
+            </tr>
+            {% endfor %}
+            <tr><td style="padding:14px 0;font-weight:bold;">Total</td><td align="right" style="padding:14px 0;font-size:20px;font-weight:bold;">{{ pedido.total|cop }}</td></tr>
+        </table>
+
+        <p style="margin:8px 0 4px;font-weight:bold;">Envío</p>
+        <p style="margin:0 0 24px;color:#5f7380;font-size:14px;line-height:1.5;">
+            {{ pedido.n_envio }}<br>{{ pedido.dir_envio }}{% if pedido.barrio_envio %}, {{ pedido.barrio_envio }}{% endif %}<br>{{ pedido.lugar_envio }} · Tel. {{ pedido.tel_envio }}
+        </p>
+
+        <p style="margin:0 0 24px;text-align:center;">
+            <a href="{{ enlace_pedido }}" style="display:inline-block;background:#1d8aa0;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 28px;border-radius:999px;">Ver mi pedido</a>
+        </p>
+        <p style="margin:0;color:#5f7380;font-size:12px;text-align:center;">Con ese enlace ves tu pedido en cualquier momento, sin contraseña. No lo compartas.</p>
+
+        {% if enlace_activacion %}
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px;background:#fffde0;border-radius:12px;">
+            <tr><td style="padding:18px 20px;font-size:14px;">
+                <strong>Opcional:</strong> crea una contraseña para ver todos tus pedidos más rápido.
+                <a href="{{ enlace_activacion }}" style="color:#1d8aa0;font-weight:bold;">Crear contraseña</a><br>
+                <span style="color:#5f7380;font-size:12px;">Si no quieres, ignora esto: tu pedido ya está guardado.</span>
+            </td></tr>
+        </table>
+        {% endif %}
+    </td></tr>
+    <tr><td style="padding:16px 28px;background:#f5f8fa;color:#5f7380;font-size:12px;">Musical Box · Bogotá, Colombia</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>

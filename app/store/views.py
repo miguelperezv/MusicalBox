@@ -2,11 +2,11 @@
 #from app.store.forms import CreateUsuarioForm, LoginUsuarioForm, newArtistForm, newReleaseForm
 
 from flask.wrappers import Request
-from .forms import CreateUsuarioForm, LoginUsuarioForm,  newReleaseForm, newProductForm, newCat_Genre_Artist, newAdmin, editReleaseForm, EditUsuarioForm
+from .forms import ActivarCuentaForm, CreateUsuarioForm, LoginUsuarioForm,  newReleaseForm, newProductForm, newCat_Genre_Artist, newAdmin, editReleaseForm, EditUsuarioForm
 from flask import Blueprint, Response, current_app, flash, session, request, g, render_template, redirect, url_for, jsonify, make_response
 #from app.store.models import create_new_user, get_all_artists, get_user_by_email, create_new_artist
 from .models import create_new_user, get_all_artists, get_user_by_email, create_new_artist, get_k_artist_by_name, create_new_release, get_release_by_name, get_releases_with_artists, get_categories, create_new_product, get_k_release_by_name_artista, create_new_category, create_new_genre, create_release_genre, new_admin, get_all_releases, get_artist_by_release, get_categories_by_release, get_release_by_id, get_genres_by_release, get_products_by_release, get_product_by_id, get_artist_by_release, update_release, get_products_with_info, edit_product, create_new_image, get_image_by_product, get_rawimage_by_product, edit_image, get_items_by_id_factura
-from .models import get_artist_by_id, get_releases_cards, get_products_cards, get_admin_stats, edit_user_by_email, get_all_products, get_purchases_by_user, get_all_invoices, get_solicitudes_by_user
+from .models import get_usuario_por_email, get_artist_by_id, get_releases_cards, get_products_cards, get_admin_stats, edit_user_by_email, get_all_products, get_purchases_by_user, get_all_invoices, get_solicitudes_by_user
 #import epaycosdk.epayco as epayco
 import json
 import urllib.parse as urlparse
@@ -15,6 +15,8 @@ import requests
 import datetime
 from datetime import timedelta
 from functools import wraps
+from ..db import db
+from .notificaciones import correo_activacion, usuario_de_token
 
 
 home = Blueprint('home', __name__)
@@ -78,12 +80,11 @@ def login():
         email = form_login.email_usuario.data
         pwd = form_login.pwd_usuario.data
 
-        user = get_user_by_email(email)
-        print(user)
+        existente = get_usuario_por_email(email)
+        user = get_user_by_email(existente.email_usuario) if existente else None
         if not user:
-            print("no existe el usuario")
-            flash("No existe el usuario")
-            return redirect(url_for('home.index'))
+            flash("No existe una cuenta con ese correo", "warning")
+            return redirect(url_for('home.login'))
         elif user['k_rol'] != 'CLIENTE' and user['pwd_usuario'] == pwd:
             flash("Bienvenido " + user['n_usuario'])
             session["user"] = user
@@ -91,8 +92,10 @@ def login():
                 return redirect(url_for('home.admin'))
             return redirect(url_for('home.index', user=g.user, purchase_cart = g.purchase))
         elif user['k_rol'] == 'CLIENTE':
-            flash("Ya tenemos tus solicitudes, regístrate con este email para crear tu contraseña", "info")
-            return redirect(url_for('home.signup'))
+            #compró o pidió sin cuenta: la contraseña se crea con el enlace que enviamos a su correo
+            correo_activacion(existente)
+            flash("Aún no tienes contraseña. Te enviamos a tu correo un enlace para crearla.", "info")
+            return redirect(url_for('home.login'))
         else:
             flash("Contraseña incorrecta", "warning")
             return redirect(url_for('home.login'))
@@ -111,20 +114,45 @@ def signup():
         form_signup= CreateUsuarioForm()
 
         if request.method == 'POST' :
-            email = form_signup.email_usuario.data
+            email = (form_signup.email_usuario.data or '').strip()
             pwd = form_signup.pwd_usuario.data
             name = form_signup.name.data
             apellido = form_signup.lastname.data
+            existente = get_usuario_por_email(email)
+            if existente and existente.k_rol == 'CLIENTE':
+                #ya compró o pidió sin cuenta: solo quien controla el correo puede crear la contraseña
+                correo_activacion(existente)
+                flash("Ya tenemos compras o solicitudes con este correo. Te enviamos un enlace para crear tu contraseña.", "info")
+                return redirect(url_for('home.login'))
+            if existente:
+                flash("Ya existe una cuenta con este correo. Ingresa con tu contraseña.", "warning")
+                return redirect(url_for('home.login'))
             result = create_new_user(name,apellido, email, pwd)
             if result:
-                flash("Usuario creado!")
-            else:
-                flash("No se creo el Usuario!")
-            return redirect(url_for('home.index',user=g.user, purchase_cart = g.purchase))
+                flash("¡Cuenta creada! Ya puedes ingresar.")
+                return redirect(url_for('home.login'))
+            flash("No se pudo crear la cuenta", "error")
+            return redirect(url_for('home.signup'))
         return render_template('signup.html', form=form_signup, purchase_cart = g.purchase)
     
     flash("You're already logged in.", "alert-primary")
     return redirect(url_for('home.index', user = g.user, purchase_cart = g.purchase))
+
+@home.route("/activar/<token>", methods=["GET", "POST"])
+def activar(token):
+    #enlace que llega por correo para crear la contraseña de una cuenta CLIENTE (ver notificaciones.py)
+    usuario = usuario_de_token(token)
+    if not usuario:
+        return render_template("activar.html", invalido=True), 400
+    form = ActivarCuentaForm()
+    if form.validate_on_submit():
+        usuario.pwd_usuario = form.pwd.data
+        usuario.k_rol = 'USER'
+        db.session.commit()
+        session["user"] = get_user_by_email(usuario.email_usuario)
+        flash("¡Listo! Tu contraseña quedó creada.", "success")
+        return redirect(url_for('home.account'))
+    return render_template("activar.html", form=form, usuario=usuario)
 
 @home.route("/logout", methods=["GET", 'POST'])
 def logout():

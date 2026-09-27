@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% from "_macros.html" import field %}
+{% block title %}Crear contraseña{% endblock %}
+{% block head %}<meta name="robots" content="noindex, nofollow">{% endblock %}
+
+{% block contenido %}
+<div class="container">
+    <div class="mb-auth">
+        {% if invalido %}
+        <div class="mb-panel mb-empty">
+            <i class="bi bi-link-45deg"></i>
+            <h1 class="h4 text-body">Este enlace ya no sirve</h1>
+            <p>Puede que haya vencido o que ya hayas creado tu contraseña. Intenta ingresar con tu correo: si aún no tienes contraseña, te enviaremos un enlace nuevo.</p>
+            <a class="btn btn-primary" href="{{ url_for('home.login') }}">Ir a ingresar</a>
+        </div>
+        {% else %}
+        <div class="text-center mb-4">
+            <img src="{{ url_for('static', filename='imgs/musicalbox.png') }}" width="56" height="56" alt="">
+            <h1 class="h3 mt-3 mb-1">Crea tu contraseña</h1>
+            <p class="text-body-secondary">Para <strong>{{ usuario.email_usuario }}</strong>. Verás todas tus compras y solicitudes en un solo lugar.</p>
+        </div>
+        <div class="mb-panel">
+            <form method="POST">
+                {{ form.hidden_tag() }}
+                {{ field(form.pwd, autocomplete='new-password', help='Mínimo 8 caracteres') }}
+                {{ field(form.confirmar, autocomplete='new-password') }}
+                <button type="submit" class="btn btn-primary w-100 mt-2">Crear contraseña</button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

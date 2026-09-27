@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms.validators import DataRequired, NumberRange, Length, Regexp
+from wtforms.validators import DataRequired, NumberRange, Length, Regexp, EqualTo
 from wtforms import StringField, SelectField, PasswordField, IntegerField, FileField, DateField, EmailField, RadioField
 from datetime import date, datetime
 from wtforms import widgets as h5widgets
@@ -134,3 +134,8 @@ class CheckoutForm(FlaskForm):
     direccion = StringField('Dirección', validators=[DataRequired(message="Escribe la dirección"), Length(max=200)], filters=[_limpiar])
     barrio = StringField('Barrio', validators=[Length(max=30)], filters=[_limpiar])
     metodo_pago = RadioField('Método de pago', validators=[DataRequired(message="Elige un método de pago")])
+
+
+class ActivarCuentaForm(FlaskForm):
+    pwd = PasswordField('Contraseña', validators=[DataRequired(message="Escribe una contraseña"), Length(min=8, message="Usa al menos 8 caracteres")])
+    confirmar = PasswordField('Repite la contraseña', validators=[DataRequired(message="Repite la contraseña"), EqualTo('pwd', message="Las contraseñas no coinciden")])

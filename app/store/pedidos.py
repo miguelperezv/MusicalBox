@@ -7,6 +7,7 @@ from .models import (METODOS_PAGO, crear_pedido, get_pedido_por_token, referenci
                      rechazar_pago, validar_carrito)
 from .views import before_request, purchase
 from ..db import db
+from .notificaciones import correo_pedido_pagado
 
 
 pedido = Blueprint('pedido', __name__, url_prefix='/pedido')
@@ -92,7 +93,9 @@ def respuesta(token):
 
     estado = data.get("x_response")
     if estado == "Aceptada":
-        confirmar_pago(p, ref_payco, data.get("x_id_factura"), data.get("x_franchise"))
+        p, pago_nuevo = confirmar_pago(p, ref_payco, data.get("x_id_factura"), data.get("x_franchise"))
+        if pago_nuevo:
+            correo_pedido_pagado(p, token)
         flash("¡Pago aprobado! Tu pedido quedó confirmado.", "success")
     elif estado in ("Rechazada", "Fallida", "Abandonada", "Cancelada"):
         rechazar_pago(p, ref_payco)
@@ -112,7 +115,9 @@ def simular(token):
         abort(404)
     p = _pedido_o_404(token)
     if request.form.get("resultado") == "aprobado":
-        confirmar_pago(p, "SIMULADO", "SIMULADO", "SIM")
+        p, pago_nuevo = confirmar_pago(p, "SIMULADO", "SIMULADO", "SIM")
+        if pago_nuevo:
+            correo_pedido_pagado(p, token)
         flash("Pago simulado: aprobado", "success")
     else:
         rechazar_pago(p, "SIMULADO")

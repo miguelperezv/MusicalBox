@@ -18,6 +18,16 @@ class Config(object):
     EPAYCO_VALIDATION_URL = "https://secure.epayco.co/validation/v1/reference/"
     #botones para simular pago aprobado/rechazado sin pasar por ePayco (solo desarrollo)
     EPAYCO_SIMULACION = False
+    #correo (ver app/correo.py): consola en desarrollo, smtp cuando se configure un proveedor
+    MAIL_BACKEND = os.getenv("MAIL_BACKEND", "consola")
+    MAIL_SERVER = os.getenv("MAIL_SERVER", "localhost")
+    MAIL_PORT = int(os.getenv("MAIL_PORT", 587))
+    MAIL_USERNAME = os.getenv("MAIL_USERNAME")
+    MAIL_PASSWORD = os.getenv("MAIL_PASSWORD")
+    MAIL_USE_TLS = os.getenv("MAIL_USE_TLS", "true").lower() == "true"
+    MAIL_FROM = os.getenv("MAIL_FROM", "Musical Box <pedidos@musicalbox.local>")
+    #vigencia del enlace para crear contraseña que llega por correo
+    ACTIVACION_MAX_DIAS = 7
 
 
 

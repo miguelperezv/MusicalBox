@@ -1,0 +1,11 @@
+¡Hola {{ usuario.n_usuario }}!
+
+Alguien (seguramente tú) quiere crear una contraseña en Musical Box para {{ usuario.email_usuario }}.
+Con ella podrás ver todas tus compras y solicitudes en un solo lugar.
+
+Crea tu contraseña aquí (el enlace vence en {{ config.ACTIVACION_MAX_DIAS }} días):
+{{ enlace_activacion }}
+
+Si no fuiste tú, ignora este correo: nadie podrá entrar sin este enlace.
+
+Musical Box · Bogotá, Colombia

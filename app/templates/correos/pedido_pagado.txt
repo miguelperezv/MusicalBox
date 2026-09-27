@@ -1,0 +1,26 @@
+¡Hola {{ (pedido.n_envio or '').split(' ')[0] }}!
+
+Recibimos el pago de tu pedido #{{ pedido.id }} en Musical Box.
+
+{% for item in pedido.items %}- {{ item.cant_item|int }} x {{ item.producto.lanzamiento.n_lanzamiento.title() if item.producto and item.producto.lanzamiento }} {{ item.producto.n_producto if item.producto }} ... {{ (item.p_item * item.cant_item)|cop }}
+{% endfor %}
+Total: {{ pedido.total|cop }}
+
+Envío a:
+{{ pedido.n_envio }}
+{{ pedido.dir_envio }}{% if pedido.barrio_envio %}, {{ pedido.barrio_envio }}{% endif %}
+{{ pedido.lugar_envio }}
+Tel. {{ pedido.tel_envio }}
+
+Sigue tu pedido en cualquier momento (sin contraseña):
+{{ enlace_pedido }}
+No compartas este enlace.
+{% if enlace_activacion %}
+
+---
+Opcional: crea una contraseña para ver todos tus pedidos más rápido.
+{{ enlace_activacion }}
+Si no quieres, ignora este mensaje: tu pedido ya está guardado y lo puedes ver con el enlace de arriba.
+{% endif %}
+
+Musical Box · Bogotá, Colombia
