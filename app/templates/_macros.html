@@ -1,0 +1,20 @@
+{# campo de formulario WTForms con estilos Bootstrap 5 #}
+{% macro field(f, col='', help=None) %}
+<div class="{{ col or 'mb-3' }}">
+    {% if f.type == 'BooleanField' %}
+    <div class="form-check">{{ f(class_='form-check-input', **kwargs) }} {{ f.label(class_='form-check-label') }}</div>
+    {% else %}
+    {{ f.label(class_='form-label') }}
+    {% set css = 'form-select' if f.type in ['SelectField', 'GenreSelectField', 'CountrySelectField'] else 'form-control' %}
+    {{ f(class_=css ~ (' is-invalid' if f.errors else ''), **kwargs) }}
+    {% if help %}<div class="form-text">{{ help }}</div>{% endif %}
+    {% for e in f.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+    {% endif %}
+</div>
+{% endmacro %}
+
+{# portada de producto (imagen en BD) con respaldo a la portada del lanzamiento y al logo #}
+{% macro product_cover(product_id, fallback_url='', alt='') %}
+<img src="{{ url_for('products.image', k_producto=product_id) }}" alt="{{ alt }}" loading="lazy"
+     onerror="this.onerror=null; this.src='{{ fallback_url or url_for('static', filename='imgs/musicalbox.png') }}'; this.classList.add('bg-info');">
+{% endmacro %}

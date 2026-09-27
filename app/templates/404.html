@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}No encontrado{% endblock %}
+{% block contenido %}
+<div class="container mb-empty py-5">
+    <i class="bi bi-vinyl"></i>
+    <h1 class="h3 text-body">Esta página no está en nuestra colección</h1>
+    <p>Puede que el enlace esté mal o que ese disco ya no exista.</p>
+    <a class="btn btn-primary" href="{{ url_for('home.index') }}">Volver al inicio</a>
+</div>
+{% endblock %}

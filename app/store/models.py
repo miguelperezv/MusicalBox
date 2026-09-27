@@ -695,7 +695,7 @@ def edit_image(k_producto, image_file):
         print("SE DEBERÀ SUBIR NUEVA IMAGEN asociada la producto")
         return create_new_image(k_producto,image_file)
 
-def edit_user_by_email(email, nombre,apellido,ciudad,direccion):
+def edit_user_by_email(email, nombre,apellido,ciudad,direccion, barrio=None, celular=None):
     try:
         user  = Usuario.query.filter_by(email_usuario = email).first()
         print("USUARIO ENCONTRADO "+ str(user))
@@ -703,6 +703,8 @@ def edit_user_by_email(email, nombre,apellido,ciudad,direccion):
         user.ape_usuario = apellido
         user.lugar_usuario = ciudad
         user.dir_usuario = direccion
+        user.barrio_usuario = barrio
+        user.cel_usuario = celular
         db.session.commit()
         db.session.flush()
         print("EXITO!")
@@ -797,3 +799,74 @@ def get_catalogo_solicitud():
 
 def get_all_invoices():
     return Invoice.query.order_by(db.desc(Invoice.f_compra)).all()
+
+
+#datos listos para las tarjetas de la interfaz
+def _fecha(valor):
+    if isinstance(valor, str):
+        try:
+            return datetime.strptime(valor, '%Y-%m-%d').date()
+        except ValueError:
+            return None
+    return valor
+
+def get_releases_cards(q=None, k_artista=None, limit=None):
+    q = (q or '').strip().lower()
+    cards = []
+    for lanz in Lanzamiento.query.order_by(db.desc(Lanzamiento.f_lanzamiento)).all():
+        artista = get_artist_by_release(lanz.id)
+        if k_artista and (not artista or artista.id != k_artista):
+            continue
+        productos = Producto.query.filter_by(k_lanzamiento=lanz.id).all()
+        generos = [g.k_genero for g in Lanzamiento_Genero.query.filter_by(k_lanzamiento=lanz.id).all()]
+        categorias = sorted({p.k_categoria for p in productos if p.k_categoria})
+        texto = " ".join([lanz.n_lanzamiento, artista.n_artista if artista else ''] + generos + categorias).lower()
+        if q and q not in texto:
+            continue
+        fecha = _fecha(lanz.f_lanzamiento)
+        cards.append({
+            "id": lanz.id,
+            "nombre": lanz.n_lanzamiento,
+            "portada": lanz.i_lanzamiento,
+            "fecha": fecha,
+            "artista": artista,
+            "generos": generos,
+            "categorias": categorias,
+            "nuevo": bool(fecha and (datetime.now().date() - fecha).days < 30),
+            "agotado": bool(productos) and all((p.stock or 0) <= 0 for p in productos),
+            "precio_desde": min((p.p_producto for p in productos), default=None),
+        })
+        if limit and len(cards) >= limit:
+            break
+    return cards
+
+def get_products_cards(limit=None):
+    query = Producto.query.order_by(db.desc(Producto.f_producto))
+    if limit:
+        query = query.limit(limit)
+    cards = []
+    for p in query.all():
+        cards.append({
+            "id": p.id,
+            "nombre": p.n_producto,
+            "lanzamiento": p.lanzamiento,
+            "artista": get_artist_by_release(p.k_lanzamiento) if p.k_lanzamiento else None,
+            "categoria": p.k_categoria,
+            "precio": p.p_producto,
+            "stock": int(p.stock or 0),
+            "descripcion": p.d_producto,
+        })
+    return cards
+
+def get_admin_stats():
+    return {
+        "solicitudes_activas": Solicitud.query.filter(Solicitud.estado.in_(['ACTIVO', 'EN PROCESO'])).count(),
+        "ordenes": Invoice.query.count(),
+        "ventas": sum((i.total or 0) for i in Invoice.query.all()),
+        "productos": Producto.query.count(),
+        "agotados": Producto.query.filter(Producto.stock <= 0).count(),
+        "lanzamientos": Lanzamiento.query.count(),
+        "clientes": Usuario.query.filter(Usuario.k_rol.in_(['USER', 'CLIENTE'])).count(),
+        "ultimas_solicitudes": Solicitud.query.order_by(db.desc(Solicitud.f_solicitud)).limit(5).all(),
+        "ultimas_ordenes": Invoice.query.order_by(db.desc(Invoice.f_compra)).limit(5).all(),
+    }

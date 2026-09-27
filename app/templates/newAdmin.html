@@ -1,5 +1,8 @@
-<form method="POST" action="{{url_for('dashboard.newadmin')}}">
-    {{form.email.label}}{{form.email}}
-    {{form.pwd.label}}{{form.pwd}}
-    <input type="submit" value="Asignar administrador">
+{% from "_macros.html" import field %}
+<h1 class="h3 mb-4">Nuevo administrador</h1>
+<form class="mb-panel" style="max-width: 520px" method="POST" action="{{ url_for('dashboard.newadmin') }}">
+    <p class="text-body-secondary small">El usuario debe tener una cuenta creada. Confirma con tu propia contraseña.</p>
+    {{ field(form.email, type='email', placeholder='correo@ejemplo.com') }}
+    {{ field(form.pwd, autocomplete='current-password') }}
+    <button type="submit" class="btn btn-primary"><i class="bi bi-person-check me-1"></i>Asignar administrador</button>
 </form>

@@ -127,3 +127,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# capturas de scripts/capturas.py
+.capturas/

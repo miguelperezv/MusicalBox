@@ -1,148 +1,94 @@
-{%extends "base.html"%}
-{%block head%} 
-<link rel="stylesheet" href="{{ url_for('static', filename='css/purchase.css') }}" type="text/css"> 
-<link rel="javascript" href="{{ url_for('static', filename='js/payment.js')}}" type="javascript">
-{%endblock%}
+{% extends "base.html" %}
+{% from "_macros.html" import product_cover %}
 
-{%block title%}
-Mi compra
-{%endblock%}
+{% block title %}Mi carrito{% endblock %}
 
+{% block contenido %}
+<div class="container">
+    <header class="mb-page-header">
+        <span class="mb-eyebrow">Tu compra</span>
+        <h1 class="mt-1">Carrito</h1>
+    </header>
 
-
-{%block contenido%}
-
-
-
-
-<div class="card">
-    <div class="row">
-        <div class="col-md-8 cart">
-            <div class="title">
-                <div class="row">
-                    <div class="col">
-                        <h4><b>Shopping Cart</b></h4>
+    {% if not purchase_cart %}
+    <div class="mb-panel mb-empty">
+        <i class="bi bi-bag"></i>
+        <h2 class="h4 text-body">Tu carrito está vacío</h2>
+        <p>Explora los lanzamientos y agrega tus favoritos.</p>
+        <a class="btn btn-primary" href="{{ url_for('releases.home_releases') }}">Ver lanzamientos</a>
+    </div>
+    {% else %}
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="mb-panel py-2">
+                {% for p in purchase_cart %}
+                {% set producto = get_product_by_id(p) %}
+                {% if producto %}
+                {% set lanz = producto.lanzamiento %}
+                <div class="mb-cart-item">
+                    {{ product_cover(producto.id, lanz.i_lanzamiento if lanz else '', producto.n_producto) }}
+                    <div class="min-w-0">
+                        <div class="small text-body-secondary">{{ producto.k_categoria }}</div>
+                        <div class="fw-bold text-truncate">{{ lanz.n_lanzamiento.title() if lanz }}</div>
+                        <div class="small text-body-secondary mb-2">{{ producto.n_producto }}</div>
+                        <div class="mb-stepper">
+                            <a href="{{ url_for('purchase.updatesingle', k_producto=p, opc='down') }}" aria-label="Quitar uno"><i class="bi bi-dash"></i></a>
+                            <span>{{ purchase_cart.get(p) }}</span>
+                            <a href="{{ url_for('purchase.updatesingle', k_producto=p, opc='up') }}" aria-label="Agregar uno"><i class="bi bi-plus"></i></a>
+                        </div>
                     </div>
-                    <div class="col align-self-center text-right text-muted">{{purchase_cart|length}} items</div>
+                    <div class="text-end">
+                        <div class="fw-bold">{{ (producto.p_producto * purchase_cart.get(p))|cop }}</div>
+                        <div class="small text-body-secondary">{{ producto.p_producto|cop }} c/u</div>
+                        <a class="small text-danger" href="{{ url_for('purchase.remove', k_producto=p) }}"><i class="bi bi-trash3 me-1"></i>Quitar</a>
+                    </div>
                 </div>
+                {% endif %}
+                {% endfor %}
             </div>
-            {%if not purchase_cart%}
-                No tienes compras! <a href="home.index">Empieza a agregar a tu carrito</a>
-            </div>
+            <a class="d-inline-block mt-3" href="{{ url_for('releases.home_releases') }}"><i class="bi bi-arrow-left me-1"></i>Seguir comprando</a>
         </div>
+
+        <div class="col-lg-4">
+            <div class="mb-panel mb-sticky">
+                <h2 class="h5 mb-3">Resumen</h2>
+                <div class="d-flex justify-content-between mb-2"><span class="text-body-secondary">Productos ({{ purchase_cart.values()|sum }})</span><span>{{ total|cop }}</span></div>
+                <div class="d-flex justify-content-between mb-3"><span class="text-body-secondary">Envío</span><span class="text-body-secondary">Se coordina al confirmar</span></div>
+                <hr>
+                <div class="d-flex justify-content-between align-items-baseline mb-4">
+                    <span class="fw-bold">Total</span><span class="fs-4 fw-bold">{{ total|cop }}</span>
+                </div>
+                {% if not user %}
+                <p class="small text-body-secondary">Para pagar necesitas ingresar a tu cuenta.</p>
+                <a class="btn btn-primary w-100 mb-2" href="{{ url_for('home.login') }}">Ingresar</a>
+                <a class="btn btn-outline-secondary w-100" href="{{ url_for('home.signup') }}">Crear cuenta</a>
+                {% else %}
+                <!-- Botón de pago ePayco (modo pruebas) -->
+                <form class="text-center" action="{{ url_for('purchase.payment') }}" method="POST">
+                    <script src="https://checkout.epayco.co/checkout.js"
+                        data-epayco-key="7c0e3cb9905cc6924cfa41bd822306cf"
+                        data-epayco-private-key="3d1d87bb853a61cd897ff62994f55240"
+                        class="epayco-button"
+                        data-epayco-amount="{{ total }}"
+                        data-epayco-tax="{{ 0 }}"
+                        data-epayco-tax-ico="NaN"
+                        data-epayco-tax-base="{{ total }}"
+                        data-epayco-name="Musical Box"
+                        data-epayco-description="Compra en Musical Box"
+                        data-epayco-currency="cop"
+                        data-epayco-country="CO"
+                        data-epayco-test="true"
+                        data-epayco-external="false"
+                        data-epayco-response="{{ url_for('purchase.payment', _external=True) }}"
+                        data-epayco-confirmation="{{ url_for('purchase.thankyou', _external=True) }}"
+                        data-epayco-button="https://369969691f476073508a-60bf0867add971908d4f26a64519c2aa.ssl.cf5.rackcdn.com/btns/boton_carro_de_compras_epayco2.png">
+                    </script>
+                </form>
+                <p class="small text-body-secondary text-center mt-2 mb-0"><i class="bi bi-shield-lock me-1"></i>Pago seguro con ePayco</p>
+                {% endif %}
+            </div>
         </div>
     </div>
-            {%else%}
-            {%for p in purchase_cart%}
-            <div class="row border-top border-bottom">
-                <div class="row main align-items-center">
-                    <div class="col-2"><img class="img-fluid" src="{{get_release_by_id(get_product_by_id(p).k_lanzamiento).i_lanzamiento}}"></div>
-                    <div class="col">
-                        <div class="row text-muted">{{get_product_by_id(p).k_categoria }}</div>
-                        <div class="row">{{get_release_by_id(get_product_by_id(p).k_lanzamiento).n_lanzamiento}}  {{get_product_by_id(p).n_producto }}</div>
-                    </div>
-                    <div class="col"> <a href="{{url_for('purchase.updatesingle', k_producto = p, opc='down' )}}">-</a><a href="#" class="border">{{purchase_cart.get(p)}}</a><a href="{{url_for('purchase.updatesingle', k_producto = p, opc='up' )}}">+</a> </div>
-                    <div class="col">&dollar; {%set subtotal = get_product_by_id(p).p_producto * purchase_cart.get(p)%} {{subtotal}} <a href="{{url_for('purchase.remove', k_producto=p)}}"> <span class="close" >&#10005;</span></div> </a>
-                </div>
-            </div>
-            {%endfor%}
-            
-            
-            
-            <div class="back-to-shop"><a href="#">&leftarrow;</a><span class="text-muted">Back to shop</span></div>
-        </div>
-        <div class="col-md-4 summary">
-            <div>
-                <h5><b>Summary</b></h5>
-            </div>
-            <hr>
-            <div class="row">
-                <div class="col" style="padding-left:0;">ITEMS {{purchase_cart|length}}</div>
-                <div class="col text-right">&dollar; {{total}}</div>
-            </div>
-            <form>
-                <p>SHIPPING</p> <select>
-                    <option class="text-muted">Standard-Delivery- &euro;5.00</option>
-                </select>
-                <p>GIVE CODE</p> <input id="code" placeholder="Enter your code" disabled>
-            </form>
-            <div class="row" style="border-top: 1px solid rgba(0,0,0,.1); padding: 2vh 0;">
-                <div class="col">TOTAL PRICE</div>
-                <div class="col text-right">&dollar; {{total}}</div>
-                {%set amount = total*100%}
-            </div> 
-            {%if not user%}
-            
-            <p style="font-size: 11px;"><strong> Para proceder con el pago debes: </strong></p>
-            <button type="button" class="btn btn-primary btn-lg btn-block btnLogin" style="font-size: 15px;"  id="btnLogin" onclick="window.location.href= '{{url_for('home.login')}}'"> Inicia sesión</button>
-            <div style="text-align: center;"><a style="font-size: 12px;" href="{{url_for('home.signup')}}" data-toggle="modal" data-target="#signupModal"> Registrate</a></div>
-            {%else%}
-            
-                <!-- =====================================================================
-          ///////////   Este es su botón de Botón de pago ePayco   ///////////
-         ===================================================================== -->
-        <form action="{{url_for('purchase.payment')}}" method='POST'>
-            {%set iva = total*0.19%}
-            <script src='https://checkout.epayco.co/checkout.js' 
-                data-epayco-key='7c0e3cb9905cc6924cfa41bd822306cf' 
-                data-epayco-private-key = '3d1d87bb853a61cd897ff62994f55240'
-                class='epayco-button' 
-                data-epayco-amount='{{total}}' 
-                data-epayco-tax='{{0}}'
-                data-epayco-tax-ico='NaN'                
-                data-epayco-tax-base='{{total}}'
-                data-epayco-name='Musica' 
-                data-epayco-description='Musica' 
-                data-epayco-currency='cop'    
-                data-epayco-country='CO' 
-                data-epayco-test='true' 
-                data-epayco-external='false' 
-                data-epayco-response='http://127.0.0.1:5000{{url_for("purchase.payment")}}'  
-                data-epayco-confirmation='http://127.0.0.1:5000{{url_for("purchase.thankyou")}}' 
-                data-epayco-button='https://369969691f476073508a-60bf0867add971908d4f26a64519c2aa.ssl.cf5.rackcdn.com/btns/boton_carro_de_compras_epayco2.png'> 
-            </script> 
-        </form> <!-- ================================================================== -->
-        {%endif%}
-        </div>
-    </div>
+    {% endif %}
 </div>
-
-
-  
-  <!-- Modal -->
-  <div class="modal fade" id="loginModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="exampleModalLabel">Ingresar a mi cuenta</h5>
-          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-            <span aria-hidden="true">&times;</span>
-          </button>
-        </div>
-        <div class="modal-body">
-          ...
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-          <button type="button" class="btn btn-primary">Save changes</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-
-
-  {%endif%}
-
-  <script>
-    
-    $('.btnLogin').click(function(){
-        $('.modal-body').load("{{url_for('home.login')}}",function(){
-            $('#loginModal').modal({show:true});
-        });
-    });
-    </script>
-  
- 
-{%endblock%}
-
+{% endblock %}

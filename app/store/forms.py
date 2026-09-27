@@ -23,6 +23,8 @@ class EditUsuarioForm(FlaskForm):
     pwd_usuario = PasswordField('Contraseña', validators=[DataRequired(message="Ingresa una contraseña.")])
     address = StringField('Dirección', validators=[DataRequired(message="Dirección a donde te enviaremos tus productos")])
     city = StringField('Municipio/Ciudad', id="city", validators=[DataRequired(message="Lugar a donde te enviaremos tus productos")])
+    barrio = StringField('Barrio')
+    celular = StringField('Celular')
     
 
 class GenreSelectField(SelectField):

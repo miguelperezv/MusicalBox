@@ -1,57 +1,26 @@
-
-<div id="accordion">
-    <div class="card">
-      <div class="card-header" id="headingOne">
-        <h5 class="mb-0">
-          <button class="btn btn-link" data-toggle="collapse" data-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
-            Agregar un Género
-          </button>
-        </h5>
-      </div>
-  
-      <div id="collapseOne" class="collapse show" aria-labelledby="headingOne" data-parent="#accordion">
-        <div class="card-body">
-            <form method="POST" action="{{url_for('dashboard.newgenre')}}">
-                {{form.genre.label}}{{form.genre}}
-                <input type="submit" value="Agregar Artista">
-            </form>
-        </div>
-      </div>
+{% from "_macros.html" import field %}
+<h1 class="h3 mb-4">Género, categoría y artista</h1>
+<div class="row g-4">
+    <div class="col-xl-4 col-md-6">
+        <form class="mb-panel h-100" method="POST" action="{{ url_for('dashboard.newartist') }}">
+            <h2 class="h6 mb-3"><i class="bi bi-mic me-2 text-primary"></i>Nuevo artista</h2>
+            {{ field(form.n_artist) }}
+            {{ field(form.country) }}
+            <button type="submit" class="btn btn-primary btn-sm">Agregar artista</button>
+        </form>
     </div>
-    <div class="card">
-      <div class="card-header" id="headingTwo">
-        <h5 class="mb-0">
-          <button class="btn btn-link collapsed" data-toggle="collapse" data-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
-            Agregar una categoría 
-          </button>
-        </h5>
-      </div>
-      <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#accordion">
-        <div class="card-body">
-            <form method="POST" action="{{url_for('dashboard.newcategory')}}">
-                {{form.category.label}}{{form.category}}
-                <input type="submit" value="Agregar Artista">
-            </form>        
-        </div>
-      </div>
+    <div class="col-xl-4 col-md-6">
+        <form class="mb-panel h-100" method="POST" action="{{ url_for('dashboard.newgenre') }}">
+            <h2 class="h6 mb-3"><i class="bi bi-music-note-beamed me-2 text-primary"></i>Nuevo género</h2>
+            {{ field(form.genre, placeholder='Ej: INDIE POP') }}
+            <button type="submit" class="btn btn-primary btn-sm">Agregar género</button>
+        </form>
     </div>
-
-
-    <div class="card">
-      <div class="card-header" id="headingThree">
-        <h5 class="mb-0">
-          <button class="btn btn-link collapsed" data-toggle="collapse" data-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
-            Agregar un artista
-          </button>
-        </h5>
-      </div>
-      <div id="collapseThree" class="collapse" aria-labelledby="headingThree" data-parent="#accordion">
-        <div class="card-body">
-            <form method="POST" action="{{url_for('dashboard.newartist')}}">
-                {{form.n_artist.label}}{{form.n_artist}}
-                {{form.country.label}}{{form.country}}
-                <input type="submit" value="Agregar Artista">
-            </form>        
-        </div>
-      </div>
+    <div class="col-xl-4 col-md-6">
+        <form class="mb-panel h-100" method="POST" action="{{ url_for('dashboard.newcategory') }}">
+            <h2 class="h6 mb-3"><i class="bi bi-tag me-2 text-primary"></i>Nueva categoría</h2>
+            {{ field(form.category, placeholder='Ej: CASSETTE') }}
+            <button type="submit" class="btn btn-primary btn-sm">Agregar categoría</button>
+        </form>
     </div>
+</div>

@@ -1,12 +1,18 @@
-{%extends "base.html"%}
-{%block head%}
-{%endblock%}
+{% extends "base.html" %}
+{% block title %}¡Gracias por tu compra!{% endblock %}
 
-{%block title%}
-Exito
-{%endblock%}
-
-{%block contenido%}
-<h1>THANK YOU FOR SHOPPING WITH MUSICAL BOX!!1</h1>
-{%endblock%}
-
+{% block contenido %}
+<div class="container">
+    <div class="mb-auth text-center">
+        <div class="mb-panel py-5">
+            <i class="bi bi-check-circle-fill text-success" style="font-size: 3.5rem"></i>
+            <h1 class="h3 mt-3">¡Gracias por comprar en Musical Box!</h1>
+            <p class="text-body-secondary">Recibimos tu pago. Puedes ver el detalle de tu pedido en tu cuenta.</p>
+            <div class="d-flex flex-wrap justify-content-center gap-2 mt-4">
+                <a class="btn btn-primary" href="{{ url_for('home.account') }}">Ver mis compras</a>
+                <a class="btn btn-outline-secondary" href="{{ url_for('releases.home_releases') }}">Seguir comprando</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

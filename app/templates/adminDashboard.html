@@ -1,234 +1,102 @@
-{%extends "base.html"%}
-{%block head%}  
-    
-<link rel="stylesheet" href="{{url_for('static', filename='css/sidebar.css')}}" >
+{% extends "base.html" %}
 
-<link href='https://unpkg.com/boxicons@2.0.7/css/boxicons.min.css' rel='stylesheet'>
-<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.5.0/css/font-awesome.min.css">
-	
-	<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.12.4/css/bootstrap-select.min.css">
-	<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/xcode.min.css" />
-<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.0/css/bootstrap.min.css" integrity="sha384-9gVQ4dYFwwWSjIDZnLEWnxCjeSWFphJiwGPXr1jddIhOegiu1FwO5qRGvFXOdJZ4" crossorigin="anonymous">
-    <script defer src="https://use.fontawesome.com/releases/v5.0.13/js/solid.js" integrity="sha384-tzzSw1/Vo+0N5UhStP3bvwWPq+uvzCMfrN1fEFe+xBmv1C/AtVX5K0uZtmcHitFZ" crossorigin="anonymous"></script>
-    <script defer src="https://use.fontawesome.com/releases/v5.0.13/js/fontawesome.js" integrity="sha384-6OIrr52G08NpOFSZdxxz1xdNSndlD4vdcf/q2myIUVO0VsqaGHJsB0RaBE01VTOY" crossorigin="anonymous"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar-style.css') }}" type="text/css"> 
-    
-{%endblock%}
-{%block title%}
-Panel de Administración
-{%endblock%}
+{% block title %}Administración{% endblock %}
+{% block footer %}{% endblock %}
 
-{%block contenido%}
-
-<div class="wrapper">
-    <!-- Sidebar  -->
-    <nav id="sidebar">
-        <div class="sidebar-header">
-            <h3>musical box</h3>
-            <p>dashboard</p>
-            <strong>mb</strong>
-           
+{% block contenido %}
+<div class="mb-admin">
+    <aside class="mb-sidebar offcanvas-lg offcanvas-start" tabindex="-1" id="adminSidebar" aria-labelledby="adminSidebarLabel">
+        <div class="offcanvas-header">
+            <h2 class="offcanvas-title h5" id="adminSidebarLabel">Administración</h2>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#adminSidebar" aria-label="Cerrar"></button>
         </div>
+        <div class="offcanvas-body d-block p-3">
+            <nav class="nav flex-column">
+                <a class="nav-link {{ 'active' if request.endpoint == 'home.admin' }}" href="{{ url_for('home.admin') }}"><i class="bi bi-speedometer2"></i>Resumen</a>
 
-        <ul class="list-unstyled components">
-            <li class="active">
-                <a href="#homeSubmenu" data-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
-                    <i class="fas fa-home"></i>
-                    Home
-                </a>
-                <ul class="collapse list-unstyled" id="homeSubmenu">
-                    <li>
-                        <a href="#">Home 1</a>
-                    </li>
-                    <li>
-                        <a href="#">Home 2</a>
-                    </li>
-                    <li>
-                        <a href="#">Home 3</a>
-                    </li>
-                </ul>
-            </li>
-            <li>
-                <a href="#" id="invoices"> <i class="fas fa-file-invoice"></i> Ordenes de compra </a>
-                <a href="#" id="solicitudes"> <i class="fas fa-envelope"></i> Solicitudes de pedido </a>
-                <a href="#pageSubmenu" data-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
-                    <i class="fas fa-plus-square"></i>
-                    Nuevo
-                </a>
-                <ul class="collapse list-unstyled" id="pageSubmenu">
-                    <li>
-                        <a href="#" id="newrelease" class="option"><i class='bx bxs-music' ></i>Lanzamiento</a>
-                    </li>
-                    <li>
-                        <a href="#" id="newproduct" class="option"><i class='bx bxs-shopping-bags' ></i>Producto</a>
-                    </li>
-                    <li>
-                        <a href="#" id="newgenre_cat_artist" class="option"><i class='bx bx-equalizer'></i>Género / Categoría / Artista</a>
-                    </li>
-                    
-                    <li>
-                        <a href="#" id="newadmin" class="option"><i class='bx bxs-group'></i>Usuario Administrador</a>
-                    </li>
-                    
+                <div class="section">Ventas</div>
+                <a class="nav-link" href="#" data-load="{{ url_for('solicitud.lista') }}"><i class="bi bi-send"></i>Solicitudes de pedido</a>
+                <a class="nav-link" href="#" data-load="{{ url_for('dashboard.invoices') }}"><i class="bi bi-receipt"></i>Órdenes de compra</a>
 
-                </ul>
-            </li>
-            <li>
-                <a href="#editar" data-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
-                    <i class="fas fa-pencil-alt"></i>
-                    Editar
-                </a>
+                <div class="section">Catálogo</div>
+                <a class="nav-link" href="#" data-load="{{ url_for('dashboard.newrelease') }}"><i class="bi bi-vinyl"></i>Nuevo lanzamiento</a>
+                <a class="nav-link" href="#" data-load="{{ url_for('dashboard.newproduct') }}"><i class="bi bi-bag-plus"></i>Nuevo producto</a>
+                <a class="nav-link" href="#" data-load="{{ url_for('dashboard.newgenre_category_artist') }}"><i class="bi bi-tags"></i>Género / categoría / artista</a>
+                <a class="nav-link {{ 'active' if request.endpoint in ['dashboard.editrelease', 'dashboard.updaterelease'] }}" href="{{ url_for('dashboard.editrelease') }}"><i class="bi bi-pencil-square"></i>Editar lanzamiento</a>
+                <a class="nav-link {{ 'active' if request.endpoint in ['dashboard.editproduct', 'dashboard.updateproduct'] }}" href="{{ url_for('dashboard.editproduct') }}"><i class="bi bi-pencil"></i>Editar producto</a>
 
-                <ul class="collapse list-unstyled" id="editar">
-                    <li>
-                        <a href="{{url_for('dashboard.editrelease')}}" id="editrelease" class="option"><i class='bx bxs-music' ></i>Lanzamiento</a>
-                    </li>
-                    <li>
-                        <a href="{{url_for('dashboard.editproduct')}}" id="editproduct" class="option"><i class='bx bxs-shopping-bags' ></i>Producto</a>
-                    </li>
-                    <li>
-                        <a href="#" id="editgenre_cat_artist" class="option"><i class='bx bx-equalizer'></i>Género / Categoría / Artista</a>
-                    </li>
-                    
-                    <li>
-                        <a href="#" id="newadmin" class="option"><i class='bx bxs-group'></i>Usuario Administrador</a>
-                    </li>
-                    
+                <div class="section">Equipo</div>
+                <a class="nav-link" href="#" data-load="{{ url_for('dashboard.newadmin') }}"><i class="bi bi-person-gear"></i>Nuevo administrador</a>
+                <a class="nav-link" href="{{ url_for('home.index') }}"><i class="bi bi-shop"></i>Ver tienda</a>
+            </nav>
+        </div>
+    </aside>
 
-                </ul>
-            </li>
-            <li>
-                <a href="#">
-                    <i class="fas fa-question"></i>
-                    FAQ
-                </a>
-            </li>
-            <li>
-                <a href="#">
-                    <i class="fas fa-paper-plane"></i>
-                    Contact
-                </a>
-            </li>
-        </ul>
-
-        
-    </nav>
-
-    
-    <div>
-        <button type="button" id="sidebarCollapse" class="btn btn-info">
-            <i class="fas fa-align-left"></i>
-            <span>Toggle Sidebar</span>
+    <div class="mb-admin-content">
+        <button class="btn btn-outline-secondary btn-sm d-lg-none mb-3" type="button" data-bs-toggle="offcanvas" data-bs-target="#adminSidebar" aria-controls="adminSidebar">
+            <i class="bi bi-layout-sidebar me-1"></i>Menú
         </button>
-        <button class="btn btn-dark d-inline-block d-lg-none ml-auto" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-            <i class="fas fa-align-justify"></i>
-        </button>
-        <!-- Page Content  -->
-        <div id="content">
-                {%block content%}{%endblock%}
+        <div id="admin-content">
+            {% block content %}
+            {% if stats %}
+            <h1 class="h3 mb-4">Resumen</h1>
+            <div class="row row-cols-2 row-cols-xl-4 g-3 mb-4">
+                <div class="col"><div class="mb-stat"><i class="bi bi-send"></i><div class="value mt-2">{{ stats.solicitudes_activas }}</div><div class="label">Solicitudes por atender</div></div></div>
+                <div class="col"><div class="mb-stat"><i class="bi bi-receipt"></i><div class="value mt-2">{{ stats.ordenes }}</div><div class="label">Órdenes · {{ stats.ventas|cop }}</div></div></div>
+                <div class="col"><div class="mb-stat"><i class="bi bi-bag"></i><div class="value mt-2">{{ stats.productos }}</div><div class="label">Productos · {{ stats.agotados }} agotados</div></div></div>
+                <div class="col"><div class="mb-stat"><i class="bi bi-people"></i><div class="value mt-2">{{ stats.clientes }}</div><div class="label">Clientes</div></div></div>
+            </div>
+            <div class="row g-4">
+                <div class="col-xl-6">
+                    <div class="mb-panel h-100">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h2 class="h6 mb-0">Últimas solicitudes</h2>
+                            <a href="#" class="small" data-load="{{ url_for('solicitud.lista') }}">Ver todas</a>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <tbody>
+                                    {% for s in stats.ultimas_solicitudes %}
+                                    <tr>
+                                        <td class="text-body-secondary">#{{ s.id }}</td>
+                                        <td>{{ s.n_producto_solicitado or '' }}<br><small class="text-body-secondary">{{ s.usuario.n_usuario }} · {{ s.usuario.lugar_usuario or '' }}</small></td>
+                                        <td class="text-end"><span class="mb-estado mb-estado-{{ s.estado|replace(' ', '-') }}">{{ s.estado }}</span></td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td class="text-body-secondary">Sin solicitudes</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-6">
+                    <div class="mb-panel h-100">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h2 class="h6 mb-0">Últimas órdenes</h2>
+                            <a href="#" class="small" data-load="{{ url_for('dashboard.invoices') }}">Ver todas</a>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <tbody>
+                                    {% for i in stats.ultimas_ordenes %}
+                                    <tr>
+                                        <td class="text-body-secondary">#{{ i.id }}</td>
+                                        <td>{{ i.usuario.n_usuario if i.usuario }}<br><small class="text-body-secondary">{{ i.f_compra.strftime('%d/%m/%Y') if i.f_compra }}</small></td>
+                                        <td class="text-end fw-semibold">{{ i.total|cop }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td class="text-body-secondary">Sin órdenes</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% endblock %}
         </div>
     </div>
-    
-    
 </div>
-
-{%endblock%}
-{%block scripts%}
-
-    
-    
-    
-    <!-- Popper.JS -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.0/umd/popper.min.js" integrity="sha384-cs/chFZiN24E4KMATLdqdvsezGxaGsi4hLGOzlXwp5UZB1LY//20VyM2taTB4QvJ" crossorigin="anonymous"></script>
-    <!-- Bootstrap JS -->
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js" integrity="sha384-uefMccjFJAIv6A+rW+L4AHf99KvxDjWSu1z9VI8SKNVmz4sk7buKt/6v9KI65qnm" crossorigin="anonymous"></script>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/bootstrap-select/1.12.4/js/bootstrap-select.min.js"></script>
-    <script type="text/javascript">
-        $(document).ready(function () {
-            $('#sidebarCollapse').on('click', function () {
-                $('#sidebar').toggleClass('active');
-            });
-        });
-    </script>
-
-    <script>
-        $(document).ready(function (){
-    $('#newartist').on('click', function (e){
-        e.preventDefault();
-        $('#content').load("{{url_for('dashboard.newartist')}}");
-        })
-    })
-
-    $(document).ready(function (){
-    $('#newrelease').on('click', function (e){
-        e.preventDefault();
-        $('#content').load("{{url_for('dashboard.newrelease')}}");
-        })
-    })
-
-    $(document).ready(function (){
-    $('#newproduct').on('click', function (e){
-        e.preventDefault();
-        $('#content').load("{{url_for('dashboard.newproduct')}}");
-        })
-    })
-
-    $(document).ready(function (){
-    $('#newgenre_cat_artist').on('click', function (e){
-        e.preventDefault();
-        $('#content').load("{{url_for('dashboard.newgenre_category_artist')}}");
-        })
-    })
-
-    $(document).ready(function (){
-    $('#newadmin').on('click', function (e){
-        e.preventDefault();
-        $('#content').load("{{url_for('dashboard.newadmin')}}");
-        })
-    })
-
-    /*
-    $(document).ready(function (){
-    $('#editrelease').on('click', function (e){
-        e.preventDefault();
-        $('#content').load("{{url_for('dashboard.editrelease')}}");
-        })
-    })*/
-
-    
-
-    $(document).ready(function (){
-    $('#editgenre_cat_artist').on('click', function (e){
-        e.preventDefault();
-        $('#content').load("{{url_for('dashboard.editgenre_category_artist')}}");
-        })
-    })
-
-    $(document).ready(function (){
-    $('#editadmin').on('click', function (e){
-        e.preventDefault();
-        $('#content').load("{{url_for('dashboard.editadmin')}}");
-        })
-    })
-
-    $(document).ready(function (){
-    $('#solicitudes').on('click', function (e){
-        e.preventDefault();
-        $('#content').load("{{url_for('solicitud.lista')}}");
-        })
-    })
-
-    $(document).ready(function (){
-    $('#invoices').on('click', function (e){
-        e.preventDefault();
-        $('#content').load("{{url_for('dashboard.invoices')}}");
-        })
-    })
-    </script>
-
-    </script>
-
-        
-
-    
-{%endblock%}
+{% endblock %}

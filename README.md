@@ -18,6 +18,21 @@ py -3.12 -m venv .venv
 Si pip falla con `CERTIFICATE_VERIFY_FAILED` (antivirus/proxy), instala primero `truststore` y usa
 `pip install --use-feature=truststore -r requirements.txt`.
 
+## Interfaz
+
+Bootstrap 5.3 + Bootstrap Icons, con el sistema de diseño de la marca en `app/static/css/app.css`
+(colores, tarjetas, navbar, panel admin) y utilidades JS en `app/static/js/app.js`
+(autocompletado con `data-autocomplete="/url"`, carga del panel con `data-load`).
+Macros reutilizables: `templates/_macros.html` (campos de formulario) y `templates/_cards.html` (tarjetas).
+
+Para revisar el diseño en escritorio y celular (con la app corriendo):
+
+```bash
+.venv\Scripts\python -m pip install playwright
+.venv\Scripts\python -m playwright install chromium
+.venv\Scripts\python scripts\capturas.py        # guarda PNGs en .capturas/ y reporta errores JS y scroll horizontal
+```
+
 ## Rutas principales
 
 | Ruta | Qué es |

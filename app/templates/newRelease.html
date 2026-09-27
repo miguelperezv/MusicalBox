@@ -1,32 +1,13 @@
-<form method="POST" action="{{url_for('dashboard.newrelease')}}">
+{% from "_macros.html" import field %}
+<h1 class="h3 mb-4">Nuevo lanzamiento</h1>
+<form class="mb-panel" style="max-width: 760px" method="POST" action="{{ url_for('dashboard.newrelease') }}">
     {{ form.csrf_token }}
-    {{ form.n_lanzamiento.label }} {{ form.n_lanzamiento(size=50) }}
-    {{ form.i_lanzamiento.label }} {{ form.i_lanzamiento(size=100) }}
-    {{form.k_artista.label}} {{form.k_artista}}
-    {{form.f_lanzamiento.label}} {{form.f_lanzamiento}}
-    {{form.k_genero.label}}{{form.k_genero}}
-
-    
-    <input type="submit" value="Agregar Artista">
-</form> 
-
-
-<script>
-    $(function(){
-        $.ajax({
-            url: '{{url_for("dashboard.newrelease_artists")}}'
-        }).done(function(data){
-            console.log(data)
-            data.label= data.n_artista
-            data.value= data.k_artista
-            console.log(data)
-            $('#artista').autocomplete({
-                
-                source:data,
-                
-                minLenght:1
-            });
-        });
-    });
-    
-</script>
+    {{ field(form.n_lanzamiento, placeholder='Ej: Happier Than Ever') }}
+    {{ field(form.k_artista, placeholder='Escribe para buscar un artista registrado', **{'data-autocomplete': url_for('dashboard.newrelease_artists')}) }}
+    {{ field(form.i_lanzamiento, type='url', placeholder='https://...', help='URL de la portada (imagen cuadrada)') }}
+    <div class="row">
+        {{ field(form.f_lanzamiento, col='col-sm-6 mb-3') }}
+        {{ field(form.k_genero, col='col-sm-6 mb-3') }}
+    </div>
+    <button type="submit" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Crear lanzamiento</button>
+</form>

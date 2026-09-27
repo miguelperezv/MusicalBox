@@ -1,0 +1,73 @@
+{% from "_macros.html" import product_cover %}
+
+{% macro release_card(r) %}
+<article class="mb-card {{ 'soldout' if r.agotado }}">
+    <a class="cover" href="{{ url_for('releases.release', k_lanzamiento=r.id) }}">
+        {% if r.portada %}
+        <img src="{{ r.portada }}" alt="Portada de {{ r.nombre }}" loading="lazy">
+        {% else %}
+        <div class="mb-cover-placeholder"><img src="{{ url_for('static', filename='imgs/musicalbox.png') }}" alt=""></div>
+        {% endif %}
+        <div class="badges">
+            {% if r.nuevo %}<span class="mb-chip mb-badge-new">Nuevo</span>{% endif %}
+            {% if r.agotado %}<span class="mb-chip mb-badge-out">Agotado</span>{% endif %}
+        </div>
+    </a>
+    {% if user and user['k_rol'] == 'ADMIN' %}
+    <a class="admin-edit btn btn-sm btn-light shadow-sm position-absolute top-0 end-0 m-2" href="{{ url_for('dashboard.updaterelease', k_lanzamiento=r.id) }}" title="Editar lanzamiento"><i class="bi bi-pencil"></i></a>
+    {% endif %}
+    <div class="body">
+        {% if r.artista %}
+        <a class="artist" href="{{ url_for('artists.artist', k_artista=r.artista.id) }}">{{ r.artista.n_artista.title() }}</a>
+        {% endif %}
+        <a class="title" href="{{ url_for('releases.release', k_lanzamiento=r.id) }}">{{ r.nombre.title() }}</a>
+        <div class="footer d-flex flex-wrap align-items-center justify-content-between gap-1">
+            <div class="d-flex flex-wrap gap-1">
+                {% for c in r.categorias %}<span class="mb-chip">{{ c }}</span>{% endfor %}
+            </div>
+            {% if r.precio_desde is not none %}
+            <small class="text-body-secondary text-nowrap">desde <strong class="text-body">{{ r.precio_desde|cop }}</strong></small>
+            {% endif %}
+        </div>
+    </div>
+</article>
+{% endmacro %}
+
+{% macro product_card(p, show_release=true) %}
+{% set agotado = p.stock <= 0 %}
+<article class="mb-card {{ 'soldout' if agotado }}">
+    <div class="cover">
+        {{ product_cover(p.id, p.lanzamiento.i_lanzamiento if p.lanzamiento else '', p.nombre) }}
+        <div class="badges">
+            {% if p.categoria %}<span class="mb-chip bg-white">{{ p.categoria }}</span>{% endif %}
+            {% if agotado %}<span class="mb-chip mb-badge-out">Agotado</span>
+            {% elif p.stock <= 3 %}<span class="mb-chip mb-badge-new">¡Últimos {{ p.stock }}!</span>{% endif %}
+        </div>
+        {% if user and user['k_rol'] == 'ADMIN' %}
+        <a class="admin-edit btn btn-sm btn-light shadow-sm" href="{{ url_for('dashboard.updateproduct', k_producto=p.id) }}" title="Editar producto"><i class="bi bi-pencil"></i></a>
+        {% endif %}
+    </div>
+    <div class="body">
+        {% if show_release and p.lanzamiento %}
+        <span class="artist">{{ p.artista.n_artista.title() if p.artista else '' }}</span>
+        <a class="title" href="{{ url_for('releases.release', k_lanzamiento=p.lanzamiento.id) }}">{{ p.lanzamiento.n_lanzamiento.title() }}</a>
+        <span class="text-body-secondary small">{{ p.nombre }}</span>
+        {% else %}
+        <span class="title">{{ p.nombre }}</span>
+        {% endif %}
+        {% if p.descripcion %}<span class="text-body-secondary small">{{ p.descripcion }}</span>{% endif %}
+        <div class="footer">
+            <div class="price mb-2">{{ p.precio|cop }}</div>
+            {% if agotado %}
+            <a class="btn btn-outline-secondary w-100" href="{{ url_for('solicitud.nueva') }}"><i class="bi bi-bell me-1"></i>Pedirlo</a>
+            {% else %}
+            <form class="d-flex gap-2" action="{{ url_for('purchase.addtocart') }}" method="post">
+                <input type="hidden" name="product_id" value="{{ p.id }}">
+                <input class="form-control text-center px-1 d-none d-sm-block" style="max-width: 4.2rem" type="number" name="quantity" value="1" min="1" max="{{ p.stock }}" aria-label="Cantidad">
+                <button type="submit" class="btn btn-primary flex-fill px-2"><i class="bi bi-bag-plus me-1"></i>Agregar</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</article>
+{% endmacro %}

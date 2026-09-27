@@ -1,73 +1,35 @@
-{%extends "adminDashboard.html"%}
+{% extends "adminDashboard.html" %}
+{% from "_macros.html" import field %}
 
-{%block content%}
-<form method="POST" action="{{url_for('dashboard.editrelease')}}">
-    {{form.n_lanzamiento.label}} {{form.n_lanzamiento}}
-    <input type="submit" id="buscar" class="btn btn-primary" data-toggle="modal" data-target="#exampleModal" value="Buscar lanzamiento"></form>
-    
-    {%if lanzamiento%}
-    <form method="POST" action="{{url_for('dashboard.updaterelease', k_lanzamiento=lanzamiento.id)}}">
-        {{ form.csrf_token }}
-        {{ form.n_lanzamiento_edit.label }} {{ form.n_lanzamiento_edit(size=50, value=lanzamiento.n_lanzamiento) }}
-        {{ form.i_lanzamiento.label }} {{ form.i_lanzamiento(size=100, value=lanzamiento.i_lanzamiento) }}
-        {{form.k_artista.label}} {{form.k_artista(value=get_artist_by_release(lanzamiento.id).n_artista)}}
-        {{form.f_lanzamiento.label}} {{form.f_lanzamiento(value = lanzamiento.f_lanzamiento)}}
-        {{form.k_genero.label}}
-        
-        {{form.k_genero}}
-        
-        
-        <input type="submit" value="Editar Lanzamiento">
-        
-    </form> 
-    {%endif%}
-      
-      
-    
-    
-    <script>
-        $(function(){
-            $.ajax({
-                url: '{{url_for("dashboard.newproduct_releases")}}'
-            }).done(function(data){
-                $('#lanzamiento').autocomplete({
-                    
-                    source:data,
-                    
-                    minLenght:1
-                });
-            });
-        });
-    
-        $(function(){
-            document.getElementById("buscar").onclick = function() {
-            //validation code to see State field is mandatory.  
-        }
-        });    
-        
-    </script>
+{% block content %}
+<h1 class="h3 mb-4">Editar lanzamiento</h1>
+<form class="mb-panel mb-4" style="max-width: 760px" method="POST" action="{{ url_for('dashboard.editrelease') }}">
+    <label class="form-label" for="lanzamiento">Buscar lanzamiento</label>
+    <div class="d-flex gap-2">
+        {{ form.n_lanzamiento(class_='form-control', placeholder='Escribe para buscar', **{'data-autocomplete': url_for('dashboard.newproduct_releases')}) }}
+        <button type="submit" class="btn btn-primary text-nowrap"><i class="bi bi-search me-1"></i>Buscar</button>
+    </div>
+</form>
 
-<script>
-$(function(){
-    $.ajax({
-        url: '{{url_for("dashboard.newrelease_artists")}}'
-    }).done(function(data){
-        console.log(data)
-        data.label= data.n_artista
-        data.value= data.k_artista
-        console.log(data)
-        $('#artista').autocomplete({
-            
-            source:data,
-            
-            minLenght:1
-        });
-    });
-});
-
-
-
-</script>
-    
-{%endblock%}
-
+{% if lanzamiento %}
+{% set artista = get_artist_by_release(lanzamiento.id) %}
+<form class="mb-panel" style="max-width: 760px" method="POST" action="{{ url_for('dashboard.updaterelease', k_lanzamiento=lanzamiento.id) }}">
+    {{ form.csrf_token }}
+    <div class="d-flex gap-3 align-items-center mb-4">
+        {% if lanzamiento.i_lanzamiento %}<img src="{{ lanzamiento.i_lanzamiento }}" alt="" width="88" height="88" class="rounded object-fit-cover">{% endif %}
+        <div>
+            <div class="small text-body-secondary">Lanzamiento #{{ lanzamiento.id }}</div>
+            <div class="fw-bold">{{ lanzamiento.n_lanzamiento.title() }}</div>
+        </div>
+    </div>
+    {{ field(form.n_lanzamiento_edit, value=lanzamiento.n_lanzamiento) }}
+    {{ field(form.k_artista, value=artista.n_artista if artista else '', **{'data-autocomplete': url_for('dashboard.newrelease_artists')}) }}
+    {{ field(form.i_lanzamiento, type='url', value=lanzamiento.i_lanzamiento) }}
+    <div class="row">
+        {{ field(form.f_lanzamiento, col='col-sm-6 mb-3', value=lanzamiento.f_lanzamiento) }}
+        {{ field(form.k_genero, col='col-sm-6 mb-3') }}
+    </div>
+    <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Guardar cambios</button>
+</form>
+{% endif %}
+{% endblock %}

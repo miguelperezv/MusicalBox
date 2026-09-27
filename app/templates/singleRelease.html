@@ -1,77 +1,61 @@
-{%extends "base.html"%}
-{%block head%} 
-<link rel="stylesheet" href="{{ url_for('static', filename='css/single_release_style.css') }}" type="text/css"> 
-<link rel="icon" type="image" href="{{ lanzamiento.i_lanzamiento }}" width="40px" heigth="40px" />
-{%endblock%}
+{% extends "base.html" %}
+{% from "_cards.html" import product_card with context %}
 
-{%block title%}
-{{lanzamiento.n_lanzamiento}}
-{%endblock%}
+{% block title %}{{ lanzamiento.n_lanzamiento.title() }}{% endblock %}
+{% block description %}{{ artista.n_artista.title() if artista }} - {{ lanzamiento.n_lanzamiento.title() }} en vinilo, CD y cassette en Musical Box.{% endblock %}
 
+{% block contenido %}
+<div class="container">
+    <nav aria-label="breadcrumb" class="mt-4">
+        <ol class="breadcrumb small">
+            <li class="breadcrumb-item"><a href="{{ url_for('releases.home_releases') }}">Lanzamientos</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ lanzamiento.n_lanzamiento.title() }}</li>
+        </ol>
+    </nav>
 
-
-{%block contenido%}
-<div class="card mb-3" style="max-width: 540px;">
-    <div class="row no-gutters">
-      <div class="col-md-4">
-        <img src="{{lanzamiento.i_lanzamiento}}" class="card-img" alt="...">
-      </div>
-      <div class="col-md-8">
-        <div class="card-body">
-          <h5 class="card-title">{{artista.n_artista.title()}} - {{lanzamiento.n_lanzamiento}}</h5>
-          <p class="card-text">{{lanzamiento.f_lanzamiento}}</p>
-          <p class="card-text"><small class="text-muted">
-              {%for g in generos%}
-              {{g.k_genero}}
-              {%endfor%}
-          </small></p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-
-{%for p in productos%}
-<div class="col-lg-3 col-md-4 col-sm-12">
-        <div class="card p-2">
-            <div class="p-info px-3 py-3">
-                <div>
-                    <h5 class="mb-0">{{lanzamiento.n_lanzamiento}}</h5> <span>{{p.n_producto}}</span>
-                </div>
-                <div class="p-price d-flex flex-row"> <span>$</span>
-                    <h1>{{p.p_producto}}</h1>
-                </div>
-                <div class="heart"> 
-                  {%if user%}
-                            {%if user["k_rol"] == 'ADMIN'%}
-                            
-                            <a href="{{url_for('dashboard.updateproduct', k_producto = p.id)}}">edit</a>
-                            {%endif%}
-                {%endif%}
-                </div>
-                
+    <section class="mb-release-hero p-3 p-md-4 mb-5">
+        <div class="row g-4 align-items-center">
+            <div class="col-md-5 col-lg-4">
+                {% if lanzamiento.i_lanzamiento %}
+                <img class="cover-lg" src="{{ lanzamiento.i_lanzamiento }}" alt="Portada de {{ lanzamiento.n_lanzamiento }}">
+                {% endif %}
             </div>
-            <div class="text-center p-image"> 
-              <div class="img__wrapper">
-              <img src="{{url_for('products.image', k_producto = p.id)}}" alt="{{lanzamiento.n_lanzamiento}} + img :s "> 
-              <a class="sold_out" href="https://abc.com/">SOLD OUT</a>
-              </div>
-            </div>
-            <div class="p-about">
-                <p>{{p.d_producto}}</p>
-                <p><strong>stock: {{p.stock}}</strong></p>
-            </div>                                                                                                                                                 
-            <div class="buttons d-flex flex-row gap-3 px-3">
-              <form action="{{url_for('purchase.addtocart', lanzamiento_id = lanzamiento.id)}}" method="post">
-                <input type="hidden" name="product_id" value='{{p.id}}'>
-                <button type="submit" class="btn btn-sm btn-warning"> Add Cart</button>
-                <label for="">Cantidad: </label>
-                <input type="number" name="quantity" id="" value="1" min="1" max="{{p.stock}}">
-
-              </form>
+            <div class="col-md-7 col-lg-8">
+                {% if artista %}
+                <a class="mb-eyebrow" href="{{ url_for('artists.artist', k_artista=artista.id) }}">{{ artista.n_artista.title() }}</a>
+                {% endif %}
+                <h1 class="mt-1 mb-3">{{ lanzamiento.n_lanzamiento.title() }}</h1>
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    {% for g in generos %}<span class="mb-chip">{{ g.k_genero }}</span>{% endfor %}
+                </div>
+                <ul class="list-unstyled text-body-secondary mb-4">
+                    {% if lanzamiento.f_lanzamiento %}<li><i class="bi bi-calendar3 me-2"></i>Lanzado el {{ lanzamiento.f_lanzamiento }}</li>{% endif %}
+                    {% if artista and artista.pais_artista %}<li><i class="bi bi-geo-alt me-2"></i>{{ artista.pais_artista }}</li>{% endif %}
+                    <li><i class="bi bi-disc me-2"></i>{{ productos|length }} {{ 'edición disponible' if productos|length == 1 else 'ediciones disponibles' }}</li>
+                </ul>
+                <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-primary" href="#ediciones"><i class="bi bi-bag me-1"></i>Ver ediciones</a>
+                    {% if user and user['k_rol'] == 'ADMIN' %}
+                    <a class="btn btn-outline-secondary" href="{{ url_for('dashboard.updaterelease', k_lanzamiento=lanzamiento.id) }}"><i class="bi bi-pencil me-1"></i>Editar</a>
+                    {% endif %}
+                </div>
             </div>
         </div>
+    </section>
+
+    <section id="ediciones">
+        <div class="mb-section-title"><h2>Ediciones</h2></div>
+        <div class="row row-cols-2 row-cols-lg-4 g-3 g-lg-4">
+            {% for p in productos %}
+            <div class="col">{{ product_card({'id': p.id, 'nombre': p.n_producto, 'lanzamiento': p.lanzamiento, 'artista': artista, 'categoria': p.k_categoria, 'precio': p.p_producto, 'stock': (p.stock or 0)|int, 'descripcion': p.d_producto}, show_release=false) }}</div>
+            {% else %}
+            <div class="col-12 mb-empty">
+                <i class="bi bi-disc"></i>
+                <p>Aún no tenemos ediciones de este lanzamiento.</p>
+                <a class="btn btn-primary" href="{{ url_for('solicitud.nueva') }}">Pídelo y te avisamos</a>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
 </div>
-{%endfor%} 
-
-{%endblock%}
+{% endblock %}

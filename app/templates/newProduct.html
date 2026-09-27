@@ -1,73 +1,20 @@
-<form method="POST" action="{{url_for('dashboard.newproduct')}}" enctype="multipart/form-data">
-    
+{% from "_macros.html" import field %}
+<h1 class="h3 mb-4">Nuevo producto</h1>
+<form class="mb-panel" style="max-width: 760px" method="POST" action="{{ url_for('dashboard.newproduct') }}" enctype="multipart/form-data">
     {{ form.csrf_token }}
-    {{ form.n_lanzamiento.label }} {{ form.n_lanzamiento(size=100) }}
-    <p>
-        Confirmar Lanzamiento ? 
-        <input type="radio" name="confirmar" value="si" id="Positivo" > Sí
-    <input type="radio" name="confirmar" value="no" id="Negativo" checked> No
-      </p>
-    
-    {{ form.n_producto.label }} {{ form.n_producto(size=100) }}
-    {{form.k_category.label}} {{form.k_category}}
-    
-    {{form.d_producto.label}} {{form.d_producto}}
-    {{form.p_producto.label}} {{form.p_producto}}
-    {{form.stock.label}} {{form.stock}}
-      <label for = "inputImage">Imagen del producto</label>
-      <input type="file" name = "inputImage">
-    
-    <input type="submit" value="Agregar Artista">
-</form> 
-
-<script>
-    
-    $(function(){
-        $.ajax({
-            url: '{{url_for("dashboard.newproduct_releases")}}'
-        }).done(function(data){
-            $('#lanzamiento').autocomplete({
-                
-                source:data,
-                
-                minLenght:1
-            });
-        });
-    });
-    
-/*  SE TRATÓ CON JQUERY TRAER LAS CATEGORIAS, PERO FLASKWTF LO CUBRE :)
-    $(function(){
-        $.ajax({
-            url: '{{url_for("dashboard.newproduct_categories")}}'
-        }).done(function(data){
-            console.log(data)
-            data.forEach(function(e, i){
-            $('#category').append($('<option></option>').val(e.key).text(e.value)); 
-            });
-        });
-    });
-*/
-    
-</script>
-
-<script>
-    var n_lanzamiento_input = document.getElementById("lanzamiento")
-    console.log(n_lanzamiento_input)
-
-// evento para el input radio del "si"
-document.getElementById('Positivo').addEventListener('click', function(e) {
-  console.log('Vamos a habilitar el input text');
-  console.log(n_lanzamiento_input)
-  
-  
-  n_lanzamiento_input.readOnly=true;
-});
-
-// evento para el input radio del "no"
-document.getElementById('Negativo').addEventListener('click', function(e) {
-  console.log('Vamos a deshabilitar el input text');
-  console.log(n_lanzamiento_input)
-  
-  n_lanzamiento_input.readOnly=false;
-});
-</script>
+    {{ field(form.n_lanzamiento, placeholder='Escribe para buscar el lanzamiento', **{'data-autocomplete': url_for('dashboard.newproduct_releases')}) }}
+    <div class="row">
+        {{ field(form.n_producto, col='col-sm-8 mb-3') }}
+        {{ field(form.k_category, col='col-sm-4 mb-3') }}
+    </div>
+    {{ field(form.d_producto) }}
+    <div class="row">
+        {{ field(form.p_producto, col='col-sm-6 mb-3', help='En pesos, sin puntos') }}
+        {{ field(form.stock, col='col-sm-6 mb-3') }}
+    </div>
+    <div class="mb-3">
+        <label class="form-label" for="inputImage">Imagen del producto</label>
+        <input class="form-control" type="file" name="inputImage" id="inputImage" accept="image/*">
+    </div>
+    <button type="submit" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Crear producto</button>
+</form>

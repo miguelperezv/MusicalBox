@@ -1,44 +1,39 @@
-{%extends "adminDashboard.html"%}
+{% extends "adminDashboard.html" %}
+{% from "_macros.html" import field, product_cover %}
 
-{%block content%}
-<form method="POST" action="{{url_for('dashboard.editproduct')}}">
-    {{form.n_producto.label}} {{form.n_producto}} 
-
-    <input type="submit"  class="btn btn-primary" value="Buscar Producto"> </form>
-    <br>
-
-{%if producto%}
-<form method="POST" action="{{url_for('dashboard.updateproduct', k_producto = producto.id)}}" enctype="multipart/form-data">   
-    
-    {{form.n_producto_edit.label}}{{form.n_producto_edit}}
-    {{form.p_producto.label}}{{form.p_producto}}
-    {{form.stock.label}}{{form.stock}}
-    {{form.d_producto.label}}{{form.d_producto}}
-    
-    {{form.k_category.label}}{{form.k_category}}
-    <img src="{{url_for('products.image', k_producto = producto.id)}}" width="200px" height="200px" alt="Product" class="img-fluid">
-    <label for = "inputImage">editar imagen</label>
-      <input type="file" name = "inputImage">
-    <input type="submit"  class="btn btn-primary" value="Editar Producto"> </form>
-    
+{% block content %}
+<h1 class="h3 mb-4">Editar producto</h1>
+<form class="mb-panel mb-4" style="max-width: 760px" method="POST" action="{{ url_for('dashboard.editproduct') }}">
+    <label class="form-label" for="producto">Buscar producto</label>
+    <div class="d-flex gap-2">
+        {{ form.n_producto(class_='form-control', placeholder='Escribe para buscar', **{'data-autocomplete': url_for('dashboard.editproduct_productList')}) }}
+        <button type="submit" class="btn btn-primary text-nowrap"><i class="bi bi-search me-1"></i>Buscar</button>
+    </div>
 </form>
-{%endif%} 
-    
 
-
-<script>
-    $(function(){
-            $.ajax({
-                url: '{{url_for("dashboard.editproduct_productList")}}'
-            }).done(function(data){
-                $('#producto').autocomplete({
-                    
-                    source:data,
-                    
-                    minLenght:1
-                });
-            });
-        });
-</script>
-
-{%endblock%}
+{% if producto %}
+<form class="mb-panel" style="max-width: 760px" method="POST" action="{{ url_for('dashboard.updateproduct', k_producto=producto.id) }}" enctype="multipart/form-data">
+    <div class="d-flex gap-3 align-items-center mb-4">
+        <div class="mb-thumb" style="width:88px;height:88px">{{ product_cover(producto.id, producto.lanzamiento.i_lanzamiento if producto.lanzamiento else '', producto.n_producto) }}</div>
+        <div>
+            <div class="small text-body-secondary">Producto #{{ producto.id }}</div>
+            <div class="fw-bold">{{ producto.lanzamiento.n_lanzamiento.title() if producto.lanzamiento }}</div>
+        </div>
+    </div>
+    <div class="row">
+        {{ field(form.n_producto_edit, col='col-sm-8 mb-3') }}
+        {{ field(form.k_category, col='col-sm-4 mb-3') }}
+    </div>
+    {{ field(form.d_producto) }}
+    <div class="row">
+        {{ field(form.p_producto, col='col-sm-6 mb-3') }}
+        {{ field(form.stock, col='col-sm-6 mb-3') }}
+    </div>
+    <div class="mb-3">
+        <label class="form-label" for="inputImage">Cambiar imagen</label>
+        <input class="form-control" type="file" name="inputImage" id="inputImage" accept="image/*">
+    </div>
+    <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Guardar cambios</button>
+</form>
+{% endif %}
+{% endblock %}

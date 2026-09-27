@@ -6,7 +6,7 @@ from .forms import CreateUsuarioForm, LoginUsuarioForm,  newReleaseForm, newProd
 from flask import Blueprint, Response, current_app, flash, session, request, g, render_template, redirect, url_for, jsonify, make_response
 #from app.store.models import create_new_user, get_all_artists, get_user_by_email, create_new_artist
 from .models import create_new_user, get_all_artists, get_user_by_email, create_new_artist, get_k_artist_by_name, create_new_release, get_release_by_name, get_releases_with_artists, get_categories, create_new_product, get_k_release_by_name_artista, create_new_category, create_new_genre, create_release_genre, new_admin, get_all_releases, get_artist_by_release, get_categories_by_release, get_release_by_id, get_genres_by_release, get_products_by_release, get_product_by_id, create_new_invoice, add_items, get_artist_by_release, update_release, get_products_with_info, edit_product, create_new_image, get_image_by_product, get_rawimage_by_product, edit_image, update_stock, get_items_by_id_factura
-from .models import edit_user_by_email, get_all_products, get_purchases_by_user, get_all_invoices, get_solicitudes_by_user
+from .models import get_artist_by_id, get_releases_cards, get_products_cards, get_admin_stats, edit_user_by_email, get_all_products, get_purchases_by_user, get_all_invoices, get_solicitudes_by_user
 #import epaycosdk.epayco as epayco
 import json
 import urllib.parse as urlparse
@@ -68,7 +68,7 @@ def validate_admin():
 
 @home.route("/")
 def index():
-    return render_template("home.html", user = g.user, purchase_cart = g.purchase) 
+    return render_template("home.html", releases = get_releases_cards(limit=8), productos = get_products_cards(limit=4))
 
 @home.route("/login", methods=["GET", 'POST'])
 def login():
@@ -145,7 +145,7 @@ def account():
         apellido  =edit_usuario.lastname.data
         ciudad = edit_usuario.city.data
         direccion = edit_usuario.address.data
-        result = edit_user_by_email(session["user"]["email_usuario"], nombre,apellido,ciudad,direccion)
+        result = edit_user_by_email(session["user"]["email_usuario"], nombre,apellido,ciudad,direccion, edit_usuario.barrio.data, edit_usuario.celular.data)
         if result:
             flash("Usuario modificado correctamente")
             #g.user = result
@@ -164,6 +164,8 @@ def account():
         
         edit_usuario.city.data = session["user"]["lugar_usuario"]
         edit_usuario.address.data = session["user"]["dir_usuario"]
+        edit_usuario.barrio.data = session["user"].get("barrio_usuario")
+        edit_usuario.celular.data = session["user"].get("cel_usuario")
 
         compras = get_purchases_by_user(session["user"]["email_usuario"])
         solicitudes = get_solicitudes_by_user(session["user"]["email_usuario"])
@@ -173,7 +175,7 @@ def account():
 @home.route("/dashboard", methods=["GET", "POST"])
 @admin_required
 def admin():
-    return render_template("adminDashboard.html", user=g.user, purchase_cart = g.purchase)
+    return render_template("adminDashboard.html", stats = get_admin_stats())
 
 LOCALIDADES_BOGOTA = ["Usaquén", "Chapinero", "Santa Fe", "San Cristóbal", "Usme", "Tunjuelito", "Bosa", "Kennedy",
     "Fontibón", "Engativá", "Suba", "Barrios Unidos", "Teusaquillo", "Los Mártires", "Antonio Nariño", "Puente Aranda",
@@ -290,9 +292,9 @@ def newgenre():
         result = create_new_genre(genre)
         if result:
             flash("Genero registrado!")
-            return url_for('home.admin')
+            return redirect(url_for('home.admin'))
         flash("No se agregó el género! Posiblemente ya exista ;)")
-        return url_for('home.admin')
+        return redirect(url_for('home.admin'))
 
 @dashboard.route("/newcategory", methods=["GET", "POST"])
 def newcategory():
@@ -302,9 +304,9 @@ def newcategory():
         result = create_new_category(category)
         if result:
             flash("Cateogría registrada!")
-            return url_for('home.admin')
+            return redirect(url_for('home.admin'))
         flash("No se agregó la categoría! Posiblemente ya exista ;)")
-        return url_for('home.admin')
+        return redirect(url_for('home.admin'))
 
 @dashboard.route("/newartist", methods=["GET", "POST"])
 def newartist():
@@ -316,9 +318,9 @@ def newartist():
         result = create_new_artist(artist, country)
         if result:
             flash("Artista registrado!: " + artist)
-            return url_for('home.admin')
+            return redirect(url_for('home.admin'))
         flash("No se agregó el artista! Posiblemente ya exista ;)")
-        return url_for('home.admin')
+        return redirect(url_for('home.admin'))
 
 @dashboard.route("/newadmin", methods=['GET', 'POST'])
 def newadmin():
@@ -471,7 +473,8 @@ def home_releases():
     if request.method == "POST":
         None
     if request.method == 'GET':
-        return render_template("releases.html", user=g.user, purchase_cart = g.purchase, datetime=g.datetime, delta = timedelta ,releases = get_all_releases(), get_artist_by_release = get_artist_by_release, get_categories_by_release = get_categories_by_release )
+        q = request.args.get("q", "")
+        return render_template("releases.html", releases = get_releases_cards(q=q), q = q)
 
 @releases.route("/<int:k_lanzamiento>", methods=["GET", "POST"])
 def release(k_lanzamiento):
@@ -480,13 +483,18 @@ def release(k_lanzamiento):
         lanzamiento = get_release_by_id(k_lanzamiento)
         generos = get_genres_by_release(k_lanzamiento)
         productos = get_products_by_release(k_lanzamiento)
-        return render_template("singleRelease.html", artista=artista, lanzamiento=lanzamiento, generos = generos, productos=productos, user=g.user, purchase_cart = g.purchase)
+        if not lanzamiento:
+            return render_template("404.html"), 404
+        return render_template("singleRelease.html", artista=artista, lanzamiento=lanzamiento, generos = generos, productos=productos)
 
 
 @artists.route("/<int:k_artista>", methods=["GET", "POST"])
 def artist(k_artista):
     if request.method == 'GET':
-        return "Pagona artista" + str(k_artista)
+        artista = get_artist_by_id(k_artista)
+        if not artista:
+            return render_template("404.html"), 404
+        return render_template("releases.html", releases = get_releases_cards(k_artista=k_artista), artista = artista)
 
 @purchase.route("/", methods=["GET", "POST"])
 def summary():
@@ -638,7 +646,7 @@ def thankyou():
 
 @products.route("/image_<int:k_producto>")
 def image(k_producto): 
-    return get_image_by_product((k_producto))
+    return get_image_by_product((k_producto)) or ("", 404)
 
 @products.route("/", methods=["POST", "GET"])
 def home_products():
@@ -646,4 +654,4 @@ def home_products():
         products = get_all_products()
     if request.method == "POST":
         None
-    return render_template("products.html", products = products, get_release_by_id=get_release_by_id, get_image_by_product = get_image_by_product, user=g.user, purchase_cart = g.purchase)
+    return render_template("products.html", productos = get_products_cards())

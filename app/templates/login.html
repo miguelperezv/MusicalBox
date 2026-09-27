@@ -1,21 +1,23 @@
-{%extends "base.html"%}
-{%block title%}
-Login
-{%endblock%}
-{%block contenido%}
+{% extends "base.html" %}
+{% from "_macros.html" import field %}
+{% block title %}Ingresar{% endblock %}
 
-<h1>Login</h1>
-<form method="POST" action="{{url_for('home.login')}}">
-    
-    
-    {{ form.email_usuario.label }} {{ form.email_usuario(size=20) }}
-    {{ form.pwd_usuario.label }} {{ form.pwd_usuario(size=20) }}
-    <input type="submit" value="Registrarme!">
-</form> 
-
-<h2>musical boz!!</h2>
-<h2>musical boz!!</h2>
-<h2>musical boz!!</h2>
-<h2>musical boz!!</h2>
-<h2>musical boz!!</h2>
-{%endblock%}
+{% block contenido %}
+<div class="container">
+    <div class="mb-auth">
+        <div class="text-center mb-4">
+            <img src="{{ url_for('static', filename='imgs/musicalbox.png') }}" width="56" height="56" alt="">
+            <h1 class="h3 mt-3 mb-1">¡Qué bueno verte!</h1>
+            <p class="text-body-secondary">Ingresa para comprar y seguir tus pedidos.</p>
+        </div>
+        <div class="mb-panel">
+            <form method="POST" action="{{ url_for('home.login') }}">
+                {{ field(form.email_usuario, type='email', autocomplete='email', placeholder='tu@correo.com') }}
+                {{ field(form.pwd_usuario, autocomplete='current-password') }}
+                <button type="submit" class="btn btn-primary w-100 mt-2">Ingresar</button>
+            </form>
+        </div>
+        <p class="text-center mt-3 text-body-secondary">¿No tienes cuenta? <a href="{{ url_for('home.signup') }}">Regístrate</a></p>
+    </div>
+</div>
+{% endblock %}

@@ -1,37 +1,84 @@
-{%extends "base.html"%}
-{%block head%}  
-    <link rel="icon" type="image" href="{{ url_for('static', filename='imgs/musicalbox.png') }}" width="40px" heigth="40px" />
-{%endblock%}
-{%block title%}
-Musical Box - Bogotá
-{%endblock%}
+{% extends "base.html" %}
+{% from "_cards.html" import release_card, product_card with context %}
 
-{%block contenido%}
-Inicio! Bienvenido {{ user['n_usuario'] }}
+{% block title %}CD's, vinilos y cassettes en Bogotá{% endblock %}
 
-<button type="button" class="btn btn-primary" data-toggle="modal" data-target="#exampleModal">
-    Launch demo modal
-  </button>
-  
-  <!-- Modal -->
-  <div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
-    <div class="modal-dialog" role="document">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="exampleModalLabel">Modal title</h5>
-          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-            <span aria-hidden="true">&times;</span>
-          </button>
+{% block contenido %}
+<section class="mb-hero mb-5">
+    <div class="container py-5">
+        <div class="row align-items-center g-5 py-lg-4">
+            <div class="col-lg-6">
+                <span class="mb-eyebrow text-white-50">Tienda de música física · Bogotá</span>
+                <h1 class="mt-2 mb-3">La música que amas, <span class="hl">en tus manos.</span></h1>
+                <p class="lead mb-4">Vinilos, CD's y cassettes: lanzamientos, ediciones especiales y lo que no encuentres en ningún otro lado, lo conseguimos por ti.</p>
+                <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-accent btn-lg" href="{{ url_for('releases.home_releases') }}">Ver lanzamientos</a>
+                    <a class="btn btn-outline-light btn-lg" href="{{ url_for('solicitud.nueva') }}">Pide tu disco</a>
+                </div>
+                {% if user %}<p class="mt-4 mb-0 text-white-50">¡Hola de nuevo, {{ user['n_usuario'] }}! 👋</p>{% endif %}
+            </div>
+            <div class="col-lg-6 d-none d-md-block">
+                <div class="mb-hero-art">
+                    <div class="vinyl"></div>
+                    <div class="cover">
+                        {% if releases and releases[0].portada %}
+                        <img src="{{ releases[0].portada }}" alt="Portada de {{ releases[0].nombre }}">
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="modal-body">
-          Holaaaa
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-          <button type="button" class="btn btn-primary">Save changes</button>
-        </div>
-      </div>
     </div>
-  </div>
+</section>
 
-{%endblock%}
+<div class="container">
+    <section class="mb-5">
+        <div class="mb-section-title">
+            <div>
+                <span class="mb-eyebrow">Recién llegados</span>
+                <h2>Últimos lanzamientos</h2>
+            </div>
+            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('releases.home_releases') }}">Ver todos <i class="bi bi-arrow-right"></i></a>
+        </div>
+        <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3 g-lg-4">
+            {% for r in releases %}
+            <div class="col">{{ release_card(r) }}</div>
+            {% else %}
+            <div class="col-12 mb-empty"><i class="bi bi-vinyl"></i>Muy pronto tendremos lanzamientos.</div>
+            {% endfor %}
+        </div>
+    </section>
+
+    {% if productos %}
+    <section class="mb-5">
+        <div class="mb-section-title">
+            <div>
+                <span class="mb-eyebrow">Tienda</span>
+                <h2>Productos destacados</h2>
+            </div>
+            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('products.home_products') }}">Ver todos <i class="bi bi-arrow-right"></i></a>
+        </div>
+        <div class="row row-cols-2 row-cols-lg-4 g-3 g-lg-4">
+            {% for p in productos %}
+            <div class="col">{{ product_card(p) }}</div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <section class="mb-panel p-4 p-lg-5 d-lg-flex align-items-center justify-content-between gap-4" style="background: linear-gradient(135deg, #fffde0, #e7f5f8);">
+        <div>
+            <span class="mb-eyebrow">Pedidos a la medida</span>
+            <h2 class="mt-1">¿No encuentras ese disco?</h2>
+            <p class="text-body-secondary mb-lg-0">Cuéntanos qué buscas y nosotros lo conseguimos y te lo enviamos a cualquier parte de Colombia.</p>
+        </div>
+        <a class="btn btn-primary btn-lg text-nowrap" href="{{ url_for('solicitud.nueva') }}"><i class="bi bi-send me-1"></i>Hacer una solicitud</a>
+    </section>
+
+    <section class="row row-cols-1 row-cols-md-3 g-4 mt-2 text-center text-md-start">
+        <div class="col"><i class="bi bi-truck fs-3 text-primary"></i><h3 class="h6 mt-2 mb-1">Envíos a todo el país</h3><p class="text-body-secondary small mb-0">Desde Bogotá a cualquier municipio de Colombia.</p></div>
+        <div class="col"><i class="bi bi-shield-check fs-3 text-primary"></i><h3 class="h6 mt-2 mb-1">Pago seguro</h3><p class="text-body-secondary small mb-0">Pagos procesados con ePayco.</p></div>
+        <div class="col"><i class="bi bi-vinyl fs-3 text-primary"></i><h3 class="h6 mt-2 mb-1">Ediciones especiales</h3><p class="text-body-secondary small mb-0">Vinilos de colores, box sets y exclusivos.</p></div>
+    </section>
+</div>
+{% endblock %}
