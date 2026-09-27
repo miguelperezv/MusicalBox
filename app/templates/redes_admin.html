@@ -1,0 +1,79 @@
+{% extends "adminDashboard.html" %}
+
+{% block content %}
+<h1 class="h3 mb-4">Redes en el inicio</h1>
+{% for a in avisos %}<div class="alert alert-warning small"><i class="bi bi-exclamation-triangle me-1"></i>{{ a }}</div>{% endfor %}
+
+<form class="mb-panel mb-4" style="max-width: 760px" method="POST" action="{{ url_for('dashboard.redes_config') }}">
+    <h2 class="h6 mb-3">Configuración de la sección</h2>
+    <div class="form-check form-switch mb-3">
+        <input class="form-check-input" type="checkbox" role="switch" id="activa" name="activa" value="1" {{ 'checked' if cfg.activa }}>
+        <label class="form-check-label" for="activa">Mostrar la sección en el inicio</label>
+    </div>
+    <div class="row g-2 align-items-end">
+        <div class="col-sm-6">
+            <label class="form-label small">Modo</label>
+            <select class="form-select" name="modo" id="modo">
+                {% for k, v in modos.items() %}<option value="{{ k }}" {{ 'selected' if k == cfg.modo }}>{{ v }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="col-3 col-sm-2"><label class="form-label small">N (se muestran)</label><input class="form-control" type="number" name="n" min="1" value="{{ cfg.n }}"></div>
+        <div class="col-3 col-sm-2" id="campo-m"><label class="form-label small">M (se sortea de)</label><input class="form-control" type="number" name="m" min="1" value="{{ cfg.m }}"></div>
+        <div class="col-6 col-sm-2"><button class="btn btn-primary w-100">Guardar</button></div>
+    </div>
+    <p class="small text-body-secondary mt-2 mb-0">Al azar: cada visitante ve un sorteo fijo durante su sesión; se sortea de nuevo si cambias la configuración o las publicaciones.</p>
+</form>
+
+<div class="mb-panel" style="max-width: 980px">
+    <h2 class="h6 mb-3">Publicaciones</h2>
+    <form class="row g-2 align-items-end mb-3" method="POST" action="{{ url_for('dashboard.redes_nueva') }}">
+        <div class="col-sm-3">
+            <select class="form-select" name="plataforma">{% for k, v in plataformas.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+        </div>
+        <div class="col-sm-7"><input class="form-control" name="url" placeholder="URL completa del post" required></div>
+        <div class="col-sm-2"><button class="btn btn-primary w-100"><i class="bi bi-plus-lg me-1"></i>Agregar</button></div>
+    </form>
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead><tr><th>Orden</th><th>Plataforma</th><th>Publicación</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead>
+            <tbody>
+                {% for p in pubs %}
+                <tr class="{{ 'opacity-50' if not p.activo }}">
+                    <td class="text-nowrap">
+                        <form class="d-inline" method="POST" action="{{ url_for('dashboard.redes_mover', k=p.id, direccion='arriba') }}"><button class="btn btn-sm btn-light" title="Subir" {{ 'disabled' if loop.first }}><i class="bi bi-arrow-up"></i></button></form>
+                        <form class="d-inline" method="POST" action="{{ url_for('dashboard.redes_mover', k=p.id, direccion='abajo') }}"><button class="btn btn-sm btn-light" title="Bajar" {{ 'disabled' if loop.last }}><i class="bi bi-arrow-down"></i></button></form>
+                    </td>
+                    <td><i class="bi bi-{{ 'tiktok' if p.plataforma == 'tiktok' else 'instagram' }} me-1"></i>{{ plataformas[p.plataforma] }}</td>
+                    <td class="small" style="max-width: 360px">
+                        <form class="d-flex gap-1" method="POST" action="{{ url_for('dashboard.redes_editar', k=p.id) }}">
+                            <input type="hidden" name="plataforma" value="{{ p.plataforma }}">
+                            <input class="form-control form-control-sm" name="url" value="{{ p.url }}">
+                            <button class="btn btn-sm btn-outline-primary" title="Guardar URL"><i class="bi bi-check-lg"></i></button>
+                        </form>
+                        {% if p.error_embed %}<div class="text-danger mt-1"><i class="bi bi-exclamation-circle me-1"></i>{{ p.error_embed }}</div>{% endif %}
+                    </td>
+                    <td>
+                        {% if not p.activo %}<span class="mb-estado mb-estado-CANCELADO">Inactiva</span>
+                        {% elif p.error_embed %}<span class="mb-estado mb-estado-RECHAZADO">Con error</span>
+                        {% else %}<span class="mb-estado mb-estado-PAGADO">Visible</span>{% endif %}
+                    </td>
+                    <td class="text-end text-nowrap">
+                        <form class="d-inline" method="POST" action="{{ url_for('dashboard.redes_verificar', k=p.id) }}"><button class="btn btn-sm btn-outline-secondary" title="Verificar embed"><i class="bi bi-arrow-repeat"></i></button></form>
+                        <form class="d-inline" method="POST" action="{{ url_for('dashboard.redes_activo', k=p.id) }}"><button class="btn btn-sm btn-outline-{{ 'danger' if p.activo else 'success' }}">{{ 'Desactivar' if p.activo else 'Activar' }}</button></form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="text-body-secondary">Todavía no hay publicaciones.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+<script>
+    (function () {
+        var modo = document.getElementById('modo'), m = document.getElementById('campo-m');
+        function toggle() { m.style.visibility = modo.value === 'random_n_de_m' ? 'visible' : 'hidden'; }
+        modo.addEventListener('change', toggle); toggle();
+    })();
+</script>
+{% endblock %}

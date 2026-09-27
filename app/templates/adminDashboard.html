@@ -25,6 +25,9 @@
                 <a class="nav-link {{ 'active' if request.endpoint in ['dashboard.editrelease', 'dashboard.updaterelease'] }}" href="{{ url_for('dashboard.editrelease') }}"><i class="bi bi-pencil-square"></i>Editar lanzamiento</a>
                 <a class="nav-link {{ 'active' if request.endpoint in ['dashboard.editproduct', 'dashboard.updateproduct'] }}" href="{{ url_for('dashboard.editproduct') }}"><i class="bi bi-pencil"></i>Editar producto</a>
 
+                <div class="section">Sitio</div>
+                <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.redes_admin' }}" href="{{ url_for('dashboard.redes_admin') }}"><i class="bi bi-camera-reels"></i>Redes en el inicio</a>
+
                 <div class="section">Equipo</div>
                 <a class="nav-link" href="#" data-load="{{ url_for('dashboard.newadmin') }}"><i class="bi bi-person-gear"></i>Nuevo administrador</a>
                 <a class="nav-link" href="{{ url_for('home.index') }}"><i class="bi bi-shop"></i>Ver tienda</a>
