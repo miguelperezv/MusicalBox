@@ -391,17 +391,36 @@ def process_payment():
         payload = request.get_json()
         print(f"[MP] Datos recibidos: {payload}")
         
+        # Diagnóstico: imprimir las keys que nos llegan
+        print("[MP] payload keys:", list(payload.keys()) if payload else "None")
+        if isinstance(payload, dict) and payload.get("payer"):
+            print("[MP] payer keys:", list(payload["payer"].keys()))
+        
         # Validar que tengamos datos
         if not payload:
             print('[MP] ERROR: No se recibieron datos en el payload')
             return jsonify({"error": "No se recibieron datos"}), 400
         
+        # Obtener el monto de varias posibles variantes
+        amount = (
+            payload.get("transaction_amount")
+            or payload.get("transactionAmount")
+            or payload.get("amount")
+            or pedidoTotal  # Usar el total del pedido como fallback
+        )
+        
+        if amount is None:
+            print('[MP] ERROR: No se encontró monto en el payload ni en el pedido')
+            return jsonify({"error": "missing amount in payload"}), 400
+        
+        print(f"[MP] Monto encontrado: {amount}")
+        
         # Filtrar solo los campos válidos para la API de MercadoPago
         # Referencia: https://www.mercadopago.com.co/developers/es/docs/checkout-bricks/payment-brick/payment-submission/cards
         payment_data = {
             "token": payload.get("token"),
-            "transaction_amount": float(payload["transaction_amount"]) if payload.get("transaction_amount") else None,
-            "installments": int(payload["installments"]) if payload.get("installments") else 1,
+            "transaction_amount": float(amount),
+            "installments": int(payload.get("installments", 1)),
             "payment_method_id": payload.get("payment_method_id"),
         }
         
@@ -418,10 +437,6 @@ def process_payment():
             # Agregar identification si viene
             if payload["payer"].get("identification"):
                 payment_data["payer"]["identification"] = payload["payer"]["identification"]
-        
-        # Eliminar campos None o vacíos
-        if payment_data.get("transaction_amount") is None:
-            payment_data.pop("transaction_amount", None)
         
         print(f"[MP] Datos filtrados para MercadoPago: {payment_data}")
         
