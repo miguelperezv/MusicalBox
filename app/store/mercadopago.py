@@ -381,6 +381,20 @@ def webhook():
         return "", 500
 
 
+def normalize_payment_method_id(payload: dict):
+    pm = payload.get("payment_method_id") or payload.get("paymentMethodId")
+    # Caso OK: ya es string ("visa")
+    if isinstance(pm, str) and pm.strip():
+        return pm.strip()
+    # Caso típico de error: viene como objeto
+    if isinstance(pm, dict):
+        # Intentos comunes: id directo o dentro de selectedPaymentMethod
+        candidate = pm.get("id") or (pm.get("selectedPaymentMethod") or {}).get("id")
+        if isinstance(candidate, str) and candidate.strip():
+            return candidate.strip()
+    return None
+
+
 @mercadopago_bp.route("/process_payment", methods=["POST"])
 def process_payment():
     """Procesa el pago realizado a través del Payment Brick."""
@@ -414,19 +428,15 @@ def process_payment():
         
         print(f"[MP] Monto encontrado: {amount}")
         
-        # Obtener payment_method_id de varias posibles variantes
-        payment_method_id = (
-            payload.get("payment_method_id")
-            or payload.get("paymentMethodId")
-            or payload.get("payment_method")
-        )
+        # Normalizar payment_method_id
+        payment_method_id = normalize_payment_method_id(payload)
         
         if payment_method_id is None:
-            print('[MP] ERROR: No se encontró payment_method_id en el payload')
+            print('[MP] ERROR: No se encontró payment_method_id válido en el payload')
             print('[MP] Payload completo:', payload)
-            return jsonify({"error": "missing payment_method_id in payload"}), 400
+            return jsonify({"error": "payment_method_id inválido o ausente"}), 400
         
-        print(f"[MP] Payment method ID encontrado: {payment_method_id}")
+        print(f"[MP] Payment method ID normalizado: {payment_method_id}")
         
         # Filtrar solo los campos válidos para la API de MercadoPago
         # Referencia: https://www.mercadopago.com.co/developers/es/docs/checkout-bricks/payment-brick/payment-submission/cards
@@ -434,8 +444,13 @@ def process_payment():
             "token": payload.get("token"),
             "transaction_amount": float(amount),
             "installments": int(payload.get("installments", 1)),
-            "payment_method_id": payment_method_id,  # Usar el payment_method_id encontrado
+            "payment_method_id": payment_method_id,  # Usar el payment_method_id normalizado
         }
+        
+        # Validación rápida de campos requeridos
+        if not payment_data["token"]:
+            print('[MP] ERROR: Falta token (flujo de tarjeta)')
+            return jsonify({"error": "Falta token (flujo de tarjeta)"}), 400
         
         # Agregar issuer_id si viene
         if payload.get("issuer_id"):
