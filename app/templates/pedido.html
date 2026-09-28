@@ -205,26 +205,39 @@
                     document.getElementById("paymentBrick_container").innerHTML = 
                         '<div class="alert alert-danger">Error al cargar el método de pago. Por favor, inténtalo nuevamente.</div>';
                 },
-                onSubmit: async (selectedPaymentMethod, formData) => {
-                    console.log('[MP] Formulario de pago enviado:', selectedPaymentMethod, formData);
-                    
-                    // Loguear los datos para diagnóstico
-                    console.log('[MP] formData keys:', Object.keys(formData));
-                    console.log('[MP] selectedPaymentMethod:', selectedPaymentMethod);
+                onSubmit: async (brickData) => {
+                    console.log('[MP] brickData completo:', brickData);
                     
                     try {
-                        // Agregar el monto total del pedido al formData
-                        const paymentData = {
-                            ...formData,
-                            transaction_amount: pedidoTotal  // Agregar el monto total
+                        // Extraer formData y selectedPaymentMethod del brickData
+                        const { formData, selectedPaymentMethod } = brickData || {};
+                        console.log('[MP] formData:', formData);
+                        console.log('[MP] selectedPaymentMethod:', selectedPaymentMethod);
+                        
+                        // Construir el payload correcto para el backend
+                        const payload = {
+                            ...(formData || {}),
+                            transaction_amount: pedidoTotal,
                         };
                         
-                        // Asegurarnos de que payment_method_id esté presente
-                        if (!paymentData.payment_method_id && selectedPaymentMethod) {
-                            paymentData.payment_method_id = selectedPaymentMethod;
+                        // Si el método viene por fuera, lo copiamos a donde la API lo espera
+                        if (!payload.payment_method_id && selectedPaymentMethod) {
+                            if (typeof selectedPaymentMethod === 'string') {
+                                payload.payment_method_id = selectedPaymentMethod;
+                            } else if (selectedPaymentMethod.id) {
+                                payload.payment_method_id = selectedPaymentMethod.id;
+                            }
                         }
                         
-                        console.log('[MP] Datos de pago con monto y método:', paymentData);
+                        console.log('[MP] payload a backend:', payload);
+                        
+                        // Verificar que tengamos el token (requerido para pagos con tarjeta)
+                        if (!payload.token) {
+                            console.error('[MP] ERROR: No se encontró token en el payload');
+                            document.getElementById("paymentBrick_container").innerHTML = 
+                                '<div class="alert alert-danger">Error: No se pudo obtener el token de pago. Por favor, recarga la página e inténtalo nuevamente.</div>';
+                            return;
+                        }
                         
                         // Obtener el token CSRF del meta tag (si existe)
                         let headers = {
@@ -244,7 +257,7 @@
                         const response = await fetch('/mercadopago/process_payment', {
                             method: 'POST',
                             headers: headers,
-                            body: JSON.stringify(paymentData), // Usar paymentData con el monto
+                            body: JSON.stringify(payload), // Usar el payload correcto
                         });
                         
                         console.log('[MP] Respuesta del servidor:', response.status, response.statusText);
