@@ -121,10 +121,14 @@
         
         // Obtener preferenceId (tu endpoint)
         try {
+            // Obtener el token CSRF del meta tag
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            
             const response = await fetch(`/mercadopago/create_preference/${pedidoToken}`, { 
                 method: "POST",
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
                 }
             });
             

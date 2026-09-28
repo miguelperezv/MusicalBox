@@ -5,6 +5,7 @@ import hashlib
 import hmac
 import uuid
 from flask import Blueprint, current_app, flash, g, redirect, render_template, request, session, url_for, abort, jsonify
+from flask_wtf.csrf import csrf_exempt
 from .forms import CheckoutForm
 from .models import crear_pedido, get_pedido_por_token, confirmar_pago, rechazar_pago, validar_carrito
 from .views import before_request, purchase
@@ -104,25 +105,50 @@ def button(token):
         return redirect(url_for('pedido.ver', token=token))
 
 @mercadopago_bp.route("/create_preference/<token>", methods=["POST"])
+@csrf_exempt
 def create_preference(token):
     """Crea una preference para un pedido y la devuelve en formato JSON."""
     try:
-        print(f"[MP] Iniciando creación de preferencia para token: {token}")
+        print(f"[MP] === INICIANDO CREACIÓN DE PREFERENCIA ===")
+        print(f"[MP] Token recibido: {token}")
         
         # Verificar que el pedido exista
+        print(f"[MP] Buscando pedido por token...")
         pedido = get_pedido_por_token(token)
         if not pedido:
-            print(f"[MP] Pedido no encontrado para token: {token}")
+            print(f"[MP] ERROR: Pedido no encontrado para token: {token}")
             return jsonify({"error": "Pedido no encontrado"}), 404
         
-        print(f"[MP] Pedido encontrado: {pedido.id}")
+        print(f"[MP] Pedido encontrado - ID: {pedido.id}, Estado: {pedido.estado}")
+        print(f"[MP] Detalles del pedido:")
+        print(f"  - Usuario: {pedido.k_usuario}")
+        print(f"  - Total: {pedido.total}")
+        print(f"  - Fecha compra: {pedido.f_compra}")
+        print(f"  - Items count: {len(pedido.items)}")
         
         # Verificar que el pedido esté pendiente
         if pedido.estado != 'PENDIENTE':
-            print(f"[MP] Pedido no está pendiente. Estado: {pedido.estado}")
-            return jsonify({"error": "Este pedido ya ha sido pagado o está rechazado"}), 400
+            print(f"[MP] ERROR: Pedido no está pendiente. Estado actual: {pedido.estado}")
+            return jsonify({"error": f"Este pedido ya ha sido pagado o está rechazado. Estado actual: {pedido.estado}"}), 400
+        
+        # Verificar que haya items
+        if not pedido.items:
+            print(f"[MP] ERROR: El pedido no tiene items")
+            return jsonify({"error": "El pedido no tiene items"}), 400
+        
+        # Mostrar detalles de los items
+        print(f"[MP] Items del pedido:")
+        for i, item in enumerate(pedido.items):
+            print(f"  Item {i+1}: Producto ID {item.k_producto}, Variante ID {item.k_variante}, Cantidad {item.cant_item}, Precio {item.p_item}")
+            if item.producto:
+                print(f"    Producto: {item.producto.n_producto}")
+                if item.producto.lanzamiento:
+                    print(f"    Lanzamiento: {item.producto.lanzamiento.n_lanzamiento}")
+            else:
+                print(f"    ADVERTENCIA: Producto no encontrado para este item")
         
         # Crear SDK de MercadoPago
+        print(f"[MP] Creando SDK de MercadoPago...")
         sdk = get_mercadopago_sdk()
         
         # Preparar items del pedido
@@ -130,59 +156,78 @@ def create_preference(token):
         total_amount = 0
         for item in pedido.items:
             # Asegurarse de que unit_price sea entero (sin decimales)
-            unit_price = int(float(item.p_item))
-            quantity = int(item.cant_item)
-            item_total = unit_price * quantity
-            total_amount += item_total
-            
-            items.append({
-                "title": f"{item.producto.lanzamiento.n_lanzamiento.title()} - {item.producto.n_producto}" if item.producto and item.producto.lanzamiento else (item.producto.n_producto if item.producto else "Producto"),
-                "quantity": quantity,
-                "currency_id": "COP",
-                "unit_price": unit_price  # Convertido a entero
-            })
+            try:
+                unit_price = int(float(item.p_item))
+                quantity = int(item.cant_item)
+                item_total = unit_price * quantity
+                total_amount += item_total
+                
+                # Crear título descriptivo
+                if item.producto and item.producto.lanzamiento:
+                    title = f"{item.producto.lanzamiento.n_lanzamiento.title()} - {item.producto.n_producto}"
+                elif item.producto:
+                    title = item.producto.n_producto
+                else:
+                    title = f"Producto ID {item.k_producto}"
+                
+                items.append({
+                    "title": title,
+                    "quantity": quantity,
+                    "currency_id": "COP",
+                    "unit_price": unit_price
+                })
+                print(f"[MP] Item agregado: {title} x{quantity} @ ${unit_price}")
+            except Exception as e:
+                print(f"[MP] ERROR al procesar item: {e}")
+                return jsonify({"error": f"Error al procesar item {item.id}: {str(e)}"}), 400
         
-        print(f"[MP] Items preparados: {items}")
-        print(f"[MP] Total amount: {total_amount}")
+        print(f"[MP] Items preparados: {len(items)} items, total: ${total_amount}")
         
         # Validar que haya items
         if not items:
-            print("[MP] No se encontraron items en el pedido")
-            return jsonify({"error": "El pedido no tiene items"}), 400
+            print("[MP] ERROR: No se pudieron preparar items válidos")
+            return jsonify({"error": "No se pudieron preparar items válidos"}), 400
         
-        # Crear preferencia (versión simplificada para diagnóstico)
+        # Crear preferencia
         preference_data = {
             "items": items,
             "external_reference": str(pedido.id),
             "notification_url": url_for('mercadopago.webhook', _external=True),
         }
         
-        # Loguear la preferencia para debugging
-        print("[MP] PREFERENCE DATA =>", json.dumps(preference_data, indent=2))
+        print("[MP] PREFERENCE DATA a enviar:")
+        import json
+        print(json.dumps(preference_data, indent=2, default=str))
         
         # Crear la preferencia
+        print("[MP] Llamando a SDK para crear preferencia...")
         preference_response = sdk.preference().create(preference_data)
-        print(f"[MP] Respuesta de preferencia: {preference_response}")
+        print(f"[MP] Respuesta del SDK: {preference_response}")
         
         # Verificar si la creación fue exitosa
-        if preference_response.get("status") not in (200, 201):
-            error_msg = f"Error creando preferencia: {preference_response}"
+        status = preference_response.get("status")
+        print(f"[MP] Status de respuesta: {status}")
+        
+        if status not in (200, 201):
+            error_msg = f"Error creando preferencia. Status: {status}, Response: {preference_response}"
             print(f"[MP] {error_msg}")
             return jsonify({"error": error_msg}), 400
         
-        preference = preference_response["response"]
+        preference = preference_response.get("response", {})
+        print(f"[MP] Preferencia response: {preference}")
         
         # Verificar que la preferencia tenga id
         if "id" not in preference:
-            error_msg = f"La preferencia no contiene id: {preference}"
+            error_msg = f"La preferencia no contiene id. Response completa: {preference}"
             print(f"[MP] {error_msg}")
             return jsonify({"error": error_msg}), 500
         
-        print(f"[MP] Preferencia creada exitosamente con ID: {preference['id']}")
+        preference_id = preference["id"]
+        print(f"[MP] Preferencia creada exitosamente con ID: {preference_id}")
         
-        return jsonify({"preferenceId": preference["id"]})
+        return jsonify({"preferenceId": preference_id})
     except Exception as e:
-        print(f"[MP] Error creando preference: {str(e)}")
+        print(f"[MP] ERROR GENERAL creando preference: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({"error": f"Error al crear la preferencia de pago: {str(e)}"}), 500
