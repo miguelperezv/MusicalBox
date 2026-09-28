@@ -57,40 +57,17 @@
             <div class="mb-panel mb-sticky">
                 {% if pedido.estado in ['PENDIENTE', 'RECHAZADO'] %}
                 <h2 class="h5 mb-2">Pagar {{ pedido.total|cop }}</h2>
-                <p class="small text-body-secondary">Método elegido: {{ pedido.metodo_pago or '—' }}. En ePayco puedes cambiarlo.</p>
-                <!-- Botón de pago ePayco: la respuesta vuelve a este mismo pedido -->
-                <form class="text-center">
-                    <script src="https://checkout.epayco.co/checkout.js"
-                        data-epayco-key="{{ config.EPAYCO_PUBLIC_KEY }}"
-                        class="epayco-button"
-                        data-epayco-amount="{{ pedido.total|int }}"
-                        data-epayco-tax="0"
-                        data-epayco-tax-base="{{ pedido.total|int }}"
-                        data-epayco-name="Musical Box - Pedido {{ pedido.id }}"
-                        data-epayco-description="Pedido {{ pedido.id }} en Musical Box"
-                        data-epayco-invoice="{{ referencia }}"
-                        data-epayco-currency="cop"
-                        data-epayco-country="CO"
-                        data-epayco-test="{{ 'true' if config.EPAYCO_TEST else 'false' }}"
-                        data-epayco-external="false"
-                        data-epayco-name-billing="{{ pedido.n_envio }}"
-                        data-epayco-email-billing="{{ pedido.email_envio }}"
-                        data-epayco-mobilephone-billing="{{ pedido.tel_envio }}"
-                        data-epayco-response="{{ url_for('pedido.respuesta', token=token, _external=True) }}"
-                        data-epayco-confirmation="{{ url_for('pedido.respuesta', token=token, _external=True) }}"
-                        data-epayco-button="https://369969691f476073508a-60bf0867add971908d4f26a64519c2aa.ssl.cf5.rackcdn.com/btns/boton_carro_de_compras_epayco2.png">
-                    </script>
-                </form>
-                {% if simulacion %}
-                <div class="border border-warning rounded-3 p-3 mt-3 small">
-                    <div class="fw-semibold mb-2"><i class="bi bi-tools me-1"></i>Modo desarrollo: simular respuesta de ePayco</div>
-                    <form method="POST" action="{{ url_for('pedido.simular', token=token) }}" class="d-flex gap-2">
-                        <button class="btn btn-sm btn-success" name="resultado" value="aprobado">Pago aprobado</button>
-                        <button class="btn btn-sm btn-outline-danger" name="resultado" value="rechazado">Pago rechazado</button>
-                    </form>
+                <p class="small text-body-secondary">Selecciona tu método de pago preferido.</p>
+                
+                <!-- Botón de pago MercadoPago -->
+                <div class="mb-3">
+                    <h4 class="h6 mb-1">Pagar con MercadoPago</h4>
+                    <button id="openMpModal" class="btn btn-primary w-100" type="button">
+                        <i class="bi bi-wallet2 me-2"></i>Pagar con MercadoPago
+                    </button>
+                    <p class="small text-body-secondary mt-1 mb-0">Tarjetas de crédito, débito, efectivo y más.</p>
                 </div>
-                {% endif %}
-                <hr>
+                </div>
                 {% endif %}
 
                 <h2 class="h6"><i class="bi bi-link-45deg me-1"></i>Enlace de seguimiento</h2>
@@ -103,13 +80,271 @@
         </div>
     </div>
 </div>
+
+<!-- Modal de MercadoPago -->
+<div id="mpModal" class="mp-modal" style="display:none;">
+  <div class="mp-modal-card">
+    <div class="mp-modal-header">
+      <strong>Pago seguro con Mercado Pago</strong>
+      <button id="closeMpModal" type="button" class="btn-close" aria-label="Cerrar"></button>
+    </div>
+    <div class="mp-modal-body">
+      <div id="paymentBrick_container"></div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .mp-modal { 
+    position: fixed; 
+    inset: 0; 
+    background: rgba(0,0,0,.45); 
+    padding: 24px; 
+    z-index: 1050; 
+    overflow-y: auto; /* Permitir desplazamiento vertical */
+  }
+  .mp-modal-card { 
+    background: #fff; 
+    max-width: 560px; 
+    margin: 24px auto; /* Centrar verticalmente con espacio */
+    border-radius: 12px; 
+    padding: 16px; 
+    max-height: calc(100vh - 48px); /* Limitar altura máxima */
+    display: flex;
+    flex-direction: column;
+  }
+  .mp-modal-header {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
+    flex-shrink: 0; /* No permitir que el header se encoja */
+  }
+  .mp-modal-body {
+    margin-top: 12px; 
+    min-height: 500px;
+    flex: 1; /* Ocupar espacio disponible */
+    overflow-y: auto; /* Permitir desplazamiento interno si es necesario */
+  }
+  .mp-modal-footer {
+    margin-top: 12px; 
+    display: flex; 
+    gap: 8px; 
+    justify-content: flex-end;
+    flex-shrink: 0; /* No permitir que el footer se encoja */
+  }
+</style>
 {% endblock %}
 
 {% block scripts %}
+<script src="https://sdk.mercadopago.com/js/v2"></script>
 <script>
-    document.getElementById('copiar-enlace').addEventListener('click', function () {
-        var input = document.getElementById('enlace-pedido');
-        navigator.clipboard.writeText(input.value).then(() => { this.innerHTML = '<i class="bi bi-check2"></i> Copiado'; });
+    let bricksBuilder;
+    let preferenceId;
+    
+    // Variables del pedido
+    const pedidoId = {{ pedido.id }};
+    const pedidoToken = '{{ token }}';
+    const pedidoTotal = {{ pedido.total|int }};
+    
+    async function openModal() {
+        document.getElementById("mpModal").style.display = "block";
+        
+        // Renderizar Brick dentro del modal (sin botón interno)
+        if (window.paymentBrickController) window.paymentBrickController.unmount();
+        
+        // Obtener preferenceId (tu endpoint)
+        try {
+            // Obtener el token CSRF del meta tag (si existe)
+            let headers = {
+                'Content-Type': 'application/json',
+            };
+            
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            if (csrfMeta) {
+                headers['X-CSRFToken'] = csrfMeta.getAttribute('content');
+            } else {
+                console.warn('[MP] No se encontró meta tag CSRF, continuando sin CSRF token');
+            }
+            
+            const response = await fetch(`/mercadopago/create_preference/${pedidoToken}`, { 
+                method: "POST",
+                headers: headers
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`Error al obtener preference: ${response.status} - ${errorData.error || response.statusText}`);
+            }
+            
+            const pref = await response.json();
+            preferenceId = pref.preferenceId;
+            console.log('[MP] Preference ID obtenido:', preferenceId);
+            
+        // Renderizar el Payment Brick
+        window.paymentBrickController = await bricksBuilder.create("payment", "paymentBrick_container", {
+            initialization: { 
+                amount: pedidoTotal,
+                preferenceId: preferenceId,
+                mercadoPago: mp  // Pasar el objeto de MercadoPago
+            },
+            customization: {
+                visual: { 
+                    hidePaymentButton: false  // Mostrar el botón de pago de MercadoPago
+                },
+                paymentMethods: { 
+                    creditCard:"all", 
+                    debitCard:"all", 
+                    prepaidCard:"all" 
+                }
+            },
+            callbacks: {
+                onReady: () => {
+                    console.log('[MP] Payment Brick listo en modal');
+                },
+                onError: (e) => {
+                    console.error('[MP] Error en Payment Brick:', e);
+                    document.getElementById("paymentBrick_container").innerHTML = 
+                        '<div class="alert alert-danger">Error al cargar el método de pago. Por favor, inténtalo nuevamente.</div>';
+                },
+                onPaymentComplete: (result) => {
+                    console.log('[MP] Pago completado:', result);
+                    // Manejar el resultado del pago aquí
+                    handlePaymentResult(result);
+                }
+            }
+        });
+                } catch (error) {
+                    console.error('[MP] Error al abrir modal:', error);
+                    document.getElementById("paymentBrick_container").innerHTML = 
+                        `<div class="alert alert-danger">
+                            <h5><i class="bi bi-exclamation-triangle-fill me-2"></i>Error</h5>
+                            <p>No se pudo cargar el método de pago.</p>
+                            <small class="text-muted">Detalles: ${error.message || JSON.stringify(error)}</small>
+                            <button class="btn btn-primary mt-2" onclick="location.reload()">Reintentar</button>
+                        </div>`;
+                }
+    }
+    
+    function closeModal() {
+        document.getElementById("mpModal").style.display = "none";
+        if (window.paymentBrickController) {
+            window.paymentBrickController.unmount();
+            window.paymentBrickController = null;
+        }
+    }
+    
+    document.addEventListener("DOMContentLoaded", async () => {
+        // Inicializar MercadoPago
+        const mp = new MercadoPago("{{ config.MERCADOPAGO_PUBLIC_KEY }}");
+        bricksBuilder = mp.bricks();
+        
+        // Event listeners
+        document.getElementById("openMpModal").addEventListener("click", openModal);
+        document.getElementById("closeMpModal").addEventListener("click", closeModal);
+        document.getElementById("cancelMp").addEventListener("click", closeModal);
+            try {
+                // Obtener datos del formulario
+                if (!window.paymentBrickController) {
+                    throw new Error('Payment Brick no está inicializado');
+                }
+                
+                const formData = await window.paymentBrickController.getFormData();
+                console.log('[MP] Datos del formulario obtenidos:', formData);
+                
+                // Obtener el token CSRF del meta tag
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                
+                // Enviar los datos del pago a tu backend
+                const response = await fetch('/mercadopago/process_payment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify(formData.formData), // Solo el payload interno
+                });
+                
+                console.log('[MP] Respuesta del servidor:', response.status, response.statusText);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('[MP] Error del servidor:', errorText);
+                    throw new Error(`Error en el servidor: ${response.status} - ${errorText}`);
+                }
+                
+                const result = await response.json();
+                console.log('[MP] Resultado del pago:', result);
+                
+                // Si el pago se creó exitosamente, mostrar el Status Screen Brick
+                if (result.paymentId) {
+                    console.log('[MP] Pago creado exitosamente, mostrando Status Screen Brick');
+                    
+                    // Mostrar el Status Screen Brick en el mismo contenedor
+                    document.getElementById("paymentBrick_container").innerHTML = 
+                        '<div id="statusScreenBrick_container" style="min-height: 500px;"></div>';
+                    
+                    // Crear el Status Screen Brick
+                    window.statusScreenBrickController = await bricksBuilder.create(
+                        "statusScreen",
+                        "statusScreenBrick_container",
+                        {
+                            initialization: {
+                                paymentId: result.paymentId,
+                            },
+                            callbacks: {
+                                onReady: () => {
+                                    console.log('[MP] Status Screen Brick listo');
+                                },
+                                onError: (error) => {
+                                    console.error('[MP] Error en Status Screen Brick:', error);
+                                },
+                            },
+                        }
+                    );
+                    console.log('[MP] Status Screen Brick creado exitosamente');
+                    
+                    // Mostrar mensaje de redirección
+                    const mensajeRedireccion = document.createElement('div');
+                    mensajeRedireccion.innerHTML = `
+                        <div class="alert alert-info mt-3 text-center">
+                            <i class="bi bi-info-circle-fill me-2"></i>
+                            <strong>Pago procesado exitosamente</strong>
+                            <p class="mb-0">Serás redirigido a la página de tu pedido en breve...</p>
+                        </div>
+                    `;
+                    document.getElementById("statusScreenBrick_container").appendChild(mensajeRedireccion);
+                    
+                    // Redirigir a la página del pedido después de 5 segundos
+                    setTimeout(() => {
+                        console.log('[MP] Redirigiendo a la página del pedido');
+                        window.location.href = `/pedido/${pedidoToken}`;
+                    }, 5000);
+                } else {
+                    console.log('[MP] No se recibió paymentId, manteniendo Payment Brick');
+                }
+                
+            } catch (error) {
+                console.error('[MP] Error al procesar el pago:', error);
+                document.getElementById("paymentBrick_container").innerHTML = 
+                    `<div class="alert alert-danger">
+                        <h5><i class="bi bi-exclamation-triangle-fill me-2"></i>Error</h5>
+                        <p>No se pudo procesar el pago.</p>
+                        <small class="text-muted">Detalles: ${error.message || JSON.stringify(error)}</small>
+                        <button class="btn btn-primary mt-2" onclick="location.reload()">Reintentar</button>
+                    </div>`;
+            }
+        });
+        
+        // Cerrar modal con ESC
+    });
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        if (document.getElementById('copiar-enlace')) {
+            document.getElementById('copiar-enlace').addEventListener('click', function () {
+                var input = document.getElementById('enlace-pedido');
+                navigator.clipboard.writeText(input.value).then(() => { this.innerHTML = '<i class="bi bi-check2"></i> Copiado'; });
+            });
+        }
     });
 </script>
 {% endblock %}
