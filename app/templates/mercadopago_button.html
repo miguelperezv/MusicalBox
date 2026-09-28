@@ -46,7 +46,12 @@
                 
                 <!-- Contenedor del checkout de MercadoPago -->
                 <div id="mercadopago-checkout-container" style="min-height: 500px;">
-                    <!-- El contenido de "Cargando..." será reemplazado por el Payment Brick -->
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        <p class="mt-2">Cargando método de pago seguro...</p>
+                    </div>
                 </div>
                 
                 <!-- Botón alternativo por si el checkout no carga -->
@@ -73,10 +78,6 @@
 <script src="https://sdk.mercadopago.com/js/v2"></script>
 <script>
     console.log('[MP] Script iniciado');
-    
-    // Variables del pedido
-    const pedidoId = {{ pedido.id }};
-    const pedidoToken = '{{ token }}';
     
     // Función de inicialización
     const initializePayment = async () => {
@@ -211,23 +212,6 @@
                                     }
                                 );
                                 console.log('[MP] Status Screen Brick creado exitosamente');
-                                
-                                // Mostrar mensaje de redirección
-                                const mensajeRedireccion = document.createElement('div');
-                                mensajeRedireccion.innerHTML = `
-                                    <div class="alert alert-info mt-3 text-center">
-                                        <i class="bi bi-info-circle-fill me-2"></i>
-                                        <strong>Pago procesado exitosamente</strong>
-                                        <p class="mb-0">Serás redirigido a la página de tu pedido en breve...</p>
-                                    </div>
-                                `;
-                                document.getElementById('mercadopago-checkout-container').appendChild(mensajeRedireccion);
-                                
-                                // Redirigir a la página del pedido después de 5 segundos
-                                setTimeout(() => {
-                                    console.log('[MP] Redirigiendo a la página del pedido');
-                                    window.location.href = `/pedido/${pedidoToken}`;
-                                }, 5000);
                             }
                         } else {
                             console.log('[MP] No se recibió paymentId, manteniendo Payment Brick');
