@@ -210,7 +210,7 @@
                 },
                 onPaymentComplete: (result) => {
                     console.log('[MP] Pago completado:', result);
-                    console.log('[MP] Cerrando modal y redirigiendo...');
+                    console.log('[MP] Cerrando modal y verificando pago...');
                     
                     // Cerrar el modal
                     const modal = document.getElementById("mpModal");
@@ -221,9 +221,11 @@
                         console.log('[MP] Modal no encontrado');
                     }
                     
-                    // Redirigir a la página del pedido
-                    console.log('[MP] Redirigiendo a:', `/pedido/${pedidoToken}`);
-                    window.location.href = `/pedido/${pedidoToken}`;
+                    // Verificar el estado del pago consultando el backend
+                    console.log('[MP] Verificando estado del pago en backend...');
+                    setTimeout(() => {
+                        window.location.href = `/pedido/${pedidoToken}`;
+                    }, 1000);
                 }
             }
         });
