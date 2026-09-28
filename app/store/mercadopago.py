@@ -403,22 +403,25 @@ def process_payment():
             "transaction_amount": float(payload["transaction_amount"]) if payload.get("transaction_amount") else None,
             "installments": int(payload["installments"]) if payload.get("installments") else 1,
             "payment_method_id": payload.get("payment_method_id"),
-            "issuer_id": payload.get("issuer_id"),
-            "payer": {
-                "email": payload["payer"]["email"] if isinstance(payload.get("payer"), dict) and payload["payer"].get("email") else None,
-            },
         }
         
-        # Agregar identification si viene
-        if isinstance(payload.get("payer"), dict) and payload["payer"].get("identification"):
-            payment_data["payer"]["identification"] = payload["payer"]["identification"]
+        # Agregar issuer_id si viene
+        if payload.get("issuer_id"):
+            payment_data["issuer_id"] = payload.get("issuer_id")
+        
+        # Agregar payer con email
+        if isinstance(payload.get("payer"), dict) and payload["payer"].get("email"):
+            payment_data["payer"] = {
+                "email": payload["payer"]["email"]
+            }
+            
+            # Agregar identification si viene
+            if payload["payer"].get("identification"):
+                payment_data["payer"]["identification"] = payload["payer"]["identification"]
         
         # Eliminar campos None o vacíos
-        if payment_data["issuer_id"] is None:
-            payment_data.pop("issuer_id", None)
-        
-        if payment_data["payer"]["identification"] is None:
-            payment_data["payer"].pop("identification", None)
+        if payment_data.get("transaction_amount") is None:
+            payment_data.pop("transaction_amount", None)
         
         print(f"[MP] Datos filtrados para MercadoPago: {payment_data}")
         
