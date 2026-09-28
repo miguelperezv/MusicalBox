@@ -5,7 +5,6 @@ import hashlib
 import hmac
 import uuid
 from flask import Blueprint, current_app, flash, g, redirect, render_template, request, session, url_for, abort, jsonify
-from flask_wtf.csrf import csrf_exempt
 from .forms import CheckoutForm
 from .models import crear_pedido, get_pedido_por_token, confirmar_pago, rechazar_pago, validar_carrito
 from .views import before_request, purchase
@@ -105,7 +104,6 @@ def button(token):
         return redirect(url_for('pedido.ver', token=token))
 
 @mercadopago_bp.route("/create_preference/<token>", methods=["POST"])
-@csrf_exempt
 def create_preference(token):
     """Crea una preference para un pedido y la devuelve en formato JSON."""
     try:
