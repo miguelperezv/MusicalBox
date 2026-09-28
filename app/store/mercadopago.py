@@ -385,11 +385,16 @@ def webhook():
 def process_payment():
     """Procesa el pago realizado a través del Payment Brick."""
     try:
-        print('[MP] Iniciando proceso de pago')
+        print('[MP] === INICIANDO PROCESO DE PAGO ===')
         
         # Obtener los datos del pago del request (solo el payload interno)
         payload = request.get_json()
         print(f"[MP] Datos recibidos: {payload}")
+        
+        # Validar que tengamos datos
+        if not payload:
+            print('[MP] ERROR: No se recibieron datos en el payload')
+            return jsonify({"error": "No se recibieron datos"}), 400
         
         # Crear el pago usando el SDK de MercadoPago
         print('[MP] Obteniendo SDK de MercadoPago')
@@ -402,21 +407,35 @@ def process_payment():
         request_options.custom_headers = {"x-idempotency-key": str(uuid.uuid4())}
         print(f'[MP] Idempotency key generado: {request_options.custom_headers["x-idempotency-key"]}')
         
+        # Loguear el payload completo antes de enviarlo
+        print('[MP] PAYLOAD a enviar a MercadoPago:')
+        import json
+        print(json.dumps(payload, indent=2, default=str))
+        
         # Crear el pago
         print('[MP] Creando pago con SDK...')
         mp_resp = sdk.payment().create(payload, request_options)
         print(f'[MP] Respuesta completa del SDK: {mp_resp}')
         
         # Verificar si la llamada al SDK fue exitosa
-        if mp_resp.get("status") not in (200, 201):
-            print(f'[MP] Error del SDK de MercadoPago - Status: {mp_resp.get("status")}')
+        status = mp_resp.get("status")
+        print(f'[MP] Status de respuesta: {status}')
+        
+        if status not in (200, 201):
+            error_response = mp_resp.get("response", {})
+            print(f'[MP] ERROR del SDK de MercadoPago - Status: {status}, Response: {error_response}')
             return jsonify({
-                "mp_status": mp_resp.get("status"),
-                "mp_error": mp_resp.get("response"),
+                "mp_status": status,
+                "mp_error": error_response,
             }), 400
         
         payment = mp_resp["response"]
         print(f"[MP] Pago creado - ID: {payment.get('id')}, Status: {payment.get('status')}")
+        
+        # Validar que tengamos un pago válido
+        if not payment or "id" not in payment:
+            print('[MP] ERROR: No se recibió un pago válido de MercadoPago')
+            return jsonify({"error": "No se recibió un pago válido"}), 500
         
         # Devolver la información del pago para que el frontend pueda mostrar el status
         result = {
