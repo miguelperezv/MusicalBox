@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+
+{% block title %}Pagar con MercadoPago{% endblock %}
+{% block head %}
+<meta name="robots" content="noindex, nofollow">
+<meta name="csrf-token" content="{{ csrf_token() }}">
+{% endblock %}
+
+{% block contenido %}
+<div class="container">
+    <header class="mb-page-header">
+        <span class="mb-eyebrow">Pedido #{{ pedido.id }}</span>
+        <h1 class="mt-1">Pagar con MercadoPago</h1>
+        <p class="text-body-secondary mb-0">Completa tu pago de forma segura con MercadoPago.</p>
+    </header>
+
+    <div class="row g-4">
+        <div class="col-lg-8 mx-auto">
+            <div class="mb-panel">
+                <h2 class="h5 mb-3">Resumen del pedido</h2>
+                <div class="table-responsive">
+                    <table class="table table-borderless mb-0">
+                        <tbody>
+                            {% for item in pedido.items %}
+                            <tr>
+                                <td>{{ item.producto.n_producto if item.producto }}{% if item.variante %} ({{ item.variante.nombre }}){% endif %}</td>
+                                <td class="text-end">{{ item.cant_item|int }} × {{ item.p_item|cop }}</td>
+                                <td class="text-end fw-semibold">{{ (item.p_item * item.cant_item)|cop }}</td>
+                            </tr>
+                            {% endfor %}
+                            <tr class="border-top">
+                                <td colspan="2" class="fw-bold">Total</td>
+                                <td class="fw-bold text-end">{{ pedido.total|cop }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="mb-panel mt-4">
+                <h2 class="h5 mb-3">Pago seguro con MercadoPago</h2>
+                <p class="small text-body-secondary">
+                    <i class="bi bi-shield-lock me-1"></i>
+                    Tu pago será procesado de forma segura por MercadoPago. No guardamos tus datos bancarios.
+                </p>
+                
+                <!-- Contenedor del checkout de MercadoPago -->
+                <div id="mercadopago-checkout-container" style="min-height: 500px;">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        <p class="mt-2">Cargando método de pago seguro...</p>
+                    </div>
+                </div>
+                
+                <!-- Botón alternativo por si el checkout no carga -->
+                <div id="alternativo" class="mt-3 d-none">
+                    <a href="https://www.mercadopago.com.co/checkout/v1/redirect?pref_id={{ preference_id }}" 
+                       class="btn btn-primary btn-lg w-100" target="_blank">
+                        <i class="bi bi-box-arrow-up-right me-2"></i>
+                        Continuar a MercadoPago
+                    </a>
+                </div>
+            </div>
+            
+            <div class="mt-3 text-center">
+                <a href="{{ url_for('pedido.ver', token=token) }}" class="small">
+                    <i class="bi bi-arrow-left me-1"></i>Volver al pedido
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://sdk.mercadopago.com/js/v2"></script>
+<script>
+    console.log('[MP] Script iniciado');
+    
+    // Función de inicialización
+    const initializePayment = async () => {
+        // Inicializar MercadoPago con la public key
+        const publicKey = '{{ public_key }}';
+        console.log('[MP] Public key:', publicKey);
+        
+        if (!publicKey || publicKey === 'None' || publicKey === 'undefined' || publicKey === 'YOUR_PUBLIC_KEY') {
+            console.error('[MP] ERROR: Public key inválida:', publicKey);
+            document.getElementById('mercadopago-checkout-container').innerHTML = 
+                '<div class="alert alert-danger">Error: Public key inválida</div>';
+            return;
+        }
+        
+        const mp = new MercadoPago(publicKey);
+        console.log('[MP] SDK MercadoPago inicializado');
+        
+        // Declarar bricksBuilder en scope superior para que esté disponible en onSubmit
+        const bricksBuilder = mp.bricks();
+        console.log('[MP] Bricks builder creado');
+        
+        // Renderizar el Payment Brick
+    const renderPaymentBrick = async () => {
+        console.log('[MP] Iniciando renderPaymentBrick');
+        
+        const preferenceId = '{{ preference_id }}';
+        const amount = {{ pedido.total|int }};
+        
+        console.log('[MP] Parámetros - preferenceId:', preferenceId, 'amount:', amount);
+        
+        // Validar que preferenceId exista antes de continuar
+        if (!preferenceId || preferenceId === 'None' || preferenceId === 'undefined') {
+            console.error('[MP] ERROR: Preference ID inválido o no disponible');
+            document.getElementById('mercadopago-checkout-container').innerHTML = 
+                '<div class="alert alert-danger">Error: No se pudo cargar la información de pago. Por favor, recarga la página.</div>';
+            return;
+        }
+        
+        // Validar que amount sea válido
+        if (!amount || isNaN(amount)) {
+            console.error('[MP] ERROR: Amount inválido');
+            document.getElementById('mercadopago-checkout-container').innerHTML = 
+                '<div class="alert alert-danger">Error: Monto inválido. Por favor, recarga la página.</div>';
+            return;
+        }
+            
+            const settings = {
+                initialization: {
+                    preferenceId: preferenceId,
+                    amount: amount
+                },
+                customization: {
+                    paymentMethods: {
+                        creditCard: "all",
+                        debitCard: "all",
+                        prepaidCard: "all"
+                    }
+                },
+                callbacks: {
+                    onReady: () => {
+                        console.log('[MP] Payment Brick ONREADY - Listo');
+                    },
+                onSubmit: async (formData) => {
+                    console.log('[MP] Payment Brick ONSUBMIT - Iniciando proceso de pago');
+                    console.log('[MP] Datos del formulario completo:', formData);
+                    
+                    try {
+                        // Obtener solo el payload interno que necesita MercadoPago
+                        const paymentData = formData.formData;
+                        console.log('[MP] Datos de pago a enviar:', paymentData);
+                        
+                        // Obtener el token CSRF del meta tag
+                        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                        console.log('[MP] Token CSRF obtenido:', csrfToken);
+                        
+                        // Enviar los datos del pago a tu backend
+                        console.log('[MP] Enviando datos a /mercadopago/process_payment');
+                        const response = await fetch('/mercadopago/process_payment', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': csrfToken
+                            },
+                            body: JSON.stringify(paymentData),
+                        });
+                        
+                        console.log('[MP] Respuesta del servidor:', response.status, response.statusText);
+                        
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            console.error('[MP] Error del servidor:', errorText);
+                            throw new Error(`Error en el servidor: ${response.status} - ${errorText}`);
+                        }
+                        
+                        const result = await response.json();
+                        console.log('[MP] Resultado del pago:', result);
+                        
+                        // Si el pago se creó exitosamente, mostrar el Status Screen Brick
+                        if (result.paymentId) {
+                            console.log('[MP] Pago creado exitosamente, mostrando Status Screen Brick');
+                            
+                            // Desmontar el Payment Brick
+                            if (window.paymentBrickController) {
+                                console.log('[MP] Desmontando Payment Brick');
+                                window.paymentBrickController.unmount();
+                                window.paymentBrickController = null;
+                            }
+                            
+                            // Mostrar el Status Screen Brick
+                            const statusContainer = document.getElementById('mercadopago-checkout-container');
+                            if (statusContainer) {
+                                console.log('[MP] Creando contenedor para Status Screen Brick');
+                                statusContainer.innerHTML = '<div id="statusScreenBrick_container" style="min-height: 500px;"></div>';
+                                
+                                // Crear el Status Screen Brick
+                                console.log('[MP] Creando Status Screen Brick con paymentId:', result.paymentId);
+                                window.statusScreenBrickController = await bricksBuilder.create(
+                                    "statusScreen",
+                                    "statusScreenBrick_container",
+                                    {
+                                        initialization: { 
+                                            paymentId: result.paymentId 
+                                        },
+                                        callbacks: {
+                                            onReady: () => {
+                                                console.log('[MP] Status Screen Brick listo');
+                                            },
+                                            onError: (error) => {
+                                                console.error('[MP] Error en Status Screen Brick:', error);
+                                            },
+                                        },
+                                    }
+                                );
+                                console.log('[MP] Status Screen Brick creado exitosamente');
+                            }
+                        } else {
+                            console.log('[MP] No se recibió paymentId, manteniendo Payment Brick');
+                        }
+                        
+                        return result;
+                    } catch (error) {
+                        console.error('[MP] Error al procesar el pago:', error);
+                        throw error;
+                    }
+                },
+                    onError: (error) => {
+                        console.error('[MP] Payment Brick ONERROR:', error);
+                        const container = document.getElementById('mercadopago-checkout-container');
+                        if (container) {
+                            container.innerHTML = `
+                                <div class="alert alert-danger">
+                                    <h5><i class="bi bi-exclamation-triangle-fill me-2"></i>Error</h5>
+                                    <p>No se pudo cargar el método de pago.</p>
+                                    <small class="text-muted">Detalles: ${error.message || JSON.stringify(error)}</small>
+                                    <button class="btn btn-primary mt-2" onclick="location.reload()">Reintentar</button>
+                                </div>
+                            `;
+                        }
+                    }
+                }
+            };
+            
+            console.log('[MP] Settings configurados');
+            
+            try {
+                console.log('[MP] Creando Payment Brick...');
+                // Protección contra re-render
+                if (window.paymentBrickController) {
+                    console.log('[MP] Desmontando controller anterior');
+                    window.paymentBrickController.unmount();
+                    window.paymentBrickController = null;
+                }
+                
+                window.paymentBrickController = await bricksBuilder.create(
+                    'payment', 
+                    'mercadopago-checkout-container', 
+                    settings
+                );
+                console.log('[MP] Payment Brick creado exitosamente');
+            } catch (error) {
+                console.error('[MP] Error al crear Payment Brick:', error);
+                const container = document.getElementById('mercadopago-checkout-container');
+                if (container) {
+                    container.innerHTML = `
+                        <div class="alert alert-danger">
+                            <h5><i class="bi bi-exclamation-triangle-fill me-2"></i>Error</h5>
+                            <p>No se pudo cargar el método de pago.</p>
+                            <small class="text-muted">Detalles: ${error.message || JSON.stringify(error)}</small>
+                            <button class="btn btn-primary mt-2" onclick="location.reload()">Reintentar</button>
+                        </div>
+                    `;
+                }
+            }
+        };
+        
+        // Llamar a renderPaymentBrick
+        await renderPaymentBrick();
+    };
+    
+    // Inicializar cuando el DOM esté listo
+    console.log('[MP] Configurando inicialización');
+    // Asegurarse de que solo se ejecute una vez
+    if (!window.mpPaymentInitialized) {
+        window.mpPaymentInitialized = true;
+        console.log('[MP] Inicializando pago por primera vez');
+        if (document.readyState === 'loading') {
+            console.log('[MP] Esperando DOMContentLoaded');
+            document.addEventListener('DOMContentLoaded', initializePayment);
+        } else {
+            console.log('[MP] DOM ya cargado, ejecutando initializePayment');
+            initializePayment();
+        }
+    } else {
+        console.log('[MP] Pago ya inicializado, ignorando');
+    }
+</script>
+{% endblock %}
