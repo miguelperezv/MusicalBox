@@ -212,6 +212,17 @@
                                 );
                                 console.log('[MP] Status Screen Brick creado exitosamente');
                                 
+                                // Mostrar mensaje de redirección
+                                const mensajeRedireccion = document.createElement('div');
+                                mensajeRedireccion.innerHTML = `
+                                    <div class="alert alert-info mt-3 text-center">
+                                        <i class="bi bi-info-circle-fill me-2"></i>
+                                        <strong>Pago procesado exitosamente</strong>
+                                        <p class="mb-0">Serás redirigido a la página de tu pedido en 5 segundos...</p>
+                                    </div>
+                                `;
+                                document.getElementById('mercadopago-checkout-container').appendChild(mensajeRedireccion);
+                                
                                 // Redirigir a la página del pedido después de 5 segundos
                                 setTimeout(() => {
                                     console.log('[MP] Redirigiendo a la página del pedido');
