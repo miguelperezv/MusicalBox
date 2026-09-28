@@ -184,7 +184,8 @@
         window.paymentBrickController = await bricksBuilder.create("payment", "paymentBrick_container", {
             initialization: { 
                 amount: pedidoTotal,
-                preferenceId: preferenceId
+                preferenceId: preferenceId,
+                mercadoPago: mp  // Pasar el objeto de MercadoPago
             },
             customization: {
                 visual: { 
@@ -205,116 +206,31 @@
                     document.getElementById("paymentBrick_container").innerHTML = 
                         '<div class="alert alert-danger">Error al cargar el método de pago. Por favor, inténtalo nuevamente.</div>';
                 },
-                onSubmit: async (brickData) => {
-                    console.log('[MP] brickData completo:', brickData);
+                onPaymentComplete: async (result) => {
+                    console.log('[MP] Pago completado:', result);
                     
-                    try {
-                        // Extraer formData y selectedPaymentMethod del brickData
-                        const { formData, selectedPaymentMethod } = brickData || {};
-                        console.log('[MP] formData:', formData);
-                        console.log('[MP] selectedPaymentMethod:', selectedPaymentMethod);
-                        
-                        // Construir el payload correcto para el backend
-                        const payload = {
-                            ...(formData || {}),
-                            transaction_amount: pedidoTotal,
-                        };
-                        
-                        // Si el método viene por fuera, lo copiamos a donde la API lo espera
-                        if (!payload.payment_method_id && selectedPaymentMethod) {
-                            if (typeof selectedPaymentMethod === 'string') {
-                                payload.payment_method_id = selectedPaymentMethod;
-                            } else if (selectedPaymentMethod.id) {
-                                payload.payment_method_id = selectedPaymentMethod.id;
-                            }
-                        }
-                        
-                        console.log('[MP] payload a backend:', payload);
-                        
-                        // Verificar que tengamos el token (requerido para pagos con tarjeta)
-                        if (!payload.token) {
-                            console.error('[MP] ERROR: No se encontró token en el payload');
-                            document.getElementById("paymentBrick_container").innerHTML = 
-                                '<div class="alert alert-danger">Error: No se pudo obtener el token de pago. Por favor, recarga la página e inténtalo nuevamente.</div>';
-                            return;
-                        }
-                        
-                        // Obtener el token CSRF del meta tag (si existe)
-                        let headers = {
-                            'Content-Type': 'application/json',
-                        };
-                        
-                        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-                        if (csrfMeta) {
-                            headers['X-CSRFToken'] = csrfMeta.getAttribute('content');
-                        } else {
-                            console.warn('[MP] No se encontró meta tag CSRF, continuando sin CSRF token');
-                        }
-                        
-                        console.log('[MP] Enviando datos de pago al backend...');
-                        
-                        // Enviar los datos del pago a tu backend
-                        const response = await fetch('/mercadopago/process_payment', {
-                            method: 'POST',
-                            headers: headers,
-                            body: JSON.stringify(payload), // Usar el payload correcto
-                        });
-                        
-                        console.log('[MP] Respuesta del servidor:', response.status, response.statusText);
-                        
-                        if (!response.ok) {
-                            const errorText = await response.text().catch(() => 'Error desconocido');
-                            console.error('[MP] Error del servidor:', errorText);
-                            throw new Error(`Error en el servidor: ${response.status} - ${errorText}`);
-                        }
-                        
-                        const result = await response.json();
-                        console.log('[MP] Resultado del pago:', result);
-                        
-                        // Verificar que tengamos un resultado válido
-                        if (!result || !result.paymentId) {
-                            throw new Error('No se recibió un resultado válido del servidor');
-                        }
-                        
-                        console.log('[MP] Pago procesado exitosamente');
-                        
-                        // Cerrar el modal
-                        const modal = document.getElementById("mpModal");
-                        if (modal) {
-                            modal.style.display = "none";
-                            console.log('[MP] Modal cerrado');
-                        } else {
-                            console.log('[MP] Modal no encontrado');
-                        }
-                        
-                        // Redirigir a la página del pedido
-                        console.log('[MP] Redirigiendo a:', `/pedido/${pedidoToken}`);
-                        window.location.href = `/pedido/${pedidoToken}`;
-                        
-                    } catch (error) {
-                        console.error('[MP] Error al procesar el pago:', error);
-                        document.getElementById("paymentBrick_container").innerHTML = 
-                            `<div class="alert alert-danger">
-                                <h5><i class="bi bi-exclamation-triangle-fill me-2"></i>Error</h5>
-                                <p>No se pudo procesar el pago.</p>
-                                <small class="text-muted">Detalles: ${error.message || JSON.stringify(error)}</small>
-                                <button class="btn btn-primary mt-2" onclick="location.reload()">Reintentar</button>
-                            </div>`;
+                    // Cerrar el Payment Brick
+                    if (window.paymentBrickController) {
+                        await window.paymentBrickController.unmount();
+                        window.paymentBrickController = null;
                     }
+                    
+                    // Mostrar el Status Screen Brick
+                    showStatusScreen(result);
                 }
             }
         });
-    } catch (error) {
-        console.error('[MP] Error al abrir modal:', error);
-        document.getElementById("paymentBrick_container").innerHTML = 
-            `<div class="alert alert-danger">
-                <h5><i class="bi bi-exclamation-triangle-fill me-2"></i>Error</h5>
-                <p>No se pudo cargar el método de pago.</p>
-                <small class="text-muted">Detalles: ${error.message || JSON.stringify(error)}</small>
-                <button class="btn btn-primary mt-2" onclick="location.reload()">Reintentar</button>
-            </div>`;
+                } catch (error) {
+                    console.error('[MP] Error al abrir modal:', error);
+                    document.getElementById("paymentBrick_container").innerHTML = 
+                        `<div class="alert alert-danger">
+                            <h5><i class="bi bi-exclamation-triangle-fill me-2"></i>Error</h5>
+                            <p>No se pudo cargar el método de pago.</p>
+                            <small class="text-muted">Detalles: ${error.message || JSON.stringify(error)}</small>
+                            <button class="btn btn-primary mt-2" onclick="location.reload()">Reintentar</button>
+                        </div>`;
+                }
     }
-}
     
     function closeModal() {
         document.getElementById("mpModal").style.display = "none";
@@ -387,21 +303,107 @@
         document.getElementById("openMpModal").addEventListener("click", openModal);
         document.getElementById("closeMpModal").addEventListener("click", closeModal);
         document.getElementById("cancelMp").addEventListener("click", closeModal);
+            try {
+                // Obtener datos del formulario
+                if (!window.paymentBrickController) {
+                    throw new Error('Payment Brick no está inicializado');
+                }
+                
+                const formData = await window.paymentBrickController.getFormData();
+                console.log('[MP] Datos del formulario obtenidos:', formData);
+                
+                // Obtener el token CSRF del meta tag
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                
+                // Enviar los datos del pago a tu backend
+                const response = await fetch('/mercadopago/process_payment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify(formData.formData), // Solo el payload interno
+                });
+                
+                console.log('[MP] Respuesta del servidor:', response.status, response.statusText);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('[MP] Error del servidor:', errorText);
+                    throw new Error(`Error en el servidor: ${response.status} - ${errorText}`);
+                }
+                
+                const result = await response.json();
+                console.log('[MP] Resultado del pago:', result);
+                
+                // Si el pago se creó exitosamente, mostrar el Status Screen Brick
+                if (result.paymentId) {
+                    console.log('[MP] Pago creado exitosamente, mostrando Status Screen Brick');
+                    
+                    // Mostrar el Status Screen Brick en el mismo contenedor
+                    document.getElementById("paymentBrick_container").innerHTML = 
+                        '<div id="statusScreenBrick_container" style="min-height: 500px;"></div>';
+                    
+                    // Crear el Status Screen Brick
+                    window.statusScreenBrickController = await bricksBuilder.create(
+                        "statusScreen",
+                        "statusScreenBrick_container",
+                        {
+                            initialization: {
+                                paymentId: result.paymentId,
+                            },
+                            callbacks: {
+                                onReady: () => {
+                                    console.log('[MP] Status Screen Brick listo');
+                                },
+                                onError: (error) => {
+                                    console.error('[MP] Error en Status Screen Brick:', error);
+                                },
+                            },
+                        }
+                    );
+                    console.log('[MP] Status Screen Brick creado exitosamente');
+                    
+                    // Mostrar mensaje de redirección
+                    const mensajeRedireccion = document.createElement('div');
+                    mensajeRedireccion.innerHTML = `
+                        <div class="alert alert-info mt-3 text-center">
+                            <i class="bi bi-info-circle-fill me-2"></i>
+                            <strong>Pago procesado exitosamente</strong>
+                            <p class="mb-0">Serás redirigido a la página de tu pedido en breve...</p>
+                        </div>
+                    `;
+                    document.getElementById("statusScreenBrick_container").appendChild(mensajeRedireccion);
+                    
+                    // Redirigir a la página del pedido después de 5 segundos
+                    setTimeout(() => {
+                        console.log('[MP] Redirigiendo a la página del pedido');
+                        window.location.href = `/pedido/${pedidoToken}`;
+                    }, 5000);
+                } else {
+                    console.log('[MP] No se recibió paymentId, manteniendo Payment Brick');
+                }
+                
+            } catch (error) {
+                console.error('[MP] Error al procesar el pago:', error);
+                document.getElementById("paymentBrick_container").innerHTML = 
+                    `<div class="alert alert-danger">
+                        <h5><i class="bi bi-exclamation-triangle-fill me-2"></i>Error</h5>
+                        <p>No se pudo procesar el pago.</p>
+                        <small class="text-muted">Detalles: ${error.message || JSON.stringify(error)}</small>
+                        <button class="btn btn-primary mt-2" onclick="location.reload()">Reintentar</button>
+                    </div>`;
+            }
+        });
         
         // Cerrar modal con ESC
     });
     
     document.addEventListener('DOMContentLoaded', function() {
-        // Verificar que el elemento copiar-enlace exista antes de agregar el event listener
-        const copiarEnlaceBtn = document.getElementById('copiar-enlace');
-        if (copiarEnlaceBtn) {
-            copiarEnlaceBtn.addEventListener('click', function () {
-                const input = document.getElementById('enlace-pedido');
-                if (input) {
-                    navigator.clipboard.writeText(input.value).then(() => { 
-                        this.innerHTML = '<i class="bi bi-check2"></i> Copiado'; 
-                    });
-                }
+        if (document.getElementById('copiar-enlace')) {
+            document.getElementById('copiar-enlace').addEventListener('click', function () {
+                var input = document.getElementById('enlace-pedido');
+                navigator.clipboard.writeText(input.value).then(() => { this.innerHTML = '<i class="bi bi-check2"></i> Copiado'; });
             });
         }
     });
