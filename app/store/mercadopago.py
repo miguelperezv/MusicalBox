@@ -434,15 +434,23 @@ def process_payment():
         
         print(f"[MP] Monto encontrado: {amount}")
         
-        # Normalizar payment_method_id
-        payment_method_id = normalize_payment_method_id(payload)
+        # Obtener el email del pagador
+        payer_data = payload.get("payer", {})
+        payer_email = None
+        if isinstance(payer_data, dict):
+            payer_email = payer_data.get("email")
         
-        if payment_method_id is None:
-            print('[MP] ERROR: No se encontró payment_method_id válido en el payload')
+        # Si no encontramos el email en el payload, intentar obtenerlo de otras fuentes
+        if not payer_email:
+            # Podría estar en un nivel superior del payload
+            payer_email = payload.get("email") or payload.get("payer_email")
+        
+        if not payer_email:
+            print('[MP] ERROR: No se encontró payer.email en el payload')
             print('[MP] Payload completo:', payload)
-            return jsonify({"error": "payment_method_id inválido o ausente"}), 400
+            return jsonify({"error": "Falta payer.email"}), 400
         
-        print(f"[MP] Payment method ID normalizado: {payment_method_id}")
+        print(f"[MP] Payer email encontrado: {payer_email}")
         
         # Filtrar solo los campos válidos para la API de MercadoPago
         # Referencia: https://www.mercadopago.com.co/developers/es/docs/checkout-bricks/payment-brick/payment-submission/cards
@@ -453,10 +461,21 @@ def process_payment():
             "payment_method_id": payment_method_id,  # Usar el payment_method_id normalizado
         }
         
-        # Validación rápida de campos requeridos
-        if not payment_data["token"]:
-            print('[MP] ERROR: Falta token (flujo de tarjeta)')
-            return jsonify({"error": "Falta token (flujo de tarjeta)"}), 400
+        # Agregar issuer_id si viene
+        issuer_id = payload.get("issuer_id")
+        if issuer_id:
+            try:
+                payment_data["issuer_id"] = int(issuer_id)
+            except (ValueError, TypeError):
+                print(f"[MP] WARNING: issuer_id no es válido: {issuer_id}")
+        
+        # Agregar payer con email
+        payment_data["payer"] = {"email": payer_email}
+        
+        # Limpiar campos None o vacíos
+        payment_data = {k: v for k, v in payment_data.items() if v is not None and v != ""}
+        
+        print(f"[MP] Datos finales para MercadoPago: {payment_data}")
         
         # Agregar issuer_id si viene
         if payload.get("issuer_id"):
@@ -496,16 +515,18 @@ def process_payment():
         print(f'[MP] Respuesta completa del SDK: {mp_resp}')
         
         # Verificar si la llamada al SDK fue exitosa
-        status = mp_resp.get("status")
-        print(f'[MP] Status de respuesta: {status}')
+        mp_status = mp_resp.get("status", 500)  # status HTTP
+        mp_body = mp_resp.get("response", mp_resp)
         
-        if status not in (200, 201):
-            error_response = mp_resp.get("response", {})
-            print(f'[MP] ERROR del SDK de MercadoPago - Status: {status}, Response: {error_response}')
+        print(f'[MP] Status de respuesta de MercadoPago: {mp_status}')
+        print(f'[MP] Body de respuesta de MercadoPago: {mp_body}')
+        
+        if mp_status not in (200, 201):
+            print(f'[MP] ERROR del SDK de MercadoPago - Status: {mp_status}, Response: {mp_body}')
             return jsonify({
-                "mp_status": status,
-                "mp_error": error_response,
-            }), 400
+                "mp_status": mp_status,
+                "mp_error": mp_body,
+            }), mp_status
         
         payment = mp_resp["response"]
         print(f"[MP] Pago creado - ID: {payment.get('id')}, Status: {payment.get('status')}")
