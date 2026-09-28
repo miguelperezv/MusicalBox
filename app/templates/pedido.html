@@ -335,19 +335,6 @@
         });
         
         // Cerrar modal con ESC
-        document.addEventListener('keydown', function(event) {
-            if (event.key === 'Escape' && document.getElementById("mpModal").style.display === "block") {
-                closeModal();
-            }
-        });
-        
-        // Cerrar modal al hacer clic fuera
-        document.getElementById("mpModal").addEventListener('click', function(event) {
-            if (event.target === this) {
-                closeModal();
-            }
-        });
-    });
     
     document.getElementById('copiar-enlace').addEventListener('click', function () {
         var input = document.getElementById('enlace-pedido');
