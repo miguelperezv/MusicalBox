@@ -121,15 +121,21 @@
         
         // Obtener preferenceId (tu endpoint)
         try {
-            // Obtener el token CSRF del meta tag
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            // Obtener el token CSRF del meta tag (si existe)
+            let headers = {
+                'Content-Type': 'application/json',
+            };
+            
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            if (csrfMeta) {
+                headers['X-CSRFToken'] = csrfMeta.getAttribute('content');
+            } else {
+                console.warn('[MP] No se encontró meta tag CSRF, continuando sin CSRF token');
+            }
             
             const response = await fetch(`/mercadopago/create_preference/${pedidoToken}`, { 
                 method: "POST",
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                }
+                headers: headers
             });
             
             if (!response.ok) {
