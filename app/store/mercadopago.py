@@ -396,6 +396,32 @@ def process_payment():
             print('[MP] ERROR: No se recibieron datos en el payload')
             return jsonify({"error": "No se recibieron datos"}), 400
         
+        # Filtrar solo los campos válidos para la API de MercadoPago
+        # Referencia: https://www.mercadopago.com.co/developers/es/docs/checkout-bricks/payment-brick/payment-submission/cards
+        payment_data = {
+            "token": payload.get("token"),
+            "transaction_amount": float(payload["transaction_amount"]) if payload.get("transaction_amount") else None,
+            "installments": int(payload["installments"]) if payload.get("installments") else 1,
+            "payment_method_id": payload.get("payment_method_id"),
+            "issuer_id": payload.get("issuer_id"),
+            "payer": {
+                "email": payload["payer"]["email"] if isinstance(payload.get("payer"), dict) and payload["payer"].get("email") else None,
+            },
+        }
+        
+        # Agregar identification si viene
+        if isinstance(payload.get("payer"), dict) and payload["payer"].get("identification"):
+            payment_data["payer"]["identification"] = payload["payer"]["identification"]
+        
+        # Eliminar campos None o vacíos
+        if payment_data["issuer_id"] is None:
+            payment_data.pop("issuer_id", None)
+        
+        if payment_data["payer"]["identification"] is None:
+            payment_data["payer"].pop("identification", None)
+        
+        print(f"[MP] Datos filtrados para MercadoPago: {payment_data}")
+        
         # Crear el pago usando el SDK de MercadoPago
         print('[MP] Obteniendo SDK de MercadoPago')
         sdk = get_mercadopago_sdk()
@@ -410,11 +436,11 @@ def process_payment():
         # Loguear el payload completo antes de enviarlo
         print('[MP] PAYLOAD a enviar a MercadoPago:')
         import json
-        print(json.dumps(payload, indent=2, default=str))
+        print(json.dumps(payment_data, indent=2, default=str))
         
         # Crear el pago
         print('[MP] Creando pago con SDK...')
-        mp_resp = sdk.payment().create(payload, request_options)
+        mp_resp = sdk.payment().create(payment_data, request_options)
         print(f'[MP] Respuesta completa del SDK: {mp_resp}')
         
         # Verificar si la llamada al SDK fue exitosa
