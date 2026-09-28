@@ -401,16 +401,15 @@ def process_payment():
             print('[MP] ERROR: No se recibieron datos en el payload')
             return jsonify({"error": "No se recibieron datos"}), 400
         
-        # Obtener el monto de varias posibles variantes
+        # Obtener el monto del payload
         amount = (
             payload.get("transaction_amount")
             or payload.get("transactionAmount")
             or payload.get("amount")
-            or pedidoTotal  # Usar el total del pedido como fallback
         )
         
         if amount is None:
-            print('[MP] ERROR: No se encontró monto en el payload ni en el pedido')
+            print('[MP] ERROR: No se encontró monto en el payload')
             return jsonify({"error": "missing amount in payload"}), 400
         
         print(f"[MP] Monto encontrado: {amount}")
