@@ -140,6 +140,7 @@
 <script>
     let bricksBuilder;
     let preferenceId;
+    let mp; // Agregar mp al scope global
     
     // Variables del pedido
     const pedidoId = {{ pedido.id }};
@@ -296,7 +297,7 @@
     
     document.addEventListener("DOMContentLoaded", async () => {
         // Inicializar MercadoPago
-        const mp = new MercadoPago("{{ config.MERCADOPAGO_PUBLIC_KEY }}");
+        mp = new MercadoPago("{{ config.MERCADOPAGO_PUBLIC_KEY }}"); // Usar la variable global
         bricksBuilder = mp.bricks();
         
         // Event listeners
