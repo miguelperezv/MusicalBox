@@ -209,6 +209,13 @@
                     console.log('[MP] Formulario de pago enviado:', selectedPaymentMethod, formData);
                     
                     try {
+                        // Agregar el monto total del pedido al formData
+                        const paymentData = {
+                            ...formData,
+                            transaction_amount: pedidoTotal  // Agregar el monto total
+                        };
+                        console.log('[MP] Datos de pago con monto:', paymentData);
+                        
                         // Obtener el token CSRF del meta tag (si existe)
                         let headers = {
                             'Content-Type': 'application/json',
@@ -227,7 +234,7 @@
                         const response = await fetch('/mercadopago/process_payment', {
                             method: 'POST',
                             headers: headers,
-                            body: JSON.stringify(formData), // formData directamente
+                            body: JSON.stringify(paymentData), // Usar paymentData con el monto
                         });
                         
                         console.log('[MP] Respuesta del servidor:', response.status, response.statusText);
