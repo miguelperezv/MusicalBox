@@ -97,11 +97,80 @@ def button(token):
                              public_key=current_app.config.get("MERCADOPAGO_PUBLIC_KEY"),
                              pedido=pedido,
                              token=token)
-                             
+                              
     except Exception as e:
         print(f"Error creando preferencia de MercadoPago: {str(e)}")
         flash("Hubo un error al procesar el pago con MercadoPago. Por favor, inténtalo más tarde.", "error")
         return redirect(url_for('pedido.ver', token=token))
+
+@mercadopago_bp.route("/create_preference/<token>", methods=["POST"])
+def create_preference(token):
+    """Crea una preference para un pedido y la devuelve en formato JSON."""
+    try:
+        # Verificar que el pedido exista
+        pedido = get_pedido_por_token(token)
+        if not pedido:
+            return jsonify({"error": "Pedido no encontrado"}), 404
+        
+        # Verificar que el pedido esté pendiente
+        if pedido.estado != 'PENDIENTE':
+            return jsonify({"error": "Este pedido ya ha sido pagado o está rechazado"}), 400
+        
+        # Crear SDK de MercadoPago
+        sdk = get_mercadopago_sdk()
+        
+        # Preparar items del pedido
+        items = []
+        total_amount = 0
+        for item in pedido.items:
+            # Asegurarse de que unit_price sea entero (sin decimales)
+            unit_price = int(float(item.p_item))
+            quantity = int(item.cant_item)
+            item_total = unit_price * quantity
+            total_amount += item_total
+            
+            items.append({
+                "title": f"{item.producto.lanzamiento.n_lanzamiento.title()} - {item.producto.n_producto}" if item.producto and item.producto.lanzamiento else (item.producto.n_producto if item.producto else "Producto"),
+                "quantity": quantity,
+                "currency_id": "COP",
+                "unit_price": unit_price  # Convertido a entero
+            })
+        
+        print(f"[MP] Creando preferencia para pedido {pedido.id}")
+        print(f"[MP] Items: {items}")
+        print(f"[MP] Total amount: {total_amount}")
+        
+        # Crear preferencia (versión simplificada para diagnóstico)
+        preference_data = {
+            "items": items,
+            "external_reference": str(pedido.id),
+            "notification_url": url_for('mercadopago.webhook', _external=True),
+        }
+        
+        # Loguear la preferencia para debugging
+        print("[MP] PREFERENCE DATA =>", json.dumps(preference_data, indent=2))
+        
+        # Crear la preferencia
+        preference_response = sdk.preference().create(preference_data)
+        
+        # Verificar si la creación fue exitosa
+        if preference_response.get("status") not in (200, 201):
+            raise Exception(f"Error creando preferencia: {preference_response}")
+        
+        preference = preference_response["response"]
+        
+        # Verificar que la preferencia tenga id
+        if "id" not in preference:
+            raise Exception(f"La preferencia no contiene id: {preference}")
+        
+        print(f"[MP] Preferencia creada exitosamente con ID: {preference['id']}")
+        
+        return jsonify({"preferenceId": preference["id"]})
+    except Exception as e:
+        print(f"[MP] Error creando preference: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Error al crear la preferencia de pago"}), 500
 
 @mercadopago_bp.route("/success/<token>")
 def success(token):
