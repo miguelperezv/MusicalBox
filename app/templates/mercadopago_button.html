@@ -74,6 +74,10 @@
 <script>
     console.log('[MP] Script iniciado');
     
+    // Variables del pedido
+    const pedidoId = {{ pedido.id }};
+    const pedidoToken = '{{ token }}';
+    
     // Función de inicialización
     const initializePayment = async () => {
         // Inicializar MercadoPago con la public key
@@ -207,6 +211,12 @@
                                     }
                                 );
                                 console.log('[MP] Status Screen Brick creado exitosamente');
+                                
+                                // Redirigir a la página del pedido después de 5 segundos
+                                setTimeout(() => {
+                                    console.log('[MP] Redirigiendo a la página del pedido');
+                                    window.location.href = `/pedido/${pedidoToken}`;
+                                }, 5000);
                             }
                         } else {
                             console.log('[MP] No se recibió paymentId, manteniendo Payment Brick');

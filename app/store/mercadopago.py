@@ -231,8 +231,11 @@ def webhook():
                             print(f'[MP] Pago pendiente para pedido {pedido_id}')
                             
                         # Guardar las referencias de pago
-                        pedido.ref_payco = payment.get("id")  # ID de MercadoPago
-                        pedido.id_factura_payco = payment.get("payment_method_id")
+                        pedido.ref_payco = str(payment.get("id"))  # ID de MercadoPago
+                        pedido.id_factura_payco = str(payment.get("payment_method_id"))
+                        
+                        # También guardar información adicional del pago
+                        print(f'[MP] Guardando referencias - ref_payco: {pedido.ref_payco}, id_factura_payco: {pedido.id_factura_payco}')
                         
                         db.session.commit()
                         print(f'[MP] Pedido {pedido_id} actualizado en la base de datos')
