@@ -414,13 +414,27 @@ def process_payment():
         
         print(f"[MP] Monto encontrado: {amount}")
         
+        # Obtener payment_method_id de varias posibles variantes
+        payment_method_id = (
+            payload.get("payment_method_id")
+            or payload.get("paymentMethodId")
+            or payload.get("payment_method")
+        )
+        
+        if payment_method_id is None:
+            print('[MP] ERROR: No se encontró payment_method_id en el payload')
+            print('[MP] Payload completo:', payload)
+            return jsonify({"error": "missing payment_method_id in payload"}), 400
+        
+        print(f"[MP] Payment method ID encontrado: {payment_method_id}")
+        
         # Filtrar solo los campos válidos para la API de MercadoPago
         # Referencia: https://www.mercadopago.com.co/developers/es/docs/checkout-bricks/payment-brick/payment-submission/cards
         payment_data = {
             "token": payload.get("token"),
             "transaction_amount": float(amount),
             "installments": int(payload.get("installments", 1)),
-            "payment_method_id": payload.get("payment_method_id"),
+            "payment_method_id": payment_method_id,  # Usar el payment_method_id encontrado
         }
         
         # Agregar issuer_id si viene

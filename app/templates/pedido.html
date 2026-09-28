@@ -208,13 +208,23 @@
                 onSubmit: async (selectedPaymentMethod, formData) => {
                     console.log('[MP] Formulario de pago enviado:', selectedPaymentMethod, formData);
                     
+                    // Loguear los datos para diagnóstico
+                    console.log('[MP] formData keys:', Object.keys(formData));
+                    console.log('[MP] selectedPaymentMethod:', selectedPaymentMethod);
+                    
                     try {
                         // Agregar el monto total del pedido al formData
                         const paymentData = {
                             ...formData,
                             transaction_amount: pedidoTotal  // Agregar el monto total
                         };
-                        console.log('[MP] Datos de pago con monto:', paymentData);
+                        
+                        // Asegurarnos de que payment_method_id esté presente
+                        if (!paymentData.payment_method_id && selectedPaymentMethod) {
+                            paymentData.payment_method_id = selectedPaymentMethod;
+                        }
+                        
+                        console.log('[MP] Datos de pago con monto y método:', paymentData);
                         
                         // Obtener el token CSRF del meta tag (si existe)
                         let headers = {
