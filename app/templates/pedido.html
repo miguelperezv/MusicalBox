@@ -205,13 +205,24 @@
                     document.getElementById("paymentBrick_container").innerHTML = 
                         '<div class="alert alert-danger">Error al cargar el método de pago. Por favor, inténtalo nuevamente.</div>';
                 },
+                onSubmit: (e) => {
+                    console.log('[MP] Formulario de pago enviado:', e);
+                },
                 onPaymentComplete: (result) => {
                     console.log('[MP] Pago completado:', result);
+                    console.log('[MP] Cerrando modal y redirigiendo...');
                     
                     // Cerrar el modal
-                    document.getElementById("mpModal").style.display = "none";
+                    const modal = document.getElementById("mpModal");
+                    if (modal) {
+                        modal.style.display = "none";
+                        console.log('[MP] Modal cerrado');
+                    } else {
+                        console.log('[MP] Modal no encontrado');
+                    }
                     
                     // Redirigir a la página del pedido
+                    console.log('[MP] Redirigiendo a:', `/pedido/${pedidoToken}`);
                     window.location.href = `/pedido/${pedidoToken}`;
                 }
             }
