@@ -84,12 +84,14 @@
 <!-- Modal de MercadoPago -->
 <div id="mpModal" class="mp-modal" style="display:none;">
   <div class="mp-modal-card">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
+    <div class="mp-modal-header">
       <strong>Pago seguro con Mercado Pago</strong>
       <button id="closeMpModal" type="button" class="btn-close" aria-label="Cerrar"></button>
     </div>
-    <div id="paymentBrick_container" style="margin-top:12px; min-height: 500px;"></div>
-    <div style="margin-top:12px; display:flex; gap:8px; justify-content:flex-end;">
+    <div class="mp-modal-body">
+      <div id="paymentBrick_container"></div>
+    </div>
+    <div class="mp-modal-footer">
       <button id="cancelMp" type="button" class="btn btn-secondary">Cancelar</button>
       <button id="payMp" type="button" class="btn btn-primary">Pagar</button>
     </div>
@@ -97,8 +99,43 @@
 </div>
 
 <style>
-  .mp-modal { position:fixed; inset:0; background:rgba(0,0,0,.45); padding:24px; z-index: 1050; }
-  .mp-modal-card { background:#fff; max-width:560px; margin:0 auto; border-radius:12px; padding:16px; }
+  .mp-modal { 
+    position: fixed; 
+    inset: 0; 
+    background: rgba(0,0,0,.45); 
+    padding: 24px; 
+    z-index: 1050; 
+    overflow-y: auto; /* Permitir desplazamiento vertical */
+  }
+  .mp-modal-card { 
+    background: #fff; 
+    max-width: 560px; 
+    margin: 24px auto; /* Centrar verticalmente con espacio */
+    border-radius: 12px; 
+    padding: 16px; 
+    max-height: calc(100vh - 48px); /* Limitar altura máxima */
+    display: flex;
+    flex-direction: column;
+  }
+  .mp-modal-header {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
+    flex-shrink: 0; /* No permitir que el header se encoja */
+  }
+  .mp-modal-body {
+    margin-top: 12px; 
+    min-height: 500px;
+    flex: 1; /* Ocupar espacio disponible */
+    overflow-y: auto; /* Permitir desplazamiento interno si es necesario */
+  }
+  .mp-modal-footer {
+    margin-top: 12px; 
+    display: flex; 
+    gap: 8px; 
+    justify-content: flex-end;
+    flex-shrink: 0; /* No permitir que el footer se encoja */
+  }
 </style>
 {% endblock %}
 
