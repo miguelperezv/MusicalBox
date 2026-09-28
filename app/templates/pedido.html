@@ -206,7 +206,7 @@
                     document.getElementById("paymentBrick_container").innerHTML = 
                         '<div class="alert alert-danger">Error al cargar el método de pago. Por favor, inténtalo nuevamente.</div>';
                 },
-                onPaymentComplete: async (result) => {
+                onPaymentComplete: (result) => {
                     console.log('[MP] Pago completado:', result);
                     
                     // Cerrar el modal
