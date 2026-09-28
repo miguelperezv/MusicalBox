@@ -184,7 +184,8 @@
         window.paymentBrickController = await bricksBuilder.create("payment", "paymentBrick_container", {
             initialization: { 
                 amount: pedidoTotal,
-                preferenceId: preferenceId
+                preferenceId: preferenceId,
+                mercadoPago: mp  // Pasar el objeto de MercadoPago
             },
             customization: {
                 visual: { 
@@ -335,10 +336,15 @@
         });
         
         // Cerrar modal con ESC
+    });
     
-    document.getElementById('copiar-enlace').addEventListener('click', function () {
-        var input = document.getElementById('enlace-pedido');
-        navigator.clipboard.writeText(input.value).then(() => { this.innerHTML = '<i class="bi bi-check2"></i> Copiado'; });
+    document.addEventListener('DOMContentLoaded', function() {
+        if (document.getElementById('copiar-enlace')) {
+            document.getElementById('copiar-enlace').addEventListener('click', function () {
+                var input = document.getElementById('enlace-pedido');
+                navigator.clipboard.writeText(input.value).then(() => { this.innerHTML = '<i class="bi bi-check2"></i> Copiado'; });
+            });
+        }
     });
 </script>
 {% endblock %}
