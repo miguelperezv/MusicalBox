@@ -91,10 +91,6 @@
     <div class="mp-modal-body">
       <div id="paymentBrick_container"></div>
     </div>
-    <div class="mp-modal-footer">
-      <button id="cancelMp" type="button" class="btn btn-secondary">Cancelar</button>
-      <button id="payMp" type="button" class="btn btn-primary">Pagar</button>
-    </div>
   </div>
 </div>
 
@@ -184,31 +180,38 @@
             preferenceId = pref.preferenceId;
             console.log('[MP] Preference ID obtenido:', preferenceId);
             
-            // Renderizar el Payment Brick
-            window.paymentBrickController = await bricksBuilder.create("payment", "paymentBrick_container", {
-                initialization: { 
-                    amount: pedidoTotal,
-                    preferenceId: preferenceId
+        // Renderizar el Payment Brick
+        window.paymentBrickController = await bricksBuilder.create("payment", "paymentBrick_container", {
+            initialization: { 
+                amount: pedidoTotal,
+                preferenceId: preferenceId
+            },
+            customization: {
+                visual: { 
+                    hidePaymentButton: false  // Mostrar el botón de pago de MercadoPago
                 },
-                customization: {
-                    visual: { hidePaymentButton: true },
-                    paymentMethods: { 
-                        creditCard:"all", 
-                        debitCard:"all", 
-                        prepaidCard:"all" 
-                    }
-                },
-                callbacks: {
-                    onReady: () => {
-                        console.log('[MP] Payment Brick listo en modal');
-                    },
-                    onError: (e) => {
-                        console.error('[MP] Error en Payment Brick:', e);
-                        document.getElementById("paymentBrick_container").innerHTML = 
-                            '<div class="alert alert-danger">Error al cargar el método de pago. Por favor, inténtalo nuevamente.</div>';
-                    }
+                paymentMethods: { 
+                    creditCard:"all", 
+                    debitCard:"all", 
+                    prepaidCard:"all" 
                 }
-            });
+            },
+            callbacks: {
+                onReady: () => {
+                    console.log('[MP] Payment Brick listo en modal');
+                },
+                onError: (e) => {
+                    console.error('[MP] Error en Payment Brick:', e);
+                    document.getElementById("paymentBrick_container").innerHTML = 
+                        '<div class="alert alert-danger">Error al cargar el método de pago. Por favor, inténtalo nuevamente.</div>';
+                },
+                onPaymentComplete: (result) => {
+                    console.log('[MP] Pago completado:', result);
+                    // Manejar el resultado del pago aquí
+                    handlePaymentResult(result);
+                }
+            }
+        });
                 } catch (error) {
                     console.error('[MP] Error al abrir modal:', error);
                     document.getElementById("paymentBrick_container").innerHTML = 
@@ -238,8 +241,6 @@
         document.getElementById("openMpModal").addEventListener("click", openModal);
         document.getElementById("closeMpModal").addEventListener("click", closeModal);
         document.getElementById("cancelMp").addEventListener("click", closeModal);
-        
-        document.getElementById("payMp").addEventListener("click", async () => {
             try {
                 // Obtener datos del formulario
                 if (!window.paymentBrickController) {
