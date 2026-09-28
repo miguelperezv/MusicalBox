@@ -389,7 +389,13 @@ def normalize_payment_method_id(payload: dict):
     # Caso típico de error: viene como objeto
     if isinstance(pm, dict):
         # Intentos comunes: id directo o dentro de selectedPaymentMethod
-        candidate = pm.get("id") or (pm.get("selectedPaymentMethod") or {}).get("id")
+        candidate = pm.get("id") if hasattr(pm, 'get') else None
+        if not candidate and 'selectedPaymentMethod' in pm:
+            selected_pm = pm.get("selectedPaymentMethod")
+            if isinstance(selected_pm, dict) and hasattr(selected_pm, 'get'):
+                candidate = selected_pm.get("id")
+            elif isinstance(selected_pm, str):
+                candidate = selected_pm
         if isinstance(candidate, str) and candidate.strip():
             return candidate.strip()
     return None
