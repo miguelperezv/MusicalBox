@@ -399,10 +399,16 @@
     });
     
     document.addEventListener('DOMContentLoaded', function() {
-        if (document.getElementById('copiar-enlace')) {
-            document.getElementById('copiar-enlace').addEventListener('click', function () {
-                var input = document.getElementById('enlace-pedido');
-                navigator.clipboard.writeText(input.value).then(() => { this.innerHTML = '<i class="bi bi-check2"></i> Copiado'; });
+        // Verificar que el elemento copiar-enlace exista antes de agregar el event listener
+        const copiarEnlaceBtn = document.getElementById('copiar-enlace');
+        if (copiarEnlaceBtn) {
+            copiarEnlaceBtn.addEventListener('click', function () {
+                const input = document.getElementById('enlace-pedido');
+                if (input) {
+                    navigator.clipboard.writeText(input.value).then(() => { 
+                        this.innerHTML = '<i class="bi bi-check2"></i> Copiado'; 
+                    });
+                }
             });
         }
     });
