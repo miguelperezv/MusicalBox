@@ -129,7 +129,8 @@
             });
             
             if (!response.ok) {
-                throw new Error(`Error al obtener preference: ${response.status}`);
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`Error al obtener preference: ${response.status} - ${errorData.error || response.statusText}`);
             }
             
             const pref = await response.json();
@@ -161,11 +162,16 @@
                     }
                 }
             });
-        } catch (error) {
-            console.error('[MP] Error al abrir modal:', error);
-            document.getElementById("paymentBrick_container").innerHTML = 
-                '<div class="alert alert-danger">Error al cargar el método de pago. Por favor, inténtalo nuevamente.</div>';
-        }
+                } catch (error) {
+                    console.error('[MP] Error al abrir modal:', error);
+                    document.getElementById("paymentBrick_container").innerHTML = 
+                        `<div class="alert alert-danger">
+                            <h5><i class="bi bi-exclamation-triangle-fill me-2"></i>Error</h5>
+                            <p>No se pudo cargar el método de pago.</p>
+                            <small class="text-muted">Detalles: ${error.message || JSON.stringify(error)}</small>
+                            <button class="btn btn-primary mt-2" onclick="location.reload()">Reintentar</button>
+                        </div>`;
+                }
     }
     
     function closeModal() {

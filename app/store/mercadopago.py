@@ -107,13 +107,19 @@ def button(token):
 def create_preference(token):
     """Crea una preference para un pedido y la devuelve en formato JSON."""
     try:
+        print(f"[MP] Iniciando creación de preferencia para token: {token}")
+        
         # Verificar que el pedido exista
         pedido = get_pedido_por_token(token)
         if not pedido:
+            print(f"[MP] Pedido no encontrado para token: {token}")
             return jsonify({"error": "Pedido no encontrado"}), 404
+        
+        print(f"[MP] Pedido encontrado: {pedido.id}")
         
         # Verificar que el pedido esté pendiente
         if pedido.estado != 'PENDIENTE':
+            print(f"[MP] Pedido no está pendiente. Estado: {pedido.estado}")
             return jsonify({"error": "Este pedido ya ha sido pagado o está rechazado"}), 400
         
         # Crear SDK de MercadoPago
@@ -136,9 +142,13 @@ def create_preference(token):
                 "unit_price": unit_price  # Convertido a entero
             })
         
-        print(f"[MP] Creando preferencia para pedido {pedido.id}")
-        print(f"[MP] Items: {items}")
+        print(f"[MP] Items preparados: {items}")
         print(f"[MP] Total amount: {total_amount}")
+        
+        # Validar que haya items
+        if not items:
+            print("[MP] No se encontraron items en el pedido")
+            return jsonify({"error": "El pedido no tiene items"}), 400
         
         # Crear preferencia (versión simplificada para diagnóstico)
         preference_data = {
@@ -152,16 +162,21 @@ def create_preference(token):
         
         # Crear la preferencia
         preference_response = sdk.preference().create(preference_data)
+        print(f"[MP] Respuesta de preferencia: {preference_response}")
         
         # Verificar si la creación fue exitosa
         if preference_response.get("status") not in (200, 201):
-            raise Exception(f"Error creando preferencia: {preference_response}")
+            error_msg = f"Error creando preferencia: {preference_response}"
+            print(f"[MP] {error_msg}")
+            return jsonify({"error": error_msg}), 400
         
         preference = preference_response["response"]
         
         # Verificar que la preferencia tenga id
         if "id" not in preference:
-            raise Exception(f"La preferencia no contiene id: {preference}")
+            error_msg = f"La preferencia no contiene id: {preference}"
+            print(f"[MP] {error_msg}")
+            return jsonify({"error": error_msg}), 500
         
         print(f"[MP] Preferencia creada exitosamente con ID: {preference['id']}")
         
@@ -170,7 +185,7 @@ def create_preference(token):
         print(f"[MP] Error creando preference: {str(e)}")
         import traceback
         traceback.print_exc()
-        return jsonify({"error": "Error al crear la preferencia de pago"}), 500
+        return jsonify({"error": f"Error al crear la preferencia de pago: {str(e)}"}), 500
 
 @mercadopago_bp.route("/success/<token>")
 def success(token):
