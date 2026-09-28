@@ -205,19 +205,10 @@
                     document.getElementById("paymentBrick_container").innerHTML = 
                         '<div class="alert alert-danger">Error al cargar el método de pago. Por favor, inténtalo nuevamente.</div>';
                 },
-                onSubmit: async (e) => {
-                    console.log('[MP] Formulario de pago enviado:', e);
+                onSubmit: async (selectedPaymentMethod, formData) => {
+                    console.log('[MP] Formulario de pago enviado:', selectedPaymentMethod, formData);
                     
                     try {
-                        // Obtener los datos del formulario del Payment Brick
-                        const formData = await window.paymentBrickController.getFormData();
-                        console.log('[MP] Datos del formulario obtenidos:', formData);
-                        
-                        // Verificar que tengamos datos válidos
-                        if (!formData || !formData.formData) {
-                            throw new Error('No se pudieron obtener los datos del formulario de pago');
-                        }
-                        
                         // Obtener el token CSRF del meta tag (si existe)
                         let headers = {
                             'Content-Type': 'application/json',
@@ -236,7 +227,7 @@
                         const response = await fetch('/mercadopago/process_payment', {
                             method: 'POST',
                             headers: headers,
-                            body: JSON.stringify(formData.formData), // Solo el payload interno
+                            body: JSON.stringify(formData), // formData directamente
                         });
                         
                         console.log('[MP] Respuesta del servidor:', response.status, response.statusText);
