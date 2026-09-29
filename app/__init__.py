@@ -8,9 +8,10 @@ from .config import CONFIGS, DevelopmentConfig
 from .store.views import home, dashboard, releases, artists, purchase, products
 from .store.solicitudes import solicitud
 from .store.pedidos import pedido
+from .store.mercadopago import views as mercadopago_views
 from .store import catalogo_admin  # noqa: F401 (rutas de tallas y packs en el panel)
 
-ACTIVE_ENDPOINTS = [('/',home), ('/dashboard', dashboard), ('/releases', releases), ('/artists', artists), ('/purchase', purchase), ("/products", products), ("/solicitud", solicitud), ("/pedido", pedido) ]
+ACTIVE_ENDPOINTS = [('/',home), ('/dashboard', dashboard), ('/releases', releases), ('/artists', artists), ('/purchase', purchase), ("/products", products), ("/solicitud", solicitud), ("/pedido", pedido), ("/mercadopago", mercadopago_views.mercadopago_bp) ]
 
 def create_app(config=None):
     app = Flask(__name__)
@@ -22,8 +23,11 @@ def create_app(config=None):
         raise RuntimeError("Falta la variable de entorno SECRET_KEY")
 
     # Inicializar protección CSRF
-    csrf = CSRFProtect()
-    csrf.init_app(app)
+    # csrf = CSRFProtect()
+    # csrf.init_app(app)
+    
+    # Exportar csrf para que otros módulos puedan usarlo
+    # app.csrf = csrf
 
     db.init_app(app)
     ma.init_app(app)
@@ -33,6 +37,9 @@ def create_app(config=None):
     # register each active blueprint
     for url, blueprint in ACTIVE_ENDPOINTS:
         app.register_blueprint(blueprint, url_prefix=url)
+
+    # Eximir los endpoints de MercadoPago de CSRF
+    csrf.exempt(mercadopago_views.mercadopago_bp)
 
     @app.cli.command("crear-admin")
     @click.argument("email")
