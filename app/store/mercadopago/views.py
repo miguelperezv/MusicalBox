@@ -162,8 +162,9 @@ def process_payment():
             "description": f"Musical Box - Pedido {inv.token_hash}",
             "additional_info": {
                 "ip_address": ip
-            }
-            # No incluir callback_url para PSE en localhost
+            },
+            # PSE requiere callback_url específicamente, usar una URL válida
+            "callback_url": "https://httpbin.org/post"
         }
         
         # Agregar otros campos que puedan venir en el payload de PSE
