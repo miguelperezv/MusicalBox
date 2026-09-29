@@ -11,13 +11,9 @@ class Config(object):
     #SQLALCHEMY_ECHO=True
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     UPLOAD_FOLDER = UPLOAD_FOLDER
-    #ePayco (llaves de pruebas por defecto; en producción van en variables de entorno)
-    EPAYCO_PUBLIC_KEY = os.getenv("EPAYCO_PUBLIC_KEY", "7c0e3cb9905cc6924cfa41bd822306cf")
-    EPAYCO_PRIVATE_KEY = os.getenv("EPAYCO_PRIVATE_KEY", "3d1d87bb853a61cd897ff62994f55240")
-    EPAYCO_TEST = os.getenv("EPAYCO_TEST", "true").lower() == "true"
-    EPAYCO_VALIDATION_URL = "https://secure.epayco.co/validation/v1/reference/"
-    #botones para simular pago aprobado/rechazado sin pasar por ePayco (solo desarrollo)
-    EPAYCO_SIMULACION = False
+    #MercadoPago (llaves de pruebas por defecto; en producción van en variables de entorno)
+    MERCADOPAGO_PUBLIC_KEY = os.getenv("MERCADOPAGO_PUBLIC_KEY", "YOUR_PUBLIC_KEY")
+    MERCADOPAGO_ACCESS_TOKEN = os.getenv("MERCADOPAGO_ACCESS_TOKEN", "YOUR_ACCESS_TOKEN")
     #correo (ver app/correo.py): consola en desarrollo, smtp cuando se configure un proveedor
     #Para usar correo real, establece MAIL_BACKEND=smtp y configura las variables MAIL_*
     #Ejemplo para Gmail:

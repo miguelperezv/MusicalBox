@@ -1,4 +1,8 @@
 import os
+from dotenv import load_dotenv
+
+# Cargar variables de entorno desde .env
+load_dotenv()
 
 try:
     #usa los certificados de Windows/macOS para requests (evita CERTIFICATE_VERIFY_FAILED detrás de antivirus/proxy)

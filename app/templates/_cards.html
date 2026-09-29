@@ -66,6 +66,7 @@
             <a class="btn btn-outline-secondary w-100" href="{{ url_for('solicitud.nueva') }}"><i class="bi bi-bell me-1"></i>Pedirlo</a>
             {% else %}
             <form class="d-flex flex-wrap gap-2" action="{{ url_for('purchase.addtocart') }}" method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <input type="hidden" name="product_id" value="{{ p.id }}">
                 {% if p.variantes %}
                 <select class="form-select form-select-sm w-100 mb-2" name="variante_id" required aria-label="Talla o color">
