@@ -23,11 +23,11 @@ def create_app(config=None):
         raise RuntimeError("Falta la variable de entorno SECRET_KEY")
 
     # Inicializar protección CSRF
-    # csrf = CSRFProtect()
-    # csrf.init_app(app)
+    csrf = CSRFProtect()
+    csrf.init_app(app)
     
     # Exportar csrf para que otros módulos puedan usarlo
-    # app.csrf = csrf
+    app.csrf = csrf
 
     db.init_app(app)
     ma.init_app(app)
@@ -39,7 +39,7 @@ def create_app(config=None):
         app.register_blueprint(blueprint, url_prefix=url)
 
     # Eximir los endpoints de MercadoPago de CSRF
-    # csrf.exempt(mercadopago_views.mercadopago_bp)  # Comentada porque csrf está desactivado
+    csrf.exempt(mercadopago_views.mercadopago_bp)
 
     @app.cli.command("crear-admin")
     @click.argument("email")
