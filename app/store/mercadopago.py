@@ -401,6 +401,11 @@ def normalize_payment_method_id(payload: dict):
     return None
 
 
+from flask_wtf.csrf import csrf_exempt
+
+# Desactivar CSRF protection para el endpoint de process_payment
+# ya que el Payment Brick no envía el token CSRF
+@csrf_exempt
 @mercadopago_bp.route("/process_payment", methods=["POST"])
 def process_payment():
     """Procesa el pago realizado a través del Payment Brick."""
