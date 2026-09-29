@@ -39,7 +39,7 @@ def create_app(config=None):
         app.register_blueprint(blueprint, url_prefix=url)
 
     # Eximir los endpoints de MercadoPago de CSRF
-    csrf.exempt(mercadopago_views.mercadopago_bp)
+    # csrf.exempt(mercadopago_views.mercadopago_bp)  # Comentada porque csrf está desactivado
 
     @app.cli.command("crear-admin")
     @click.argument("email")
