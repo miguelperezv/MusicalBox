@@ -90,7 +90,12 @@ def login():
         if not user:
             flash("No existe una cuenta con ese correo", "warning")
             return redirect(url_for('home.login'))
-        elif user['k_rol'] != 'CLIENTE' and check_password(pwd, user['pwd_usuario']):
+        elif check_password(pwd, user['pwd_usuario']):
+            if user['k_rol'] == 'CLIENTE':
+                #compró o pidió sin cuenta: la contraseña se crea con el enlace que enviamos a su correo
+                correo_activacion(existente)
+                flash("Aún no tienes contraseña. Te enviamos a tu correo un enlace para crearla.", "info")
+                return redirect(url_for('home.login'))
             flash("Bienvenido " + user['n_usuario'])
             session["user"] = user
             if user['k_rol'] == 'ADMIN':
