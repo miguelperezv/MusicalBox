@@ -1,0 +1,51 @@
+Implementa el botón de pago de MercadoPago con Payment Brick para reemplazar ePayco en Musical Box:
+
+1. CONTEXT:
+- Proyecto Flask 3.1 en Python 3.12
+- Sistema de tienda online con pedidos sin cuenta
+- Actualmente usa ePayco, se quiere reemplazar por MercadoPago
+- El pedido ya existe en BD con estado PENDIENTE antes del pago
+
+2. REQUISITOS:
+- Eliminar integración ePayco completamente
+- Implementar Payment Brick de MercadoPago en modal
+- Crear endpoint para generar preferenceId
+- Procesar pago con backend Flask
+- Confirmar pago y actualizar estado pedido
+
+3. FLUJO ACTUAL A MODIFICAR:
+a) Página pedido.html: Reemplazar botón ePayco por MercadoPago
+b) Modal con Payment Brick (sin botón interno)
+c) Botón "Pagar" personalizado que obtiene formData
+d) Endpoint Flask para crear preferenceId
+e) Endpoint Flask para procesar pago
+f) Confirmación de pago y actualización BD
+
+4. ENDPOINTS NECESARIOS:
+POST /mercadopago/create_preference/<token> → devuelve preferenceId
+POST /mercadopago/process_payment → procesa pago con SDK
+
+5. DATOS PEDIDO:
+- ID, total, token_hash en tabla Invoice
+- Items en tabla Item relacionada
+- Datos envío copiados en Invoice
+
+6. CONFIGURACIÓN:
+- MERCADOPAGO_PUBLIC_KEY y MERCADOPAGO_ACCESS_TOKEN en config.py
+- Reemplazar METODOS_PAGO por opciones MercadoPago
+
+7. CONFIRMACIÓN:
+- Actualizar estado PENDIENTE → PAGADO en Invoice
+- Enviar correo confirmación
+- Descontar stock productos/variantes
+
+8. ENTORNO:
+- Windows con PowerShell
+- SQLite (estructura en migrations/)
+- Variables entorno para keys
+
+Proporciona código completo para:
+1. Modificación pedido.html (modal Payment Brick)
+2. Blueprint pedidos.py (endpoints MercadoPago)
+3. Configuración keys en config.py
+4. Actualización modelos si necesario

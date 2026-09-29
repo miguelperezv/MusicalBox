@@ -1,0 +1,11 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "default_agent": "build",
+  "agents": {
+    "customer-simulator": {
+      "description": "Simula usuarios navegando y comprando en MusicalBox como clientes reales usando modelos gratuitos",
+      "mode": "all",
+      "model": "openrouter/openai/gpt-4o-mini"
+    }
+  }
+}

@@ -916,14 +916,35 @@ def hash_token(token):
 def get_or_create_comprador(nombre, email, telefono, direccion, ciudad, barrio):
     #un comprador por correo (sin distinguir mayúsculas); si no existe queda como CLIENTE, sin login
     email = email.strip().lower()
-    user = Usuario.query.filter(db.func.lower(Usuario.email_usuario) == email).first()
+    
+    # Buscar un cliente existente con el mismo email
+    user = Usuario.query.filter(
+        db.func.lower(Usuario.email_usuario) == email,
+        Usuario.k_rol == 'CLIENTE'
+    ).first()
+    
     if user:
-        #completa lo que falte, no pisa datos de la cuenta (el pedido guarda su propia copia)
+        # Si ya existe un cliente con ese email, actualizar sus datos
         user.cel_usuario = user.cel_usuario or telefono
         user.dir_usuario = user.dir_usuario or direccion
         user.lugar_usuario = user.lugar_usuario or ciudad
         user.barrio_usuario = user.barrio_usuario or barrio
         return user
+    
+    # Si no existe un cliente con ese email, verificar si hay algún usuario con ese email
+    existing_user = Usuario.query.filter(db.func.lower(Usuario.email_usuario) == email).first()
+    
+    if existing_user:
+        # Si existe un usuario con ese email pero no es cliente, crear un cliente con email modificado
+        # para evitar conflictos de unicidad
+        counter = 1
+        base_email = email
+        while Usuario.query.filter(db.func.lower(Usuario.email_usuario) == email).first():
+            # Crear un email único para el cliente
+            email = f"{base_email.split('@')[0]}+guest{counter}@{base_email.split('@')[1]}"
+            counter += 1
+    
+    # Crear nuevo usuario cliente
     partes = nombre.strip().split(maxsplit=1)
     user = Usuario(k_rol='CLIENTE', n_usuario=partes[0][:20], ape_usuario=(partes[1] if len(partes) > 1 else '')[:20],
                    email_usuario=email, pwd_usuario=hash_password(secrets.token_hex(16)), cel_usuario=telefono,
@@ -1047,21 +1068,38 @@ def crear_pedido(cart, datos, k_usuario=None, cotizacion=None):
         print(f"[DEBUG] validar_carrito resultado: lineas={len(lineas)}, total={total}, errores={errores}")
     if errores:
         return None, None, errores
+    
+    # Validar que los datos de envío no estén vacíos
+    nombre_envio = datos["nombre"].strip()
+    email_envio = datos["email"].strip().lower()
+    telefono_envio = datos["telefono"].strip()
+    direccion_envio = datos["direccion"].strip()
+    ciudad_envio = datos["ciudad"].strip()
+    barrio_envio = (datos.get("barrio") or "").strip() or None
+    
+    # Verificar si los datos de envío son válidos
+    datos_validos = bool(nombre_envio and email_envio and telefono_envio and direccion_envio and ciudad_envio)
+    
     for intento in range(2):
         try:
             comprador = db.session.get(Usuario, k_usuario) if k_usuario else None
             if not comprador:
-                comprador = get_or_create_comprador(datos["nombre"], datos["email"], datos["telefono"],
-                                                    datos["direccion"], datos["ciudad"], datos.get("barrio"))
+                comprador = get_or_create_comprador(nombre_envio, email_envio, telefono_envio,
+                                                    direccion_envio, ciudad_envio, barrio_envio)
                 print(f"[DEBUG] comprador creado/get: {comprador.id if comprador else None}")
             #token_urlsafe(32): 32 bytes (256 bits) del generador criptográfico del sistema operativo
             token = secrets.token_urlsafe(32)
             print(f"[DEBUG] token generado: {token}")
+            
+            # Solo guardar datos de envío si son válidos
             pedido = Invoice(k_usuario=comprador.id, total=total, estado='PENDIENTE', metodo_pago=datos.get("metodo_pago"),
                              token_hash=hash_token(token), token_creado=datetime.now(),
-                             n_envio=datos["nombre"].strip(), email_envio=datos["email"].strip().lower(),
-                             tel_envio=datos["telefono"].strip(), dir_envio=datos["direccion"].strip(),
-                             lugar_envio=datos["ciudad"].strip(), barrio_envio=(datos.get("barrio") or "").strip() or None)
+                             n_envio=nombre_envio if datos_validos else None,
+                             email_envio=email_envio if datos_validos else None,
+                             tel_envio=telefono_envio if datos_validos else None,
+                             dir_envio=direccion_envio if datos_validos else None,
+                             lugar_envio=ciudad_envio if datos_validos else None,
+                             barrio_envio=barrio_envio if datos_validos and barrio_envio else None)
             print(f"[DEBUG] pedido creado: token_hash={pedido.token_hash}")
             db.session.add(pedido)
             db.session.flush()

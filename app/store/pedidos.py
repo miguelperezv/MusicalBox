@@ -11,9 +11,41 @@ from ..db import db
 from .notificaciones import correo_pedido_pagado
 import mercadopago
 from mercadopago import config as mp_config
+from flask_wtf import FlaskForm
+from wtforms import StringField
+from wtforms.validators import DataRequired, Email
+
 
 pedido = Blueprint('pedido', __name__, url_prefix='/pedido')
 pedido.before_request(before_request)
+
+
+class EnvioForm(FlaskForm):
+    nombre = StringField('Nombre completo', validators=[DataRequired()])
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    telefono = StringField('Teléfono', validators=[DataRequired()])
+    ciudad = StringField('Ciudad', validators=[DataRequired()])
+    direccion = StringField('Dirección', validators=[DataRequired()])
+    barrio = StringField('Barrio')
+
+    def cargar_desde_pedido(self, pedido):
+        """Cargar datos del pedido al formulario"""
+        self.nombre.data = pedido.n_envio
+        self.email.data = pedido.email_envio
+        self.telefono.data = pedido.tel_envio
+        self.ciudad.data = pedido.lugar_envio
+        self.direccion.data = pedido.dir_envio
+        self.barrio.data = pedido.barrio_envio
+
+    def aplicar_a_pedido(self, pedido):
+        """Aplicar datos del formulario al pedido"""
+        pedido.n_envio = self.nombre.data
+        pedido.email_envio = self.email.data
+        pedido.tel_envio = self.telefono.data
+        pedido.lugar_envio = self.ciudad.data
+        pedido.dir_envio = self.direccion.data
+        pedido.barrio_envio = self.barrio.data
+
 
 @pedido.route("/create_preference/<token_hash>", methods=["POST"])
 def create_preference(token_hash):
@@ -36,6 +68,7 @@ def create_preference(token_hash):
         "amount": float(inv.total),
         "payer_email": inv.email_envio,
     }), 200
+
 
 @pedido.route("/process_payment", methods=["POST"])
 def process_payment():
@@ -124,78 +157,15 @@ def process_payment():
         "mp_status": mp_http_status,
         "mp_response": mp_body,
     }), mp_http_status
-    # Seguridad: monto desde BD (no confiar en frontend)
-    amount = float(inv.total)
-    payer_email = inv.email_envio
-    current_app.logger.info(f"[MP] Datos del pedido: amount={amount}, payer_email={payer_email}")
-    if not payer_email:
-        current_app.logger.error(f"[MP] El pedido {inv.id} no tiene email_envio")
-        return jsonify({"error": "El pedido no tiene email_envio"}), 400
-    token = payload.get("token")
-    payment_method_id = payload.get("payment_method_id")
-    installments = int(payload.get("installments", 1))
-    issuer_id = payload.get("issuer_id")
-    current_app.logger.info(f"[MP] Datos del pago: token={token}, payment_method_id={payment_method_id}, installments={installments}, issuer_id={issuer_id}")
-    if not token or not payment_method_id:
-        current_app.logger.error("[MP] Faltan campos requeridos (token / payment_method_id)")
-        return jsonify({"error": "Faltan campos requeridos (token / payment_method_id)"}), 400
-    payment_data = {
-        "token": token,
-        "transaction_amount": amount,
-        "installments": installments,
-        "payment_method_id": payment_method_id,
-        "payer": {"email": payer_email},
-        "external_reference": inv.token_hash,
-        "description": f"Musical Box - Pedido {inv.token_hash}",
-    }
-    if issuer_id:
-        payment_data["issuer_id"] = int(issuer_id)
-    current_app.logger.info(f"[MP] Datos de pago preparados: {payment_data}")
-    # Idempotencia para evitar duplicados si el usuario reintenta
-    request_options = mp_config.RequestOptions()
-    request_options.custom_headers = {"X-Idempotency-Key": str(uuid.uuid4())}
-    current_app.logger.info("[MP] Creando SDK de MercadoPago")
-    sdk = get_mp_sdk()
-    current_app.logger.info("[MP] Enviando solicitud de pago a MercadoPago")
-    mp_resp = sdk.payment().create(payment_data, request_options)
-    mp_http_status = mp_resp.get("status", 500)
-    mp_body = mp_resp.get("response", {}) or {}
-    current_app.logger.info(f"[MP] Respuesta de MercadoPago: status={mp_http_status}, body={mp_body}")
-    # Confirmación: si aprobó, cambiar estado
-    if mp_body.get("status") == "approved":
-        current_app.logger.info(f"[MP] Pago aprobado para pedido {inv.id}")
-        try:
-            inv.estado = "PAGADO"
-            current_app.logger.info(f"[MP] Estado del pedido {inv.id} cambiado a PAGADO")
-            # Descontar stock
-            current_app.logger.info(f"[MP] Descontando stock para pedido {inv.id}")
-            discount_stock(inv)
-            current_app.logger.info(f"[MP] Stock descontado para pedido {inv.id}")
-            # Enviar correo
-            current_app.logger.info(f"[MP] Enviando correo de confirmación para pedido {inv.id}")
-            correo_pedido_pagado(inv, token_hash)
-            current_app.logger.info(f"[MP] Correo enviado para pedido {inv.id}")
-            db.session.commit()
-            current_app.logger.info(f"[MP] Transacción confirmada para pedido {inv.id}")
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.exception(f"[MP] Error post-pago para pedido {inv.id}: {e}")
-            return jsonify({
-                "error": "Pago aprobado, pero falló el post-procesamiento (stock/email). Revisá logs.",
-                "mp_status": mp_http_status,
-                "mp_response": mp_body,
-            }), 500
-    current_app.logger.info(f"[MP] Devolviendo respuesta final: status={mp_http_status}")
-    return jsonify({
-        "mp_status": mp_http_status,
-        "mp_response": mp_body,
-    }), mp_http_status
+
 
 def get_mp_sdk():
     return mercadopago.SDK(current_app.config["MERCADOPAGO_ACCESS_TOKEN"])
 
+
 def get_invoice_by_token(token_hash: str):
     return Invoice.query.filter_by(token_hash=token_hash).first()
+
 
 def discount_stock(invoice: Invoice):
     """
@@ -237,220 +207,50 @@ def discount_stock(invoice: Invoice):
                         producto.stock -= cantidad_total
                     else:
                         raise ValueError(f"Stock insuficiente para producto componente {producto.id if producto else componente.k_componente}")
-    # Seguridad: monto desde BD (no confiar en frontend)
-    amount = float(inv.total)
-    payer_email = inv.email_envio
-    current_app.logger.info(f"[MP] Datos del pedido: amount={amount}, payer_email={payer_email}")
-    if not payer_email:
-        current_app.logger.error(f"[MP] El pedido {inv.id} no tiene email_envio")
-        return jsonify({"error": "El pedido no tiene email_envio"}), 400
-    token = payload.get("token")
-    payment_method_id = payload.get("payment_method_id")
-    installments = int(payload.get("installments", 1))
-    issuer_id = payload.get("issuer_id")
-    current_app.logger.info(f"[MP] Datos del pago: token={token}, payment_method_id={payment_method_id}, installments={installments}, issuer_id={issuer_id}")
-    if not token or not payment_method_id:
-        current_app.logger.error("[MP] Faltan campos requeridos (token / payment_method_id)")
-        return jsonify({"error": "Faltan campos requeridos (token / payment_method_id)"}), 400
-    payment_data = {
-        "token": token,
-        "transaction_amount": amount,
-        "installments": installments,
-        "payment_method_id": payment_method_id,
-        "payer": {"email": payer_email},
-        "external_reference": inv.token_hash,
-        "description": f"Musical Box - Pedido {inv.token_hash}",
-    }
-    if issuer_id:
-        payment_data["issuer_id"] = int(issuer_id)
-    current_app.logger.info(f"[MP] Datos de pago preparados: {payment_data}")
-    # Idempotencia para evitar duplicados si el usuario reintenta
-    request_options = mp_config.RequestOptions()
-    request_options.custom_headers = {"X-Idempotency-Key": str(uuid.uuid4())}
-    current_app.logger.info("[MP] Creando SDK de MercadoPago")
-    sdk = get_mp_sdk()
-    current_app.logger.info("[MP] Enviando solicitud de pago a MercadoPago")
-    mp_resp = sdk.payment().create(payment_data, request_options)
-    mp_http_status = mp_resp.get("status", 500)
-    mp_body = mp_resp.get("response", {}) or {}
-    current_app.logger.info(f"[MP] Respuesta de MercadoPago: status={mp_http_status}, body={mp_body}")
-    # Confirmación: si aprobó, cambiar estado
-    if mp_body.get("status") == "approved":
-        current_app.logger.info(f"[MP] Pago aprobado para pedido {inv.id}")
-        try:
-            inv.estado = "PAGADO"
-            current_app.logger.info(f"[MP] Estado del pedido {inv.id} cambiado a PAGADO")
-            # Descontar stock
-            current_app.logger.info(f"[MP] Descontando stock para pedido {inv.id}")
-            discount_stock(inv)
-            current_app.logger.info(f"[MP] Stock descontado para pedido {inv.id}")
-            # Enviar correo
-            current_app.logger.info(f"[MP] Enviando correo de confirmación para pedido {inv.id}")
-            correo_pedido_pagado(inv, token_hash)
-            current_app.logger.info(f"[MP] Correo enviado para pedido {inv.id}")
-            db.session.commit()
-            current_app.logger.info(f"[MP] Transacción confirmada para pedido {inv.id}")
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.exception(f"[MP] Error post-pago para pedido {inv.id}: {e}")
-            return jsonify({
-                "error": "Pago aprobado, pero falló el post-procesamiento (stock/email). Revisá logs.",
-                "mp_status": mp_http_status,
-                "mp_response": mp_body,
-            }), 500
-    current_app.logger.info(f"[MP] Devolviendo respuesta final: status={mp_http_status}")
-    return jsonify({
-        "mp_status": mp_http_status,
-        "mp_response": mp_body,
-    }), mp_http_status
-    # Seguridad: monto desde BD (no confiar en frontend)
-    amount = float(inv.total)
-    payer_email = inv.email_envio
-    current_app.logger.info(f"[MP] Datos del pedido: amount={amount}, payer_email={payer_email}")
-    if not payer_email:
-        current_app.logger.error(f"[MP] El pedido {inv.id} no tiene email_envio")
-        return jsonify({"error": "El pedido no tiene email_envio"}), 400
-    token = payload.get("token")
-    payment_method_id = payload.get("payment_method_id")
-    installments = int(payload.get("installments", 1))
-    issuer_id = payload.get("issuer_id")
-    current_app.logger.info(f"[MP] Datos del pago: token={token}, payment_method_id={payment_method_id}, installments={installments}, issuer_id={issuer_id}")
-    if not token or not payment_method_id:
-        current_app.logger.error("[MP] Faltan campos requeridos (token / payment_method_id)")
-        return jsonify({"error": "Faltan campos requeridos (token / payment_method_id)"}), 400
-    payment_data = {
-        "token": token,
-        "transaction_amount": amount,
-        "installments": installments,
-        "payment_method_id": payment_method_id,
-        "payer": {"email": payer_email},
-        "external_reference": inv.token_hash,
-        "description": f"Musical Box - Pedido {inv.token_hash}",
-    }
-    if issuer_id:
-        payment_data["issuer_id"] = int(issuer_id)
-    current_app.logger.info(f"[MP] Datos de pago preparados: {payment_data}")
-    # Idempotencia para evitar duplicados si el usuario reintenta
-    request_options = mp_config.RequestOptions()
-    request_options.custom_headers = {"X-Idempotency-Key": str(uuid.uuid4())}
-    current_app.logger.info("[MP] Creando SDK de MercadoPago")
-    sdk = get_mp_sdk()
-    current_app.logger.info("[MP] Enviando solicitud de pago a MercadoPago")
-    mp_resp = sdk.payment().create(payment_data, request_options)
-    mp_http_status = mp_resp.get("status", 500)
-    mp_body = mp_resp.get("response", {}) or {}
-    current_app.logger.info(f"[MP] Respuesta de MercadoPago: status={mp_http_status}, body={mp_body}")
-    # Confirmación: si aprobó, cambiar estado
-    if mp_body.get("status") == "approved":
-        current_app.logger.info(f"[MP] Pago aprobado para pedido {inv.id}")
-        try:
-            inv.estado = "PAGADO"
-            current_app.logger.info(f"[MP] Estado del pedido {inv.id} cambiado a PAGADO")
-            # Descontar stock
-            current_app.logger.info(f"[MP] Descontando stock para pedido {inv.id}")
-            discount_stock(inv)
-            current_app.logger.info(f"[MP] Stock descontado para pedido {inv.id}")
-            # Enviar correo
-            current_app.logger.info(f"[MP] Enviando correo de confirmación para pedido {inv.id}")
-            correo_pedido_pagado(inv, token_hash)
-            current_app.logger.info(f"[MP] Correo enviado para pedido {inv.id}")
-            db.session.commit()
-            current_app.logger.info(f"[MP] Transacción confirmada para pedido {inv.id}")
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.exception(f"[MP] Error post-pago para pedido {inv.id}: {e}")
-            return jsonify({
-                "error": "Pago aprobado, pero falló el post-procesamiento (stock/email). Revisá logs.",
-                "mp_status": mp_http_status,
-                "mp_response": mp_body,
-            }), 500
-    current_app.logger.info(f"[MP] Devolviendo respuesta final: status={mp_http_status}")
-    return jsonify({
-        "mp_status": mp_http_status,
-        "mp_response": mp_body,
-    }), mp_http_status
 
 
-@purchase.route("/checkout-direct")
-def checkout_direct():
-    # Validar carrito
-    lineas, total, errores = validar_carrito(session.get("purchase"))
-    if errores:
-        for e in errores:
-            flash(e, "warning")
-        return redirect(url_for('purchase.summary'))
+@pedido.route("/<token>/actualizar-envio", methods=["POST"])
+def actualizar_envio(token):
+    p = _pedido_o_404(token)
     
-    # Crear pedido con datos mínimos (o últimos usados)
-    datos = session.get("checkout_datos", {})
-    if not datos and g.user:
-        # Usar datos del usuario si está logueado
-        datos = {
-            "nombre": f"{g.user.get('n_usuario', '')} {g.user.get('ape_usuario', '')}".strip(),
-            "email": g.user.get("email_usuario"),
-            "telefono": g.user.get("cel_usuario") or "",
-            "ciudad": g.user.get("lugar_usuario") or "",
-            "direccion": g.user.get("dir_usuario") or "",
-            "barrio": g.user.get("barrio_usuario") or "",
-            "metodo_pago": "MercadoPago"  # Valor por defecto
-        }
+    # Crear formulario y cargar datos
+    form = EnvioForm()
+    if form.validate_on_submit():
+        # Aplicar cambios al pedido
+        form.aplicar_a_pedido(p)
+        db.session.commit()
+        flash("Información de envío actualizada correctamente", "success")
+    else:
+        flash("Error al actualizar la información de envío", "error")
     
-    # Si no hay datos suficientes, usar valores por defecto
-    if not datos.get("nombre"):
-        datos["nombre"] = "Cliente"
-    if not datos.get("email"):
-        datos["email"] = ""
-    if not datos.get("metodo_pago"):
-        datos["metodo_pago"] = "MercadoPago"
-    
-    # Crear pedido directamente
-    nuevo, token, errores = crear_pedido(session.get("purchase"), datos, k_usuario=g.user["id"] if g.user else None)
-    if errores:
-        for e in errores:
-            flash(e, "warning")
-        return redirect(url_for('purchase.summary'))
-    
-    # Limpiar carrito y guardar datos
-    session["purchase"] = {}
-    session["checkout_datos"] = datos
-    
-    # Ir directamente a la página de pago
     return redirect(url_for('pedido.ver', token=token))
 
 
-@purchase.route("/checkout", methods=["GET", "POST"])
-def checkout():
-    lineas, total, errores = validar_carrito(session.get("purchase"))
-    if errores:
-        for e in errores:
-            flash(e, "warning")
-        return redirect(url_for('purchase.summary'))
-
-    form = CheckoutForm()
-    form.metodo_pago.choices = METODOS_PAGO
-    if request.method == 'GET':
-        #prellenado: cuenta con sesión, o los datos de la última compra en este navegador
-        previo = session.get("checkout_datos") or {}
-        if g.user:
-            previo = {"nombre": f"{g.user.get('n_usuario', '')} {g.user.get('ape_usuario', '')}".strip(),
-                      "email": g.user.get("email_usuario"), "telefono": g.user.get("cel_usuario"),
-                      "ciudad": g.user.get("lugar_usuario"), "direccion": g.user.get("dir_usuario"),
-                      "barrio": g.user.get("barrio_usuario"), **{k: v for k, v in previo.items() if v and k == "metodo_pago"}}
-        for campo, valor in previo.items():
-            if valor and campo in form:
-                form[campo].data = valor
-
-    if form.validate_on_submit():
-        datos = {campo: form[campo].data for campo in ["nombre", "email", "telefono", "ciudad", "direccion", "barrio", "metodo_pago"]}
-        nuevo, token, errores = crear_pedido(session.get("purchase"), datos, k_usuario=g.user["id"] if g.user else None)
-        if errores:
-            for e in errores:
-                flash(e, "warning")
-            return redirect(url_for('purchase.summary'))
-        session["purchase"] = {}
-        session["checkout_datos"] = datos
-        return redirect(url_for('pedido.ver', token=token))
-
-    return render_template("checkout.html", form=form, lineas=lineas, total=total)
+@pedido.route("/<token>")
+def ver(token):
+    p = _pedido_o_404(token)
+    
+    # Crear formulario para actualizar información de envío
+    form_envio = EnvioForm()
+    
+    # Si el pedido no tiene información de envío, prellenar con datos de sesión o dejar vacío
+    if not p.n_envio or not p.dir_envio:
+        # Intentar prellenar con datos de la sesión si existen
+        datos_checkout = session.get("checkout_datos", {})
+        if datos_checkout:
+            form_envio.nombre.data = datos_checkout.get("nombre")
+            form_envio.email.data = datos_checkout.get("email")
+            form_envio.telefono.data = datos_checkout.get("telefono")
+            form_envio.ciudad.data = datos_checkout.get("ciudad")
+            form_envio.direccion.data = datos_checkout.get("direccion")
+            form_envio.barrio.data = datos_checkout.get("barrio")
+    
+    # Restaurar el carrito si el usuario vuelve a la tienda
+    if session.get("ultimo_carrito") and not session.get("purchase"):
+        session["purchase"] = session["ultimo_carrito"]
+    
+    return render_template("pedido.html", pedido=p, token=token, referencia=referencia_epayco(p),
+                           simulacion=current_app.config.get("EPAYCO_SIMULACION"), form_envio=form_envio)
 
 
 def _pedido_o_404(token):
@@ -458,13 +258,6 @@ def _pedido_o_404(token):
     if not p:
         abort(404)
     return p
-
-
-@pedido.route("/<token>")
-def ver(token):
-    p = _pedido_o_404(token)
-    return render_template("pedido.html", pedido=p, token=token, referencia=referencia_epayco(p),
-                           simulacion=current_app.config.get("EPAYCO_SIMULACION"))
 
 
 def consultar_epayco(ref_payco):
@@ -526,3 +319,5 @@ def simular(token):
         rechazar_pago(p, "SIMULADO")
         flash("Pago simulado: rechazado", "error")
     return redirect(url_for('pedido.ver', token=token))
+
+

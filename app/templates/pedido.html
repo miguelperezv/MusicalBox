@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import product_cover %}
+{% from "_macros.html" import product_cover, field %}
 
 {% block title %}Pedido #{{ pedido.id }}{% endblock %}
 {% block head %}<meta name="robots" content="noindex, nofollow">{% endblock %}
@@ -44,12 +44,50 @@
 
             <div class="mb-panel">
                 <h2 class="h5 mb-3">Envío</h2>
+                {% set datos_envio_validos = pedido.n_envio and pedido.dir_envio and pedido.lugar_envio and pedido.tel_envio and pedido.email_envio %}
+                {% if not datos_envio_validos %}
+                <!-- Formulario para actualizar información de envío -->
+                <form method="POST" action="{{ url_for('pedido.actualizar_envio', token=token) }}" class="mb-3">
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            {{ field(form_envio.nombre, placeholder="Nombre completo") }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ field(form_envio.email, placeholder="Correo electrónico") }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ field(form_envio.telefono, placeholder="Teléfono de contacto") }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ field(form_envio.ciudad, placeholder="Ciudad") }}
+                        </div>
+                        <div class="col-12">
+                            {{ field(form_envio.direccion, placeholder="Dirección completa") }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ field(form_envio.barrio, placeholder="Barrio (opcional)") }}
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary">Actualizar información de envío</button>
+                        </div>
+                    </div>
+                </form>
+                {% else %}
                 <dl class="row mb-0 small">
+                    {% if pedido.n_envio %}
                     <dt class="col-sm-4 text-body-secondary fw-normal">Para</dt><dd class="col-sm-8">{{ pedido.n_envio }}</dd>
+                    {% endif %}
+                    {% if pedido.dir_envio %}
                     <dt class="col-sm-4 text-body-secondary fw-normal">Dirección</dt><dd class="col-sm-8">{{ pedido.dir_envio }}{% if pedido.barrio_envio %}, {{ pedido.barrio_envio }}{% endif %}</dd>
+                    {% endif %}
+                    {% if pedido.lugar_envio %}
                     <dt class="col-sm-4 text-body-secondary fw-normal">Municipio</dt><dd class="col-sm-8">{{ pedido.lugar_envio }}</dd>
+                    {% endif %}
+                    {% if pedido.tel_envio and pedido.email_envio %}
                     <dt class="col-sm-4 text-body-secondary fw-normal">Contacto</dt><dd class="col-sm-8 mb-0">{{ pedido.tel_envio }} · {{ pedido.email_envio }}</dd>
+                    {% endif %}
                 </dl>
+                {% endif %}
             </div>
         </div>
 

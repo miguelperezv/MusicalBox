@@ -71,12 +71,126 @@
                 <button class="btn btn-primary btn-lg w-100" disabled>Continuar al pago</button>
                 <p class="small text-danger text-center mt-2 mb-0">Ajusta las cantidades marcadas para continuar.</p>
                 {% else %}
-                <a class="btn btn-primary btn-lg w-100" href="{{ url_for('purchase.checkout_direct') }}">Continuar al pago <i class="bi bi-arrow-right ms-1"></i></a>
-                <p class="small text-body-secondary text-center mt-2 mb-0"><i class="bi bi-shield-lock me-1"></i>No necesitas crear cuenta · Pago seguro con ePayco</p>
+                <!-- Button trigger modal -->
+                <button type="button" class="btn btn-primary btn-lg w-100" onclick="openEnvioModal()">
+                  Continuar al pago <i class="bi bi-arrow-right ms-1"></i>
+                </button>
+                <p class="small text-body-secondary text-center mt-2 mb-0"><i class="bi bi-shield-lock me-1"></i>No necesitas crear cuenta · Pago seguro con MercadoPago</p>
                 {% endif %}
             </div>
         </div>
     </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+function openEnvioModal() {
+    Swal.fire({
+        title: 'Datos de envío',
+        html: `
+            <form id="swal-form" class="text-start">
+                <div class="mb-3">
+                    <label for="swal-nombre" class="form-label">Nombre completo *</label>
+                    <input type="text" class="form-control" id="swal-nombre" name="nombre" required>
+                </div>
+                <div class="mb-3">
+                    <label for="swal-email" class="form-label">Correo electrónico *</label>
+                    <input type="email" class="form-control" id="swal-email" name="email" required>
+                </div>
+                <div class="mb-3">
+                    <label for="swal-telefono" class="form-label">Teléfono de contacto *</label>
+                    <input type="tel" class="form-control" id="swal-telefono" name="telefono" required>
+                </div>
+                <div class="mb-3">
+                    <label for="swal-ciudad" class="form-label">Ciudad *</label>
+                    <input type="text" class="form-control" id="swal-ciudad" name="ciudad" list="ciudades-list" required>
+                    <datalist id="ciudades-list"></datalist>
+                </div>
+                <div class="mb-3">
+                    <label for="swal-direccion" class="form-label">Dirección completa *</label>
+                    <input type="text" class="form-control" id="swal-direccion" name="direccion" required>
+                </div>
+                <div class="mb-3">
+                    <label for="swal-barrio" class="form-label">Barrio (opcional)</label>
+                    <input type="text" class="form-control" id="swal-barrio" name="barrio">
+                </div>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            </form>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Continuar al pago',
+        cancelButtonText: 'Cancelar',
+        focusConfirm: false,
+        didOpen: () => {
+            // Cargar lista de ciudades
+            fetch('/colombia')
+                .then(response => response.json())
+                .then(ciudades => {
+                    const datalist = document.getElementById('ciudades-list');
+                    datalist.innerHTML = '';
+                    ciudades.forEach(ciudad => {
+                        const option = document.createElement('option');
+                        option.value = ciudad;
+                        datalist.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error cargando ciudades:', error);
+                });
+        },
+        preConfirm: () => {
+            const form = document.getElementById('swal-form');
+            const formData = new FormData(form);
+            const data = {};
+            for (let [key, value] of formData.entries()) {
+                data[key] = value;
+            }
+            
+            // Validar campos requeridos
+            if (!data.nombre || !data.email || !data.telefono || !data.ciudad || !data.direccion) {
+                Swal.showValidationMessage('Por favor completa todos los campos obligatorios');
+                return false;
+            }
+            
+            return data;
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Enviar datos mediante fetch
+            const formData = new FormData();
+            Object.keys(result.value).forEach(key => {
+                formData.append(key, result.value[key]);
+            });
+            
+            fetch('{{ url_for("purchase.process_checkout") }}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.text().then(text => {
+                        if (text.includes('pedido')) {
+                            // Redirigir a la página de pedido
+                            window.location.href = response.url || '{{ url_for("pedido.ver", token="__TOKEN__") }}'.replace('__TOKEN__', text.match(/token=([^&]*)/)?.[1] || '');
+                        } else {
+                            // Si la respuesta no es una redirección, recargar la página
+                            window.location.reload();
+                        }
+                    });
+                } else {
+                    return response.text().then(text => {
+                        Swal.fire('Error', 'Hubo un problema al procesar tu pedido. Inténtalo nuevamente.', 'error');
+                    });
+                }
+            })
+            .catch(error => {
+                Swal.fire('Error', 'Hubo un problema al procesar tu pedido. Inténtalo nuevamente.', 'error');
+            });
+        }
+    });
+}
+</script>
 {% endblock %}

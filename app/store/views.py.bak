@@ -1,3 +1,4 @@
+
 #from app.store.forms import CreateUsuarioForm, LoginUsuarioForm, newArtistForm, newReleaseForm
 
 from flask.wrappers import Request
@@ -5,7 +6,7 @@ from .forms import ActivarCuentaForm, CreateUsuarioForm, LoginUsuarioForm,  newR
 from flask import Blueprint, Response, current_app, flash, session, request, g, render_template, redirect, url_for, jsonify, make_response
 #from app.store.models import create_new_user, get_all_artists, get_user_by_email, create_new_artist
 from .models import create_new_user, get_all_artists, get_user_by_email, create_new_artist, get_k_artist_by_name, create_new_release, get_release_by_name, get_releases_with_artists, get_categories, create_new_product, get_k_release_by_name_artista, create_new_category, create_new_genre, create_release_genre, new_admin, get_all_releases, get_artist_by_release, get_categories_by_release, get_release_by_id, get_genres_by_release, get_products_by_release, get_product_by_id, get_artist_by_release, update_release, get_products_with_info, edit_product, create_new_image, get_image_by_product, get_rawimage_by_product, edit_image, get_items_by_id_factura
-from .models import producto_card, lanzamiento_tiene_original, ESTADOS_ENVIO, ESTADOS_CON_ROTULO, opciones_componentes, stock_disponible, get_usuario_por_email, get_artist_by_id, get_releases_cards, get_products_cards, get_admin_stats, edit_user_by_email, get_all_products, get_purchases_by_user, get_all_invoices, get_solicitudes_by_user, validar_carrito, crear_pedido
+from .models import producto_card, lanzamiento_tiene_original, ESTADOS_ENVIO, ESTADOS_CON_ROTULO, opciones_componentes, stock_disponible, get_usuario_por_email, get_artist_by_id, get_releases_cards, get_products_cards, get_admin_stats, edit_user_by_email, get_all_products, get_purchases_by_user, get_all_invoices, get_solicitudes_by_user
 #import epaycosdk.epayco as epayco
 import json
 import urllib.parse as urlparse
@@ -40,17 +41,17 @@ def before_request():
         g.user = session["user"]
     else:
         g.user = None
-    if "purchase" in session:
-        g.purchase = session["purchase"]
-    else:
-        # Recuperar carrito de la sesión anterior si existe
+    
+    # Manejo del carrito
+    if "purchase" not in session:
+        # Si no hay carrito en sesión, intentar recuperar uno guardado
         ultimo_carrito = session.get("ultimo_carrito")
         if ultimo_carrito:
             session["purchase"] = ultimo_carrito
-            g.purchase = session["purchase"]
         else:
             session["purchase"] = {}
-            g.purchase = None
+    
+    g.purchase = session.get("purchase")
     
     g.datetime = datetime.datetime
 
@@ -119,6 +120,7 @@ def login():
     resp.set_cookie('cross-site-cookie', 'bar', samesite='Lax', secure=True)
     return resp
     
+
 
 @home.route("/signup", methods=["GET", 'POST'])
 def signup():
@@ -630,46 +632,12 @@ def updatesingle(k_producto, opc):
     return redirect(request.referrer or url_for('purchase.summary'))
 
 
-@purchase.route('/process_checkout', methods=["POST"])
-def process_checkout():
-    # Obtener datos del formulario
-    datos = {
-        "nombre": request.form.get("nombre", "").strip(),
-        "email": request.form.get("email", "").strip().lower(),
-        "telefono": request.form.get("telefono", "").strip(),
-        "ciudad": request.form.get("ciudad", "").strip(),
-        "direccion": request.form.get("direccion", "").strip(),
-        "barrio": request.form.get("barrio", "").strip(),
-        "metodo_pago": "TARJETA"  # Valor por defecto
-    }
-    
-    # Validar que los datos no estén vacíos
-    if not all([datos["nombre"], datos["email"], datos["telefono"], datos["ciudad"], datos["direccion"]]):
-        flash("Por favor completa todos los campos obligatorios", "warning")
-        return redirect(url_for('purchase.summary'))
-    
-    # Validar carrito
-    lineas, total, errores = validar_carrito(session.get("purchase"))
-    if errores:
-        for e in errores:
-            flash(e, "warning")
-        return redirect(url_for('purchase.summary'))
-    
-    # Crear pedido con los datos proporcionados
-    pedido, token, errores = crear_pedido(session.get("purchase"), datos)
-    if errores:
-        for e in errores:
-            flash(e, "warning")
-        return redirect(url_for('purchase.summary'))
-    
-    # Guardar datos para futuros checkouts
-    session["checkout_datos"] = datos
-    # Limpiar carrito
-    session["purchase"] = {}
-    
-    # Ir a la página de pedido
-    return redirect(url_for('pedido.ver', token=token))
+@purchase.route('/payment', methods=["POST", "GET"])
+def payment():
+    #el pago ahora pertenece a un pedido: /purchase/checkout -> /pedido/<token> (ver pedidos.py)
+    return redirect(url_for('purchase.summary'))
         
+    
 
 @purchase.route('/success')
 def thankyou():
