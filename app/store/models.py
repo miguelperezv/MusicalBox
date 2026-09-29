@@ -154,6 +154,7 @@ class Invoice(db.Model):
     k_usuario = db.Column(db.Integer, db.ForeignKey("usuario.id"), primary_key= False)
     id_factura_payco = db.Column(db.String(100))
     ref_payco = db.Column(db.String(100))
+    mp_payment_id = db.Column(db.String(100))  # ID de pago de MercadoPago
     f_compra = db.Column(db.DateTime, default=datetime.now)
     total = db.Column(db.Numeric(13,2), nullable=False)
     #checkout sin cuenta: el pedido existe antes del pago (PENDIENTE) y ePayco lo confirma o rechaza

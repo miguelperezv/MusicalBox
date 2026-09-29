@@ -103,6 +103,15 @@ def process_payment():
     installments = int(payload.get("installments", 1))
     issuer_id = payload.get("issuer_id")
     current_app.logger.info(f"[MP] Datos del pago: token={token}, payment_method_id={payment_method_id}, installments={installments}, issuer_id={issuer_id}")
+    
+    # Logging específico para PSE
+    if payment_method_id == "pse":
+        current_app.logger.info(f"[MP-PSE] Procesando pago PSE para pedido {inv.id}")
+        if not issuer_id:
+            current_app.logger.error("[MP-PSE] Falta issuer_id para pago PSE")
+            return jsonify({"error": "Para pagos PSE se requiere seleccionar un banco"}), 400
+        current_app.logger.info(f"[MP-PSE] Banco seleccionado: {issuer_id}")
+    
     if not token or not payment_method_id:
         current_app.logger.error("[MP] Faltan campos requeridos (token / payment_method_id)")
         return jsonify({"error": "Faltan campos requeridos (token / payment_method_id)"}), 400
@@ -152,6 +161,16 @@ def process_payment():
                 "mp_status": mp_http_status,
                 "mp_response": mp_body,
             }), 500
+    elif mp_body.get("status") == "rejected":
+        current_app.logger.info(f"[MP] Pago rechazado para pedido {inv.id}")
+        # Registrar el motivo del rechazo para debugging
+        rejection_reason = mp_body.get("status_detail", "Sin detalles")
+        current_app.logger.info(f"[MP] Motivo de rechazo: {rejection_reason}")
+    elif payment_method_id == "pse" and mp_body.get("status") == "in_process":
+        current_app.logger.info(f"[MP-PSE] Pago PSE en proceso para pedido {inv.id}")
+        # Para PSE, el estado puede quedar en "in_process" temporalmente
+        current_app.logger.info(f"[MP-PSE] Esperando confirmación del banco")
+    
     current_app.logger.info(f"[MP] Devolviendo respuesta final: status={mp_http_status}")
     return jsonify({
         "mp_status": mp_http_status,

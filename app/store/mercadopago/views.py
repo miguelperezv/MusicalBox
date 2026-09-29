@@ -244,3 +244,127 @@ def process_payment():
         "mp_status": mp_http_status,
         "mp_response": mp_body,
     }), mp_http_status
+
+
+@mercadopago_bp.route("/webhook", methods=["POST"])
+def webhook():
+    """Webhook para recibir notificaciones de MercadoPago"""
+    try:
+        data = request.get_json()
+        current_app.logger.info(f"[MP-WEBHOOK] Notificación recibida: {data}")
+        
+        # Verificar que sea una notificación válida
+        if not data or "type" not in data:
+            current_app.logger.warning("[MP-WEBHOOK] Notificación inválida recibida")
+            return jsonify({"status": "invalid"}), 400
+        
+        # Procesar diferentes tipos de notificaciones
+        if data.get("type") == "payment":
+            return process_payment_notification(data)
+        elif data.get("type") == "merchant_order":
+            return process_merchant_order_notification(data)
+        else:
+            current_app.logger.info(f"[MP-WEBHOOK] Tipo de notificación no manejado: {data.get('type')}")
+            return jsonify({"status": "not_handled"}), 200
+            
+    except Exception as e:
+        current_app.logger.error(f"[MP-WEBHOOK] Error procesando notificación: {str(e)}")
+        return jsonify({"error": "Error interno"}), 500
+
+
+def process_payment_notification(data):
+    """Procesar notificación de pago"""
+    try:
+        payment_id = data.get("data", {}).get("id")
+        if not payment_id:
+            current_app.logger.warning("[MP-WEBHOOK] ID de pago no encontrado en notificación")
+            return jsonify({"error": "ID de pago no encontrado"}), 400
+        
+        current_app.logger.info(f"[MP-WEBHOOK] Procesando notificación de pago: {payment_id}")
+        
+        # Obtener detalles del pago
+        sdk = get_mp_sdk()
+        payment_response = sdk.payment().get(payment_id)
+        payment = payment_response.get("response", {})
+        
+        if not payment:
+            current_app.logger.warning(f"[MP-WEBHOOK] No se pudieron obtener detalles del pago: {payment_id}")
+            return jsonify({"error": "No se pudieron obtener detalles del pago"}), 400
+        
+        # Buscar el pedido asociado
+        external_reference = payment.get("external_reference")
+        if not external_reference:
+            current_app.logger.warning(f"[MP-WEBHOOK] Referencia externa no encontrada para pago: {payment_id}")
+            return jsonify({"error": "Referencia externa no encontrada"}), 400
+        
+        inv = get_invoice_by_token(external_reference)
+        if not inv:
+            current_app.logger.warning(f"[MP-WEBHOOK] Pedido no encontrado para referencia: {external_reference}")
+            return jsonify({"error": "Pedido no encontrado"}), 404
+        
+        current_app.logger.info(f"[MP-WEBHOOK] Pedido encontrado: {inv.id}, estado actual: {inv.estado}")
+        
+        # Procesar según el estado del pago
+        payment_status = payment.get("status")
+        current_app.logger.info(f"[MP-WEBHOOK] Estado del pago: {payment_status}")
+        
+        if payment_status == "approved" and inv.estado == "PENDIENTE":
+            # Pago aprobado, confirmar el pedido
+            inv.estado = "PAGADO"
+            inv.estado_envio = inv.estado_envio or 'POR PREPARAR'
+            inv.mp_payment_id = str(payment.get("id", ""))
+            
+            # Descontar stock y enviar correo
+            try:
+                discount_stock(inv)
+                correo_pedido_pagado(inv, external_reference)
+                db.session.commit()
+                current_app.logger.info(f"[MP-WEBHOOK] Pedido {inv.id} confirmado exitosamente")
+                return jsonify({"status": "processed"}), 200
+            except Exception as e:
+                db.session.rollback()
+                current_app.logger.error(f"[MP-WEBHOOK] Error confirmando pedido {inv.id}: {str(e)}")
+                return jsonify({"error": "Error confirmando pedido"}), 500
+                
+        elif payment_status in ["rejected", "cancelled", "refunded"]:
+            # Pago rechazado o cancelado
+            if inv.estado == "PENDIENTE":
+                inv.estado = "RECHAZADO"
+                inv.mp_payment_id = str(payment.get("id", ""))
+                db.session.commit()
+                current_app.logger.info(f"[MP-WEBHOOK] Pedido {inv.id} marcado como rechazado")
+                return jsonify({"status": "processed"}), 200
+            else:
+                current_app.logger.info(f"[MP-WEBHOOK] Pedido {inv.id} ya procesado, estado: {inv.estado}")
+                return jsonify({"status": "already_processed"}), 200
+                
+        elif payment_status == "in_process" and payment.get("payment_method_id") == "pse":
+            # Pago en proceso (típico para PSE)
+            current_app.logger.info(f"[MP-WEBHOOK] Pago PSE en proceso para pedido {inv.id}")
+            return jsonify({"status": "processing"}), 200
+            
+        else:
+            current_app.logger.info(f"[MP-WEBHOOK] Estado de pago no manejado: {payment_status}")
+            return jsonify({"status": "not_handled"}), 200
+            
+    except Exception as e:
+        current_app.logger.error(f"[MP-WEBHOOK] Error procesando notificación de pago: {str(e)}")
+        return jsonify({"error": "Error interno"}), 500
+
+
+def process_merchant_order_notification(data):
+    """Procesar notificación de orden de merchant"""
+    current_app.logger.info("[MP-WEBHOOK] Procesando notificación de orden de merchant")
+    # Implementar si se necesita manejar órdenes de merchant
+    return jsonify({"status": "received"}), 200
+
+
+@mercadopago_bp.route("/webhook-test", methods=["POST"])
+def webhook_test():
+    """Endpoint para pruebas de webhook en desarrollo"""
+    if current_app.config.get("ENV") == "development":
+        data = request.get_json()
+        current_app.logger.info(f"[MP-WEBHOOK-TEST] Test notification received: {data}")
+        return jsonify({"status": "test_received"}), 200
+    else:
+        abort(404)
