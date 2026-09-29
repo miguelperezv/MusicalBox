@@ -433,14 +433,18 @@ def new_admin(email, pwd, guser):
     from .seguridad import check_password
     print(guser)
     print(pwd)
-    if check_password(pwd, guser['pwd_usuario']):
-        
-        try:
-            Usuario.query.filter_by(email_usuario = email).update({"k_rol": 'ADMIN' })
-            db.session.commit()  
-            return 'OK'  
-        except:
-            return None  
+    try:
+        if check_password(pwd, guser['pwd_usuario']):
+            
+            try:
+                Usuario.query.filter_by(email_usuario = email).update({"k_rol": 'ADMIN' })
+                db.session.commit()  
+                return 'OK'  
+            except:
+                return None  
+    except Exception as e:
+        print(f"Error verificando contraseña: {e}")
+        return None
     print("No cumple")
     return None  
 
@@ -1034,11 +1038,13 @@ def crear_pedido(cart, datos, k_usuario=None, cotizacion=None):
     """Crea el pedido PENDIENTE con sus líneas. Devuelve (pedido, token, errores).
     El token se entrega una sola vez (enlace de seguimiento); en la BD queda su hash.
     cotizacion=(producto, precio): pedido a la medida ya acordado; no revisa stock (se consigue por encargo)."""
+    print(f"[DEBUG] crear_pedido llamado con datos: {datos}")
     if cotizacion:
         producto, precio = cotizacion
         lineas, total, errores = [(producto, None, 1, precio)], precio, []
     else:
         lineas, total, errores = validar_carrito(cart)
+        print(f"[DEBUG] validar_carrito resultado: lineas={len(lineas)}, total={total}, errores={errores}")
     if errores:
         return None, None, errores
     for intento in range(2):
@@ -1047,31 +1053,44 @@ def crear_pedido(cart, datos, k_usuario=None, cotizacion=None):
             if not comprador:
                 comprador = get_or_create_comprador(datos["nombre"], datos["email"], datos["telefono"],
                                                     datos["direccion"], datos["ciudad"], datos.get("barrio"))
+                print(f"[DEBUG] comprador creado/get: {comprador.id if comprador else None}")
             #token_urlsafe(32): 32 bytes (256 bits) del generador criptográfico del sistema operativo
             token = secrets.token_urlsafe(32)
+            print(f"[DEBUG] token generado: {token}")
             pedido = Invoice(k_usuario=comprador.id, total=total, estado='PENDIENTE', metodo_pago=datos.get("metodo_pago"),
                              token_hash=hash_token(token), token_creado=datetime.now(),
                              n_envio=datos["nombre"].strip(), email_envio=datos["email"].strip().lower(),
                              tel_envio=datos["telefono"].strip(), dir_envio=datos["direccion"].strip(),
                              lugar_envio=datos["ciudad"].strip(), barrio_envio=(datos.get("barrio") or "").strip() or None)
+            print(f"[DEBUG] pedido creado: token_hash={pedido.token_hash}")
             db.session.add(pedido)
             db.session.flush()
+            print(f"[DEBUG] pedido flush completado, id={pedido.id}")
             for producto, variante, cantidad, *precio in lineas:
-                db.session.add(Item(k_producto=producto.id, k_factura=pedido.id, k_variante=variante.id if variante is not None else None,
-                                    cant_item=cantidad, p_item=precio[0] if precio else producto.p_producto))
+                item = Item(k_producto=producto.id, k_factura=pedido.id, k_variante=variante.id if variante is not None else None,
+                                    cant_item=cantidad, p_item=precio[0] if precio else producto.p_producto)
+                db.session.add(item)
+                print(f"[DEBUG] item añadido: producto={producto.id}, variante={variante.id if variante else None}, cantidad={cantidad}")
             
             # Reservar stock para el pedido
             if not cotizacion:  # No reservar stock para pedidos a la medida
                 exito, errores_reserva = reservar_stock_pedido(pedido, [(producto, variante, cantidad) for producto, variante, cantidad, *precio in lineas])
                 if not exito:
+                    print(f"[DEBUG] reserva de stock fallida: {errores_reserva}")
                     db.session.rollback()
                     return None, None, errores_reserva
             
             db.session.commit()
+            print(f"[DEBUG] pedido commit exitoso, id={pedido.id}, token_hash={pedido.token_hash}")
             return pedido, token, []
-        except IntegrityError:
+        except IntegrityError as e:
+            print(f"[DEBUG] IntegrityError en intento {intento}: {e}")
             #dos compras simultáneas con el mismo correo nuevo: el segundo intento reutiliza el comprador ya creado
             db.session.rollback()
+        except Exception as e:
+            print(f"[DEBUG] Exception en crear_pedido: {e}")
+            db.session.rollback()
+            return None, None, [f"Error interno: {str(e)}"]
     return None, None, ["No pudimos crear tu pedido, intenta de nuevo"]
 
 def get_pedido_por_token(token):
