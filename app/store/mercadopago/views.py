@@ -6,7 +6,7 @@ from mercadopago import config as mp_config
 from ..models import Invoice, Item, Producto, Variante
 from ...db import db
 from ..notificaciones import correo_pedido_pagado
-# from ..pedidos import discount_stock  # Comentada porque causa error de importación
+from ..pedidos import discount_stock
 
 mercadopago_bp = Blueprint('mercadopago', __name__, url_prefix='/mercadopago')
 
