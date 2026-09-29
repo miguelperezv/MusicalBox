@@ -70,51 +70,77 @@ def create_preference(token):
 
 @mercadopago_bp.route("/process_payment", methods=["POST"])
 def process_payment():
-    current_app.logger.info("[MP] Solicitud process_payment recibida")
+    current_app.logger.info("[MP] === INICIO PROCESS_PAYMENT ===")
+    current_app.logger.info(f"[MP] Headers recibidos: {dict(request.headers)}")
+    current_app.logger.info(f"[MP] Remote address: {request.remote_addr}")
+    
     payload = request.get_json(silent=True) or {}
     current_app.logger.info(f"[MP] Payload recibido: {payload}")
+    
     if not isinstance(payload, dict):
         current_app.logger.error("[MP] El body no es un JSON objeto válido")
         return jsonify({"error": "El body debe ser un JSON objeto"}), 400
+    
     token = payload.get("token_hash")  # El frontend envía el token original como token_hash
     current_app.logger.info(f"[MP] Token recibido: {token}")
+    
     if not token:
         current_app.logger.error("[MP] Falta token en el payload")
         return jsonify({"error": "Falta token"}), 400
+    
     # Hashear el token para buscar en la BD (igual que en create_preference)
     token_hash = hash_token(token)
     current_app.logger.info(f"[MP] Token hash calculado: {token_hash}")
+    
     inv = get_invoice_by_token(token_hash)
     if not inv:
         current_app.logger.warning(f"[MP] Pedido no encontrado para token_hash: {token_hash}")
+        # Log detallado para debugging
+        all_invoices = Invoice.query.all()
+        current_app.logger.info(f"[MP] Total de invoices en BD: {len(all_invoices)}")
+        for i, invoice in enumerate(all_invoices[-10:]):  # Últimos 10
+            current_app.logger.info(f"[MP] Invoice {invoice.id}: hash={invoice.token_hash[:20] if invoice.token_hash else 'None'}, estado={invoice.estado}")
         return jsonify({"error": "Pedido no encontrado"}), 404
+    
     current_app.logger.info(f"[MP] Pedido encontrado: {inv.id}, estado: {inv.estado}")
+    current_app.logger.info(f"[MP] Datos del pedido: total={inv.total}, email={inv.email_envio}")
+    
     if inv.estado != "PENDIENTE":
         current_app.logger.warning(f"[MP] Pedido {inv.id} no está en estado PENDIENTE: {inv.estado}")
         return jsonify({"error": "El pedido no está en estado PENDIENTE"}), 409
+    
     # Seguridad: monto desde BD (no confiar en frontend)
     amount = float(inv.total)
     payer_email = inv.email_envio
     current_app.logger.info(f"[MP] Datos del pedido: amount={amount}, payer_email={payer_email}")
+    
     if not payer_email:
         current_app.logger.error(f"[MP] El pedido {inv.id} no tiene email_envio")
         return jsonify({"error": "El pedido no tiene email_envio"}), 400
+    
     # Validación por tipo de pago
     payment_method_id = payload.get("payment_method_id")
+    current_app.logger.info(f"[MP] Método de pago seleccionado: {payment_method_id}")
     
     # Detectar si es PSE
     if payment_method_id == "pse":
+        current_app.logger.info("[MP] Procesando pago PSE")
         # Flujo PSE: no requiere token, pero necesita IP, entity_type e identification
         ip = get_client_ip()
+        current_app.logger.info(f"[MP] IP del cliente detectada: {ip}")
+        
         if not ip:
             current_app.logger.error("[MP] No se pudo detectar la IP del comprador para PSE")
             return jsonify({"error": "No se pudo detectar la IP del comprador"}), 400
             
         # Obtener datos del pagador del payload
         pse_payer = payload.get("payer") or {}
+        current_app.logger.info(f"[MP] Datos del pagador PSE: {pse_payer}")
+        
         ident = pse_payer.get("identification") or {}
         id_type = ident.get("type")
         id_number = ident.get("number")
+        current_app.logger.info(f"[MP] Identificación PSE: type={id_type}, number={id_number}")
         
         # Para PSE, estos datos son obligatorios
         if not id_type or not id_number:
@@ -136,8 +162,8 @@ def process_payment():
             "description": f"Musical Box - Pedido {inv.token_hash}",
             "additional_info": {
                 "ip_address": ip
-            },
-            "callback_url": url_for("mercadopago.process_payment", _external=True)  # URL de callback para notificaciones
+            }
+            # No incluir callback_url para PSE en localhost
         }
         
         # Agregar otros campos que puedan venir en el payload de PSE
@@ -148,9 +174,11 @@ def process_payment():
                     payment_data[key] = value
                 elif key not in payment_data:
                     payment_data[key] = value
-        
+                    
         current_app.logger.info(f"[MP] Datos de pago PSE preparados: {payment_data}")
+        
     elif payload.get("token"):
+        current_app.logger.info("[MP] Procesando pago con tarjeta/débito")
         # Flujo tarjeta/débito/crédito
         token = payload.get("token")
         payment_method_id = payload.get("payment_method_id")
@@ -176,6 +204,7 @@ def process_payment():
             
         current_app.logger.info(f"[MP] Datos de pago tarjeta preparados: {payment_data}")
     else:
+        current_app.logger.info("[MP] Procesando pago con otro medio")
         # Otros medios de pago (wallet, ticket, etc.)
         current_app.logger.info("[MP] Procesando pago con otro medio, payload: %s", payload)
         # Usar los campos que vienen en el payload, pero asegurar los mínimos requeridos
@@ -192,16 +221,22 @@ def process_payment():
                 payment_data[key] = value
                 
         current_app.logger.info(f"[MP] Datos de pago otros medios preparados: {payment_data}")
+    
     # Idempotencia para evitar duplicados si el usuario reintenta
     request_options = mp_config.RequestOptions()
     request_options.custom_headers = {"X-Idempotency-Key": str(uuid.uuid4())}
     current_app.logger.info("[MP] Creando SDK de MercadoPago")
+    
     sdk = get_mp_sdk()
     current_app.logger.info("[MP] Enviando solicitud de pago a MercadoPago")
+    current_app.logger.info(f"[MP] Datos enviados a MP: {payment_data}")
+    
     mp_resp = sdk.payment().create(payment_data, request_options)
     mp_http_status = mp_resp.get("status", 500)
     mp_body = mp_resp.get("response", {}) or {}
-    current_app.logger.info(f"[MP] Respuesta de MercadoPago: status={mp_http_status}, body={mp_body}")
+    current_app.logger.info(f"[MP] Respuesta de MercadoPago: status={mp_http_status}")
+    current_app.logger.info(f"[MP] Body de MercadoPago: {mp_body}")
+    
     # Confirmación: si aprobó, cambiar estado
     if mp_body.get("status") == "approved":
         current_app.logger.info(f"[MP] Pago aprobado para pedido {inv.id}")
@@ -239,6 +274,17 @@ def process_payment():
                 "mp_status": mp_http_status,
                 "mp_response": mp_body,
             }), 500
+    elif mp_body.get("status") == "rejected":
+        current_app.logger.info(f"[MP] Pago rechazado para pedido {inv.id}")
+        # Registrar el motivo del rechazo para debugging
+        rejection_reason = mp_body.get("status_detail", "Sin detalles")
+        current_app.logger.info(f"[MP] Motivo de rechazo: {rejection_reason}")
+    elif payment_method_id == "pse" and mp_body.get("status") == "in_process":
+        current_app.logger.info(f"[MP-PSE] Pago PSE en proceso para pedido {inv.id}")
+        # Para PSE, el estado puede quedar en "in_process" temporalmente
+        current_app.logger.info(f"[MP-PSE] Esperando confirmación del banco")
+    
+    current_app.logger.info(f"[MP] === FIN PROCESS_PAYMENT ===")
     current_app.logger.info(f"[MP] Devolviendo respuesta final: status={mp_http_status}")
     return jsonify({
         "mp_status": mp_http_status,
@@ -252,6 +298,8 @@ def webhook():
     try:
         data = request.get_json()
         current_app.logger.info(f"[MP-WEBHOOK] Notificación recibida: {data}")
+        current_app.logger.info(f"[MP-WEBHOOK] Headers: {dict(request.headers)}")
+        current_app.logger.info(f"[MP-WEBHOOK] Remote addr: {request.remote_addr}")
         
         # Verificar que sea una notificación válida
         if not data or "type" not in data:
@@ -269,6 +317,7 @@ def webhook():
             
     except Exception as e:
         current_app.logger.error(f"[MP-WEBHOOK] Error procesando notificación: {str(e)}")
+        current_app.logger.exception("[MP-WEBHOOK] Traceback completo:")
         return jsonify({"error": "Error interno"}), 500
 
 
@@ -283,51 +332,79 @@ def process_payment_notification(data):
         current_app.logger.info(f"[MP-WEBHOOK] Procesando notificación de pago: {payment_id}")
         
         # Obtener detalles del pago
+        current_app.logger.info(f"[MP-WEBHOOK] Obteniendo detalles del pago {payment_id} desde MercadoPago API")
         sdk = get_mp_sdk()
         payment_response = sdk.payment().get(payment_id)
         payment = payment_response.get("response", {})
         
         if not payment:
             current_app.logger.warning(f"[MP-WEBHOOK] No se pudieron obtener detalles del pago: {payment_id}")
+            current_app.logger.info(f"[MP-WEBHOOK] Respuesta de API: {payment_response}")
             return jsonify({"error": "No se pudieron obtener detalles del pago"}), 400
+        
+        current_app.logger.info(f"[MP-WEBHOOK] Detalles del pago obtenidos: {payment}")
         
         # Buscar el pedido asociado
         external_reference = payment.get("external_reference")
         if not external_reference:
             current_app.logger.warning(f"[MP-WEBHOOK] Referencia externa no encontrada para pago: {payment_id}")
+            current_app.logger.info(f"[MP-WEBHOOK] Campos disponibles en payment: {list(payment.keys())}")
             return jsonify({"error": "Referencia externa no encontrada"}), 400
         
+        current_app.logger.info(f"[MP-WEBHOOK] Buscando pedido con external_reference: {external_reference}")
         inv = get_invoice_by_token(external_reference)
         if not inv:
             current_app.logger.warning(f"[MP-WEBHOOK] Pedido no encontrado para referencia: {external_reference}")
+            # Listar algunos invoices recientes para debugging
+            recent_invoices = Invoice.query.order_by(Invoice.id.desc()).limit(5).all()
+            for invoice in recent_invoices:
+                current_app.logger.info(f"[MP-WEBHOOK] Invoice reciente: ID={invoice.id}, token_hash={invoice.token_hash[:20] if invoice.token_hash else 'None'}, estado={invoice.estado}")
             return jsonify({"error": "Pedido no encontrado"}), 404
         
         current_app.logger.info(f"[MP-WEBHOOK] Pedido encontrado: {inv.id}, estado actual: {inv.estado}")
+        current_app.logger.info(f"[MP-WEBHOOK] Datos del pedido: total={inv.total}, email={inv.email_envio}")
         
         # Procesar según el estado del pago
         payment_status = payment.get("status")
-        current_app.logger.info(f"[MP-WEBHOOK] Estado del pago: {payment_status}")
+        payment_method_id = payment.get("payment_method_id")
+        current_app.logger.info(f"[MP-WEBHOOK] Estado del pago: {payment_status}, método: {payment_method_id}")
+        
+        # Log detallado de todos los campos del pago
+        current_app.logger.info(f"[MP-WEBHOOK] Campos completos del pago: {payment.keys()}")
+        if "status_detail" in payment:
+            current_app.logger.info(f"[MP-WEBHOOK] Detalle del status: {payment['status_detail']}")
+        if "payment_method" in payment:
+            current_app.logger.info(f"[MP-WEBHOOK] Método de pago detallado: {payment['payment_method']}")
         
         if payment_status == "approved" and inv.estado == "PENDIENTE":
             # Pago aprobado, confirmar el pedido
+            current_app.logger.info(f"[MP-WEBHOOK] Pago aprobado para pedido pendiente {inv.id}")
             inv.estado = "PAGADO"
             inv.estado_envio = inv.estado_envio or 'POR PREPARAR'
             inv.mp_payment_id = str(payment.get("id", ""))
             
             # Descontar stock y enviar correo
             try:
+                current_app.logger.info(f"[MP-WEBHOOK] Descontando stock para pedido {inv.id}")
                 discount_stock(inv)
+                current_app.logger.info(f"[MP-WEBHOOK] Stock descontado para pedido {inv.id}")
+                
+                current_app.logger.info(f"[MP-WEBHOOK] Enviando correo de confirmación para pedido {inv.id}")
                 correo_pedido_pagado(inv, external_reference)
+                current_app.logger.info(f"[MP-WEBHOOK] Correo enviado para pedido {inv.id}")
+                
                 db.session.commit()
                 current_app.logger.info(f"[MP-WEBHOOK] Pedido {inv.id} confirmado exitosamente")
                 return jsonify({"status": "processed"}), 200
             except Exception as e:
                 db.session.rollback()
                 current_app.logger.error(f"[MP-WEBHOOK] Error confirmando pedido {inv.id}: {str(e)}")
+                current_app.logger.exception("[MP-WEBHOOK] Traceback completo del error:")
                 return jsonify({"error": "Error confirmando pedido"}), 500
                 
         elif payment_status in ["rejected", "cancelled", "refunded"]:
             # Pago rechazado o cancelado
+            current_app.logger.info(f"[MP-WEBHOOK] Pago {payment_status} para pedido {inv.id}")
             if inv.estado == "PENDIENTE":
                 inv.estado = "RECHAZADO"
                 inv.mp_payment_id = str(payment.get("id", ""))
@@ -338,17 +415,24 @@ def process_payment_notification(data):
                 current_app.logger.info(f"[MP-WEBHOOK] Pedido {inv.id} ya procesado, estado: {inv.estado}")
                 return jsonify({"status": "already_processed"}), 200
                 
-        elif payment_status == "in_process" and payment.get("payment_method_id") == "pse":
+        elif payment_status == "in_process" and payment_method_id == "pse":
             # Pago en proceso (típico para PSE)
             current_app.logger.info(f"[MP-WEBHOOK] Pago PSE en proceso para pedido {inv.id}")
+            current_app.logger.info(f"[MP-WEBHOOK] Detalles adicionales PSE: {payment.get('payment_method', {})}")
+            return jsonify({"status": "processing"}), 200
+            
+        elif payment_status == "in_process":
+            # Otros pagos en proceso
+            current_app.logger.info(f"[MP-WEBHOOK] Pago en proceso para pedido {inv.id}, método: {payment_method_id}")
             return jsonify({"status": "processing"}), 200
             
         else:
-            current_app.logger.info(f"[MP-WEBHOOK] Estado de pago no manejado: {payment_status}")
+            current_app.logger.info(f"[MP-WEBHOOK] Estado de pago no manejado: {payment_status}, pedido estado: {inv.estado}")
             return jsonify({"status": "not_handled"}), 200
             
     except Exception as e:
         current_app.logger.error(f"[MP-WEBHOOK] Error procesando notificación de pago: {str(e)}")
+        current_app.logger.exception("[MP-WEBHOOK] Traceback completo:")
         return jsonify({"error": "Error interno"}), 500
 
 
