@@ -371,6 +371,52 @@ def discount_stock(invoice: Invoice):
     }), mp_http_status
 
 
+@purchase.route("/checkout-direct")
+def checkout_direct():
+    # Validar carrito
+    lineas, total, errores = validar_carrito(session.get("purchase"))
+    if errores:
+        for e in errores:
+            flash(e, "warning")
+        return redirect(url_for('purchase.summary'))
+    
+    # Crear pedido con datos mínimos (o últimos usados)
+    datos = session.get("checkout_datos", {})
+    if not datos and g.user:
+        # Usar datos del usuario si está logueado
+        datos = {
+            "nombre": f"{g.user.get('n_usuario', '')} {g.user.get('ape_usuario', '')}".strip(),
+            "email": g.user.get("email_usuario"),
+            "telefono": g.user.get("cel_usuario") or "",
+            "ciudad": g.user.get("lugar_usuario") or "",
+            "direccion": g.user.get("dir_usuario") or "",
+            "barrio": g.user.get("barrio_usuario") or "",
+            "metodo_pago": "MercadoPago"  # Valor por defecto
+        }
+    
+    # Si no hay datos suficientes, usar valores por defecto
+    if not datos.get("nombre"):
+        datos["nombre"] = "Cliente"
+    if not datos.get("email"):
+        datos["email"] = ""
+    if not datos.get("metodo_pago"):
+        datos["metodo_pago"] = "MercadoPago"
+    
+    # Crear pedido directamente
+    nuevo, token, errores = crear_pedido(session.get("purchase"), datos, k_usuario=g.user["id"] if g.user else None)
+    if errores:
+        for e in errores:
+            flash(e, "warning")
+        return redirect(url_for('purchase.summary'))
+    
+    # Limpiar carrito y guardar datos
+    session["purchase"] = {}
+    session["checkout_datos"] = datos
+    
+    # Ir directamente a la página de pago
+    return redirect(url_for('pedido.ver', token=token))
+
+
 @purchase.route("/checkout", methods=["GET", "POST"])
 def checkout():
     lineas, total, errores = validar_carrito(session.get("purchase"))

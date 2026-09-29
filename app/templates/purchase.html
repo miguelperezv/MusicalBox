@@ -71,7 +71,7 @@
                 <button class="btn btn-primary btn-lg w-100" disabled>Continuar al pago</button>
                 <p class="small text-danger text-center mt-2 mb-0">Ajusta las cantidades marcadas para continuar.</p>
                 {% else %}
-                <a class="btn btn-primary btn-lg w-100" href="{{ url_for('purchase.checkout') }}">Continuar al pago <i class="bi bi-arrow-right ms-1"></i></a>
+                <a class="btn btn-primary btn-lg w-100" href="{{ url_for('purchase.checkout_direct') }}">Continuar al pago <i class="bi bi-arrow-right ms-1"></i></a>
                 <p class="small text-body-secondary text-center mt-2 mb-0"><i class="bi bi-shield-lock me-1"></i>No necesitas crear cuenta · Pago seguro con ePayco</p>
                 {% endif %}
             </div>
