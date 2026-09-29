@@ -169,7 +169,7 @@ def process_payment():
         
         # Agregar otros campos que puedan venir en el payload de PSE
         for key, value in payload.items():
-            if key not in ["token_hash", "payment_method_id", "transaction_amount", "payer", "external_reference", "description", "additional_info"] and value is not None:
+            if key not in ["token_hash", "payment_method_id", "transaction_amount", "payer", "external_reference", "description", "additional_info", "callback_url"] and value is not None:
                 # Si es un diccionario, navegar adentro; si no, asignar directo
                 if not isinstance(value, dict):
                     payment_data[key] = value
@@ -232,11 +232,46 @@ def process_payment():
     current_app.logger.info("[MP] Enviando solicitud de pago a MercadoPago")
     current_app.logger.info(f"[MP] Datos enviados a MP: {payment_data}")
     
-    mp_resp = sdk.payment().create(payment_data, request_options)
-    mp_http_status = mp_resp.get("status", 500)
-    mp_body = mp_resp.get("response", {}) or {}
-    current_app.logger.info(f"[MP] Respuesta de MercadoPago: status={mp_http_status}")
-    current_app.logger.info(f"[MP] Body de MercadoPago: {mp_body}")
+    # Implementar reintentos para errores 424
+    max_retries = 3
+    retry_delay = 1  # segundos
+    
+    for attempt in range(max_retries):
+        try:
+            mp_resp = sdk.payment().create(payment_data, request_options)
+            mp_http_status = mp_resp.get("status", 500)
+            mp_body = mp_resp.get("response", {}) or {}
+            
+            current_app.logger.info(f"[MP] Intento {attempt + 1}: Respuesta de MercadoPago: status={mp_http_status}")
+            current_app.logger.info(f"[MP] Intento {attempt + 1}: Body de MercadoPago: {mp_body}")
+            
+            # Si es éxito o error definitivo, no reintentar
+            if mp_http_status < 500 or mp_http_status in [400, 401, 403, 404]:
+                break
+                
+            # Si es error 424 (BankTransfers Api fail), esperar y reintentar
+            if mp_http_status == 424:
+                current_app.logger.warning(f"[MP] Error 424 en intento {attempt + 1}, reintentando en {retry_delay} segundos...")
+                if attempt < max_retries - 1:  # No esperar después del último intento
+                    import time
+                    time.sleep(retry_delay)
+                    retry_delay *= 2  # Backoff exponencial
+                continue
+                
+            break  # Otros errores, no reintentar
+            
+        except Exception as e:
+            current_app.logger.error(f"[MP] Error en intento {attempt + 1}: {str(e)}")
+            if attempt < max_retries - 1:
+                import time
+                time.sleep(retry_delay)
+                retry_delay *= 2
+            else:
+                # Último intento falló, devolver error
+                return jsonify({
+                    "error": "Error de conexión con MercadoPago",
+                    "details": str(e)
+                }), 500
     
     # Confirmación: si aprobó, cambiar estado
     if mp_body.get("status") == "approved":
@@ -275,6 +310,19 @@ def process_payment():
                 "mp_status": mp_http_status,
                 "mp_response": mp_body,
             }), 500
+    elif mp_http_status == 424:
+        # Error específico de BankTransfers Api fail
+        current_app.logger.error(f"[MP] Error 424 - BankTransfers Api fail para pedido {inv.id}")
+        current_app.logger.error(f"[MP] Detalles del error: {mp_body}")
+        
+        # No cambiar el estado del pedido, mantenerlo como PENDIENTE
+        # El usuario debe ver un mensaje amigable
+        return jsonify({
+            "error": "No se pudo procesar el pago PSE en este momento. Por favor intenta de nuevo o elige otro medio de pago.",
+            "mp_status": mp_http_status,
+            "mp_response": mp_body,
+            "retryable": True
+        }), 424
     elif mp_body.get("status") == "rejected":
         current_app.logger.info(f"[MP] Pago rechazado para pedido {inv.id}")
         # Registrar el motivo del rechazo para debugging
