@@ -36,15 +36,20 @@
 <script>
     // Efecto hover para cambiar imágenes en tarjetas de productos
     document.addEventListener('DOMContentLoaded', function() {
+        console.log("Inicializando efecto hover para productos");
         const cardContainers = document.querySelectorAll('.mb-card-image-container');
+        console.log("Encontrados", cardContainers.length, "contenedores de imágenes");
         
-        cardContainers.forEach(container => {
+        cardContainers.forEach(function(container, index) {
             const images = container.querySelectorAll('.mb-card-image');
-            let currentIndex = 0;
-            let hoverTimer = null;
+            console.log("Contenedor", index, "tiene", images.length, "imágenes");
             
             if (images.length > 1) {
+                let currentIndex = 0;
+                let hoverTimer = null;
+                
                 container.addEventListener('mouseenter', function() {
+                    console.log("Mouse enter en contenedor", index);
                     // Reiniciar al primer imagen
                     currentIndex = 0;
                     images.forEach(img => img.style.opacity = '0');
@@ -55,10 +60,12 @@
                         images[currentIndex].style.opacity = '0';
                         currentIndex = (currentIndex + 1) % images.length;
                         images[currentIndex].style.opacity = '1';
+                        console.log("Cambiando a imagen", currentIndex, "en contenedor", index);
                     }, 1000);
                 });
                 
                 container.addEventListener('mouseleave', function() {
+                    console.log("Mouse leave en contenedor", index);
                     // Detener el cambio automático
                     if (hoverTimer) {
                         clearInterval(hoverTimer);
@@ -66,8 +73,8 @@
                     }
                     
                     // Volver a la primera imagen
-                    images.forEach((img, index) => {
-                        img.style.opacity = index === 0 ? '1' : '0';
+                    images.forEach((img, imgIndex) => {
+                        img.style.opacity = imgIndex === 0 ? '1' : '0';
                     });
                     currentIndex = 0;
                 });
