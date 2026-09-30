@@ -499,7 +499,15 @@ def updateproduct(k_producto):
         except Exception as e:
             print("ERROR OBTENIENDO LAS IMÁGENES "+ str(e))
 
-        
+        # Manejar reordenación de imágenes existentes
+        imagen_ordenes = request.form.get('imagen_ordenes')
+        if imagen_ordenes:
+            try:
+                ordenes = json.loads(imagen_ordenes)
+                reorder_images(k_producto, ordenes)
+            except Exception as e:
+                print("Error actualizando ordenes: " + str(e))
+
         result = edit_product(k_producto, n_producto, d_producto, p_producto, image_files, k_category, stock)
         if result:
             get_product_by_id(k_producto).original_mb = request.form.get("original_mb") == "y"

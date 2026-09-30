@@ -3,7 +3,7 @@
 <div class="row g-4 mb-detalle">
     <div class="col-md-6">
         {% if p.imagenes and p.imagenes|length > 1 %}
-        <!-- Carrusel de imágenes -->
+        <!-- Carrusel de imágenes con controles mejorados -->
         <div id="productCarousel" class="carousel slide mb-detalle-img {{ 'soldout' if agotado }}" data-bs-ride="carousel">
             <div class="carousel-inner">
                 {% for imagen in p.imagenes|sort(attribute='orden') %}
@@ -15,6 +15,7 @@
                 </div>
                 {% endfor %}
             </div>
+            <!-- Controles de navegación -->
             <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel" data-bs-slide="prev">
                 <span class="carousel-control-prev-icon" aria-hidden="true"></span>
                 <span class="visually-hidden">Anterior</span>
@@ -23,12 +24,17 @@
                 <span class="carousel-control-next-icon" aria-hidden="true"></span>
                 <span class="visually-hidden">Siguiente</span>
             </button>
+            <!-- Indicadores -->
             <div class="carousel-indicators">
                 {% for imagen in p.imagenes|sort(attribute='orden') %}
                 <button type="button" data-bs-target="#productCarousel" data-bs-slide-to="{{ loop.index0 }}" 
                         {{ 'class="active"' if loop.first }} aria-current="{{ 'true' if loop.first }}" 
                         aria-label="{{ p.nombre }} - Imagen {{ loop.index }}"></button>
                 {% endfor %}
+            </div>
+            <!-- Contador de imágenes -->
+            <div class="carousel-counter">
+                <span class="current">1</span> / <span class="total">{{ p.imagenes|length }}</span>
             </div>
         </div>
         {% else %}

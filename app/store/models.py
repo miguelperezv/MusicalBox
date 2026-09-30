@@ -754,6 +754,21 @@ def update_release(k_lanzamiento, n_lanzamiento, i_lanzamiento, k_artista, f_lan
         db.session.rollback()
         return None
     
+def reorder_images(k_producto, ordenes):
+    """Reordena las imágenes de un producto según el diccionario de ordenes {imagen_id: nuevo_orden}"""
+    try:
+        for imagen_id, nuevo_orden in ordenes.items():
+            imagen = Imagen.query.get(int(imagen_id))
+            if imagen and imagen.k_producto == int(k_producto):
+                imagen.orden = int(nuevo_orden)
+        db.session.commit()
+        return True
+    except Exception as e:
+        print("Error reordenando imágenes: " + str(e))
+        db.session.rollback()
+        return False
+
+
 def edit_product(k_producto, n_producto, d_producto, p_producto, image_files, k_category, stock):
     producto = Producto.query.filter_by(id = k_producto).first()
     try:

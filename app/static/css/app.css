@@ -130,6 +130,19 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 .mb-card .footer { margin-top: auto; padding-top: .5rem; }
 .mb-card.soldout .cover img { filter: grayscale(.85); opacity: .7; }
 
+/* Contador de imágenes en carrusel */
+.carousel-counter {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    z-index: 10;
+}
+
 /* Mejoras para mostrar más productos sin scroll infinito */
 .mb-card .body .small { font-size: 0.7rem; }
 .mb-card .footer .btn { font-size: 0.75rem; padding: 0.3rem 0.6rem; }

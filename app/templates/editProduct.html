@@ -36,11 +36,59 @@
         {{ field(form.stock, col='col-sm-6 mb-3') }}
         {% endif %}
     </div>
-    <div class="mb-3">
-        <label class="form-label" for="inputImages">Cambiar imágenes</label>
-        <input class="form-control" type="file" name="inputImages" id="inputImages" accept="image/*" multiple>
-        <div class="form-text">Puedes seleccionar múltiples imágenes. La primera será la principal.</div>
+    
+    <!-- Sección de gestión de imágenes -->
+    <div class="mb-4">
+        <h3 class="h5 mb-3">Imágenes del producto</h3>
+        
+        <!-- Subir nuevas imágenes -->
+        <div class="mb-3">
+            <label class="form-label" for="inputImages">Agregar nuevas imágenes</label>
+            <input class="form-control" type="file" name="inputImages" id="inputImages" accept="image/*" multiple>
+            <div class="form-text">Puedes seleccionar múltiples imágenes. La primera será la principal.</div>
+        </div>
+        
+        <!-- Lista de imágenes existentes con controles de orden -->
+        {% if producto.imagenes and producto.imagenes|length > 0 %}
+        <div class="mb-3">
+            <label class="form-label">Imágenes actuales</label>
+            <div class="row g-3">
+                {% for imagen in producto.imagenes|sort(attribute='orden') %}
+                <div class="col-md-4" data-imagen-id="{{ imagen.id }}">
+                    <div class="card">
+                        <img src="{{ url_for('products.image', k_producto=producto.id) }}?w=300&orden={{ imagen.orden }}" 
+                             class="card-img-top" style="height: 200px; object-fit: cover;" alt="Imagen {{ imagen.orden + 1 }}">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">Orden: {{ imagen.orden + 1 }}</small>
+                                <div class="btn-group" role="group">
+                                    {% if imagen.orden > 0 %}
+                                    <button type="button" class="btn btn-sm btn-outline-primary reorder-btn" 
+                                            data-action="up" data-imagen-id="{{ imagen.id }}">
+                                        <i class="bi bi-arrow-up"></i>
+                                    </button>
+                                    {% endif %}
+                                    {% if imagen.orden < (producto.imagenes|length - 1) %}
+                                    <button type="button" class="btn btn-sm btn-outline-primary reorder-btn" 
+                                            data-action="down" data-imagen-id="{{ imagen.id }}">
+                                        <i class="bi bi-arrow-down"></i>
+                                    </button>
+                                    {% endif %}
+                                    <button type="button" class="btn btn-sm btn-outline-danger delete-btn" 
+                                            data-imagen-id="{{ imagen.id }}">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
     </div>
+    
     <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Guardar cambios</button>
 </form>
 
@@ -87,7 +135,71 @@
             <input class="form-control form-control-sm" style="width:7rem" name="sku" value="{{ v.sku or '' }}" placeholder="SKU">
             <input class="form-control form-control-sm" style="width:5rem" type="number" name="stock" value="{{ v.stock }}" min="0" aria-label="Stock">
             <button class="btn btn-sm btn-outline-primary">Guardar</button>
-        </form>
+</form>
+
+<script>
+    // Manejar reordenación de imágenes
+    document.querySelectorAll('.reorder-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const imagenId = this.dataset.imagenId;
+            const action = this.dataset.action;
+            const card = this.closest('[data-imagen-id]');
+            
+            if (action === 'up') {
+                const prevCard = card.previousElementSibling;
+                if (prevCard) {
+                    card.parentNode.insertBefore(card, prevCard);
+                }
+            } else if (action === 'down') {
+                const nextCard = card.nextElementSibling;
+                if (nextCard) {
+                    card.parentNode.insertBefore(nextCard, card);
+                }
+            }
+            
+            // Actualizar números de orden visualmente
+            updateOrderNumbers();
+        });
+    });
+    
+    // Manejar eliminación de imágenes
+    document.querySelectorAll('.delete-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const imagenId = this.dataset.imagenId;
+            const card = this.closest('[data-imagen-id]');
+            if (confirm('¿Estás seguro de que quieres eliminar esta imagen?')) {
+                card.remove();
+                updateOrderNumbers();
+            }
+        });
+    });
+    
+    // Actualizar números de orden visualmente
+    function updateOrderNumbers() {
+        document.querySelectorAll('[data-imagen-id]').forEach((card, index) => {
+            const orderText = card.querySelector('.text-muted');
+            if (orderText) {
+                orderText.textContent = 'Orden: ' + (index + 1);
+            }
+        });
+    }
+    
+    // Enviar orden correcto al servidor
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const ordenes = {};
+        document.querySelectorAll('[data-imagen-id]').forEach((card, index) => {
+            const imagenId = card.dataset.imagenId;
+            ordenes[imagenId] = index;
+        });
+        
+        // Agregar campo oculto con los nuevos ordenes
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'imagen_ordenes';
+        input.value = JSON.stringify(ordenes);
+        this.appendChild(input);
+    });
+</script>
         <form method="POST" action="{{ url_for('dashboard.variante_eliminar', k_variante=v.id) }}"><button class="btn btn-sm btn-outline-danger" title="Eliminar"><i class="bi bi-trash3"></i></button></form>
     </div>
     {% endfor %}

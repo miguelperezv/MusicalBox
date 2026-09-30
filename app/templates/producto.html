@@ -16,3 +16,29 @@
     </div>
 </div>
 {% endblock %}
+
+{% block scripts %}
+<script>
+    // Actualizar contador del carrusel
+    document.addEventListener('DOMContentLoaded', function() {
+        var carousel = document.getElementById('productCarousel');
+        if (carousel) {
+            var carouselInstance = bootstrap.Carousel.getOrCreateInstance(carousel);
+            var counter = carousel.querySelector('.carousel-counter');
+            var currentIndex = 1;
+            var total = carousel.querySelectorAll('.carousel-item').length;
+            
+            if (counter) {
+                // Actualizar contador inicial
+                counter.querySelector('.total').textContent = total;
+                
+                // Actualizar contador al cambiar de slide
+                carousel.addEventListener('slide.bs.carousel', function(event) {
+                    currentIndex = event.to + 1;
+                    counter.querySelector('.current').textContent = currentIndex;
+                });
+            }
+        }
+    });
+</script>
+{% endblock %}
