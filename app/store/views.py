@@ -742,4 +742,10 @@ def home_products():
         products = get_all_products()
     if request.method == "POST":
         None
-    return render_template("products.html", productos = get_products_cards())
+    # Cargar imágenes para cada producto
+    productos_con_imagenes = []
+    for p in get_products_cards():
+        p['imagenes'] = get_images_by_product(p['id'])
+        print(f"Producto {p['id']} tiene {len(p['imagenes'])} imágenes")
+        productos_con_imagenes.append(p)
+    return render_template("products.html", productos = productos_con_imagenes)
