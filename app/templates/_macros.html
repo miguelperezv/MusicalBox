@@ -19,6 +19,51 @@
      onerror="this.onerror=null; this.src='{{ fallback_url or url_for('static', filename='imgs/musicalbox.png') }}'; this.classList.add('bg-info');">
 {% endmacro %}
 
+{# carrusel de imágenes de producto con controles y contador #}
+{% macro product_carousel(p, w=600) %}
+{% if p.imagenes and p.imagenes|length > 1 %}
+<!-- Carrusel de imágenes con controles mejorados -->
+<div id="productCarousel-{{ p.id }}{% if modal %}-modal{% endif %}" class="carousel slide mb-detalle-img" data-bs-ride="carousel" {% if modal %}data-bs-interval="3000"{% endif %}>
+    <div class="carousel-inner">
+        {% for imagen in p.imagenes|sort(attribute='orden') %}
+        <div class="carousel-item {{ 'active' if loop.first }}">
+            <img src="{{ url_for('products.image', k_producto=p.id) }}?w={{ w }}&orden={{ imagen.orden }}" 
+                 class="d-block w-100" 
+                 alt="{{ p.nombre }} - Imagen {{ loop.index }}"
+                 loading="{{ 'eager' if loop.first else 'lazy' }}">
+        </div>
+        {% endfor %}
+    </div>
+    {% if not modal %}
+    <!-- Controles de navegación -->
+    <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel-{{ p.id }}" data-bs-slide="prev">
+        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Anterior</span>
+    </button>
+    <button class="carousel-control-next" type="button" data-bs-target="#productCarousel-{{ p.id }}" data-bs-slide="next">
+        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Siguiente</span>
+    </button>
+    <!-- Indicadores -->
+    <div class="carousel-indicators">
+        {% for imagen in p.imagenes|sort(attribute='orden') %}
+        <button type="button" data-bs-target="#productCarousel-{{ p.id }}" data-bs-slide-to="{{ loop.index0 }}" 
+                {% if loop.first %}class="active" aria-current="true"{% endif %}
+                aria-label="{{ p.nombre }} - Imagen {{ loop.index }}"></button>
+        {% endfor %}
+    </div>
+    {% endif %}
+    <!-- Contador de imágenes -->
+    <div class="carousel-counter">
+        <span class="current">1</span> / <span class="total">{{ p.imagenes|length }}</span>
+    </div>
+</div>
+{% else %}
+<!-- Imagen única -->
+<div class="mb-detalle-img">{{ producto_imagen(p, w=w) }}</div>
+{% endif %}
+{% endmacro %}
+
 {# sello de merch original Musical Box #}
 {% macro badge_original(texto='Original MB') %}
 <span class="mb-original" title="Merch original Musical Box"><img src="{{ url_for('static', filename='imgs/musicalbox.png') }}" alt="">{{ texto }}</span>

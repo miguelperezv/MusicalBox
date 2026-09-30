@@ -1,46 +1,8 @@
-{% from "_macros.html" import producto_imagen, badge_original %}
+{% from "_macros.html" import producto_imagen, badge_original, product_carousel %}
 {% set agotado = p.stock <= 0 %}
 <div class="row g-4 mb-detalle">
     <div class="col-md-6">
-        {% if p.imagenes and p.imagenes|length > 1 %}
-        <!-- Carrusel de imágenes con controles mejorados -->
-        <div id="productCarousel" class="carousel slide mb-detalle-img {{ 'soldout' if agotado }}" data-bs-ride="carousel">
-            <div class="carousel-inner">
-                {% for imagen in p.imagenes|sort(attribute='orden') %}
-                <div class="carousel-item {{ 'active' if loop.first }}">
-                    <img src="{{ url_for('products.image', k_producto=p.id) }}?w=1200&orden={{ imagen.orden }}" 
-                         class="d-block w-100" 
-                         alt="{{ p.nombre }} - Imagen {{ loop.index }}"
-                         loading="{{ 'eager' if loop.first else 'lazy' }}">
-                </div>
-                {% endfor %}
-            </div>
-            <!-- Controles de navegación -->
-            <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel" data-bs-slide="prev">
-                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Anterior</span>
-            </button>
-            <button class="carousel-control-next" type="button" data-bs-target="#productCarousel" data-bs-slide="next">
-                <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Siguiente</span>
-            </button>
-            <!-- Indicadores -->
-            <div class="carousel-indicators">
-                {% for imagen in p.imagenes|sort(attribute='orden') %}
-                <button type="button" data-bs-target="#productCarousel" data-bs-slide-to="{{ loop.index0 }}" 
-                        {{ 'class="active"' if loop.first }} aria-current="{{ 'true' if loop.first }}" 
-                        aria-label="{{ p.nombre }} - Imagen {{ loop.index }}"></button>
-                {% endfor %}
-            </div>
-            <!-- Contador de imágenes -->
-            <div class="carousel-counter">
-                <span class="current">1</span> / <span class="total">{{ p.imagenes|length }}</span>
-            </div>
-        </div>
-        {% else %}
-        <!-- Imagen única -->
-        <div class="mb-detalle-img {{ 'soldout' if agotado }}">{{ producto_imagen(p, w=1200) }}</div>
-        {% endif %}
+        {{ product_carousel(p, w=1200) }}
     </div>
     <div class="col-md-6 d-flex flex-column">
         <div class="d-flex flex-wrap gap-2 mb-2">
@@ -50,7 +12,12 @@
             {% if agotado %}<span class="mb-chip mb-badge-out">Agotado</span>{% elif p.stock <= 3 %}<span class="mb-chip mb-badge-new">¡Últimos {{ p.stock }}!</span>{% endif %}
         </div>
         {% if p.lanzamiento %}
-        <a class="mb-eyebrow" href="{{ url_for('releases.release', k_lanzamiento=p.lanzamiento.id) }}">{{ p.artista.n_artista.title() ~ ' · ' if p.artista }}{{ p.lanzamiento.n_lanzamiento.title() }}</a>
+        <a class="mb-eyebrow d-inline-flex align-items-center gap-2" href="{{ url_for('releases.release', k_lanzamiento=p.lanzamiento.id) }}">
+            {% if p.lanzamiento.i_lanzamiento %}
+            <img src="{{ p.lanzamiento.i_lanzamiento }}" alt="" width="24" height="24" class="rounded-1" style="object-fit: cover;">
+            {% endif %}
+            {{ p.artista.n_artista.title() ~ ' · ' if p.artista }}{{ p.lanzamiento.n_lanzamiento.title() }}
+        </a>
         {% endif %}
         {% if modal %}<h2 class="h3 mt-1">{{ p.nombre }}</h2>{% else %}<h1 class="h3 mt-1">{{ p.nombre }}</h1>{% endif %}
         <div class="fs-3 fw-bold mb-3">{{ p.precio|cop }}</div>

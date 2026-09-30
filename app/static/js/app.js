@@ -1,7 +1,7 @@
 /* Musical Box — utilidades de la interfaz */
 
 // Función para mostrar alertas con SweetAlert
-function showAlert(message, type, timer = 6000) {
+function showAlert(message, type, timer = 4000) {
     let icon = 'info';
     if (type === 'danger' || type === 'error' || type === 'alert-danger') {
         icon = 'error';
@@ -18,7 +18,14 @@ function showAlert(message, type, timer = 6000) {
         timerProgressBar: true,
         showConfirmButton: false,
         toast: true,
-        position: 'top-end'
+        position: 'bottom-end',
+        width: '350px',
+        customClass: {
+            container: 'mb-swal-container',
+            popup: 'mb-swal-popup',
+            title: 'mb-swal-title',
+            content: 'mb-swal-content'
+        }
     });
 }
 

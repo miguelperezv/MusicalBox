@@ -1009,6 +1009,8 @@ def get_products_cards(limit=None, k_lanzamiento=None):
             #pack: imágenes de sus productos para armar el collage (máx. 4)
             "collage": [{"id": c.componente.id, "nombre": c.componente.n_producto, "respaldo": c.componente.lanzamiento.i_lanzamiento if c.componente.lanzamiento else ''}
                         for c in p.componentes][:4] if p.tipo == 'BUNDLE' else [],
+            # Cargar imágenes del producto
+            "imagenes": get_images_by_product(p.id),
         })
     return cards
 

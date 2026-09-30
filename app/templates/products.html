@@ -22,7 +22,7 @@
         {% endif %}
     </header>
 
-    <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 g-3 g-lg-4">
+    <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3 g-lg-4">
         {% for p in productos %}
         <div class="col" data-categoria="{{ p.categoria }}">{{ product_card(p) }}</div>
         {% else %}
@@ -34,38 +34,40 @@
 
 {% block scripts %}
 <script>
+    // Inicializar tooltips de Bootstrap
+    document.addEventListener('DOMContentLoaded', function() {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        })
+    });
+    
     // Efecto hover para cambiar imágenes en tarjetas de productos
     document.addEventListener('DOMContentLoaded', function() {
-        console.log("Inicializando efecto hover para productos");
         const cardContainers = document.querySelectorAll('.mb-card-image-container');
-        console.log("Encontrados", cardContainers.length, "contenedores de imágenes");
         
-        cardContainers.forEach(function(container, index) {
+        cardContainers.forEach(function(container) {
             const images = container.querySelectorAll('.mb-card-image');
-            console.log("Contenedor", index, "tiene", images.length, "imágenes");
             
             if (images.length > 1) {
                 let currentIndex = 0;
                 let hoverTimer = null;
                 
                 container.addEventListener('mouseenter', function() {
-                    console.log("Mouse enter en contenedor", index);
                     // Reiniciar al primer imagen
                     currentIndex = 0;
                     images.forEach(img => img.style.opacity = '0');
                     images[0].style.opacity = '1';
                     
-                    // Cambiar imágenes cada 1 segundo mientras el mouse está encima
+                    // Cambiar imágenes cada 1.5 segundos mientras el mouse está encima
                     hoverTimer = setInterval(() => {
                         images[currentIndex].style.opacity = '0';
                         currentIndex = (currentIndex + 1) % images.length;
                         images[currentIndex].style.opacity = '1';
-                        console.log("Cambiando a imagen", currentIndex, "en contenedor", index);
-                    }, 1000);
+                    }, 1500);
                 });
                 
                 container.addEventListener('mouseleave', function() {
-                    console.log("Mouse leave en contenedor", index);
                     // Detener el cambio automático
                     if (hoverTimer) {
                         clearInterval(hoverTimer);
@@ -82,7 +84,7 @@
         });
     });
     
-    // Scripts originales de filtrado
+    // Scripts de filtrado
     document.querySelectorAll('#filtros [data-filtro]').forEach(function (btn) {
         btn.addEventListener('click', function () {
             document.querySelectorAll('#filtros [data-filtro]').forEach(function (b) {

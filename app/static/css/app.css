@@ -131,19 +131,28 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 .mb-card.soldout .cover img { filter: grayscale(.85); opacity: .7; }
 
 /* Efecto hover para tarjetas con múltiples imágenes */
-.mb-card-image-container:hover .mb-card-image {
+.mb-card-image-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    border-radius: var(--mb-radius);
+}
+
+.mb-card-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
     opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+    border-radius: var(--mb-radius);
 }
 
-.mb-card-image-container:hover .mb-card-image:first-child {
+.mb-card-image:first-child {
     opacity: 1;
-}
-
-/* Animación de cambio de imágenes */
-@keyframes imageChange {
-    0% { opacity: 1; }
-    50% { opacity: 0; }
-    100% { opacity: 1; }
 }
 
 /* Contador de imágenes en carrusel */
@@ -157,27 +166,6 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
     border-radius: 12px;
     font-size: 0.75rem;
     z-index: 10;
-}
-
-/* Indicadores del carrusel */
-.carousel-indicators {
-    margin-bottom: 1rem;
-}
-
-.carousel-indicators button {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background-color: rgba(255, 255, 255, 0.5);
-    border: 0;
-    margin: 0 4px;
-    opacity: 1;
-}
-
-.carousel-indicators button.active {
-    background-color: white;
-    width: 10px;
-    height: 10px;
 }
 
 /* Mejoras para mostrar más productos sin scroll infinito */
@@ -198,6 +186,14 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
     background: linear-gradient(135deg, var(--mb-aqua), var(--mb-sky));
 }
 .mb-cover-placeholder img { width: 45% !important; height: auto !important; object-fit: contain !important; }
+
+/* Tooltip personalizado para tarjetas */
+.tooltip {
+    --bs-tooltip-bg: var(--mb-ink);
+    --bs-tooltip-padding-x: 0.5rem;
+    --bs-tooltip-padding-y: 0.25rem;
+    --bs-tooltip-font-size: 0.75rem;
+}
 
 /* ---------- detalle lanzamiento ---------- */
 .mb-release-hero { background: #fff; border-radius: var(--mb-radius); box-shadow: var(--mb-shadow); overflow: hidden; }
@@ -242,8 +238,34 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 .mb-footer h6 { color: #fff; font-weight: 700; margin-bottom: .7rem; font-size: 0.9rem; }
 
 /* ---------- alertas ---------- */
-.mb-toasts { position: fixed; top: 4rem; right: 1rem; z-index: 1090; display: grid; gap: .4rem; max-width: min(320px, calc(100vw - 2rem)); }
+.mb-toasts { position: fixed; bottom: 1rem; right: 1rem; z-index: 1090; display: grid; gap: .4rem; max-width: min(320px, calc(100vw - 2rem)); }
 .mb-toasts .alert { box-shadow: var(--mb-shadow-hover); border: 0; border-radius: 10px; margin: 0; font-size: 0.8rem; padding: 0.7rem 1rem; }
+
+/* Estilos personalizados para SweetAlert */
+.mb-swal-container {
+    z-index: 1090;
+}
+
+.mb-swal-popup {
+    border-radius: 10px !important;
+    box-shadow: var(--mb-shadow-hover) !important;
+    font-family: var(--bs-body-font-family) !important;
+    font-size: 0.85rem !important;
+    padding: 0.8rem !important;
+}
+
+.mb-swal-title {
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.mb-swal-content {
+    font-size: 0.85rem !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
 
 /* ---------- admin ---------- */
 .mb-admin { display: flex; min-height: calc(100vh - 50px); }
@@ -331,9 +353,22 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 @media (min-width: 768px) { .mb-release-mini { width: 100px; height: 100px; } }
 
 /* ---------- detalle de producto (página y modal) ---------- */
-.mb-detalle-img { aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: var(--mb-sky); }
-.mb-detalle-img > img { width: 100%; height: 100%; object-fit: cover; }
+.mb-detalle-img { aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: var(--mb-sky); display: flex; align-items: center; justify-content: center; position: relative; }
+.mb-detalle-img > img { width: 100%; height: 100%; object-fit: cover; transition: opacity 0.3s ease; }
 .mb-detalle-img.soldout img { filter: grayscale(.8); opacity: .75; }
+
+/* Transición suave entre imágenes del carrusel */
+.carousel-item img {
+    transition: opacity 0.3s ease;
+}
+
+.carousel-item:not(.active) img {
+    opacity: 0;
+}
+
+.carousel-item.active img {
+    opacity: 1;
+}
 .mb-card .cover .mb-original img, .mb-original img { width: 14px !important; height: 14px !important; object-fit: contain !important; transform: none !important; }
 .mb-original-corner { pointer-events: none; }
 .mb-card > .admin-edit { z-index: 3; width: 28px; height: 28px; padding: 0; display: grid; place-items: center; border-radius: 50%; font-size: 0.7rem; }

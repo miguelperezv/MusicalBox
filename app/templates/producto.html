@@ -21,27 +21,32 @@
 <script>
     // Actualizar contador del carrusel
     document.addEventListener('DOMContentLoaded', function() {
-        var carousel = document.getElementById('productCarousel');
-        if (carousel) {
-            var carouselInstance = bootstrap.Carousel.getOrCreateInstance(carousel);
-            var counter = carousel.querySelector('.carousel-counter');
-            var currentIndex = 1;
-            var total = carousel.querySelectorAll('.carousel-item').length;
+        // Inicializar todos los carruseles
+        var carousels = document.querySelectorAll('[id^="productCarousel-"]');
+        carousels.forEach(function(carouselElement) {
+            var carouselInstance = bootstrap.Carousel.getOrCreateInstance(carouselElement);
+            var counter = carouselElement.querySelector('.carousel-counter');
             
             if (counter) {
+                var total = carouselElement.querySelectorAll('.carousel-item').length;
+                var currentIndex = 1;
+                
                 // Actualizar contador inicial
                 counter.querySelector('.total').textContent = total;
                 
                 // Actualizar contador al cambiar de slide
-                carousel.addEventListener('slide.bs.carousel', function(event) {
+                carouselElement.addEventListener('slide.bs.carousel', function(event) {
                     currentIndex = event.to + 1;
                     counter.querySelector('.current').textContent = currentIndex;
                 });
             }
             
-            // Verificar que el carrusel se inicializó correctamente
-            console.log("Carrusel inicializado con", total, "imágenes");
-        }
+            // Para modales: iniciar autoplay automático
+            if (carouselElement.id.includes('modal')) {
+                // Iniciar autoplay con intervalo de 3 segundos
+                carouselInstance.cycle();
+            }
+        });
     });
 </script>
 {% endblock %}

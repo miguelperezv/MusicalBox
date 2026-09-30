@@ -63,3 +63,57 @@
     </section>
 </div>
 {% endblock %}
+
+{% block scripts %}
+<script>
+    // Inicializar tooltips de Bootstrap
+    document.addEventListener('DOMContentLoaded', function() {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        })
+    });
+    
+    // Efecto hover para cambiar imágenes en tarjetas de productos
+    document.addEventListener('DOMContentLoaded', function() {
+        const cardContainers = document.querySelectorAll('.mb-card-image-container');
+        
+        cardContainers.forEach(function(container) {
+            const images = container.querySelectorAll('.mb-card-image');
+            
+            if (images.length > 1) {
+                let currentIndex = 0;
+                let hoverTimer = null;
+                
+                container.addEventListener('mouseenter', function() {
+                    // Reiniciar al primer imagen
+                    currentIndex = 0;
+                    images.forEach(img => img.style.opacity = '0');
+                    images[0].style.opacity = '1';
+                    
+                    // Cambiar imágenes cada 1.5 segundos mientras el mouse está encima
+                    hoverTimer = setInterval(() => {
+                        images[currentIndex].style.opacity = '0';
+                        currentIndex = (currentIndex + 1) % images.length;
+                        images[currentIndex].style.opacity = '1';
+                    }, 1500);
+                });
+                
+                container.addEventListener('mouseleave', function() {
+                    // Detener el cambio automático
+                    if (hoverTimer) {
+                        clearInterval(hoverTimer);
+                        hoverTimer = null;
+                    }
+                    
+                    // Volver a la primera imagen
+                    images.forEach((img, imgIndex) => {
+                        img.style.opacity = imgIndex === 0 ? '1' : '0';
+                    });
+                    currentIndex = 0;
+                });
+            }
+        });
+    });
+</script>
+{% endblock %}
