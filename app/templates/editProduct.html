@@ -13,6 +13,7 @@
 
 {% if producto %}
 <form class="mb-panel" style="max-width: 760px" method="POST" action="{{ url_for('dashboard.updateproduct', k_producto=producto.id) }}" enctype="multipart/form-data">
+    {{ form.csrf_token }}
     <div class="d-flex gap-3 align-items-center mb-4">
         <div class="mb-thumb" style="width:88px;height:88px">{{ product_cover(producto.id, producto.lanzamiento.i_lanzamiento if producto.lanzamiento else '', producto.n_producto, w=300) }}</div>
         <div>
