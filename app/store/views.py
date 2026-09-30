@@ -704,14 +704,20 @@ def thankyou():
 def image(k_producto): 
     # Obtener el parámetro de orden si existe
     orden = request.args.get("orden", type=int)
+    print(f"Accediendo a imagen de producto {k_producto}, orden: {orden}")
     
     if orden is not None:
         # Obtener imagen específica por orden
         imagen = Imagen.query.filter_by(k_producto=k_producto, orden=orden).first()
+        print(f"Imagen encontrada: {imagen is not None}")
         if imagen:
+            print(f"Sirviendo imagen ID {imagen.id}, nombre: {imagen.name}, orden: {imagen.orden}")
             return Response(imagen.img, mimetype=imagen.mimetype)
+        else:
+            print(f"No se encontró imagen con orden {orden} para producto {k_producto}")
     
     # Comportamiento original: obtener la primera imagen
+    print("Usando comportamiento original (primera imagen)")
     respuesta = imagen_producto(k_producto, request.args.get("w", default=600, type=int))
     if respuesta:
         return respuesta
