@@ -677,6 +677,9 @@ def get_images_by_product(k_producto):
     """Obtiene todas las imágenes de un producto ordenadas por el campo orden"""
     try:
         images = Imagen.query.filter_by(k_producto=k_producto).order_by(Imagen.orden).all()
+        print(f"get_images_by_product({k_producto}): encontradas {len(images)} imágenes")
+        for img in images:
+            print(f"  Imagen ID: {img.id}, Orden: {img.orden}, Nombre: {img.name}")
         return images
     except Exception as e:
         print("Error obteniendo imágenes del producto: " + str(e))
