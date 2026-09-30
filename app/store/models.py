@@ -673,6 +673,29 @@ def get_rawimage_by_product(k_producto):
         return None
     
 
+def get_images_by_product(k_producto):
+    """Obtiene todas las imágenes de un producto ordenadas por el campo orden"""
+    try:
+        images = Imagen.query.filter_by(k_producto=k_producto).order_by(Imagen.orden).all()
+        return images
+    except Exception as e:
+        print("Error obteniendo imágenes del producto: " + str(e))
+        return []
+
+
+def get_first_image_by_product(k_producto):
+    """Obtiene la primera imagen de un producto (orden = 0)"""
+    try:
+        image = Imagen.query.filter_by(k_producto=k_producto, orden=0).first()
+        if not image:
+            # Si no hay imagen con orden 0, obtener la primera imagen disponible
+            image = Imagen.query.filter_by(k_producto=k_producto).order_by(Imagen.orden).first()
+        return image
+    except Exception as e:
+        print("Error obteniendo primera imagen del producto: " + str(e))
+        return None
+
+
 def get_artist_by_release(k_lanzamiento):
     lanz_art = Lanzamiento_Artista.query.filter_by(k_lanzamiento=k_lanzamiento).first()
     if not lanz_art:
