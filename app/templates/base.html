@@ -16,6 +16,11 @@
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Musical Box","url":"{{ request.host_url }}","logo":"{{ url_for('static', filename='imgs/musicalbox.png', _external=True) }}","sameAs":["https://facebook.com/musicalboxcol/","https://www.instagram.com/musicalboxcol/","https://twitter.com/musicalboxcol","https://tiktok.com/@musicalboxcol"]}</script>
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"Musical Box","url":"{{ request.host_url }}","potentialAction":{"@type":"SearchAction","target":"{{ request.host_url }}releases/?q={search_term_string}","query-input":"required name=search_term_string"}}</script>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='imgs/musicalbox.png') }}">
+    <link rel="manifest" href="{{ url_for('home.manifest') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='pwa/icon-192.png') }}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Musical Box">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -162,6 +167,12 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script>
+        //pwa: registrar service worker (app shell offline)
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('{{ url_for("home.service_worker") }}').catch(function () {});
+        }
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

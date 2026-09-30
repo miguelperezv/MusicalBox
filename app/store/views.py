@@ -112,6 +112,51 @@ def sitemap():
     lineas.append('</urlset>')
     return Response('\n'.join(lineas), mimetype="application/xml")
 
+@home.route("/manifest.webmanifest")
+def manifest():
+    #pwa: manifiesto instalable; iconos por url_for para respetar el prefijo de static
+    return Response(json.dumps({
+        "name": "Musical Box",
+        "short_name": "Musical Box",
+        "description": "CD's, vinilos y cassettes en Bogotá. Lanzamientos, ediciones especiales y pedidos a la medida.",
+        "lang": "es",
+        "start_url": url_for('home.index', _external=False),
+        "scope": "/",
+        "display": "standalone",
+        "background_color": "#0f1c24",
+        "theme_color": "#0f1c24",
+        "icons": [
+            {"src": url_for('static', filename='pwa/icon-192.png'), "sizes": "192x192", "type": "image/png", "purpose": "any"},
+            {"src": url_for('static', filename='pwa/icon-512.png'), "sizes": "512x512", "type": "image/png", "purpose": "any maskable"},
+        ],
+    }), mimetype="application/manifest+json")
+
+@home.route("/sw.js")
+def service_worker():
+    #pwa: app shell offline; las demas peticiones se quedan en red
+    js = """
+const CACHE = 'mb-pwa-v1';
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (e) => {
+    e.waitUntil(caches.keys()
+        .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+        .then(() => self.clients.claim()));
+});
+self.addEventListener('fetch', (e) => {
+    const req = e.request;
+    if (req.method !== 'GET' || req.mode !== 'navigate') return;
+    e.respondWith(
+        fetch(req).then((res) => {
+            const copia = res.clone();
+            caches.open(CACHE).then((c) => c.put(req, copia));
+            return res;
+        }).catch(() => caches.match(req).then((r) => r || caches.match('/')))
+    );
+});
+""".strip()
+    return Response(js + "\n", mimetype="application/javascript; charset=utf-8",
+                    headers={"Cache-Control": "no-cache"})
+
 @home.route("/login", methods=["GET", 'POST'])
 def login():
     from .seguridad import check_password
