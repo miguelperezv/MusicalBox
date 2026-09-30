@@ -23,7 +23,8 @@ Repo: `github.com/miguelperezv/MusicalBox` (rama `main`). El remoto `upstream` e
   Flask-Migrate (Alembic), Flask-WTF / WTForms 3, marshmallow 3 (<4: se usa `Meta.fields`), Pillow, requests, truststore.
 - Frontend: Jinja + Bootstrap 5.3 + Bootstrap Icons + jQuery 3.7 (solo en el panel) + `app/static/js/app.js`.
 - BD: SQLite en `instance/musicalbox.sqlite3` (ignorada por git). Producción prevista: PythonAnywhere con SQLite.
-- Pagos: **ePayco** (checkout.js + validación por API). No es Wompi ni Stripe.
+- Pagos: **MercadoPago** (payment brick + webhook). ePayco se retiró en 2026-09 (código residual eliminado;
+  la suite de tests aún asume el flujo viejo). No es Wompi ni Stripe.
 
 ## Correr en local (Windows)
 
@@ -51,12 +52,13 @@ py -3.12 -m venv .venv
 run.py                     crea `app` (flask --app run ...); inyecta truststore
 app/__init__.py            create_app(): config por APP_CONFIG, blueprints, filtro |cop, context processor
                            (user, purchase_cart), 404, comando crear-admin
-app/config.py              Config / DevelopmentConfig / ProductionConfig (ePayco, MAIL_*, ACTIVACION_MAX_DIAS)
+app/config.py              Config / DevelopmentConfig / ProductionConfig (MERCADOPAGO_*, MAIL_*, ACTIVACION_MAX_DIAS)
 app/db.py                  db (naming convention), ma, migrate (render_as_batch)
 app/correo.py              enviar(): backend consola (.eml en instance/correos/) | smtp | memoria (tests)
 app/store/models.py        TODOS los modelos principales + la mayoría de la lógica de negocio
 app/store/views.py         blueprints home, dashboard (admin), releases, artists, purchase, products
-app/store/pedidos.py       checkout sin cuenta, /pedido/<token>, respuesta ePayco, simulación (dev)
+app/store/pedidos.py       /pedido/<token> (seguimiento, actualizar envío), simulación (dev)
+app/store/mercadopago/     payment brick: create_preference, process_payment, webhook (MP)
 app/store/solicitudes.py   pedidos a la medida: formulario, lista admin, cotizar, /solicitud/confirmar/<token>
 app/store/carrito.py       carrito en sesión: agregar, cambiar cantidad, resumen con avisos de stock
 app/store/catalogo_admin.py rutas extra del panel: tallas, packs, estado de envío, rótulo, redes, listados
@@ -107,10 +109,11 @@ Migraciones (en orden): `5b10cf662d03` línea base → `a36be8d1f63e` checkout s
   1. Carrito en sesión, con claves `"producto"` o `"producto:variante"`.
   2. `/purchase/checkout` (`CheckoutForm`: nombre, correo, celular, envío, método de pago; sin contraseña).
      `crear_pedido()` crea el pedido PENDIENTE y devuelve un token `secrets.token_urlsafe(32)`.
-  3. `/pedido/<token>` muestra el botón de ePayco.
-  4. ePayco vuelve a `/pedido/<token>/respuesta`: se valida la referencia con su API (número `MB<id>-<hash8>` y monto
-     exactos) y se llama a `confirmar_pago()`, que es idempotente: descuenta stock (variante o componentes del pack),
-     pasa a PAGADO / POR PREPARAR y envía el correo una sola vez.
+  3. `/pedido/<token>` carga el payment brick de MercadoPago; al aprobarse el frontend llama a
+     `/mercadopago/process_payment` (PSE tarda: lo confirma el webhook `/mercadopago/webhook`).
+  4. Ambos caminos llaman a `confirmar_pago()` (models), que es idempotente: descuenta stock (variante o componentes
+     del pack), libera las reservas de `ReservaStock`, pasa a PAGADO / POR PREPARAR, marca la solicitud COMPRADA
+     y envía el correo una sola vez. Rechazados: `rechazar_pago()` (libera la reserva).
 - **Stock**: `stock_disponible()`, `validar_carrito()` (suma la demanda de sueltos + packs por unidad física),
   `descontar_stock()` (nunca queda negativo).
 - **Pedido a la medida**:
@@ -149,9 +152,9 @@ Las secciones con `data-load` se cargan por AJAX dentro de `#admin-content`; las
 ## Pendientes conocidos
 
 - Seguridad: cifrar contraseñas (hoy texto plano, también en la cookie de sesión), CSRF en formularios del panel,
-  llave privada de ePayco de pruebas por defecto en `config.py`.
+  llaves de MercadoPago de pruebas por defecto en `config.py`.
 - Despliegue en PythonAnywhere (guía lista). La migración de `item` para MySQL no está escrita.
 - Correo real: definir proveedor y variables `MAIL_*`. Hoy el correo se guarda en `instance/correos/`.
 - Miniaturas reales de Instagram (requiere API de Meta). Carga automática de posts: fuera de alcance por ahora.
-- Método de pago elegido en el checkout: se guarda como preferencia; no restringe los métodos en ePayco.
+- Método de pago elegido en el checkout: se guarda como preferencia; no restringe los métodos en MercadoPago.
 - El stock no se reserva entre crear el pedido y pagarlo.

@@ -124,7 +124,6 @@ def login():
 
 @home.route("/signup", methods=["GET", 'POST'])
 def signup():
-    print("g.user "+ str(g.user))
     if not g.user: 
         form_signup= CreateUsuarioForm()
 
@@ -202,7 +201,6 @@ def account():
             return redirect(request.referrer)
     if request.method == "GET":
         
-        print("USER: " + str(session["user"]))
         edit_usuario.name.data = session["user"]["n_usuario"]
         edit_usuario.lastname.data = session["user"]["ape_usuario"]
         edit_usuario.email_usuario.data = session["user"]["email_usuario"]
@@ -254,9 +252,7 @@ def newrelease():
             return redirect(url_for('home.admin'))
         f_lanzamiento = form_new_release.f_lanzamiento.data
         k_genero = form_new_release.k_genero.data
-        print(k_genero)
         k_lanzamiento= create_new_release(k_artista, n_lanzamiento, i_lanzamiento, f_lanzamiento, k_genero)
-        print("EL LANZAMIENTO ES: "+str(k_lanzamiento)+" , "+ n_lanzamiento)
         if k_lanzamiento :
             guardar_url_social(k_lanzamiento, form_new_release.url_social.data)
             release_genre = create_release_genre(k_lanzamiento,  k_genero)
@@ -293,8 +289,6 @@ def newproduct():
         
         #k_lanzamiento = get_k_release_by_name_artista(n_lanzamiento,n_artista)
         k_lanzamiento = form_new_product.n_lanzamiento.data.split(".")[0]
-        print("K_LANZAMIENTO ES "+ k_lanzamiento)
-        print("imagefile")
         image_files = request.files.getlist('inputImages')
         # Filtrar archivos vacíos
         image_files = [f for f in image_files if f and f.filename]
@@ -365,7 +359,6 @@ def newartist():
         form_cat_genre = newCat_Genre_Artist()
         artist = form_cat_genre.n_artist.data.upper()
         country = form_cat_genre.country.data
-        print(country)
         result = create_new_artist(artist, country)
         if result:
             flash("Artista registrado!: " + artist)
@@ -381,7 +374,6 @@ def newadmin():
         email = form_new_admin.email.data
         pwd = form_new_admin.pwd.data
         result = new_admin(email, pwd, session["user"])
-        print("result "+ str(result))
         if result:
             flash("Nuevo administrador con el correo "+ email)
             return redirect(url_for("home.admin"))
@@ -407,9 +399,7 @@ def editrelease():
             flash("Elige una opción de la lista", "warning")
             return redirect(url_for('dashboard.editrelease'))
         k_lanzamiento = int(seleccion)
-        print("SOY POST")
         lanzamiento = get_release_by_id(k_lanzamiento)
-        print(lanzamiento)
         if get_genres_by_release(k_lanzamiento):
             form_edit_release.k_genero.data = get_genres_by_release(k_lanzamiento)[0].get("k_genero")
             
@@ -432,7 +422,6 @@ def updaterelease(k_lanzamiento):
             return redirect(url_for('dashboard.updaterelease', k_lanzamiento=k_lanzamiento))
         f_lanzamiento = form_edit_release.f_lanzamiento.data
         k_genero = form_edit_release.k_genero.data
-        print(k_genero)
         
         result = update_release(k_lanzamiento, n_lanzamiento, i_lanzamiento, k_artista, f_lanzamiento, k_genero)
         if result:
@@ -446,7 +435,6 @@ def updaterelease(k_lanzamiento):
         
         k_lanzamiento = int (k_lanzamiento)
         lanzamiento = get_release_by_id(k_lanzamiento)
-        print(lanzamiento)
         if get_genres_by_release(k_lanzamiento):
             form_edit_release.k_genero.data = get_genres_by_release(k_lanzamiento)[0].get("k_genero")
             
@@ -472,10 +460,8 @@ def editproduct():
         # Asegurarse de que las imágenes se carguen correctamente
         imagenes = get_images_by_product(k_producto)
         producto.imagenes = imagenes
-        print("Cargando producto:", k_producto, "con", len(imagenes), "imágenes")
         for img in imagenes:
-            print(f"  Imagen ID: {img.id}, Orden: {img.orden}, Nombre: {img.name}")
-        print(producto.p_producto)
+           pass
         form_edit_product.n_producto_edit.data = producto.n_producto
         form_edit_product.p_producto.data = int(producto.p_producto or 0)
         form_edit_product.stock.data = producto.stock
@@ -488,7 +474,6 @@ def editproduct():
 
 @dashboard.route("/updateproduct/<string:k_producto>",  methods=["GET", "POST"])
 def updateproduct(k_producto):
-    print("ESTOY EN EL PRODUCTO "+ k_producto)
     form = newProductForm()
     if request.method == 'POST':
         k_producto = int(k_producto)
@@ -499,15 +484,13 @@ def updateproduct(k_producto):
         k_category = form.k_category.data
         stock = form.stock.data
         #print("i_producto "+ str(i_producto))
-        print("p_producto "+ str(p_producto))
         image_files = None
         try:
             image_files = request.files.getlist('inputImages')
             # Filtrar archivos vacíos
             image_files = [f for f in image_files if f and f.filename]
-            print("obtuve las imágenes a editar: " + str(len(image_files)))
         except Exception as e:
-            print("ERROR OBTENIENDO LAS IMÁGENES "+ str(e))
+           pass
 
         # Manejar reordenación de imágenes existentes
         imagen_ordenes = request.form.get('imagen_ordenes')
@@ -516,7 +499,7 @@ def updateproduct(k_producto):
                 ordenes = json.loads(imagen_ordenes)
                 reorder_images(k_producto, ordenes)
             except Exception as e:
-                print("Error actualizando ordenes: " + str(e))
+               pass
 
         result = edit_product(k_producto, n_producto, d_producto, p_producto, image_files, k_category, stock)
         if result:
@@ -537,10 +520,8 @@ def updateproduct(k_producto):
         # Asegurarse de que las imágenes se carguen correctamente
         imagenes = get_images_by_product(k_producto)
         producto.imagenes = imagenes
-        print("Cargando producto:", k_producto, "con", len(imagenes), "imágenes")
         for img in imagenes:
-            print(f"  Imagen ID: {img.id}, Orden: {img.orden}, Nombre: {img.name}")
-        print(producto.p_producto)
+           pass
         form_edit_product.n_producto_edit.data = producto.n_producto
         form_edit_product.p_producto.data = int(producto.p_producto or 0)
         form_edit_product.stock.data = producto.stock
@@ -558,44 +539,35 @@ def editgenre_category_artist():
 
 @dashboard.route("/batch-upload", methods=["GET", "POST"])
 def batch_upload():
-    print(f"[DEBUG] batch_upload called with method: {request.method}")
     
     if request.method == "POST":
-        print("[DEBUG] Processing POST request")
         
         if "csv_file" not in request.files:
-            print("[DEBUG] No csv_file in request.files")
             flash("No se seleccionó archivo", "warning")
             return redirect(request.url)
         
         file = request.files["csv_file"]
-        print(f"[DEBUG] File received: {file.filename if file else 'None'}")
         
         if not file or not file.filename:
-            print("[DEBUG] Empty file")
             flash("Archivo vacío", "warning")
             return redirect(request.url)
             
         try:
-            print("[DEBUG] Reading CSV file")
             # Leer contenido del archivo
             stream = io.StringIO(file.stream.read().decode("utf-8"), newline=None)
             file.stream.seek(0)  # Resetear puntero
             csv_reader = csv.DictReader(stream, delimiter=',')
-            print(f"[DEBUG] CSV columns: {csv_reader.fieldnames if csv_reader.fieldnames else 'None'}")
             
             # Validar columnas requeridas
             required_columns = {"tipo", "nombre", "artista", "fecha"}
             if not required_columns.issubset(csv_reader.fieldnames or []):
                 missing = required_columns - set(csv_reader.fieldnames or [])
-                print(f"[DEBUG] Missing columns: {missing}")
                 flash(f"Faltan columnas requeridas: {', '.join(missing)}", "warning")
                 return redirect(request.url)
                 
             results = {"creados": 0, "errores": []}
             
             for i, row in enumerate(csv_reader, start=2):  # Empezar en 2 (headers=1)
-                print(f"[DEBUG] Processing row {i}: {row}")
                 try:
                     if row["tipo"] == "lanzamiento":
                         # Procesar lanzamiento
@@ -711,7 +683,6 @@ def batch_upload():
                 flash(error, "warning")
                 
         except Exception as e:
-            print(f"[DEBUG] General error: {str(e)}")
             flash(f"Error procesando archivo: {str(e)}", "error")
             
         return redirect(url_for("dashboard.batch_upload"))
@@ -864,20 +835,16 @@ def thankyou():
 def image(k_producto): 
     # Obtener el parámetro de orden si existe
     orden = request.args.get("orden", type=int)
-    print(f"Accediendo a imagen de producto {k_producto}, orden: {orden}")
     
     if orden is not None:
         # Obtener imagen específica por orden
         imagen = Imagen.query.filter_by(k_producto=k_producto, orden=orden).first()
-        print(f"Imagen encontrada: {imagen is not None}")
         if imagen:
-            print(f"Sirviendo imagen ID {imagen.id}, nombre: {imagen.name}, orden: {imagen.orden}")
             return Response(imagen.img, mimetype=imagen.mimetype)
         else:
-            print(f"No se encontró imagen con orden {orden} para producto {k_producto}")
+           pass
     
     # Comportamiento original: obtener la primera imagen
-    print("Usando comportamiento original (primera imagen)")
     respuesta = imagen_producto(k_producto, request.args.get("w", default=600, type=int))
     if respuesta:
         return respuesta

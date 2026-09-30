@@ -3,10 +3,8 @@ import uuid
 import hashlib
 import mercadopago
 from mercadopago import config as mp_config
-from ..models import Invoice, Item, Producto, Variante
-from ...db import db
+from ..models import Invoice, confirmar_pago, rechazar_pago
 from ..notificaciones import correo_pedido_pagado
-from ..pedidos import discount_stock
 
 mercadopago_bp = Blueprint('mercadopago', __name__, url_prefix='/mercadopago')
 
@@ -163,9 +161,11 @@ def process_payment():
             "additional_info": {
                 "ip_address": ip
             },
-            # PSE requiere callback_url específicamente, usar una URL válida
-            "callback_url": "https://httpbin.org/post"
         }
+        #tras la confirmación del banco, el comprador vuelve a la página de su pedido
+        token_plano = payload.get("token_hash")
+        if token_plano:
+            payment_data["callback_url"] = url_for('pedido.ver', token=token_plano, _external=True)
         
         # Agregar otros campos que puedan venir en el payload de PSE
         for key, value in payload.items():
@@ -273,43 +273,22 @@ def process_payment():
                     "details": str(e)
                 }), 500
     
-    # Confirmación: si aprobó, cambiar estado
+    # Confirmación: confirmar_pago() es idempotente y completa el pedido de un solo paso
+    # (estado_envio POR PREPARAR, solicitud→COMPRADA, liberar reservas y stock)
     if mp_body.get("status") == "approved":
         current_app.logger.info(f"[MP] Pago aprobado para pedido {inv.id}")
-        try:
-            # Guardar el pago y marcar el pedido como PAGADO primero (siempre)
-            inv.estado = "PAGADO"
-            inv.mp_payment_id = str(mp_body.get("id") or "")
-            current_app.logger.info(f"[MP] Estado del pedido {inv.id} cambiado a PAGADO, payment_id: {inv.mp_payment_id}")
-            db.session.commit()  # Commit del estado/pago primero
-            current_app.logger.info(f"[MP] Transacción de estado confirmada para pedido {inv.id}")
-            
-            # Ejecutar stock y email después, con manejo de errores separado
+        inv.mp_payment_id = str(mp_body.get("id") or "")
+        p, nuevo = confirmar_pago(inv, inv.mp_payment_id, inv.mp_payment_id, payment_method_id)
+        if nuevo:
             try:
-                current_app.logger.info(f"[MP] Descontando stock para pedido {inv.id}")
-                discount_stock(inv)
-                db.session.commit()
-                current_app.logger.info(f"[MP] Stock descontado para pedido {inv.id}")
-            except Exception as e:
-                current_app.logger.exception(f"[MP] Fallo descuento de stock para pedido {inv.id}: {e}")
-                # No hacer rollback, el pago ya se procesó
-            
-            try:
-                current_app.logger.info(f"[MP] Enviando correo de confirmación para pedido {inv.id}")
-                correo_pedido_pagado(inv, inv.token_hash)
-                current_app.logger.info(f"[MP] Correo enviado para pedido {inv.id}")
+                #el payload manda el token plano como "token_hash": es el que va en el enlace del correo
+                correo_pedido_pagado(p, payload.get("token_hash"))
             except Exception as e:
                 current_app.logger.exception(f"[MP] Fallo envío de email para pedido {inv.id}: {e}")
-                
-            current_app.logger.info(f"[MP] Post-procesamiento completado para pedido {inv.id}")
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.exception(f"[MP] Error post-pago para pedido {inv.id}: {e}")
-            return jsonify({
-                "error": "Pago aprobado, pero falló el post-procesamiento. Revisá logs.",
-                "mp_status": mp_http_status,
-                "mp_response": mp_body,
-            }), 500
+            current_app.logger.info(f"[MP] Pedido {inv.id} confirmado, stock y solicitud actualizados")
+    elif mp_body.get("status") == "rejected":
+        current_app.logger.info(f"[MP] Pago rechazado para pedido {inv.id}: {mp_body.get('status_detail')}")
+        rechazar_pago(inv, str(mp_body.get("id") or ""))
     elif mp_http_status == 424:
         # Error específico de BankTransfers Api fail
         current_app.logger.error(f"[MP] Error 424 - BankTransfers Api fail para pedido {inv.id}")
@@ -323,11 +302,6 @@ def process_payment():
             "mp_response": mp_body,
             "retryable": True
         }), 424
-    elif mp_body.get("status") == "rejected":
-        current_app.logger.info(f"[MP] Pago rechazado para pedido {inv.id}")
-        # Registrar el motivo del rechazo para debugging
-        rejection_reason = mp_body.get("status_detail", "Sin detalles")
-        current_app.logger.info(f"[MP] Motivo de rechazo: {rejection_reason}")
     elif payment_method_id == "pse" and mp_body.get("status") == "in_process":
         current_app.logger.info(f"[MP-PSE] Pago PSE en proceso para pedido {inv.id}")
         # Para PSE, el estado puede quedar en "in_process" temporalmente
@@ -426,38 +400,25 @@ def process_payment_notification(data):
             current_app.logger.info(f"[MP-WEBHOOK] Método de pago detallado: {payment['payment_method']}")
         
         if payment_status == "approved" and inv.estado == "PENDIENTE":
-            # Pago aprobado, confirmar el pedido
+            # Pago aprobado, confirmar el pedido por el camino único idempotente
             current_app.logger.info(f"[MP-WEBHOOK] Pago aprobado para pedido pendiente {inv.id}")
-            inv.estado = "PAGADO"
-            inv.estado_envio = inv.estado_envio or 'POR PREPARAR'
             inv.mp_payment_id = str(payment.get("id", ""))
-            
-            # Descontar stock y enviar correo
-            try:
-                current_app.logger.info(f"[MP-WEBHOOK] Descontando stock para pedido {inv.id}")
-                discount_stock(inv)
-                current_app.logger.info(f"[MP-WEBHOOK] Stock descontado para pedido {inv.id}")
-                
-                current_app.logger.info(f"[MP-WEBHOOK] Enviando correo de confirmación para pedido {inv.id}")
-                correo_pedido_pagado(inv, external_reference)
-                current_app.logger.info(f"[MP-WEBHOOK] Correo enviado para pedido {inv.id}")
-                
-                db.session.commit()
+            p, nuevo = confirmar_pago(inv, inv.mp_payment_id, inv.mp_payment_id, payment_method_id)
+            if nuevo:
+                try:
+                    #aquí solo hay el hash del token: el enlace del correo puede no resolver (caso PSE tardío)
+                    correo_pedido_pagado(p, p.token_hash)
+                except Exception as e:
+                    current_app.logger.exception(f"[MP-WEBHOOK] Fallo envío de email para pedido {inv.id}: {e}")
                 current_app.logger.info(f"[MP-WEBHOOK] Pedido {inv.id} confirmado exitosamente")
-                return jsonify({"status": "processed"}), 200
-            except Exception as e:
-                db.session.rollback()
-                current_app.logger.error(f"[MP-WEBHOOK] Error confirmando pedido {inv.id}: {str(e)}")
-                current_app.logger.exception("[MP-WEBHOOK] Traceback completo del error:")
-                return jsonify({"error": "Error confirmando pedido"}), 500
-                
+            return jsonify({"status": "processed"}), 200
+
         elif payment_status in ["rejected", "cancelled", "refunded"]:
             # Pago rechazado o cancelado
             current_app.logger.info(f"[MP-WEBHOOK] Pago {payment_status} para pedido {inv.id}")
             if inv.estado == "PENDIENTE":
-                inv.estado = "RECHAZADO"
                 inv.mp_payment_id = str(payment.get("id", ""))
-                db.session.commit()
+                rechazar_pago(inv, inv.mp_payment_id)
                 current_app.logger.info(f"[MP-WEBHOOK] Pedido {inv.id} marcado como rechazado")
                 return jsonify({"status": "processed"}), 200
             else:

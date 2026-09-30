@@ -96,7 +96,7 @@ Pestaña **Web → Add a new web app**:
 | Virtualenv | `/home/TU_USUARIO/MusicalBox/.venv` |
 | Static files: URL | `/static/` |
 | Static files: Directory | `/home/TU_USUARIO/MusicalBox/app/static` |
-| Force HTTPS | **Activado** (lo necesita ePayco) |
+| Force HTTPS | **Activado** (lo necesita MercadoPago) |
 
 ---
 
@@ -112,9 +112,8 @@ os.chdir('/home/TU_USUARIO/MusicalBox')
 
 os.environ['APP_CONFIG'] = 'production'          # ver paso 0
 os.environ['SECRET_KEY'] = 'una-clave-larga-y-aleatoria'
-os.environ['EPAYCO_PUBLIC_KEY'] = '...'
-os.environ['EPAYCO_PRIVATE_KEY'] = '...'
-os.environ['EPAYCO_TEST'] = 'true'               # 'false' cuando cobres de verdad
+os.environ['MERCADOPAGO_PUBLIC_KEY'] = '...'
+os.environ['MERCADOPAGO_ACCESS_TOKEN'] = '...'  # de producción cuando cobres de verdad
 os.environ['MAIL_BACKEND'] = 'consola'           # 'smtp' cuando tengas proveedor de correo
 # os.environ['MAIL_SERVER'] = 'smtp.gmail.com'
 # os.environ['MAIL_PORT'] = '587'
@@ -143,8 +142,8 @@ python -c "import secrets; print(secrets.token_hex(32))"
 
 ## 7. Checklist antes de anunciar la tienda
 
-- [ ] Compra de prueba con ePayco en modo pruebas. En el servidor sí funciona la confirmación
-      servidor a servidor, que en local no podía llegar.
+- [ ] Compra de prueba con MercadoPago en modo pruebas.
+      (el webhook de confirmación solo llega en el servidor, no en local)
 - [ ] En la página del pedido **no** aparecen los botones de "simular pago".
 - [ ] El panel `/dashboard` pide login de administrador.
 - [ ] Pendientes de seguridad antes de recibir clientes reales:
@@ -152,7 +151,7 @@ python -c "import secrets; print(secrets.token_hex(32))"
   - [ ] Protección CSRF en todos los formularios del panel.
   - [ ] La contraseña no debe quedar guardada en la cookie de sesión.
 - [ ] Correo real configurado (`MAIL_BACKEND=smtp` y variables `MAIL_*`).
-- [ ] `EPAYCO_TEST=false` y llaves de producción de ePayco cuando se cobre de verdad.
+- [ ] Llaves de producción de MercadoPago (`MERCADOPAGO_PUBLIC_KEY` / `MERCADOPAGO_ACCESS_TOKEN`) cuando se cobre de verdad.
 
 ---
 

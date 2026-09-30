@@ -33,7 +33,6 @@ class GenreSelectField(SelectField):
         #self.choices = [(country.alpha_2, country.name) for country in pycountry.countries]
         genres = get_all_genres() or []
         genres.append({'k_genero' : 'N/A'})
-        print( genres)
         self.choices = [(genre['k_genero']) for genre in genres]
     
 

@@ -3,7 +3,7 @@
 
 [![Top Langs](https://github-readme-stats.vercel.app/api/top-langs/?username=miguellperezzv&langs_count=8)](https://github.com/anuraghazra/github-readme-stats)
 
-Tienda de CD's, vinilos y cassettes (lanzamientos, productos, carrito, pagos ePayco) con el gestor de
+pagos MercadoPago
 **solicitudes de pedido** y **rótulos de envío** que antes vivía en `musicalbox_manager`.
 
 ## Correr local
@@ -43,19 +43,18 @@ Si pip falla con `CERTIFICATE_VERIFY_FAILED` (antivirus/proxy), instala primero 
 
 ```bash
 .venv\Scripts\python -m pip install -r requirements-dev.txt
-.venv\Scripts\python -m pytest tests        # BD temporal creada con las migraciones; ePayco simulado
+.venv\Scripts\python -m pytest tests        # BD temporal creada con las migraciones; pago simulado
 ```
 
 ## Compra sin cuenta
 
 Carrito → `/purchase/checkout` (nombre, correo, celular, envío y método de pago; sin contraseña) → pedido PENDIENTE
-→ `/pedido/<token>` con opciones de pago (ePayco y MercadoPago) → ePayco vuelve a `/pedido/<token>/respuesta`, se valida la referencia
-con su API (pedido y monto exactos) y el pedido pasa a PAGADO (descuenta stock una sola vez) o RECHAZADO.
+→ /pedido/<token> con el payment brick de MercadoPago → al aprobarse, la app llama a confirmar_pago() 
+(idempotente: descuenta stock una sola vez, marca la solicitud COMPRADA y pasa a PAGADO) o rechazar_pago().
 
 - El comprador sin cuenta es un `usuario` con rol `CLIENTE`, único por correo: una segunda compra lo reutiliza.
 - El token del enlace es `secrets.token_urlsafe(32)` (256 bits); en la BD solo se guarda su SHA-256.
-- En desarrollo (`EPAYCO_SIMULACION`) la página del pedido tiene botones para simular la respuesta de ePayco.
-- Llaves de ePayco: variables de entorno `EPAYCO_PUBLIC_KEY`, `EPAYCO_PRIVATE_KEY`, `EPAYCO_TEST`.
+- En desarrollo (`EPAYCO_SIMULACION`) la página del pedido tiene botones para simular una confirmación de pago.
 - Para MercadoPago, se pueden usar las variables de entorno `MERCADOPAGO_PUBLIC_KEY` y `MERCADOPAGO_ACCESS_TOKEN`.
 
 ### Correos

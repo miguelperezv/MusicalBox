@@ -161,7 +161,7 @@ class Invoice(db.Model):
     mp_payment_id = db.Column(db.String(100))  # ID de pago de MercadoPago
     f_compra = db.Column(db.DateTime, default=datetime.now)
     total = db.Column(db.Numeric(13,2), nullable=False)
-    #checkout sin cuenta: el pedido existe antes del pago (PENDIENTE) y ePayco lo confirma o rechaza
+    #checkout sin cuenta: el pedido existe antes del pago (PENDIENTE) y la pasarela lo confirma o rechaza
     estado = db.Column(db.String(20), nullable=False, default='PENDIENTE', server_default='PENDIENTE')
     #logística, separada del pago: se activa cuando el pedido queda PAGADO
     estado_envio = db.Column(db.String(20))
@@ -334,10 +334,8 @@ def get_usuario_por_email(email):
     
 
 def create_new_artist(n_artista, pais_artista):
-    print("ARTISTA: "+ n_artista)
     query_artist = verify_existence_artist(n_artista)
     if query_artist:
-        print("El artista ya ha sido registrado!")
         return get_usuario_por_email(n_artista)  # Retornar el artista existente
     else:
         #k_artista = "A"+str(len(get_all_artists())+1)
@@ -350,7 +348,6 @@ def create_new_artist(n_artista, pais_artista):
             db.session.commit()
             return (artista)
         except Exception as e:
-            print("NO SE CREÓ EL artista "+ str(e))
             db.session.rollback()
             return None
             
@@ -362,14 +359,11 @@ def create_new_release(k_artista, n_lanzamiento,i_lanzamiento, f_lanzamiento, k_
     try:
         db.session.add(lanzamiento)
         k_lanzamiento = get_release_by_name(lanzamiento.n_lanzamiento)
-        print("EL ID DEL LANZAMIENTO QUEDÓ REGISTRADO ASI : "+str(k_lanzamiento))
         lanzamiento_artista = Lanzamiento_Artista(k_lanzamiento =lanzamiento.id, k_artista=k_artista)
-        print(lanzamiento_artista)
         db.session.add(lanzamiento_artista)
         db.session.commit()
         return(k_lanzamiento)
     except Exception as e:
-        print("NO SE CREÓ EL lanzamiento "+ str(e))
         db.session.rollback()
         return None
 
@@ -385,7 +379,6 @@ def create_new_product(k_lanzamiento, n_producto, p_producto, d_producto, stock,
         db.session.flush
         return (product)
     except Exception as e:
-        print("NO SE CREÓ EL producto "+ str(e))
         db.session.rollback()
         return None
    
@@ -397,10 +390,8 @@ def create_new_image(producto_key, image_file):
     try:
         db.session.add(image)
         db.session.commit()
-        print("SE CREÓ LA IMAGEN " )
         return image
     except Exception as e:
-        print("NO SE CREÓ LA IMAGEN " + str(e))
         db.session.rollback()
         return None
 
@@ -436,8 +427,6 @@ def create_release_genre(k_lanzamiento, k_genero):
 
 def new_admin(email, pwd, guser):
     from .seguridad import check_password
-    print(guser)
-    print(pwd)
     try:
         if check_password(pwd, guser['pwd_usuario']):
             
@@ -448,9 +437,7 @@ def new_admin(email, pwd, guser):
             except:
                 return None  
     except Exception as e:
-        print(f"Error verificando contraseña: {e}")
         return None
-    print("No cumple")
     return None  
 
 def get_all_products():
@@ -485,7 +472,7 @@ def get_all_genres():
         generos = [genre_schema.dump(genre) for genre in genre_qs]
         return generos
     except Exception as e:
-        print(e)
+       pass
     
 
 def get_release_artist():
@@ -505,7 +492,6 @@ def get_purchases_by_user(email):
     facturas = []
     for i in invoices:
         items = get_items_by_id_factura(i.id)
-        print(items)
         facturas.append([i, items])
     return facturas
 
@@ -547,7 +533,6 @@ def get_release_by_id(id):
     release_qs = Lanzamiento.query.filter_by(id = id).first()
     release_schema=LanzamientoSchema()
     r = release_schema.dump(release_qs)
-    print("LANZAMIENTO :" + str(r) )
     if r:
         return r
     return  {}
@@ -563,11 +548,9 @@ def get_releases_with_artists():
             artista = get_artist_by_id(release["k_artista"]).get("n_artista", 'N/A').title()
             lanzamiento = get_release_by_id(release["k_lanzamiento"]).get("n_lanzamiento", "N/A")
             k_lanzamiento = str(release["k_lanzamiento"])
-            print(lanzamiento)
             r.append(k_lanzamiento+". "+artista + " - "+  lanzamiento)
         return r
     except Exception as e:
-        print("ERROR: "+str(e))
         return None 
 
 def get_products_with_info():
@@ -585,14 +568,12 @@ def get_products_with_info():
             r.append(k_producto+". "+lanzamiento + " - "+  name)
         return r
     except Exception as e:
-        print("ERROR: "+str(e))
         return None 
 
 def get_categories():
     category_qs = Categoria.query.all()
     categories_schema= CategoriaSchema()
     categories = [categories_schema.dump(c) for c in category_qs]
-    print(categories)
     cat =[]
     for c in categories:
         cat.append((c["k_categoria"],c["k_categoria"]))
@@ -634,14 +615,12 @@ def create_multiple_images(producto_key, image_files):
                 db.session.add(image)
                 images.append(image)
             except Exception as e:
-                print("Error creando imagen: " + str(e))
                 db.session.rollback()
                 return None
     try:
         db.session.commit()
         return images
     except Exception as e:
-        print("Error guardando imágenes: " + str(e))
         db.session.rollback()
         return None
 
@@ -653,10 +632,8 @@ def create_new_image(producto_key, image_file):
     try:
         db.session.add(image)
         db.session.commit()
-        print("SE CREÓ LA IMAGEN " )
         return image
     except Exception as e:
-        print("NO SE CREÓ LA IMAGEN " + str(e))
         db.session.rollback()
         return None
 
@@ -664,12 +641,10 @@ def get_rawimage_by_product(k_producto):
     try:
         #image = Imagen.query.filter_by(k_producto = k_producto).first()
         image = Imagen.query.filter_by(k_producto = k_producto).first()
-        print("encontré la imagen ! :) ,  es" + str(image.name))
         
         #print(img)
         return image.img
     except Exception as e:
-        print("no encontré la imagen ! :( " + str(e))
         return None
     
 
@@ -677,12 +652,10 @@ def get_images_by_product(k_producto):
     """Obtiene todas las imágenes de un producto ordenadas por el campo orden"""
     try:
         images = Imagen.query.filter_by(k_producto=k_producto).order_by(Imagen.orden).all()
-        print(f"get_images_by_product({k_producto}): encontradas {len(images)} imágenes")
         for img in images:
-            print(f"  Imagen ID: {img.id}, Orden: {img.orden}, Nombre: {img.name}")
+           pass
         return images
     except Exception as e:
-        print("Error obteniendo imágenes del producto: " + str(e))
         return []
 
 
@@ -695,7 +668,6 @@ def get_first_image_by_product(k_producto):
             image = Imagen.query.filter_by(k_producto=k_producto).order_by(Imagen.orden).first()
         return image
     except Exception as e:
-        print("Error obteniendo primera imagen del producto: " + str(e))
         return None
 
 
@@ -724,7 +696,6 @@ def get_genres_by_release(k_lanzamiento):
     
     
     genres=[genre_schema.dump(g) for g in genres_qs]
-    print(genres)
     return genres
 
 def get_products_by_release(k_lanzamiento):
@@ -740,20 +711,16 @@ def update_release(k_lanzamiento, n_lanzamiento, i_lanzamiento, k_artista, f_lan
     lanzamiento = Lanzamiento.query.filter_by(id = k_lanzamiento).first()
     lanzamiento_artista = Lanzamiento_Artista.query.filter_by(k_lanzamiento = k_lanzamiento).first()
     lanz_genero = Lanzamiento_Genero.query.filter_by(k_lanzamiento = k_lanzamiento).first()
-    print("models.update_rleease nos dice: ")
     try:
         lanzamiento.n_lanzamiento = n_lanzamiento
         lanzamiento.i_lanzamiento = i_lanzamiento
         lanzamiento.f_lanzamiento = f_lanzamiento
-        print(lanzamiento)
         lanzamiento_artista.k_artista = k_artista
         if k_genero != 'N/A':
             lanz_genero.k_genero  =  k_genero
         db.session.commit()
-        print("si pude :)")
         return "ok"
     except:
-        print("No actualizo ")
         db.session.rollback()
         return None
     
@@ -767,7 +734,6 @@ def reorder_images(k_producto, ordenes):
         db.session.commit()
         return True
     except Exception as e:
-        print("Error reordenando imágenes: " + str(e))
         db.session.rollback()
         return False
 
@@ -778,14 +744,11 @@ def edit_product(k_producto, n_producto, d_producto, p_producto, image_files, k_
         producto.n_producto = n_producto
         producto.d_producto = d_producto
         if p_producto is not None:
-            print("CAMBIARÈ EL PRECIO PRODCUTO")
             producto.p_producto = p_producto
         else:
-            print("SE ENVIA UN NONE")
             None
 
         if image_files:
-            print("se deben cambiar las imágenes: "+ str(len(image_files)))
             # Agregar nuevas imágenes sin eliminar las existentes
             # Obtener el siguiente número de orden disponible
             max_orden = db.session.query(db.func.max(Imagen.orden)).filter_by(k_producto=k_producto).scalar() or 0
@@ -806,19 +769,16 @@ def edit_product(k_producto, n_producto, d_producto, p_producto, image_files, k_
                         db.session.add(image)
                         nuevas_imagenes.append(image)
                     except Exception as e:
-                        print("Error creando imagen: " + str(e))
+                       pass
             
-            print(f"Agregadas {len(nuevas_imagenes)} nuevas imágenes")
         else:
-            print("No se detectan cambios en las imágenes")
+           pass
         producto.k_categoria = k_category
         producto.stock = stock
         db.session.commit()
         db.session.flush()
-        print("si pude :)")
         return "ok"
     except Exception as e:
-        print("No actualizo "+ str(e))
         db.session.rollback()
         return None
 
@@ -830,11 +790,8 @@ def edit_image(k_producto, image_file):
         image = Imagen.query.filter_by(k_producto=k_producto).order_by(Imagen.orden).first()
     
     if image:
-        print("ACTUALIZANDO IMAGEN ... ")
         filename = secure_filename(image_file.filename)
         mimetype = image_file.mimetype
-        print("ANTES ...................")
-        print(str(image.name))
         
         try:
             image.img  = image_file.read()
@@ -842,16 +799,12 @@ def edit_image(k_producto, image_file):
             image.name = filename
             db.session.commit()
             db.session.flush()
-            print("DESPUES...................")
-            print(str(image.name))
             return image
         except Exception as e:
-            print("No se actualizò la imagen ! "+str(e))
             db.session.rollback()
             return None
     else:
         # Si no existe ninguna imagen, crear una nueva con orden 0
-        print("SE DEBERÀ SUBIR NUEVA IMAGEN asociada al producto")
         # Crear una nueva imagen con orden 0
         filename = secure_filename(image_file.filename)
         mimetype = image_file.mimetype
@@ -865,17 +818,14 @@ def edit_image(k_producto, image_file):
         try:
             db.session.add(image)
             db.session.commit()
-            print("SE CREÓ LA IMAGEN CON ORDEN 0")
             return image
         except Exception as e:
-            print("NO SE CREÓ LA IMAGEN " + str(e))
             db.session.rollback()
             return None
 
 def edit_user_by_email(email, nombre,apellido,ciudad,direccion, barrio=None, celular=None):
     try:
         user  = Usuario.query.filter_by(email_usuario = email).first()
-        print("USUARIO ENCONTRADO "+ str(user))
         user.n_usuario = nombre
         user.ape_usuario = apellido
         user.lugar_usuario = ciudad
@@ -884,10 +834,8 @@ def edit_user_by_email(email, nombre,apellido,ciudad,direccion, barrio=None, cel
         user.cel_usuario = celular
         db.session.commit()
         db.session.flush()
-        print("EXITO!")
         return user
     except Exception as e:
-        print("ERROR " + str(e))
         db.session.rollback()
         return None
     
@@ -902,7 +850,6 @@ def create_solicitud(k_usuario, k_producto, n_producto_solicitado, d_producto_so
         db.session.commit()
         return solicitud, None
     except Exception as e:
-        print("No se creó la solicitud " + str(e))
         db.session.rollback()
         return None, str(e)
 
@@ -926,7 +873,6 @@ def update_estado_solicitud(id, estado):
         db.session.commit()
         return solicitud
     except Exception as e:
-        print("No se actualizó la solicitud " + str(e))
         db.session.rollback()
         return None
 
@@ -1180,13 +1126,11 @@ def crear_pedido(cart, datos, k_usuario=None, cotizacion=None):
     """Crea el pedido PENDIENTE con sus líneas. Devuelve (pedido, token, errores).
     El token se entrega una sola vez (enlace de seguimiento); en la BD queda su hash.
     cotizacion=(producto, precio): pedido a la medida ya acordado; no revisa stock (se consigue por encargo)."""
-    print(f"[DEBUG] crear_pedido llamado con datos: {datos}")
     if cotizacion:
         producto, precio = cotizacion
         lineas, total, errores = [(producto, None, 1, precio)], precio, []
     else:
         lineas, total, errores = validar_carrito(cart)
-        print(f"[DEBUG] validar_carrito resultado: lineas={len(lineas)}, total={total}, errores={errores}")
     if errores:
         return None, None, errores
     
@@ -1207,10 +1151,8 @@ def crear_pedido(cart, datos, k_usuario=None, cotizacion=None):
             if not comprador:
                 comprador = get_or_create_comprador(nombre_envio, email_envio, telefono_envio,
                                                     direccion_envio, ciudad_envio, barrio_envio)
-                print(f"[DEBUG] comprador creado/get: {comprador.id if comprador else None}")
             #token_urlsafe(32): 32 bytes (256 bits) del generador criptográfico del sistema operativo
             token = secrets.token_urlsafe(32)
-            print(f"[DEBUG] token generado: {token}")
             
             # Solo guardar datos de envío si son válidos
             pedido = Invoice(k_usuario=comprador.id, total=total, estado='PENDIENTE', metodo_pago=datos.get("metodo_pago"),
@@ -1221,33 +1163,26 @@ def crear_pedido(cart, datos, k_usuario=None, cotizacion=None):
                              dir_envio=direccion_envio if datos_validos else None,
                              lugar_envio=ciudad_envio if datos_validos else None,
                              barrio_envio=barrio_envio if datos_validos and barrio_envio else None)
-            print(f"[DEBUG] pedido creado: token_hash={pedido.token_hash}")
             db.session.add(pedido)
             db.session.flush()
-            print(f"[DEBUG] pedido flush completado, id={pedido.id}")
             for producto, variante, cantidad, *precio in lineas:
                 item = Item(k_producto=producto.id, k_factura=pedido.id, k_variante=variante.id if variante is not None else None,
                                     cant_item=cantidad, p_item=precio[0] if precio else producto.p_producto)
                 db.session.add(item)
-                print(f"[DEBUG] item añadido: producto={producto.id}, variante={variante.id if variante else None}, cantidad={cantidad}")
             
             # Reservar stock para el pedido
             if not cotizacion:  # No reservar stock para pedidos a la medida
                 exito, errores_reserva = reservar_stock_pedido(pedido, [(producto, variante, cantidad) for producto, variante, cantidad, *precio in lineas])
                 if not exito:
-                    print(f"[DEBUG] reserva de stock fallida: {errores_reserva}")
                     db.session.rollback()
                     return None, None, errores_reserva
             
             db.session.commit()
-            print(f"[DEBUG] pedido commit exitoso, id={pedido.id}, token_hash={pedido.token_hash}")
             return pedido, token, []
         except IntegrityError as e:
-            print(f"[DEBUG] IntegrityError en intento {intento}: {e}")
             #dos compras simultáneas con el mismo correo nuevo: el segundo intento reutiliza el comprador ya creado
             db.session.rollback()
         except Exception as e:
-            print(f"[DEBUG] Exception en crear_pedido: {e}")
             db.session.rollback()
             return None, None, [f"Error interno: {str(e)}"]
     return None, None, ["No pudimos crear tu pedido, intenta de nuevo"]
@@ -1298,7 +1233,7 @@ def confirmar_pago(pedido, ref_payco, id_factura_payco=None, franquicia=None):
     for item in Item.query.filter_by(k_factura=pedido.id).all():
         if item.producto:
             for aviso in descontar_stock(item.producto, item.variante, int(item.cant_item)):
-                print(f"AVISO al confirmar pedido {pedido.id}: {aviso}")
+               pass
     db.session.commit()
     return pedido, True
 

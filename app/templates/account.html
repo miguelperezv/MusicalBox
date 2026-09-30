@@ -29,7 +29,7 @@
                 <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
                     <div>
                         <div class="fw-bold">Pedido #{{ factura.id }}</div>
-                        <small class="text-body-secondary">{{ factura.f_compra.strftime('%d/%m/%Y %H:%M') if factura.f_compra }}{% if factura.id_factura_payco %} · ePayco {{ factura.id_factura_payco }}{% endif %}</small>
+                        <small class="text-body-secondary">{{ factura.f_compra.strftime('%d/%m/%Y %H:%M') if factura.f_compra }}{% if factura.id_factura_payco %} · Ref. {{ factura.id_factura_payco }}{% endif %}</small>
                     </div>
                     <div class="text-end">
                         <span class="mb-estado mb-estado-{{ factura.estado }}">{{ factura.estado|capitalize }}</span>{% if factura.estado_envio %} <span class="mb-estado mb-estado-ACTIVO">{{ factura.estado_envio|capitalize }}</span>{% endif %}
