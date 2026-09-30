@@ -524,6 +524,9 @@ def updateproduct(k_producto):
         form_edit_product = newProductForm(categories_choices=categories)
         k_producto = int(k_producto)
         producto = get_product_by_id(k_producto)
+        # Asegurarse de que las imágenes se carguen correctamente
+        producto.imagenes = get_images_by_product(k_producto)
+        print("Cargando producto:", k_producto, "con", len(producto.imagenes), "imágenes")
         print(producto.p_producto)
         form_edit_product.n_producto_edit.data = producto.n_producto
         form_edit_product.p_producto.data = int(producto.p_producto or 0)
