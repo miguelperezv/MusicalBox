@@ -159,6 +159,27 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
     z-index: 10;
 }
 
+/* Indicadores del carrusel */
+.carousel-indicators {
+    margin-bottom: 1rem;
+}
+
+.carousel-indicators button {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.5);
+    border: 0;
+    margin: 0 4px;
+    opacity: 1;
+}
+
+.carousel-indicators button.active {
+    background-color: white;
+    width: 10px;
+    height: 10px;
+}
+
 /* Mejoras para mostrar más productos sin scroll infinito */
 .mb-card .body .small { font-size: 0.7rem; }
 .mb-card .footer .btn { font-size: 0.75rem; padding: 0.3rem 0.6rem; }
