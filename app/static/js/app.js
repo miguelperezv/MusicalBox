@@ -1,5 +1,27 @@
 /* Musical Box — utilidades de la interfaz */
 
+// Función para mostrar alertas con SweetAlert
+function showAlert(message, type, timer = 6000) {
+    let icon = 'info';
+    if (type === 'danger' || type === 'error' || type === 'alert-danger') {
+        icon = 'error';
+    } else if (type === 'warning' || type === 'alert-warning') {
+        icon = 'warning';
+    } else if (type === 'success' || type === 'alert-success') {
+        icon = 'success';
+    }
+    
+    Swal.fire({
+        text: message,
+        icon: icon,
+        timer: timer,
+        timerProgressBar: true,
+        showConfirmButton: false,
+        toast: true,
+        position: 'top-end'
+    });
+}
+
 // <input data-autocomplete="/url"> : llena un <datalist> con el JSON (lista de textos) de esa URL
 function mbAutocomplete(root) {
     (root || document).querySelectorAll('input[data-autocomplete]').forEach(function (input) {
@@ -44,7 +66,38 @@ document.addEventListener('DOMContentLoaded', function () {
     mbAdminLoader();
     // las alertas se cierran solas
     document.querySelectorAll('.mb-toasts .alert').forEach(function (a) {
-        setTimeout(function () { bootstrap.Alert.getOrCreateInstance(a).close(); }, 6000);
+        // Convertir alertas normales a SweetAlert
+        var alertType = '';
+        var message = a.textContent.trim();
+        
+        // Determinar el tipo de alerta
+        if (a.classList.contains('alert-danger')) {
+            alertType = 'danger';
+        } else if (a.classList.contains('alert-warning')) {
+            alertType = 'warning';
+        } else if (a.classList.contains('alert-info')) {
+            alertType = 'info';
+        } else if (a.classList.contains('alert-success')) {
+            alertType = 'success';
+        } else {
+            // Verificar si hay categorías personalizadas
+            for (var i = 0; i < a.classList.length; i++) {
+                var cls = a.classList[i];
+                if (cls.startsWith('alert-')) {
+                    alertType = cls.replace('alert-', '');
+                    break;
+                }
+            }
+            // Tipo por defecto
+            if (!alertType) {
+                alertType = 'info';
+            }
+        }
+        
+        showAlert(message, alertType, 6000);
+        
+        // Remover la alerta original
+        a.remove();
     });
 });
 
