@@ -467,6 +467,12 @@ def editproduct():
             return redirect(url_for('dashboard.editproduct'))
         k_producto = int(seleccion)
         producto = get_product_by_id(k_producto)
+        # Asegurarse de que las imágenes se carguen correctamente
+        imagenes = get_images_by_product(k_producto)
+        producto.imagenes = imagenes
+        print("Cargando producto:", k_producto, "con", len(imagenes), "imágenes")
+        for img in imagenes:
+            print(f"  Imagen ID: {img.id}, Orden: {img.orden}, Nombre: {img.name}")
         print(producto.p_producto)
         form_edit_product.n_producto_edit.data = producto.n_producto
         form_edit_product.p_producto.data = int(producto.p_producto or 0)
@@ -474,6 +480,8 @@ def editproduct():
         form_edit_product.d_producto.data  = producto.d_producto
         form_edit_product.i_producto.data = get_rawimage_by_product(producto.id)
         form_edit_product.k_category.data = producto.k_categoria
+        # En lugar de renderizar el mismo template, redirigir a updateproduct
+        return redirect(url_for('dashboard.updateproduct', k_producto=k_producto))
     return render_template("editProduct.html", form = form_edit_product, producto = producto, opciones_componentes = opciones_componentes, stock_disponible = stock_disponible)
 
 @dashboard.route("/updateproduct/<string:k_producto>",  methods=["GET", "POST"])
