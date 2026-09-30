@@ -476,7 +476,7 @@ def editproduct():
         form_edit_product.k_category.data = producto.k_categoria
     return render_template("editProduct.html", form = form_edit_product, producto = producto, opciones_componentes = opciones_componentes, stock_disponible = stock_disponible)
 
-@dashboard.route("/updateproduct_<string:k_producto>",  methods=["GET", "POST"])
+@dashboard.route("/updateproduct/<string:k_producto>",  methods=["GET", "POST"])
 def updateproduct(k_producto):
     print("ESTOY EN EL PRODUCTO "+ k_producto)
     form = newProductForm()
