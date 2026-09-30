@@ -5,7 +5,7 @@ from .forms import ActivarCuentaForm, CreateUsuarioForm, LoginUsuarioForm,  newR
 from flask import Blueprint, Response, current_app, flash, session, request, g, render_template, redirect, url_for, jsonify, make_response
 #from app.store.models import create_new_user, get_all_artists, get_user_by_email, create_new_artist
 from .models import create_new_user, get_all_artists, get_user_by_email, create_new_artist, get_k_artist_by_name, create_new_release, get_release_by_name, get_releases_with_artists, get_categories, create_new_product, get_k_release_by_name_artista, create_new_category, create_new_genre, create_release_genre, new_admin, get_all_releases, get_artist_by_release, get_categories_by_release, get_release_by_id, get_genres_by_release, get_products_by_release, get_product_by_id, get_artist_by_release, update_release, get_products_with_info, edit_product, create_new_image, get_rawimage_by_product, edit_image, get_items_by_id_factura, Imagen, Producto
-from .models import producto_card, lanzamiento_tiene_original, ESTADOS_ENVIO, ESTADOS_CON_ROTULO, opciones_componentes, stock_disponible, get_usuario_por_email, get_artist_by_id, get_releases_cards, get_products_cards, get_admin_stats, edit_user_by_email, get_all_products, get_purchases_by_user, get_all_invoices, get_solicitudes_by_user, validar_carrito, crear_pedido, get_images_by_product, get_first_image_by_product, crear_variante, agregar_componente
+from .models import producto_card, lanzamiento_tiene_original, ESTADOS_ENVIO, ESTADOS_CON_ROTULO, opciones_componentes, stock_disponible, get_usuario_por_email, get_artist_by_id, get_releases_cards, get_products_cards, get_generos, get_categorias, get_admin_stats, edit_user_by_email, get_purchases_by_user, get_all_invoices, get_solicitudes_by_user, validar_carrito, crear_pedido, get_images_by_product, get_first_image_by_product, crear_variante, agregar_componente
 import csv
 import io
 #import epaycosdk.epayco as epayco
@@ -721,11 +721,26 @@ def batch_upload():
 
 @releases.route('/', methods=["GET", "POST"])
 def home_releases():
-    if request.method == "POST":
-        None
-    if request.method == 'GET':
-        q = request.args.get("q", "")
-        return render_template("releases.html", releases = get_releases_cards(q=q), q = q)
+    q = (request.args.get("q") or "").strip()
+    genero = (request.args.get("genero") or "").strip()
+    formato = (request.args.get("formato") or "").strip()
+    orden = request.args.get("orden") or "recientes"
+    if orden not in ("recientes", "antiguos", "nombre", "precio"):
+        orden = "recientes"
+    try:
+        page = max(1, int(request.args.get("page") or 1))
+    except ValueError:
+        page = 1
+    cards = get_releases_cards(q=q, genero=genero or None, categoria=formato or None, orden=orden)
+    per_page = 20
+    total = len(cards)
+    pages = max(1, (total + per_page - 1) // per_page)
+    page = min(page, pages)
+    return render_template("releases.html",
+                           releases=cards[(page - 1) * per_page:page * per_page],
+                           q=q, genero=genero, formato=formato, orden=orden,
+                           page=page, pages=pages, total=total,
+                           generos=get_generos(), categorias=get_categorias())
 
 @releases.route("/<int:k_lanzamiento>", methods=["GET", "POST"])
 def release(k_lanzamiento):
@@ -781,7 +796,10 @@ def artist(k_artista):
         artista = get_artist_by_id(k_artista)
         if not artista:
             return render_template("404.html"), 404
-        return render_template("releases.html", releases = get_releases_cards(k_artista=k_artista), artista = artista)
+        releases = get_releases_cards(k_artista=k_artista)
+        return render_template("releases.html", releases=releases, artista=artista,
+                               total=len(releases), page=1, pages=1,
+                               generos=get_generos(), categorias=get_categorias())
 
 @purchase.route("/", methods=["GET"])
 def summary():
@@ -895,8 +913,21 @@ def detalle(k_producto):
 
 @products.route("/", methods=["POST", "GET"])
 def home_products():
-    if request.method == "GET":
-        products = get_all_products()
-    if request.method == "POST":
-        None
-    return render_template("products.html", productos = get_products_cards())
+    categoria = (request.args.get("categoria") or "").strip()
+    orden = request.args.get("orden") or "recientes"
+    if orden not in ("recientes", "precio_asc", "precio_desc", "nombre"):
+        orden = "recientes"
+    try:
+        page = max(1, int(request.args.get("page") or 1))
+    except ValueError:
+        page = 1
+    cards = get_products_cards(categoria=categoria or None, orden=orden)
+    per_page = 24
+    total = len(cards)
+    pages = max(1, (total + per_page - 1) // per_page)
+    page = min(page, pages)
+    return render_template("products.html",
+                           productos=cards[(page - 1) * per_page:page * per_page],
+                           categoria=categoria, orden=orden,
+                           page=page, pages=pages, total=total,
+                           categorias=get_categorias())

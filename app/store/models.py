@@ -900,7 +900,7 @@ def _fecha(valor):
             return None
     return valor
 
-def get_releases_cards(q=None, k_artista=None, limit=None):
+def get_releases_cards(q=None, k_artista=None, limit=None, genero=None, categoria=None, orden='recientes'):
     q = (q or '').strip().lower()
     cards = []
     for lanz in Lanzamiento.query.order_by(db.desc(Lanzamiento.f_lanzamiento)).all():
@@ -912,6 +912,10 @@ def get_releases_cards(q=None, k_artista=None, limit=None):
         categorias = sorted({p.k_categoria for p in productos if p.k_categoria})
         texto = " ".join([lanz.n_lanzamiento, artista.n_artista if artista else ''] + generos + categorias).lower()
         if q and q not in texto:
+            continue
+        if genero and genero not in generos:
+            continue
+        if categoria and categoria not in categorias:
             continue
         fecha = _fecha(lanz.f_lanzamiento)
         cards.append({
@@ -929,12 +933,34 @@ def get_releases_cards(q=None, k_artista=None, limit=None):
         })
         if limit and len(cards) >= limit:
             break
+    if orden == 'antiguos':
+        cards.sort(key=lambda c: c['fecha'] or datetime.min.date())
+    elif orden == 'nombre':
+        cards.sort(key=lambda c: (c['nombre'] or '').lower())
+    elif orden == 'precio':
+        cards.sort(key=lambda c: (c['precio_desde'] is None, c['precio_desde'] or 0))
     return cards
 
-def get_products_cards(limit=None, k_lanzamiento=None):
-    query = Producto.query.order_by(db.desc(Producto.f_producto))
+def get_generos():
+    return [r[0] for r in db.session.query(Lanzamiento_Genero.k_genero).distinct().order_by(Lanzamiento_Genero.k_genero).all()]
+
+def get_categorias():
+    return [r[0] for r in db.session.query(Producto.k_categoria).distinct().filter(Producto.k_categoria.isnot(None)).order_by(Producto.k_categoria).all()]
+
+def get_products_cards(limit=None, k_lanzamiento=None, categoria=None, orden='recientes'):
+    query = Producto.query
     if k_lanzamiento:
         query = query.filter_by(k_lanzamiento=k_lanzamiento)
+    if categoria:
+        query = query.filter(Producto.k_categoria == categoria)
+    if orden == 'precio_asc':
+        query = query.order_by(Producto.p_producto.asc())
+    elif orden == 'precio_desc':
+        query = query.order_by(Producto.p_producto.desc())
+    elif orden == 'nombre':
+        query = query.order_by(Producto.n_producto.asc())
+    else:
+        query = query.order_by(db.desc(Producto.f_producto))
     if limit:
         query = query.limit(limit)
     cards = []

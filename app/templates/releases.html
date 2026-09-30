@@ -1,6 +1,12 @@
 {% extends "base.html" %}
 {% from "_cards.html" import release_card with context %}
 
+{% macro pagedir(page) -%}
+  {%- set f = request.args.to_dict() -%}
+  {%- if page -%}{%- set _ = f.update({'page': page}) -%}{%- else -%}{%- set _ = f.pop('page', none) -%}{%- endif -%}
+  {{ url_for('releases.home_releases', **f) }}
+{%- endmacro %}
+
 {% block title %}{{ artista.n_artista.title() if artista else 'Lanzamientos' }}{% endblock %}
 
 {% block contenido %}
@@ -12,13 +18,37 @@
         {% elif q %}
         <span class="mb-eyebrow">Búsqueda</span>
         <h1 class="mt-1">Resultados para “{{ q }}”</h1>
-        <p class="text-body-secondary mb-0">{{ releases|length }} {{ 'resultado' if releases|length == 1 else 'resultados' }} · <a href="{{ url_for('releases.home_releases') }}">ver todo</a></p>
+        <p class="text-body-secondary mb-0">{{ total }} {{ 'resultado' if total == 1 else 'resultados' }} · <a href="{{ url_for('releases.home_releases') }}">ver todo</a></p>
         {% else %}
         <span class="mb-eyebrow">Catálogo</span>
         <h1 class="mt-1">Lanzamientos</h1>
         <p class="text-body-secondary mb-0">Lo más reciente en vinilo, CD y cassette.</p>
         {% endif %}
     </header>
+
+    {% if not artista %}
+    <form method="get" action="{{ url_for('releases.home_releases') }}" class="d-flex flex-wrap gap-2 align-items-center mb-4" aria-label="Filtros de catálogo">
+        <input type="hidden" name="q" value="{{ q }}">
+        <select class="form-select form-select-sm w-auto" name="genero" aria-label="Género" onchange="this.form.submit()">
+            <option value="">Todos los géneros</option>
+            {% for g in generos %}
+            <option value="{{ g }}" {{ 'selected' if g == genero else '' }}>{{ g }}</option>
+            {% endfor %}
+        </select>
+        <select class="form-select form-select-sm w-auto" name="formato" aria-label="Formato" onchange="this.form.submit()">
+            <option value="">Todos los formatos</option>
+            {% for c in categorias %}
+            <option value="{{ c }}" {{ 'selected' if c == formato else '' }}>{{ c }}</option>
+            {% endfor %}
+        </select>
+        <select class="form-select form-select-sm w-auto" name="orden" aria-label="Ordenar por" onchange="this.form.submit()">
+            <option value="recientes" {{ 'selected' if orden == 'recientes' else '' }}>Más recientes</option>
+            <option value="antiguos" {{ 'selected' if orden == 'antiguos' else '' }}>Más antiguos</option>
+            <option value="nombre" {{ 'selected' if orden == 'nombre' else '' }}>Nombre (A–Z)</option>
+            <option value="precio" {{ 'selected' if orden == 'precio' else '' }}>Precio (menor primero)</option>
+        </select>
+    </form>
+    {% endif %}
 
     <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-xl-5 g-3">
         {% for r in releases %}
@@ -31,5 +61,23 @@
         </div>
         {% endfor %}
     </div>
+
+    {% if pages > 1 %}
+    <nav class="mt-4" aria-label="Paginación">
+        <ul class="pagination justify-content-center mb-0">
+            <li class="page-item {{ 'disabled' if page <= 1 }}">
+                <a class="page-link" href="{{ pagedir(page - 1) if page > 1 else '#' }}">Anterior</a>
+            </li>
+            {% for n in range(1, pages + 1) %}
+            <li class="page-item {{ 'active' if n == page }}">
+                <a class="page-link" href="{{ pagedir(n) if n != page else '#' }}">{{ n }}</a>
+            </li>
+            {% endfor %}
+            <li class="page-item {{ 'disabled' if page >= pages }}">
+                <a class="page-link" href="{{ pagedir(page + 1) if page < pages else '#' }}">Siguiente</a>
+            </li>
+        </ul>
+    </nav>
+    {% endif %}
 </div>
 {% endblock %}

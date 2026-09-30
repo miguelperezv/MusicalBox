@@ -1,6 +1,20 @@
 {% extends "base.html" %}
 {% from "_cards.html" import product_card with context %}
 
+{% macro cat_url(c) -%}
+  {%- set f = request.args.to_dict() -%}
+  {%- set _ = f.pop('page', none) -%}
+  {%- set _ = f.pop('categoria', none) -%}
+  {%- if c -%}{%- set _ = f.update({'categoria': c}) -%}{%- endif -%}
+  {{ url_for('products.home_products', **f) }}
+{%- endmacro %}
+
+{% macro pagedir(page) -%}
+  {%- set f = request.args.to_dict() -%}
+  {%- if page -%}{%- set _ = f.update({'page': page}) -%}{%- else -%}{%- set _ = f.pop('page', none) -%}{%- endif -%}
+  {{ url_for('products.home_products', **f) }}
+{%- endmacro %}
+
 {% block title %}Productos{% endblock %}
 
 {% block contenido %}
@@ -9,26 +23,55 @@
         <div>
             <span class="mb-eyebrow">Tienda</span>
             <h1 class="mt-1">Productos</h1>
-            <p class="text-body-secondary mb-md-0">Todas las ediciones disponibles para comprar hoy.</p>
+            <p class="text-body-secondary mb-md-0">Todas las ediciones disponibles para comprar hoy · {{ total }} en total</p>
         </div>
-        {% set categorias = productos|map(attribute='categoria')|select|unique|list %}
-        {% if categorias|length > 1 %}
-        <div class="btn-group flex-wrap" role="group" aria-label="Filtrar por categoría" id="filtros">
-            <button type="button" class="btn btn-sm btn-primary" data-filtro="">Todo</button>
+    </header>
+
+    <div class="d-flex flex-wrap gap-2 align-items-center mb-4">
+        {% if categorias %}
+        <div class="btn-group flex-wrap me-2" role="group" aria-label="Filtrar por categoría">
+            <a class="btn btn-sm {{ 'btn-primary' if not categoria else 'btn-outline-primary' }}" href="{{ cat_url(none) }}">Todo</a>
             {% for c in categorias %}
-            <button type="button" class="btn btn-sm btn-outline-primary" data-filtro="{{ c }}">{{ c }}</button>
+            <a class="btn btn-sm {{ 'btn-primary' if c == categoria else 'btn-outline-primary' }}" href="{{ cat_url(c) }}">{{ c }}</a>
             {% endfor %}
         </div>
         {% endif %}
-    </header>
+        <form method="get" action="{{ url_for('products.home_products') }}" class="d-flex gap-2" aria-label="Ordenar">
+            <input type="hidden" name="categoria" value="{{ categoria }}">
+            <select class="form-select form-select-sm w-auto" name="orden" aria-label="Ordenar por" onchange="this.form.submit()">
+                <option value="recientes" {{ 'selected' if orden == 'recientes' else '' }}>Más recientes</option>
+                <option value="precio_asc" {{ 'selected' if orden == 'precio_asc' else '' }}>Precio (menor primero)</option>
+                <option value="precio_desc" {{ 'selected' if orden == 'precio_desc' else '' }}>Precio (mayor primero)</option>
+                <option value="nombre" {{ 'selected' if orden == 'nombre' else '' }}>Nombre (A–Z)</option>
+            </select>
+        </form>
+    </div>
 
     <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3 g-lg-4">
         {% for p in productos %}
-        <div class="col" data-categoria="{{ p.categoria }}">{{ product_card(p) }}</div>
+        <div class="col">{{ product_card(p) }}</div>
         {% else %}
-        <div class="col-12 mb-empty"><i class="bi bi-bag"></i>No hay productos todavía.</div>
+        <div class="col-12 mb-empty"><i class="bi bi-bag"></i>No hay productos{% if categoria %} en “{{ categoria }}”{% endif %} todavía.</div>
         {% endfor %}
     </div>
+
+    {% if pages > 1 %}
+    <nav class="mt-4" aria-label="Paginación">
+        <ul class="pagination justify-content-center mb-0">
+            <li class="page-item {{ 'disabled' if page <= 1 }}">
+                <a class="page-link" href="{{ pagedir(page - 1) if page > 1 else '#' }}">Anterior</a>
+            </li>
+            {% for n in range(1, pages + 1) %}
+            <li class="page-item {{ 'active' if n == page }}">
+                <a class="page-link" href="{{ pagedir(n) if n != page else '#' }}">{{ n }}</a>
+            </li>
+            {% endfor %}
+            <li class="page-item {{ 'disabled' if page >= pages }}">
+                <a class="page-link" href="{{ pagedir(page + 1) if page < pages else '#' }}">Siguiente</a>
+            </li>
+        </ul>
+    </nav>
+    {% endif %}
 </div>
 {% endblock %}
 
@@ -41,24 +84,24 @@
             return new bootstrap.Tooltip(tooltipTriggerEl)
         })
     });
-    
+
     // Efecto hover para cambiar imágenes en tarjetas de productos
     document.addEventListener('DOMContentLoaded', function() {
         const cardContainers = document.querySelectorAll('.mb-card-image-container');
-        
+
         cardContainers.forEach(function(container) {
             const images = container.querySelectorAll('.mb-card-image');
-            
+
             if (images.length > 1) {
                 let currentIndex = 0;
                 let hoverTimer = null;
-                
+
                 container.addEventListener('mouseenter', function() {
                     // Reiniciar al primer imagen
                     currentIndex = 0;
                     images.forEach(img => img.style.opacity = '0');
                     images[0].style.opacity = '1';
-                    
+
                     // Cambiar imágenes cada 1.5 segundos mientras el mouse está encima
                     hoverTimer = setInterval(() => {
                         images[currentIndex].style.opacity = '0';
@@ -66,14 +109,14 @@
                         images[currentIndex].style.opacity = '1';
                     }, 1500);
                 });
-                
+
                 container.addEventListener('mouseleave', function() {
                     // Detener el cambio automático
                     if (hoverTimer) {
                         clearInterval(hoverTimer);
                         hoverTimer = null;
                     }
-                    
+
                     // Volver a la primera imagen
                     images.forEach((img, imgIndex) => {
                         img.style.opacity = imgIndex === 0 ? '1' : '0';
@@ -81,19 +124,6 @@
                     currentIndex = 0;
                 });
             }
-        });
-    });
-    
-    // Scripts de filtrado
-    document.querySelectorAll('#filtros [data-filtro]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            document.querySelectorAll('#filtros [data-filtro]').forEach(function (b) {
-                b.classList.toggle('btn-primary', b === btn);
-                b.classList.toggle('btn-outline-primary', b !== btn);
-            });
-            document.querySelectorAll('[data-categoria]').forEach(function (col) {
-                col.classList.toggle('d-none', !!btn.dataset.filtro && col.dataset.categoria !== btn.dataset.filtro);
-            });
         });
     });
 </script>
