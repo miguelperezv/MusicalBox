@@ -100,12 +100,16 @@ class ProductoComponente(db.Model):
 
 class Imagen(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    k_producto = db.Column(db.Integer, db.ForeignKey("producto.id"))
-    img = db.Column(db.Text)
-    name= db.Column(db.Text, nullable= False)
-    mimetype= db.Column(db.Text, nullable= False)
+    k_producto = db.Column(db.Integer, db.ForeignKey("producto.id"), nullable=False)
+    img = db.Column(db.Text, nullable=False)
+    name = db.Column(db.Text, nullable=False)
+    mimetype = db.Column(db.Text, nullable=False)
+    orden = db.Column(db.Integer, nullable=False, default=0)
     #atributos de la relacion
-    producto = db.relationship("Producto")
+    producto = db.relationship("Producto", backref="imagenes")
+    
+    def __repr__(self):
+        return f'<Imagen {self.name} for Producto {self.k_producto}>'
     
 
 
@@ -612,17 +616,48 @@ def get_k_release_by_name_artista(n_lanzamiento,n_artista):
             return k_lanzamiento
     return None
 
-def get_image_by_product(k_producto):
-    print("el codigo del producto es "+ str(k_producto))
+def create_multiple_images(producto_key, image_files):
+    """Crea múltiples imágenes para un producto"""
+    images = []
+    for i, image_file in enumerate(image_files):
+        if image_file and image_file.filename:
+            try:
+                filename = secure_filename(image_file.filename)
+                mimetype = image_file.mimetype
+                image = Imagen(
+                    img=image_file.read(), 
+                    mimetype=mimetype, 
+                    k_producto=producto_key, 
+                    name=filename,
+                    orden=i
+                )
+                db.session.add(image)
+                images.append(image)
+            except Exception as e:
+                print("Error creando imagen: " + str(e))
+                db.session.rollback()
+                return None
     try:
-        #image = Imagen.query.filter_by(k_producto = k_producto).first()
-        image = Imagen.query.filter_by(k_producto = k_producto).first()
-        print("encontré la imagen ! :) ,  es" + str(image.name))
-        
-        #print(img)
-        return Response(image.img, mimetype=image.mimetype)
+        db.session.commit()
+        return images
     except Exception as e:
-        print("no encontré la imagen ! :( " + str(e))
+        print("Error guardando imágenes: " + str(e))
+        db.session.rollback()
+        return None
+
+def create_new_image(producto_key, image_file):
+    filename = secure_filename(image_file.filename)
+    mimetype = image_file.mimetype
+
+    image = Imagen(img = image_file.read(), mimetype = mimetype, k_producto = producto_key, name=filename, orden=0)
+    try:
+        db.session.add(image)
+        db.session.commit()
+        print("SE CREÓ LA IMAGEN " )
+        return image
+    except Exception as e:
+        print("NO SE CREÓ LA IMAGEN " + str(e))
+        db.session.rollback()
         return None
 
 def get_rawimage_by_product(k_producto):
@@ -696,7 +731,7 @@ def update_release(k_lanzamiento, n_lanzamiento, i_lanzamiento, k_artista, f_lan
         db.session.rollback()
         return None
     
-def edit_product(k_producto, n_producto, d_producto, p_producto, i_producto, k_category, stock):
+def edit_product(k_producto, n_producto, d_producto, p_producto, image_files, k_category, stock):
     producto = Producto.query.filter_by(id = k_producto).first()
     try:
         producto.n_producto = n_producto
@@ -708,13 +743,14 @@ def edit_product(k_producto, n_producto, d_producto, p_producto, i_producto, k_c
             print("SE ENVIA UN NONE")
             None
 
-        if i_producto:
-            print("se debe cmabiar la imagen "+ str(i_producto))
-            img_edit = edit_image(k_producto, i_producto)
-            if img_edit:
-                print("SE ACTUALIZÒ LA IMAGEN")
+        if image_files:
+            print("se deben cambiar las imágenes: "+ str(len(image_files)))
+            # Eliminar imágenes existentes
+            Imagen.query.filter_by(k_producto=k_producto).delete()
+            # Crear nuevas imágenes
+            create_multiple_images(k_producto, image_files)
         else:
-            print("No se detectan cambios en la imagen")
+            print("No se detectan cambios en las imágenes")
         producto.k_categoria = k_category
         producto.stock = stock
         db.session.commit()
@@ -727,8 +763,12 @@ def edit_product(k_producto, n_producto, d_producto, p_producto, i_producto, k_c
         return None
 
 def edit_image(k_producto, image_file):
+    """Edita la primera imagen de un producto (orden = 0)"""
+    image = Imagen.query.filter_by(k_producto=k_producto, orden=0).first()
+    if not image:
+        # Si no hay imagen con orden 0, obtener la primera imagen disponible
+        image = Imagen.query.filter_by(k_producto=k_producto).order_by(Imagen.orden).first()
     
-    image = Imagen.query.filter_by(k_producto = k_producto).first()
     if image:
         print("ACTUALIZANDO IMAGEN ... ")
         filename = secure_filename(image_file.filename)
@@ -742,17 +782,35 @@ def edit_image(k_producto, image_file):
             image.name = filename
             db.session.commit()
             db.session.flush()
-            print("DESPUES.......... ")
+            print("DESPUES...................")
             print(str(image.name))
-            
             return image
         except Exception as e:
             print("No se actualizò la imagen ! "+str(e))
             db.session.rollback()
             return None
     else:
-        print("SE DEBERÀ SUBIR NUEVA IMAGEN asociada la producto")
-        return create_new_image(k_producto,image_file)
+        # Si no existe ninguna imagen, crear una nueva con orden 0
+        print("SE DEBERÀ SUBIR NUEVA IMAGEN asociada al producto")
+        # Crear una nueva imagen con orden 0
+        filename = secure_filename(image_file.filename)
+        mimetype = image_file.mimetype
+        image = Imagen(
+            img=image_file.read(), 
+            mimetype=mimetype, 
+            k_producto=k_producto, 
+            name=filename,
+            orden=0
+        )
+        try:
+            db.session.add(image)
+            db.session.commit()
+            print("SE CREÓ LA IMAGEN CON ORDEN 0")
+            return image
+        except Exception as e:
+            print("NO SE CREÓ LA IMAGEN " + str(e))
+            db.session.rollback()
+            return None
 
 def edit_user_by_email(email, nombre,apellido,ciudad,direccion, barrio=None, celular=None):
     try:
@@ -1415,6 +1473,8 @@ def producto_card(k_producto):
     p = db.session.get(Producto, k_producto)
     if not p:
         return None
+    # Obtener las imágenes del producto
+    p.imagenes = get_images_by_product(k_producto)
     return next((c for c in get_products_cards(k_lanzamiento=p.k_lanzamiento) if c["id"] == p.id), None) if p.k_lanzamiento         else next((c for c in get_products_cards() if c["id"] == p.id), None)
 
 

@@ -25,6 +25,7 @@
 {% endmacro %}
 
 {# imagen de producto: los packs muestran el collage de sus productos (camiseta + vinilo...) #}
+{# si hay múltiples imágenes, usa la primera #}
 {% macro producto_imagen(p, w=600) %}
 {% if p.collage %}
 <div class="mb-collage mb-collage-{{ p.collage|length }}">

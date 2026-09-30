@@ -293,14 +293,15 @@ def newproduct():
         k_lanzamiento = form_new_product.n_lanzamiento.data.split(".")[0]
         print("K_LANZAMIENTO ES "+ k_lanzamiento)
         print("imagefile")
-        image_file = request.files['inputImage']
-        #print(image_file.read())
+        image_files = request.files.getlist('inputImages')
+        # Filtrar archivos vacíos
+        image_files = [f for f in image_files if f and f.filename]
         product = create_new_product(int(k_lanzamiento), n_producto, p_producto, d_producto, stock, i_producto, k_categoria, form_new_product.tipo.data)
         if product:
             product.original_mb = bool(form_new_product.original_mb.data)
             db.session.commit()
-            if image_file and image_file.filename:
-                create_new_image(product.id, image_file)
+            if image_files:
+                create_multiple_images(product.id, image_files)
             #a la edición, para configurar tallas/colores o el contenido del pack
             flash("Producto creado: configura sus tallas o el contenido del pack si aplica", "success")
             return redirect(url_for('dashboard.updateproduct', k_producto=product.id))
@@ -489,15 +490,17 @@ def updateproduct(k_producto):
         stock = form.stock.data
         #print("i_producto "+ str(i_producto))
         print("p_producto "+ str(p_producto))
-        image_file = None
+        image_files = None
         try:
-            image_file = request.files['inputImage']
-            print("obtuve la imagen a editar")
+            image_files = request.files.getlist('inputImages')
+            # Filtrar archivos vacíos
+            image_files = [f for f in image_files if f and f.filename]
+            print("obtuve las imágenes a editar: " + str(len(image_files)))
         except Exception as e:
-            print("ERROR OBTENIENDO LA IMAGEN "+ str(e))
+            print("ERROR OBTENIENDO LAS IMÁGENES "+ str(e))
 
         
-        result = edit_product(k_producto, n_producto, d_producto, p_producto, image_file, k_category, stock)
+        result = edit_product(k_producto, n_producto, d_producto, p_producto, image_files, k_category, stock)
         if result:
             get_product_by_id(k_producto).original_mb = request.form.get("original_mb") == "y"
             db.session.commit()
@@ -677,7 +680,16 @@ def thankyou():
 
 @products.route("/image_<int:k_producto>")
 def image(k_producto): 
-    #?w=300|600|1200: versión redimensionada en WebP con caché
+    # Obtener el parámetro de orden si existe
+    orden = request.args.get("orden", type=int)
+    
+    if orden is not None:
+        # Obtener imagen específica por orden
+        imagen = Imagen.query.filter_by(k_producto=k_producto, orden=orden).first()
+        if imagen:
+            return Response(imagen.img, mimetype=imagen.mimetype)
+    
+    # Comportamiento original: obtener la primera imagen
     respuesta = imagen_producto(k_producto, request.args.get("w", default=600, type=int))
     if respuesta:
         return respuesta

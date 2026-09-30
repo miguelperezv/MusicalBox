@@ -36,8 +36,9 @@
         {% endif %}
     </div>
     <div class="mb-3">
-        <label class="form-label" for="inputImage">Cambiar imagen</label>
-        <input class="form-control" type="file" name="inputImage" id="inputImage" accept="image/*">
+        <label class="form-label" for="inputImages">Cambiar imágenes</label>
+        <input class="form-control" type="file" name="inputImages" id="inputImages" accept="image/*" multiple>
+        <div class="form-text">Puedes seleccionar múltiples imágenes. La primera será la principal.</div>
     </div>
     <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Guardar cambios</button>
 </form>

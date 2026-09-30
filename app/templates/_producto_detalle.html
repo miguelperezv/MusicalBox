@@ -2,7 +2,39 @@
 {% set agotado = p.stock <= 0 %}
 <div class="row g-4 mb-detalle">
     <div class="col-md-6">
+        {% if p.imagenes and p.imagenes|length > 1 %}
+        <!-- Carrusel de imágenes -->
+        <div id="productCarousel" class="carousel slide mb-detalle-img {{ 'soldout' if agotado }}" data-bs-ride="carousel">
+            <div class="carousel-inner">
+                {% for imagen in p.imagenes|sort(attribute='orden') %}
+                <div class="carousel-item {{ 'active' if loop.first }}">
+                    <img src="{{ url_for('products.image', k_producto=p.id) }}?w=1200&orden={{ imagen.orden }}" 
+                         class="d-block w-100" 
+                         alt="{{ p.nombre }} - Imagen {{ loop.index }}"
+                         loading="{{ 'eager' if loop.first else 'lazy' }}">
+                </div>
+                {% endfor %}
+            </div>
+            <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Anterior</span>
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#productCarousel" data-bs-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Siguiente</span>
+            </button>
+            <div class="carousel-indicators">
+                {% for imagen in p.imagenes|sort(attribute='orden') %}
+                <button type="button" data-bs-target="#productCarousel" data-bs-slide-to="{{ loop.index0 }}" 
+                        {{ 'class="active"' if loop.first }} aria-current="{{ 'true' if loop.first }}" 
+                        aria-label="{{ p.nombre }} - Imagen {{ loop.index }}"></button>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <!-- Imagen única -->
         <div class="mb-detalle-img {{ 'soldout' if agotado }}">{{ producto_imagen(p, w=1200) }}</div>
+        {% endif %}
     </div>
     <div class="col-md-6 d-flex flex-column">
         <div class="d-flex flex-wrap gap-2 mb-2">
