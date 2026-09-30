@@ -786,10 +786,25 @@ def edit_product(k_producto, n_producto, d_producto, p_producto, image_files, k_
 
         if image_files:
             print("se deben cambiar las imágenes: "+ str(len(image_files)))
-            # Eliminar imágenes existentes
-            Imagen.query.filter_by(k_producto=k_producto).delete()
-            # Crear nuevas imágenes
-            create_multiple_images(k_producto, image_files)
+            # Solo actualizar la imagen principal (orden=0), conservar las demás
+            # Eliminar solo la imagen principal si existe
+            Imagen.query.filter_by(k_producto=k_producto, orden=0).delete()
+            # Crear nueva imagen principal con orden=0
+            if image_files:
+                # Tomar la primera imagen como principal
+                primary_image = image_files[0]
+                if primary_image and primary_image.filename:
+                    filename = secure_filename(primary_image.filename)
+                    mimetype = primary_image.mimetype
+                    image = Imagen(
+                        img=primary_image.read(), 
+                        mimetype=mimetype, 
+                        k_producto=k_producto, 
+                        name=filename,
+                        orden=0
+                    )
+                    db.session.add(image)
+                # Las imágenes adicionales se manejan por separado en la interfaz de edición
         else:
             print("No se detectan cambios en las imágenes")
         producto.k_categoria = k_category
