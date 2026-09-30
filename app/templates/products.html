@@ -74,11 +74,8 @@
             }
         });
     });
-</script>
-{% endblock %}
-
-{% block scripts %}
-<script>
+    
+    // Scripts originales de filtrado
     document.querySelectorAll('#filtros [data-filtro]').forEach(function (btn) {
         btn.addEventListener('click', function () {
             document.querySelectorAll('#filtros [data-filtro]').forEach(function (b) {
