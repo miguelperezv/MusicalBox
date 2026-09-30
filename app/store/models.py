@@ -786,25 +786,29 @@ def edit_product(k_producto, n_producto, d_producto, p_producto, image_files, k_
 
         if image_files:
             print("se deben cambiar las imágenes: "+ str(len(image_files)))
-            # Solo actualizar la imagen principal (orden=0), conservar las demás
-            # Eliminar solo la imagen principal si existe
-            Imagen.query.filter_by(k_producto=k_producto, orden=0).delete()
-            # Crear nueva imagen principal con orden=0
-            if image_files:
-                # Tomar la primera imagen como principal
-                primary_image = image_files[0]
-                if primary_image and primary_image.filename:
-                    filename = secure_filename(primary_image.filename)
-                    mimetype = primary_image.mimetype
-                    image = Imagen(
-                        img=primary_image.read(), 
-                        mimetype=mimetype, 
-                        k_producto=k_producto, 
-                        name=filename,
-                        orden=0
-                    )
-                    db.session.add(image)
-                # Las imágenes adicionales se manejan por separado en la interfaz de edición
+            # Agregar nuevas imágenes sin eliminar las existentes
+            # Obtener el siguiente número de orden disponible
+            max_orden = db.session.query(db.func.max(Imagen.orden)).filter_by(k_producto=k_producto).scalar() or 0
+            nuevas_imagenes = []
+            
+            for i, image_file in enumerate(image_files):
+                if image_file and image_file.filename:
+                    try:
+                        filename = secure_filename(image_file.filename)
+                        mimetype = image_file.mimetype
+                        image = Imagen(
+                            img=image_file.read(), 
+                            mimetype=mimetype, 
+                            k_producto=k_producto, 
+                            name=filename,
+                            orden=max_orden + i + 1  # Continuar desde el último orden
+                        )
+                        db.session.add(image)
+                        nuevas_imagenes.append(image)
+                    except Exception as e:
+                        print("Error creando imagen: " + str(e))
+            
+            print(f"Agregadas {len(nuevas_imagenes)} nuevas imágenes")
         else:
             print("No se detectan cambios en las imágenes")
         producto.k_categoria = k_category

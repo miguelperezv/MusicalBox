@@ -130,6 +130,22 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 .mb-card .footer { margin-top: auto; padding-top: .5rem; }
 .mb-card.soldout .cover img { filter: grayscale(.85); opacity: .7; }
 
+/* Efecto hover para tarjetas con múltiples imágenes */
+.mb-card-image-container:hover .mb-card-image {
+    opacity: 0;
+}
+
+.mb-card-image-container:hover .mb-card-image:first-child {
+    opacity: 1;
+}
+
+/* Animación de cambio de imágenes */
+@keyframes imageChange {
+    0% { opacity: 1; }
+    50% { opacity: 0; }
+    100% { opacity: 1; }
+}
+
 /* Contador de imágenes en carrusel */
 .carousel-counter {
     position: absolute;
