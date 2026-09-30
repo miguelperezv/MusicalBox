@@ -4,8 +4,10 @@ from flask.wrappers import Request
 from .forms import ActivarCuentaForm, CreateUsuarioForm, LoginUsuarioForm,  newReleaseForm, newProductForm, newCat_Genre_Artist, newAdmin, editReleaseForm, EditUsuarioForm
 from flask import Blueprint, Response, current_app, flash, session, request, g, render_template, redirect, url_for, jsonify, make_response
 #from app.store.models import create_new_user, get_all_artists, get_user_by_email, create_new_artist
-from .models import create_new_user, get_all_artists, get_user_by_email, create_new_artist, get_k_artist_by_name, create_new_release, get_release_by_name, get_releases_with_artists, get_categories, create_new_product, get_k_release_by_name_artista, create_new_category, create_new_genre, create_release_genre, new_admin, get_all_releases, get_artist_by_release, get_categories_by_release, get_release_by_id, get_genres_by_release, get_products_by_release, get_product_by_id, get_artist_by_release, update_release, get_products_with_info, edit_product, create_new_image, get_rawimage_by_product, edit_image, get_items_by_id_factura, Imagen
-from .models import producto_card, lanzamiento_tiene_original, ESTADOS_ENVIO, ESTADOS_CON_ROTULO, opciones_componentes, stock_disponible, get_usuario_por_email, get_artist_by_id, get_releases_cards, get_products_cards, get_admin_stats, edit_user_by_email, get_all_products, get_purchases_by_user, get_all_invoices, get_solicitudes_by_user, validar_carrito, crear_pedido, get_images_by_product, get_first_image_by_product
+from .models import create_new_user, get_all_artists, get_user_by_email, create_new_artist, get_k_artist_by_name, create_new_release, get_release_by_name, get_releases_with_artists, get_categories, create_new_product, get_k_release_by_name_artista, create_new_category, create_new_genre, create_release_genre, new_admin, get_all_releases, get_artist_by_release, get_categories_by_release, get_release_by_id, get_genres_by_release, get_products_by_release, get_product_by_id, get_artist_by_release, update_release, get_products_with_info, edit_product, create_new_image, get_rawimage_by_product, edit_image, get_items_by_id_factura, Imagen, Producto
+from .models import producto_card, lanzamiento_tiene_original, ESTADOS_ENVIO, ESTADOS_CON_ROTULO, opciones_componentes, stock_disponible, get_usuario_por_email, get_artist_by_id, get_releases_cards, get_products_cards, get_admin_stats, edit_user_by_email, get_all_products, get_purchases_by_user, get_all_invoices, get_solicitudes_by_user, validar_carrito, crear_pedido, get_images_by_product, get_first_image_by_product, crear_variante, agregar_componente
+import csv
+import io
 #import epaycosdk.epayco as epayco
 import json
 import urllib.parse as urlparse
@@ -554,9 +556,167 @@ def updateproduct(k_producto):
 def editgenre_category_artist():
     None
 
-@dashboard.route("/editadmin")
-def editadmin():
-    None
+@dashboard.route("/batch-upload", methods=["GET", "POST"])
+def batch_upload():
+    print(f"[DEBUG] batch_upload called with method: {request.method}")
+    
+    if request.method == "POST":
+        print("[DEBUG] Processing POST request")
+        
+        if "csv_file" not in request.files:
+            print("[DEBUG] No csv_file in request.files")
+            flash("No se seleccionó archivo", "warning")
+            return redirect(request.url)
+        
+        file = request.files["csv_file"]
+        print(f"[DEBUG] File received: {file.filename if file else 'None'}")
+        
+        if not file or not file.filename:
+            print("[DEBUG] Empty file")
+            flash("Archivo vacío", "warning")
+            return redirect(request.url)
+            
+        try:
+            print("[DEBUG] Reading CSV file")
+            # Leer contenido del archivo
+            stream = io.StringIO(file.stream.read().decode("utf-8"), newline=None)
+            file.stream.seek(0)  # Resetear puntero
+            csv_reader = csv.DictReader(stream, delimiter=',')
+            print(f"[DEBUG] CSV columns: {csv_reader.fieldnames if csv_reader.fieldnames else 'None'}")
+            
+            # Validar columnas requeridas
+            required_columns = {"tipo", "nombre", "artista", "fecha"}
+            if not required_columns.issubset(csv_reader.fieldnames or []):
+                missing = required_columns - set(csv_reader.fieldnames or [])
+                print(f"[DEBUG] Missing columns: {missing}")
+                flash(f"Faltan columnas requeridas: {', '.join(missing)}", "warning")
+                return redirect(request.url)
+                
+            results = {"creados": 0, "errores": []}
+            
+            for i, row in enumerate(csv_reader, start=2):  # Empezar en 2 (headers=1)
+                print(f"[DEBUG] Processing row {i}: {row}")
+                try:
+                    if row["tipo"] == "lanzamiento":
+                        # Procesar lanzamiento
+                        try:
+                            artista_obj = get_usuario_por_email(row["artista"]) or create_new_artist(row["artista"].upper(), row.get("pais_artista") or "CO")
+                            if not artista_obj:
+                                results["errores"].append(f"Línea {i}: No se pudo crear artista {row['artista']}")
+                                continue
+                                
+                            k_artista = artista_obj.id if hasattr(artista_obj, 'id') else get_k_artist_by_name(row["artista"].upper())
+                            if not k_artista:
+                                results["errores"].append(f"Línea {i}: Artista no encontrado {row['artista']}")
+                                continue
+                                
+                            # Crear género si no existe
+                            genero = row.get("genero", "").upper()
+                            if genero:
+                                try:
+                                    create_new_genre(genero)
+                                except:
+                                    pass  # El género ya existe, continuamos
+                                    
+                            fecha = None
+                            if row.get("fecha"):
+                                try:
+                                    fecha = datetime.datetime.strptime(row["fecha"], "%Y-%m-%d").date()
+                                except:
+                                    pass
+                                    
+                            lanzamiento_id = create_new_release(
+                                k_artista, 
+                                row["nombre"], 
+                                row.get("imagen", ""), 
+                                fecha,
+                                genero
+                            )
+                            
+                            if lanzamiento_id:
+                                results["creados"] += 1
+                            else:
+                                results["errores"].append(f"Línea {i}: Error creando lanzamiento {row['nombre']}")
+                                
+                        except Exception as e:
+                            results["errores"].append(f"Línea {i}: Error en lanzamiento {row['nombre']}: {str(e)}")
+                            
+                    elif row["tipo"] == "producto":
+                        # Procesar producto
+                        try:
+                            lanzamiento_nombre = row.get("lanzamiento", "")
+                            if not lanzamiento_nombre:
+                                results["errores"].append(f"Línea {i}: Producto requiere lanzamiento")
+                                continue
+                                
+                            k_lanzamiento = get_release_by_name(lanzamiento_nombre)
+                            if not k_lanzamiento:
+                                results["errores"].append(f"Línea {i}: Lanzamiento no encontrado {lanzamiento_nombre}")
+                                continue
+                                
+                            precio = 0
+                            try:
+                                precio = float(row.get("precio", 0))
+                            except:
+                                pass
+                                
+                            stock = 0
+                            try:
+                                stock = int(row.get("stock", 0))
+                            except:
+                                pass
+                                
+                            producto = create_new_product(
+                                k_lanzamiento,
+                                row["nombre"],
+                                precio,
+                                row.get("descripcion", ""),
+                                stock,
+                                row.get("imagen", ""),
+                                row.get("categoria", "VINILO"),
+                                row.get("tipo_producto", "SIMPLE")
+                            )
+                            
+                            if producto:
+                                results["creados"] += 1
+                                
+                                # Procesar variantes si existen
+                                if row.get("tallas"):
+                                    try:
+                                        tallas = row["tallas"].split("|")
+                                        for talla in tallas:
+                                            talla_data = talla.split(":")
+                                            if len(talla_data) == 2:
+                                                stock_talla = 0
+                                                try:
+                                                    stock_talla = int(talla_data[1])
+                                                except:
+                                                    pass
+                                                crear_variante(producto.id, talla_data[0], "", "", stock_talla)
+                                    except:
+                                        pass
+                                        
+                            else:
+                                results["errores"].append(f"Línea {i}: Error creando producto {row['nombre']}")
+                                
+                        except Exception as e:
+                            results["errores"].append(f"Línea {i}: Error en producto {row['nombre']}: {str(e)}")
+                            
+                except Exception as e:
+                    results["errores"].append(f"Línea {i}: Error general: {str(e)}")
+                    
+            # Mostrar resultados
+            flash(f"Importación completada: {results['creados']} creados", "success")
+            for error in results["errores"]:
+                flash(error, "warning")
+                
+        except Exception as e:
+            print(f"[DEBUG] General error: {str(e)}")
+            flash(f"Error procesando archivo: {str(e)}", "error")
+            
+        return redirect(url_for("dashboard.batch_upload"))
+        
+    return render_template("batch_upload.html")
 
 @releases.route('/', methods=["GET", "POST"])
 def home_releases():

@@ -40,6 +40,9 @@ def create_app(config=None):
 
     # Eximir los endpoints de MercadoPago de CSRF
     csrf.exempt(mercadopago_views.mercadopago_bp)
+    
+    # Eximir el endpoint de batch upload de CSRF
+    csrf.exempt(dashboard)
 
     @app.cli.command("crear-admin")
     @click.argument("email")

@@ -23,7 +23,7 @@
 {% macro product_carousel(p, w=600) %}
 {% if p.imagenes and p.imagenes|length > 1 %}
 <!-- Carrusel de imágenes con controles mejorados -->
-<div id="productCarousel-{{ p.id }}{% if modal %}-modal{% endif %}" class="carousel slide mb-detalle-img" data-bs-ride="carousel" {% if modal %}data-bs-interval="3000"{% endif %}>
+<div id="productCarousel-{{ p.id }}{% if modal %}-modal{% endif %}" class="carousel slide mb-detalle-img" data-bs-ride="carousel" {% if modal %}data-bs-interval="3000"{% else %}data-bs-interval="4000"{% endif %}>
     <div class="carousel-inner">
         {% for imagen in p.imagenes|sort(attribute='orden') %}
         <div class="carousel-item {{ 'active' if loop.first }}">

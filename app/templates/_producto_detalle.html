@@ -2,7 +2,11 @@
 {% set agotado = p.stock <= 0 %}
 <div class="row g-4 mb-detalle">
     <div class="col-md-6">
-        {{ product_carousel(p, w=1200) }}
+        {% if p.tipo == 'BUNDLE' and p.imagenes and p.imagenes|length > 0 %}
+            {{ product_carousel(p, w=1200) }}
+        {% else %}
+            {{ product_carousel(p, w=1200) }}
+        {% endif %}
     </div>
     <div class="col-md-6 d-flex flex-column">
         <div class="d-flex flex-wrap gap-2 mb-2">
@@ -22,11 +26,44 @@
         {% if modal %}<h2 class="h3 mt-1">{{ p.nombre }}</h2>{% else %}<h1 class="h3 mt-1">{{ p.nombre }}</h1>{% endif %}
         <div class="fs-3 fw-bold mb-3">{{ p.precio|cop }}</div>
         {% if p.descripcion %}<p class="text-body-secondary">{{ p.descripcion }}</p>{% endif %}
-        {% if p.incluye %}
+        
+        {% if p.tipo == 'BUNDLE' and p.componentes %}
+        <div class="mb-3">
+            <div class="fw-semibold small mb-1">Este pack incluye:</div>
+            <ul class="small mb-0">
+                {% for c in p.componentes %}
+                <li>
+                    {% set componente = c.componente %}
+                    {% set variante = c.variante %}
+                    <a href="{{ url_for('products.detalle', k_producto=componente.id) }}" class="text-decoration-none">
+                        {{ componente.n_producto or componente.lanzamiento.n_lanzamiento }}
+                        {% if variante and variante.nombre %}({{ variante.nombre }}){% endif %}
+                    </a>
+                    {% if c.cantidad > 1 %} × {{ c.cantidad }}{% endif %}
+                    <span class="text-body-secondary ms-1">({{ (componente.p_producto * c.cantidad)|cop }})</span>
+                </li>
+                {% endfor %}
+            </ul>
+            
+            {% set precio_individual = 0 %}
+            {% for c in p.componentes %}
+                {% set precio_componente = (c.componente.p_producto * c.cantidad) %}
+                {% set precio_individual = precio_individual + precio_componente %}
+            {% endfor %}
+            
+            {% if precio_individual > p.precio %}
+            <div class="small text-success mt-2">
+                <i class="bi bi-tag me-1"></i>
+                Ahorras {{ (precio_individual - p.precio)|cop }} comprando el pack
+            </div>
+            {% endif %}
+        </div>
+        {% elif p.incluye %}
         <div class="mb-3"><div class="fw-semibold small mb-1">Este pack incluye</div>
             <ul class="small mb-0">{% for i in p.incluye %}<li>{{ i }}</li>{% endfor %}</ul>
         </div>
         {% endif %}
+        
         {% if p.original %}<p class="small text-body-secondary"><i class="bi bi-stars me-1"></i>Merch personalizado, diseñado y hecho por Musical Box.</p>{% endif %}
         <div class="mt-auto">
             {% if agotado %}

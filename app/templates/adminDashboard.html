@@ -25,6 +25,7 @@
 
                 <div class="section">Sitio</div>
                 <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.redes_admin' }}" href="{{ url_for('dashboard.redes_admin') }}"><i class="bi bi-camera-reels"></i>Redes en el inicio</a>
+                <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.batch_upload' }}" href="{{ url_for('dashboard.batch_upload') }}"><i class="bi bi-file-earmark-arrow-up"></i>Carga masiva</a>
 
                 <div class="section">Equipo</div>
                 <a class="nav-link" href="#" data-load="{{ url_for('dashboard.newadmin') }}"><i class="bi bi-person-gear"></i>Nuevo administrador</a>

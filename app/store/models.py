@@ -338,7 +338,7 @@ def create_new_artist(n_artista, pais_artista):
     query_artist = verify_existence_artist(n_artista)
     if query_artist:
         print("El artista ya ha sido registrado!")
-        return None
+        return get_usuario_por_email(n_artista)  # Retornar el artista existente
     else:
         #k_artista = "A"+str(len(get_all_artists())+1)
         artista = Artista(n_artista=n_artista, pais_artista=pais_artista)

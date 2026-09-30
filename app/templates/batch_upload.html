@@ -1,0 +1,93 @@
+{% extends "adminDashboard.html" %}
+
+{% block content %}
+<h1 class="h3 mb-4">Carga Masiva</h1>
+
+<div class="mb-panel">
+    <form method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-3">
+            <label for="csv_file" class="form-label">Archivo CSV</label>
+            <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv">
+            <div class="form-text">Formato requerido: tipo,nombre,artista,fecha</div>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Procesar</button>
+    </form>
+    
+    <div class="mt-4">
+        <h2 class="h5">Formato del CSV</h2>
+        <p class="text-muted">Ejemplo de archivo CSV para importar lanzamientos y productos:</p>
+        
+        <h3 class="h6 mt-3">Ejemplo de tabla CSV</h3>
+        <div class="table-responsive">
+            <table class="table table-bordered table-sm">
+                <thead>
+                    <tr>
+                        <th>tipo</th>
+                        <th>nombre</th>
+                        <th>artista</th>
+                        <th>fecha</th>
+                        <th>imagen</th>
+                        <th>pais_artista</th>
+                        <th>genero</th>
+                        <th>lanzamiento</th>
+                        <th>precio</th>
+                        <th>descripcion</th>
+                        <th>stock</th>
+                        <th>categoria</th>
+                        <th>tipo_producto</th>
+                        <th>tallas</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>lanzamiento</td>
+                        <td>Random Access Memories</td>
+                        <td>Daft Punk</td>
+                        <td>2023-05-15</td>
+                        <td>https://ejemplo.com/daft_punk.jpg</td>
+                        <td>FR</td>
+                        <td>HOUSE</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td>producto</td>
+                        <td>Vinilo Random Access Memories</td>
+                        <td>Daft Punk</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td>Random Access Memories</td>
+                        <td>180000</td>
+                        <td>Vinilo negro edición especial</td>
+                        <td>50</td>
+                        <td>VINILO</td>
+                        <td>SIMPLE</td>
+                        <td>S:10|M:15|L:8</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="mt-3">
+            <h3 class="h6">Instrucciones:</h3>
+            <ul class="small">
+                <li>Descarga este ejemplo como CSV desde Excel/Google Sheets</li>
+                <li>Rellena tus datos siguiendo el mismo formato</li>
+                <li>Columnas obligatorias: tipo, nombre, artista, fecha (para lanzamientos)</li>
+                <li>Para tallas: "TALLA:cantidad" separados por "|"</li>
+                <li>La imagen del lanzamiento puede ser una URL</li>
+                <li>Las imágenes de productos se suben después</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
