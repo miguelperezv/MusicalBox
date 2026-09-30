@@ -1,6 +1,32 @@
 {% extends "base.html" %}
 {% block title %}{{ p.nombre }}{% endblock %}
 {% block description %}{{ p.nombre }}{{ ' - ' ~ p.lanzamiento.n_lanzamiento.title() if p.lanzamiento }} en Musical Box. {{ p.descripcion or '' }}{% endblock %}
+{% block og_title %}{{ p.nombre }}{{ ' · ' ~ p.lanzamiento.n_lanzamiento.title() if p.lanzamiento }} · Musical Box{% endblock %}
+{% block og_description %}{{ p.nombre }}{{ ' - ' ~ p.lanzamiento.n_lanzamiento.title() if p.lanzamiento }} en Musical Box. {{ p.descripcion or '' }}{% endblock %}
+{% block og_image %}{{ url_for('products.image', k_producto=p.id, w=600, _external=True) }}{% endblock %}
+
+{% block head %}
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"Product","name":{{ p.nombre|tojson }},"description":{{ p.descripcion|tojson }},"image":["{{ url_for('products.image', k_producto=p.id, w=600, _external=True) }}"],"brand":{"@type":"Brand","name":{{ (p.artista.n_artista.title() if p.artista else 'Musical Box')|tojson }}},"offers":{"@type":"Offer","url":"{{ seo_canonical or request.url }}","priceCurrency":"COP","price":{{ p.precio|float }},"availability":"https://schema.org/{{ 'InStock' if p.stock > 0 else 'OutOfStock' }}","seller":{"@type":"Organization","name":"Musical Box"}}}
+</script>
+<script type="application/ld+json">
+{% set crumbs = [
+  {"@type": "ListItem", "position": 1, "name": "Inicio", "item": url_for("home.index", _external=True)},
+  {"@type": "ListItem", "position": 2, "name": "Productos", "item": url_for("products.home_products", _external=True)}
+] %}
+{% if p.lanzamiento %}
+{% set crumbs = crumbs + [
+  {"@type": "ListItem", "position": 3, "name": p.lanzamiento.n_lanzamiento.title(), "item": url_for("releases.release", k_lanzamiento=p.lanzamiento.id, _external=True)},
+  {"@type": "ListItem", "position": 4, "name": p.nombre, "item": (seo_canonical or request.url)}
+] %}
+{% else %}
+{% set crumbs = crumbs + [
+  {"@type": "ListItem", "position": 3, "name": p.nombre, "item": (seo_canonical or request.url)}
+] %}
+{% endif %}
+{{ {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": crumbs}|tojson }}
+</script>
+{% endblock %}
 
 {% block contenido %}
 <div class="container">

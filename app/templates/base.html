@@ -6,6 +6,15 @@
     <meta name="description" content="{% block description %}Musical Box: CD's, vinilos y cassettes en Bogotá. Lanzamientos, ediciones especiales y pedidos a la medida.{% endblock %}">
     <meta name="theme-color" content="#0f1c24">
     <title>{% block title %}{% endblock %} · Musical Box</title>
+    {% if seo_canonical %}<link rel="canonical" href="{{ seo_canonical }}">{% endif %}
+    <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+    <meta property="og:site_name" content="Musical Box">
+    <meta property="og:title" content="{% block og_title %}CD's, vinilos y cassettes en Bogotá · Musical Box{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Lanzamientos, ediciones especiales y pedidos a la medida de música física desde Bogotá, Colombia.{% endblock %}">
+    <meta property="og:url" content="{{ seo_canonical or request.url }}">
+    <meta property="og:image" content="{% block og_image %}{{ url_for('static', filename='imgs/musicalbox.png', _external=True) }}{% endblock %}">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Musical Box","url":"{{ request.host_url }}","logo":"{{ url_for('static', filename='imgs/musicalbox.png', _external=True) }}","sameAs":["https://facebook.com/musicalboxcol/","https://www.instagram.com/musicalboxcol/","https://twitter.com/musicalboxcol","https://tiktok.com/@musicalboxcol"]}</script>
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"Musical Box","url":"{{ request.host_url }}","potentialAction":{"@type":"SearchAction","target":"{{ request.host_url }}releases/?q={search_term_string}","query-input":"required name=search_term_string"}}</script>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='imgs/musicalbox.png') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

@@ -76,4 +76,17 @@ def create_app(config=None):
         #disponibles en todas las plantillas (navbar)
         return {"user": g.get("user"), "purchase_cart": g.get("purchase")}
 
+    @app.context_processor
+    def seo_defaultes():
+        #canonical y OG por defecto; las plantillas pueden sobreescribir los bloques og_*
+        from flask import request as _request, url_for as _url_for
+        endpoint, view_args = _request.endpoint, dict(_request.view_args or {})
+        seo_canonical = None
+        if endpoint and endpoint != 'static':
+            try:
+                seo_canonical = _url_for(endpoint, **view_args, _external=True)
+            except Exception:
+                seo_canonical = None
+        return {"seo_canonical": seo_canonical}
+
     return app

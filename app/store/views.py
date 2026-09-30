@@ -82,6 +82,36 @@ def index():
     return render_template("home.html", releases = get_releases_cards(limit=10), productos = get_products_cards(limit=4),
                            redes = seleccion_para_inicio())
 
+@home.route("/robots.txt")
+def robots():
+    #seo: permite todo y senala el sitemap
+    return Response(f"User-agent: *\nAllow: /\n\nSitemap: {url_for('home.sitemap', _external=True)}\n",
+                    mimetype="text/plain")
+
+@home.route("/sitemap.xml")
+def sitemap():
+    #seo: paginas estables + catalogo completo
+    import html
+    from .models import Artista, Lanzamiento
+    entradas = [
+        (url_for('home.index', _external=True), None),
+        (url_for('releases.home_releases', _external=True), None),
+        (url_for('products.home_products', _external=True), None),
+        (url_for('solicitud.nueva', _external=True), None),
+    ]
+    for r in Lanzamiento.query.all():
+        entradas.append((url_for('releases.release', k_lanzamiento=r.id, _external=True), r.f_lanzamiento))
+    for pr in Producto.query.all():
+        entradas.append((url_for('products.detalle', k_producto=pr.id, _external=True), pr.f_producto))
+    for a in Artista.query.all():
+        entradas.append((url_for('artists.artist', k_artista=a.id, _external=True), None))
+    lineas = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    for loc, ultimo in entradas:
+        lastmod = f'<lastmod>{ultimo.isoformat()[:10]}</lastmod>' if ultimo else ''
+        lineas.append(f'  <url><loc>{html.escape(loc)}</loc>{lastmod}</url>')
+    lineas.append('</urlset>')
+    return Response('\n'.join(lineas), mimetype="application/xml")
+
 @home.route("/login", methods=["GET", 'POST'])
 def login():
     from .seguridad import check_password

@@ -1,10 +1,19 @@
 {% extends "base.html" %}
 {% block title %}No encontrado{% endblock %}
 {% block contenido %}
-<div class="container mb-empty py-5">
+<div class="container mb-empty py-5" style="max-width: 560px">
     <i class="bi bi-vinyl"></i>
     <h1 class="h3 text-body">Esta página no está en nuestra colección</h1>
-    <p>Puede que el enlace esté mal o que ese disco ya no exista.</p>
-    <a class="btn btn-primary" href="{{ url_for('home.index') }}">Volver al inicio</a>
+    <p class="text-body-secondary">Puede que el enlace esté mal escrito o que ese disco ya no exista.</p>
+    <form class="mb-search mx-auto my-4" style="max-width: 340px" action="{{ url_for('releases.home_releases') }}" method="get" role="search">
+        <input class="form-control" type="search" name="q" placeholder="Busca artistas, discos, géneros..." aria-label="Buscar">
+        <i class="bi bi-search"></i>
+    </form>
+    <div class="d-flex flex-wrap justify-content-center gap-2">
+        <a class="btn btn-primary" href="{{ url_for('home.index') }}">Volver al inicio</a>
+        <a class="btn btn-outline-secondary" href="{{ url_for('releases.home_releases') }}">Ver lanzamientos</a>
+        <a class="btn btn-outline-secondary" href="{{ url_for('products.home_products') }}">Ver productos</a>
+    </div>
+    <p class="mt-4 text-body-secondary small mb-0">¿No encuentras el disco que buscas? <a href="{{ url_for('solicitud.nueva') }}">Pídelo y lo conseguimos</a>.</p>
 </div>
 {% endblock %}
