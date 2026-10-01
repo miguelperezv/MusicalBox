@@ -30,6 +30,9 @@ En producción la app **no arranca** si falta `SECRET_KEY` (así no queda una cl
      payment brick se carga en el navegador del cliente y no pasa por esta lista)
    - el servidor SMTP de tu proveedor de correo (cuando lo configures)
 
+   - `accounts.spotify.com` y `api.spotify.com` (búsqueda y sincronización de lanzamientos
+     desde Spotify; sin ellos la caja de búsqueda del panel responde "No se pudo conectar")
+
    Si no están, necesitas el plan **Hacker** (≈ 5 USD/mes).
 
 ---
@@ -115,6 +118,8 @@ os.environ['APP_CONFIG'] = 'production'          # ver paso 0
 os.environ['SECRET_KEY'] = 'una-clave-larga-y-aleatoria'
 os.environ['MERCADOPAGO_PUBLIC_KEY'] = '...'
 os.environ['MERCADOPAGO_ACCESS_TOKEN'] = '...'  # de producción cuando cobres de verdad
+os.environ['SPOTIFY_CLIENT_ID'] = '...'          # developer.spotify.com (client credentials)
+os.environ['SPOTIFY_CLIENT_SECRET'] = '...'      # búsqueda/sincronización de lanzamientos
 os.environ['MAIL_BACKEND'] = 'consola'           # 'smtp' cuando tengas proveedor de correo
 # os.environ['MAIL_SERVER'] = 'smtp.gmail.com'
 # os.environ['MAIL_PORT'] = '587'
@@ -149,6 +154,7 @@ python -c "import secrets; print(secrets.token_hex(32))"
 - [ ] El panel `/dashboard` pide login de administrador.
 - [ ] Correo real configurado (`MAIL_BACKEND=smtp` y variables `MAIL_*`).
 - [ ] Llaves de producción de MercadoPago (`MERCADOPAGO_PUBLIC_KEY` / `MERCADOPAGO_ACCESS_TOKEN`) cuando se cobre de verdad.
+- [ ] Búsqueda de Spotify en el panel responde (en plan gratuito: `api.spotify.com` y `accounts.spotify.com` en la lista blanca).
 
 ---
 
