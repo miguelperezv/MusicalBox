@@ -219,6 +219,7 @@ document.addEventListener('change', function (e) {
         celda.innerHTML = v <= 0 ? '<span class="mb-estado mb-estado-RECHAZADO">Agotado</span>'
             : (v <= 3 ? '<span class="mb-estado mb-estado-PENDIENTE">' + v + ' · bajo</span>' : String(v));
     }
+    window.mbPintarStock = pintarStock;
     document.addEventListener('click', function (e) {
         var celda = e.target.closest('td.stock-editable, td.precio-celda, td.fecha-celda');
         if (!celda || celda.querySelector('form.mb-celda')) return;
@@ -277,41 +278,96 @@ document.addEventListener('change', function (e) {
     });
 })();
 
-//órdenes: chips para filtrar la lista por estado (delegado: también en secciones data-load)
+//órdenes y solicitudes: chips para filtrar la lista por estado, combinables con el buscador (delegado)
 (function () {
-    function aplicar(filtro, chip) {
-        document.querySelectorAll('.chip-filtro').forEach(function (b) {
-            b.classList.toggle('active', b === chip);
-            b.classList.toggle('btn-primary', b === chip);
-            b.classList.toggle('btn-outline-secondary', b !== chip);
-        });
-        var panel = chip.closest('#admin-content') || document;
-        var tabla = panel.querySelector('table');
+    function estadoOk(tr, filtro) {
+        return filtro === 'todas'
+            || (filtro === 'pendientes' && tr.dataset.estado === 'PENDIENTE')
+            || (filtro !== 'todas' && filtro !== 'pendientes' && tr.dataset.estado === 'PAGADO' && tr.dataset.envio === filtro);
+    }
+    //recalcula la visibilidad de las órdenes según chip activo + texto del buscador
+    window.mbFiltrarOrdenes = function (panel) {
+        panel = panel || document;
+        var grupo = panel.querySelector('[data-grupo-ordenes]');
+        if (!grupo) return;
+        var filtro = grupo.dataset.filtroActual || 'todas';
+        var input = panel.querySelector('#buscador-ordenes');
+        var q = input ? input.value.trim().toLowerCase() : '';
+        var tabla = panel.querySelector('#tabla-ordenes');
+        if (!tabla) return;
         var filas = tabla.querySelectorAll('tr[data-estado]');
         var visibles = 0;
         filas.forEach(function (tr) {
-            var ok = filtro === 'todas'
-                || (filtro === 'pendientes' && tr.dataset.estado === 'PENDIENTE')
-                || (filtro !== 'todas' && filtro !== 'pendientes' && tr.dataset.estado === 'PAGADO' && tr.dataset.envio === filtro);
+            var ok = estadoOk(tr, filtro) && (!q || tr.textContent.toLowerCase().indexOf(q) !== -1);
             tr.classList.toggle('d-none', !ok);
             if (ok) visibles++;
         });
         var vacio = tabla.querySelector('.fila-sin-resultado');
         if (vacio) vacio.classList.toggle('d-none', visibles > 0);
+    };
+    function marcar(chip) {
+        document.querySelectorAll('.chip-filtro[data-filtra="' + chip.dataset.filtra + '"]').forEach(function (b) {
+            var es = b === chip;
+            b.classList.toggle('active', es);
+            b.classList.toggle('btn-primary', es);
+            b.classList.toggle('btn-outline-secondary', !es);
+        });
     }
     document.addEventListener('click', function (e) {
         var chip = e.target.closest && e.target.closest('.chip-filtro');
-        if (chip) aplicar(chip.dataset.filtro, chip);
+        if (!chip) return;
+        if (chip.dataset.filtra === 'ordenes') {
+            chip.closest('[data-grupo-ordenes]').dataset.filtroActual = chip.dataset.filtro;
+            marcar(chip);
+            window.mbFiltrarOrdenes(chip.closest('#admin-content') || document);
+        } else if (chip.dataset.filtra === 'solicitudes') {
+            marcar(chip);
+            window.mbFiltrarSolicitudes(chip.closest('#admin-content') || document);
+        }
+    });
+    //solicitudes: chip de estado + texto del buscador, combinados
+    window.mbFiltrarSolicitudes = function (panel) {
+        panel = panel || document;
+        var chip = panel.querySelector('.chip-filtro[data-filtra="solicitudes"].active');
+        var filtro = chip ? chip.dataset.filtro : 'todas';
+        var input = panel.querySelector('#filtro-solicitudes');
+        var q = input ? input.value.trim().toLowerCase() : '';
+        var visibles = 0;
+        panel.querySelectorAll('#tabla-solicitudes tr[data-est]').forEach(function (tr) {
+            var ok = (filtro === 'todas' || tr.dataset.est === filtro) && (!q || tr.textContent.toLowerCase().indexOf(q) !== -1);
+            tr.classList.toggle('d-none', !ok);
+            if (ok) visibles++;
+        });
+        var vacio = panel.querySelector('.fila-sin-resultado-sol');
+        if (vacio) vacio.classList.toggle('d-none', visibles > 0);
+    };
+    document.addEventListener('input', function (e) {
+        if (e.target && e.target.id === 'filtro-solicitudes') window.mbFiltrarSolicitudes(e.target.closest('#admin-content') || document);
+    });
+    //buscador de órdenes (número, comprador, teléfono) combinado con el chip activo
+    document.addEventListener('input', function (e) {
+        if (e.target && e.target.id === 'buscador-ordenes') window.mbFiltrarOrdenes(e.target.closest('#admin-content') || document);
+    });
+    //si la sección llega ya con ?busca= (p. ej. desde "Orden #N" de una solicitud), se aplica al entrar
+    document.addEventListener('DOMContentLoaded', function () {
+        var input = document.getElementById('buscador-ordenes');
+        if (input && input.value) window.mbFiltrarOrdenes(document);
     });
     window.aplicarFiltroOrdenes = function (row) {
-        //al cambiar el estado de envío, la fila pasa al grupo que le toca
+        //al cambiar el estado de envío (o el de pago), la fila pasa al grupo que le toca
         var panel = row.closest('#admin-content') || document;
-        var chip = panel.querySelector('.chip-filtro.active');
-        if (chip && chip.dataset.filtro !== 'todas') {
+        var grupo = panel.querySelector('[data-grupo-ordenes]');
+        if (grupo && grupo.dataset.filtroActual && grupo.dataset.filtroActual !== 'todas') {
+            var filtro = grupo.dataset.filtroActual;
             var env = row.dataset.envio, esta = row.dataset.estado;
-            var sigue = chip.dataset.filtro === 'pendientes' ? esta === 'PENDIENTE' : (esta === 'PAGADO' && env === chip.dataset.filtro);
-            if (!sigue) aplicar('todas', panel.querySelector('.chip-filtro[data-filtro="todas"]'));
+            var sigue = filtro === 'pendientes' ? esta === 'PENDIENTE' : (esta === 'PAGADO' && env === filtro);
+            if (!sigue) {
+                grupo.dataset.filtroActual = 'todas';
+                var todo = grupo.querySelector('.chip-filtro[data-filtro="todas"]');
+                if (todo) marcar(todo);
+            }
         }
+        window.mbFiltrarOrdenes(panel);
     };
 })();
 
@@ -371,5 +427,119 @@ document.addEventListener('change', function (e) {
         }
         document.getElementById('mb-cambio-ok').addEventListener('click', guardar);
         input.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); guardar(); } });
+    });
+})();
+
+//preorden: un clic en el ícono de fuego lo marca/desmarca (producto o paraguas del lanzamiento)
+(function () {
+    document.addEventListener('click', function (e) {
+        var b = e.target.closest && e.target.closest('[data-preorden-toggle]');
+        if (!b || b.disabled || b.dataset.enviado) return;
+        e.preventDefault();
+        b.dataset.enviado = '1';
+        $.post(b.dataset.url, {})
+            .done(function (r) {
+                var activo = !!r.preorden;
+                b.dataset.activo = activo ? '1' : '0';
+                b.classList.toggle('btn-outline-danger', activo);
+                b.classList.toggle('text-danger', activo);
+                b.classList.toggle('btn-outline-secondary', !activo);
+                b.title = activo ? 'Quitar preorden' : 'Marcar como preorden';
+                var chip = b.closest('tr').querySelector('[data-preorden-chip]');
+                if (chip) chip.classList.toggle('d-none', typeof r.es_preorden === 'boolean' ? !r.es_preorden : !activo);
+            })
+            .fail(function (xhr) {
+                b.dataset.enviado = '';
+                showAlert((xhr.responseJSON && xhr.responseJSON.error) || 'No se pudo actualizar el preorden', 'danger');
+            });
+    });
+})();
+
+//productos: clic en "N tallas" expande la fila con el stock de cada talla (edición inline)
+(function () {
+    document.addEventListener('click', function (e) {
+        var b = e.target.closest && e.target.closest('[data-tallas]');
+        if (!b) return;
+        e.preventDefault();
+        var fila = b.closest('tr').nextElementSibling;
+        if (fila && fila.classList.contains('fila-tallas')) fila.classList.toggle('d-none');
+    });
+    document.addEventListener('submit', function (e) {
+        var form = e.target.closest && e.target.closest('form.mb-talla');
+        if (!form) return;
+        e.preventDefault();
+        if (form.dataset.enviado) return;
+        var input = form.querySelector('input');
+        var s = parseInt(input.value, 10);
+        if (isNaN(s) || s < 0 || s > 9999) { input.classList.add('is-invalid'); return; }
+        form.dataset.enviado = '1';
+        $.post(form.dataset.url, { stock: input.value })
+            .done(function (r) {
+                input.value = r.stock;
+                input.classList.remove('is-invalid');
+                var celda = form.closest('tr.fila-tallas').previousElementSibling.querySelector('td.stock-celda');
+                if (celda && window.mbPintarStock) window.mbPintarStock(celda, r.total);
+            })
+            .fail(function () { form.dataset.enviado = ''; input.classList.add('is-invalid'); });
+    });
+})();
+
+//órdenes: nota interna por modal (corrección de dirección, detalles del cliente, etc.)
+(function () {
+    function esc(t) { return String(t || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+    document.addEventListener('click', function (e) {
+        var b = e.target.closest && e.target.closest('[data-nota]');
+        if (!b) return;
+        e.preventDefault();
+        var m = document.getElementById('mbModal');
+        var body = m.querySelector('.modal-body');
+        body.innerHTML = '<div style="max-width:560px;margin:0 auto">' +
+            '<h6 class="h6">Nota interna del pedido #' + b.dataset.id + '</h6>' +
+            '<textarea id="mb-nota-input" class="form-control" rows="4" placeholder="Ej.: cambió a la dirección de la oficina, avisa por WhatsApp…">' + esc(b.dataset.nota) + '</textarea>' +
+            '<div class="form-text">Solo la ve el equipo; no sale en el correo ni en el rótulo.</div>' +
+            '<div class="d-flex gap-2 mt-2"><button type="button" class="btn btn-primary btn-sm" id="mb-nota-ok">Guardar</button>' +
+            '<button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button></div></div>';
+        bootstrap.Modal.getOrCreateInstance(m).show();
+        var input = document.getElementById('mb-nota-input');
+        input.focus();
+        function guardar() {
+            $.post(b.dataset.url, { nota: input.value })
+                .done(function (r) {
+                    b.dataset.nota = r.nota || '';
+                    b.classList.toggle('btn-outline-warning', !!r.nota);
+                    b.classList.toggle('text-warning', !!r.nota);
+                    b.classList.toggle('btn-outline-secondary', !r.nota);
+                    b.title = r.nota || 'Agregar nota interna';
+                    bootstrap.Modal.getInstance(m).hide();
+                })
+                .fail(function () { showAlert('No se pudo guardar la nota', 'danger'); });
+        }
+        document.getElementById('mb-nota-ok').addEventListener('click', guardar);
+    });
+})();
+
+//órdenes: rechazar un pedido pendiente (libera la reserva de stock)
+(function () {
+    document.addEventListener('click', function (e) {
+        var b = e.target.closest && e.target.closest('[data-rechazar]');
+        if (!b) return;
+        e.preventDefault();
+        Swal.fire({
+            title: 'Rechazar el pedido #' + b.dataset.id + '?',
+            text: 'Se marcará RECHAZADO y se liberará el stock reservado.',
+            icon: 'warning', showCancelButton: true, confirmButtonText: 'Rechazar', cancelButtonText: 'Cancelar'
+        }).then(function (r) {
+            if (!r.isConfirmed) return;
+            $.post(b.dataset.url, {})
+                .done(function (res) {
+                    var tr = b.closest('tr');
+                    tr.dataset.estado = res.estado;
+                    var chip = tr.querySelector('.mb-estado');
+                    if (chip) chip.outerHTML = '<span class="mb-estado mb-estado-' + res.estado + '">' + res.estado + '</span>';
+                    b.remove();
+                    if (window.aplicarFiltroOrdenes) window.aplicarFiltroOrdenes(tr);
+                })
+                .fail(function (xhr) { showAlert((xhr.responseJSON && xhr.responseJSON.error) || 'No se pudo rechazar el pedido', 'danger'); });
+        });
     });
 })();

@@ -27,6 +27,18 @@ def variante_editar(k_variante):
     return _volver(k_producto, err, "Stock actualizado")
 
 
+@dashboard.route("/variante/<int:k_variante>/stock", methods=["POST"])
+def variante_stock(k_variante):
+    #edición inline desde el listado de productos: solo el stock de la talla (sin tocar el SKU)
+    v = db.session.get(Variante, k_variante) or abort(404)
+    valor = request.form.get("stock", type=int)
+    if valor is None or not (0 <= valor <= 9999):
+        return jsonify({"error": "Stock inválido"}), 400
+    v.stock = valor
+    db.session.commit()
+    return jsonify({"stock": int(v.stock), "total": int(stock_disponible(v.producto))})
+
+
 @dashboard.route("/variante/<int:k_variante>/eliminar", methods=["POST"])
 def variante_eliminar(k_variante):
     v = db.session.get(Variante, k_variante)
@@ -47,9 +59,9 @@ def componente_eliminar(k_componente):
     return _volver(k_bundle or request.form.get("k_bundle", type=int), err, "Producto quitado del pack")
 
 
-#órdenes: estado de envío y rótulo (el rótulo es de la orden, con su copia de datos de envío)
+#órdenes: estado de envío, rechazo manual, nota interna y rótulo (el rótulo es de la orden, con su copia de datos de envío)
 from flask import jsonify, render_template, abort
-from .models import ESTADOS_CON_ROTULO, Invoice, actualizar_envio
+from .models import ESTADOS_CON_ROTULO, Invoice, actualizar_envio, rechazar_pago
 
 
 @dashboard.route("/pedido/<int:k_invoice>/envio", methods=["POST"])
@@ -66,6 +78,23 @@ def pedido_rotulo(k_invoice):
     if not p or p.estado_envio not in ESTADOS_CON_ROTULO:
         abort(404)
     return render_template("rotulo.html", pedido=p)
+
+
+@dashboard.route("/pedido/<int:k_invoice>/rechazar", methods=["POST"])
+def pedido_rechazar(k_invoice):
+    p = db.session.get(Invoice, k_invoice) or abort(404)
+    if p.estado != 'PENDIENTE':
+        return jsonify({"error": "Solo se pueden rechazar los pedidos pendientes de pago"}), 400
+    rechazar_pago(p, "rechazo manual")
+    return jsonify({"estado": p.estado})
+
+
+@dashboard.route("/pedido/<int:k_invoice>/nota", methods=["POST"])
+def pedido_nota(k_invoice):
+    p = db.session.get(Invoice, k_invoice) or abort(404)
+    p.nota = (request.form.get("nota") or "").strip() or None
+    db.session.commit()
+    return jsonify({"nota": p.nota or ""})
 
 
 #sección Redes del inicio
@@ -147,11 +176,25 @@ from .models import Producto, Lanzamiento, get_artist_by_release, stock_disponib
 
 @dashboard.route("/productos")
 def productos_admin():
-    productos = Producto.query.order_by(Producto.k_lanzamiento, Producto.id).all()
+    q = Producto.query.order_by(Producto.k_lanzamiento, Producto.id)
+    f_lanzamiento = request.args.get("lanzamiento", type=int)
+    if f_lanzamiento:
+        q = q.filter_by(k_lanzamiento=f_lanzamiento)
+    f_categoria = request.args.get("categoria", "").strip()
+    if f_categoria:
+        q = q.filter_by(k_categoria=f_categoria)
     filas = [{"p": p, "artista": get_artist_by_release(p.k_lanzamiento) if p.k_lanzamiento else None,
               "stock": stock_disponible(p), "original": es_original(p),
-              "preorden": es_preorden(p)} for p in productos]
-    return render_template("productos_admin.html", filas=filas)
+              "preorden": es_preorden(p)} for p in q.all()]
+    f_stock = request.args.get("stock", "").strip()
+    if f_stock == "agotado":
+        filas = [f for f in filas if f["stock"] <= 0]
+    elif f_stock == "bajo":
+        filas = [f for f in filas if f["stock"] <= 3]
+    categorias = sorted({p.k_categoria for p in Producto.query.all() if p.k_categoria})
+    return render_template("productos_admin.html", filas=filas, categorias=categorias,
+                           lanzamientos=Lanzamiento.query.order_by(Lanzamiento.n_lanzamiento).all(),
+                           f_lanzamiento=f_lanzamiento or "", f_categoria=f_categoria, f_stock=f_stock)
 
 
 @dashboard.route("/lanzamientos")
@@ -195,6 +238,24 @@ CAMPOS_LANZAMIENTO = {
     "i_lanzamiento": "Portada (URL)",
     "url_social": "Post (URL)",
 }
+
+
+@dashboard.route("/producto/<int:k_producto>/preorden", methods=["POST"])
+def producto_preorden(k_producto):
+    p = db.session.get(Producto, k_producto) or abort(404)
+    if p.tipo == 'BUNDLE' or p.variantes:
+        return jsonify({"error": "El preorden directo solo aplica a sueltos sin tallas"}), 400
+    p.preorden = not p.preorden
+    db.session.commit()
+    return jsonify({"preorden": p.preorden, "es_preorden": es_preorden(p)})
+
+
+@dashboard.route("/lanzamiento/<int:k_lanzamiento>/preorden", methods=["POST"])
+def lanzamiento_preorden(k_lanzamiento):
+    l = db.session.get(Lanzamiento, k_lanzamiento) or abort(404)
+    l.preorden = not l.preorden
+    db.session.commit()
+    return jsonify({"preorden": l.preorden})
 
 
 @dashboard.route("/lanzamiento/<int:k_lanzamiento>/<campo>", methods=["POST"])

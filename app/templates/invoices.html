@@ -1,15 +1,17 @@
 <h1 class="h3 mb-4">Órdenes de compra</h1>
-<div class="d-flex flex-wrap gap-2 mb-3" role="group" aria-label="Filtrar órdenes">
-    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary active" data-filtro="todas">Todas</button>
-    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtro="pendientes">Pendientes de pago</button>
-    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtro="POR PREPARAR">Por preparar</button>
-    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtro="EN PREPARACION">En preparación</button>
-    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtro="ENVIADO">Enviado</button>
-    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtro="ENTREGADO">Entregado</button>
+<div class="d-flex flex-wrap gap-2 mb-3" data-grupo-ordenes data-filtro-actual="todas" role="group" aria-label="Filtrar órdenes">
+    <input class="form-control form-control-sm" style="max-width: 220px" type="search" id="buscador-ordenes" value="{{ busca }}"
+           placeholder="Buscar por número, comprador, teléfono...">
+    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary active" data-filtra="ordenes" data-filtro="todas">Todas <span class="badge text-bg-secondary">{{ invoices|length }}</span></button>
+    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="ordenes" data-filtro="pendientes">Pendientes de pago <span class="badge text-bg-warning">{{ conteos['PENDIENTE'] }}</span></button>
+    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="ordenes" data-filtro="POR PREPARAR">Por preparar <span class="badge text-bg-secondary">{{ conteos['POR PREPARAR'] }}</span></button>
+    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="ordenes" data-filtro="EN PREPARACION">En preparación <span class="badge text-bg-secondary">{{ conteos['EN PREPARACION'] }}</span></button>
+    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="ordenes" data-filtro="ENVIADO">Enviado <span class="badge text-bg-secondary">{{ conteos['ENVIADO'] }}</span></button>
+    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="ordenes" data-filtro="ENTREGADO">Entregado <span class="badge text-bg-secondary">{{ conteos['ENTREGADO'] }}</span></button>
 </div>
 <div class="mb-panel p-0">
     <div class="table-responsive">
-        <table class="table table-hover mb-0">
+        <table class="table table-hover mb-0" id="tabla-ordenes">
             <thead>
                 <tr>
                     <th class="ps-3">#</th>
@@ -19,20 +21,33 @@
                     <th>Productos</th>
                     <th class="text-end">Total</th>
                     <th style="min-width: 150px">Envío</th>
-                    <th class="pe-3">Ref. pago</th>
+                    <th class="pe-3">Nota</th>
                 </tr>
             </thead>
             <tbody>
                 {% for i in invoices %}
                 <tr data-estado="{{ i.estado }}" data-envio="{{ i.estado_envio or '' }}">
-                    <td class="ps-3 text-body-secondary">{{ i.id }}</td>
+                    <td class="ps-3 text-body-secondary">
+                        {{ i.id }}
+                        {% if i.mp_payment_id %}<br><small class="text-body-secondary" title="ID de pago de MercadoPago">MP: {{ i.mp_payment_id }}</small>{% endif %}
+                    </td>
                     <td class="text-nowrap">{{ i.f_compra.strftime('%d/%m/%Y %H:%M') if i.f_compra }}</td>
                     <td><span class="mb-estado mb-estado-{{ i.estado }}">{{ i.estado }}</span>{% if i.metodo_pago %}<br><small class="text-body-secondary">{{ i.metodo_pago }}</small>{% endif %}</td>
                     <td>
-                        {{ i.n_envio or ((i.usuario.n_usuario ~ ' ' ~ i.usuario.ape_usuario) if i.usuario) }}
-                        {% if i.usuario and i.usuario.k_rol == 'CLIENTE' %}<span class="mb-chip" title="Compró sin crear cuenta">invitado</span>{% endif %}
-                        <br><small class="text-body-secondary">{{ i.email_envio or (i.usuario.email_usuario if i.usuario) }}{% if i.tel_envio %} · {{ i.tel_envio }}{% endif %}</small>
-                        {% if i.dir_envio %}<br><small class="text-body-secondary">{{ i.dir_envio }}{% if i.barrio_envio %}, {{ i.barrio_envio }}{% endif %} · {{ i.lugar_envio }}</small>{% endif %}
+                        <div class="d-flex align-items-start gap-1 flex-wrap">
+                            <div>
+                                {{ i.n_envio or ((i.usuario.n_usuario ~ ' ' ~ i.usuario.ape_usuario) if i.usuario) }}
+                                {% if i.usuario and i.usuario.k_rol == 'CLIENTE' %}<span class="mb-chip" title="Compró sin crear cuenta">invitado</span>{% endif %}
+                                <br><small class="text-body-secondary">
+                                    {% set correo = i.email_envio or (i.usuario.email_usuario if i.usuario) %}
+                                    {% if correo %}<a href="mailto:{{ correo }}" title="Escribir al comprador"><i class="bi bi-envelope"></i></a> · {% endif %}
+                                    {% set tel = i.tel_envio or (i.usuario.cel_usuario if i.usuario) %}
+                                    {% if tel %}<a href="https://wa.me/57{{ tel|replace(' ', '') }}" target="_blank" rel="noopener" title="WhatsApp al comprador"><i class="bi bi-whatsapp text-success"></i></a> · {% endif %}
+                                    {{ tel or correo }}
+                                </small>
+                                {% if i.dir_envio %}<br><small class="text-body-secondary">{{ i.dir_envio }}{% if i.barrio_envio %}, {{ i.barrio_envio }}{% endif %} · {{ i.lugar_envio }}</small>{% endif %}
+                            </div>
+                        </div>
                     </td>
                     <td class="small">
                         {% for item in get_items_by_id_factura(i.id) %}
@@ -47,14 +62,22 @@
                         </select>
                         <a class="btn btn-sm btn-outline-secondary mt-1 rotulo {{ '' if i.estado_envio in con_rotulo else 'd-none' }}" target="_blank"
                            href="{{ url_for('dashboard.pedido_rotulo', k_invoice=i.id) }}"><i class="bi bi-printer me-1"></i>Rótulo</a>
-                        {% else %}<span class="text-body-secondary small">—</span>{% endif %}
+                        {% else %}
+                        <span class="text-body-secondary small">—</span>
+                        {% if i.estado == 'PENDIENTE' %}<button type="button" class="btn btn-sm btn-outline-danger mt-1" data-rechazar data-id="{{ i.id }}"
+                            data-url="{{ url_for('dashboard.pedido_rechazar', k_invoice=i.id) }}"><i class="bi bi-x-lg me-1"></i>Rechazar</button>{% endif %}
+                        {% endif %}
                     </td>
-                    <td class="pe-3 small text-body-secondary">{{ i.ref_payco or '—' }}</td>
+                    <td class="pe-3 text-nowrap">
+                        <button type="button" class="btn btn-sm {{ 'btn-outline-warning text-warning' if i.nota else 'btn-outline-secondary' }}"
+                                data-nota data-id="{{ i.id }}" data-url="{{ url_for('dashboard.pedido_nota', k_invoice=i.id) }}" data-nota="{{ i.nota or '' }}"
+                                title="{{ i.nota or 'Agregar nota interna' }}">{{ '<i class="bi bi-sticky-fill"></i> Ver nota' if i.nota else '<i class="bi bi-sticky"></i> Nota' }}</button>
+                    </td>
                 </tr>
                 {% else %}
                 <tr><td colspan="8" class="mb-empty">No hay órdenes de compra</td></tr>
                 {% endfor %}
-                <tr class="fila-sin-resultado d-none"><td colspan="8" class="mb-empty">No hay órdenes con este estado</td></tr>
+                <tr class="fila-sin-resultado d-none"><td colspan="8" class="mb-empty">No hay órdenes con este filtro</td></tr>
             </tbody>
         </table>
     </div>

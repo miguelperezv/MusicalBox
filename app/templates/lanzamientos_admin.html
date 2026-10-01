@@ -17,7 +17,7 @@
                     <td class="ps-3">
                         <div class="d-flex align-items-center gap-2">
                             {% if l.i_lanzamiento %}<img src="{{ l.i_lanzamiento }}" alt="" width="48" height="48" class="rounded object-fit-cover flex-shrink-0">{% endif %}
-                            <div><div class="fw-semibold">{{ l.n_lanzamiento.title() }}{% if l.preorden %}<span class="mb-chip mb-badge-new ms-1"><i class="bi bi-fire text-danger me-1"></i>PREORDEN</span>{% endif %}</div><div class="small text-body-secondary">{{ f.artista.n_artista.title() if f.artista else 'Sin artista' }}<span data-post-hint class="{{ '' if l.url_social else 'd-none' }}"> · <i class="bi bi-link-45deg"></i> post</span></div></div>
+                            <div><div class="fw-semibold">{{ l.n_lanzamiento.title() }}<span data-preorden-chip class="{{ 'd-none' if not l.preorden }} ms-1"><span class="mb-chip mb-badge-new"><i class="bi bi-fire text-danger me-1"></i>PREORDEN</span></span></div><div class="small text-body-secondary">{{ f.artista.n_artista.title() if f.artista else 'Sin artista' }}<span data-post-hint class="{{ '' if l.url_social else 'd-none' }}"> · <i class="bi bi-link-45deg"></i> post</span></div></div>
                         </div>
                     </td>
                     <td class="small text-nowrap fecha-celda" data-id="{{ l.id }}" data-valor="{{ l.f_lanzamiento.isoformat() if l.f_lanzamiento else '' }}"
@@ -28,6 +28,9 @@
                         <a class="btn btn-sm btn-outline-primary" href="{{ url_for('dashboard.productos_admin') }}?lanzamiento={{ l.id }}" data-load="{{ url_for('dashboard.newproduct', lanzamiento=l.id) }}" title="Agregar producto a este lanzamiento"><i class="bi bi-bag-plus"></i></a>
                         <button class="btn btn-sm btn-outline-secondary" type="button" data-cambio="i_lanzamiento" data-id="{{ l.id }}" data-valor="{{ l.i_lanzamiento or '' }}" title="Portada (URL)"><i class="bi bi-image"></i></button>
                         <button class="btn btn-sm btn-outline-secondary" type="button" data-cambio="url_social" data-id="{{ l.id }}" data-valor="{{ l.url_social or '' }}" title="Post de Instagram/TikTok (URL)"><i class="bi bi-link-45deg"></i></button>
+                        <button type="button" class="btn btn-sm {{ 'btn-outline-danger text-danger' if l.preorden else 'btn-outline-secondary' }}"
+                                data-preorden-toggle data-url="{{ url_for('dashboard.lanzamiento_preorden', k_lanzamiento=l.id) }}" data-activo="{{ '1' if l.preorden else '0' }}"
+                                title="{{ 'Quitar preorden del disco (sus sueltos dejan de preordenarse)' if l.preorden else 'Preorden: todos sus sueltos se preordinan aunque tengan stock' }}"><i class="bi bi-fire"></i></button>
                         <a class="btn btn-sm btn-primary" href="{{ url_for('dashboard.updaterelease', k_lanzamiento=l.id) }}"><i class="bi bi-pencil me-1"></i>Editar</a>
                     </td>
                 </tr>
