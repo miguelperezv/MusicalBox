@@ -190,6 +190,8 @@ class Invoice(db.Model):
     f_actualizacion = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     #campo para indicar si el stock ha sido reservado
     stock_reservado = db.Column(db.Boolean, default=False, server_default='0')
+    #nota interna del admin (corrección de dirección, detalles del cliente, etc.)
+    nota = db.Column(db.Text)
     #atributos de la relacion
     usuario = db.relationship("Usuario")
     items = db.relationship("Item", viewonly=True, order_by="Item.id")
