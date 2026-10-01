@@ -51,6 +51,7 @@ class  newReleaseForm(FlaskForm):
     f_lanzamiento = DateField("Fecha de Lanzamiento", default=date.today)
     k_genero = GenreSelectField("Género", id="k_genero")
     url_social = StringField("Post de Instagram o TikTok (opcional)", render_kw={"placeholder": "https://www.instagram.com/p/... o https://www.tiktok.com/@.../video/..."})
+    preorden = BooleanField("Preorden: la tirada aún no llega y todos sus productos se preordinan")
     #album de Spotify asociado (lo llena la búsqueda del panel; ver app/store/musicapi.py)
     external_id = HiddenField()
     external_url = HiddenField()
@@ -73,6 +74,7 @@ class newProductForm(FlaskForm):
     url_imagen = StringField("Imagen por URL (opcional)", render_kw={"placeholder": "https://drive.google.com/file/d/.../view o URL directa a la imagen"})
     k_category = SelectField("Categoría", id="category", choices=[])
     original_mb = BooleanField("Merch original Musical Box (personalizado por nosotros)")
+    preorden = BooleanField("Preorden: se vende antes de que llegue la tirada (solo mientras el stock esté en 0)")
     tipo = SelectField("Tipo", choices=[('SIMPLE', 'Producto individual'), ('BUNDLE', 'Pack (arma sus productos después)')], default='SIMPLE')
 
     def __init__(self, categories_choices: list = None, *args, **kwargs):
@@ -107,6 +109,8 @@ class CotizacionRapidaForm(FlaskForm):
     precio = IntegerField("Precio acordado", widget=h5widgets.NumberInput(min=0, max=1000000, step=50),
                           validators=[Optional()],
                           render_kw={"placeholder": "Opcional: con precio, se cotiza ya"})
+    cantidad = IntegerField("Cantidad", default=1, widget=h5widgets.NumberInput(min=1, max=99, step=1),
+                            validators=[Optional(), NumberRange(min=1, max=99)])
 
 
 class editReleaseForm(FlaskForm):

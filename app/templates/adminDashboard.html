@@ -55,14 +55,14 @@
                 <div class="col"><div class="mb-stat"><i class="bi bi-people"></i><div class="value mt-2">{{ stats.clientes }}</div><div class="label">Clientes</div></div></div>
             </div>
             <div class="row g-3 mb-4">
-                <div class="col-lg-4">
+                <div class="col-lg-3">
                     <div class="mb-panel h-100">
                         <h2 class="h6 mb-2">Ventas del mes</h2>
                         <div class="fs-4 fw-bold text-nowrap">{{ stats.ventas_mes|cop }}</div>
                         <div class="small text-body-secondary">{{ stats.ordenes_mes }} órdenes pagadas{% set delta = stats.ventas_mes - stats.ventas_prev %}{% if stats.ventas_prev or stats.ventas_mes %} · <span class="{{ 'text-success' if delta >= 0 else 'text-danger' }}">{{ '+' if delta >= 0 else '−' }}{{ (delta|abs)|cop }} vs mes anterior</span>{% endif %}</div>
                     </div>
                 </div>
-                <div class="col-lg-4">
+                <div class="col-lg-3">
                     <div class="mb-panel h-100">
                         <h2 class="h6 mb-2">Vendiendo ahora <span class="text-body-secondary fw-normal">(30 días)</span></h2>
                         {% for t in stats.top5 %}
@@ -73,7 +73,7 @@
                         {% else %}<div class="text-body-secondary small">Aún no hay ventas en los últimos 30 días</div>{% endfor %}
                     </div>
                 </div>
-                <div class="col-lg-4">
+                <div class="col-lg-3">
                     <div class="mb-panel h-100">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <h2 class="h6 mb-0">Stock bajo y agotado</h2>
@@ -87,6 +87,17 @@
                             {% else %}<span class="mb-estado mb-estado-PENDIENTE">{{ f.stock }} restantes</span>{% endif %}
                         </a>
                         {% else %}<div class="text-body-secondary small">Todo el stock por encima del umbral (≤ 3)</div>{% endfor %}
+                    </div>
+                </div>
+                <div class="col-lg-3">
+                    <div class="mb-panel h-100">
+                        <h2 class="h6 mb-2">Preórdenes <span class="text-body-secondary fw-normal">(pagadas, sin entregar)</span></h2>
+                        {% for pr in stats.preordenes[:6] %}
+                        <div class="d-flex justify-content-between align-items-center gap-2 py-1 border-bottom border-secondary-subtle">
+                            <div class="small text-truncate">{{ pr.lanzamiento }}</div>
+                            <div class="text-end small text-nowrap"><span class="fw-semibold">{{ pr.u }}</span> <span class="text-body-secondary">und</span></div>
+                        </div>
+                        {% else %}<div class="text-body-secondary small">Sin preórdenes aún: márcalos en <a href="{{ url_for('dashboard.productos_admin') }}">Productos</a> (preorden + stock 0)</div>{% endfor %}
                     </div>
                 </div>
             </div>

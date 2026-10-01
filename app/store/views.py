@@ -340,6 +340,8 @@ def newrelease():
                                           external_id=form_new_release.external_id.data, external_url=form_new_release.external_url.data)
         if k_lanzamiento :
             guardar_url_social(k_lanzamiento, form_new_release.url_social.data)
+            db.session.get(Lanzamiento, k_lanzamiento).preorden = bool(form_new_release.preorden.data)
+            db.session.commit()
             release_genre = create_release_genre(k_lanzamiento,  k_genero)
             if release_genre:
                 flash("Lanzamiento Registrado! "+ str(n_lanzamiento) +" - "+ str(k_genero))
@@ -522,6 +524,8 @@ def updaterelease(k_lanzamiento):
         result = update_release(k_lanzamiento, n_lanzamiento, i_lanzamiento, k_artista, f_lanzamiento, k_genero)
         if result:
             guardar_url_social(k_lanzamiento, form_edit_release.url_social.data)
+            db.session.get(Lanzamiento, k_lanzamiento).preorden = bool(form_edit_release.preorden.data)
+            db.session.commit()
         if result:
             flash("Se actualizó el lanzamiento ["+str(k_lanzamiento)+"-"+str(n_lanzamiento)+"]")
         else:
@@ -533,11 +537,11 @@ def updaterelease(k_lanzamiento):
         lanzamiento = get_release_by_id(k_lanzamiento)
         if get_genres_by_release(k_lanzamiento):
             form_edit_release.k_genero.data = get_genres_by_release(k_lanzamiento)[0].get("k_genero")
-            
+             
         else:
             form_edit_release.k_genero.data = "N/A"
-        
-    
+        form_edit_release.preorden.data = bool(db.session.get(Lanzamiento, k_lanzamiento).preorden)
+     
     return render_template("editRelease.html", form = form_edit_release, get_artist_by_release = get_artist_by_release,  lanzamiento = lanzamiento, artistas = sorted(a['n_artista'] for a in get_all_artists()))
 
 @dashboard.route("/updaterelease_spotify/<int:k_lanzamiento>", methods=["POST"])
@@ -625,7 +629,10 @@ def updateproduct(k_producto):
 
         result = edit_product(k_producto, n_producto, d_producto, p_producto, image_files, k_category, stock, url_imagen)
         if result:
-            get_product_by_id(k_producto).original_mb = request.form.get("original_mb") == "y"
+            prod = get_product_by_id(k_producto)
+            prod.original_mb = request.form.get("original_mb") == "y"
+            #preorden solo para SIMPLE sin tallas (igual que los pedidos a la medida)
+            prod.preorden = request.form.get("preorden") == "y" and prod.tipo == 'SIMPLE' and not prod.variantes
             db.session.commit()
         if result:
             flash("Se actualizó el producto")
@@ -652,6 +659,7 @@ def updateproduct(k_producto):
         form_edit_product.url_imagen.data = producto.url_imagen
         form_edit_product.k_category.data = producto.k_categoria
         form_edit_product.original_mb.data = producto.original_mb
+        form_edit_product.preorden.data = bool(producto.preorden)
         return render_template("editProduct.html", form = form_edit_product, producto = producto, opciones_componentes = opciones_componentes, stock_disponible = stock_disponible)
     return redirect(url_for('dashboard.editproduct'))
 

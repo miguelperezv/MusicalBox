@@ -1,5 +1,6 @@
 {% from "_macros.html" import producto_imagen, badge_original, product_carousel %}
 {% set agotado = p.stock <= 0 %}
+{% set pre = p.preorden %}
 <div class="row g-4 mb-detalle">
     <div class="col-md-6">
         {% if p.tipo == 'BUNDLE' and p.imagenes and p.imagenes|length > 0 %}
@@ -13,7 +14,8 @@
             {% if p.tipo == 'BUNDLE' %}<span class="mb-chip mb-badge-pack"><i class="bi bi-box-seam me-1"></i>PACK</span>
             {% elif p.categoria %}<span class="mb-chip">{{ p.categoria }}</span>{% endif %}
             {% if p.original %}{{ badge_original('Original Musical Box') }}{% endif %}
-            {% if agotado %}<span class="mb-chip mb-badge-out">Agotado</span>{% elif p.stock <= 3 %}<span class="mb-chip mb-badge-new">¡Últimos {{ p.stock }}!</span>{% endif %}
+            {% if pre %}<span class="mb-chip mb-badge-new"><i class="bi bi-fire text-danger me-1"></i>Preorden</span>
+            {% elif agotado %}<span class="mb-chip mb-badge-out">Agotado</span>{% elif p.stock <= 3 %}<span class="mb-chip mb-badge-new">¡Últimos {{ p.stock }}!</span>{% endif %}
         </div>
         {% if p.lanzamiento %}
         <a class="mb-eyebrow d-inline-flex align-items-center gap-2" href="{{ url_for('releases.release', k_lanzamiento=p.lanzamiento.id) }}">
@@ -66,7 +68,15 @@
         
         {% if p.original %}<p class="small text-body-secondary"><i class="bi bi-stars me-1"></i>Merch personalizado, diseñado y hecho por Musical Box.</p>{% endif %}
         <div class="mt-auto">
-            {% if agotado %}
+            {% if pre %}
+            <p class="small text-body-secondary mb-2"><i class="bi bi-hourglass-split me-1"></i>Preorden: paga hoy y llega contigo la tirada.</p>
+            <form class="d-flex flex-wrap gap-2" action="{{ url_for('purchase.addtocart') }}" method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="product_id" value="{{ p.id }}">
+                <input class="form-control text-center" style="max-width: 5rem" type="number" name="quantity" value="1" min="1" max="99" aria-label="Cantidad">
+                <button type="submit" class="btn btn-primary btn-lg flex-fill"><i class="bi bi-hourglass-split me-1"></i>Preordenar</button>
+            </form>
+            {% elif agotado %}
             <a class="btn btn-outline-secondary w-100" href="{{ url_for('solicitud.nueva') }}"><i class="bi bi-bell me-1"></i>Agotado · Pedirlo</a>
             {% else %}
             <form class="d-flex flex-wrap gap-2" action="{{ url_for('purchase.addtocart') }}" method="post">

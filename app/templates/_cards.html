@@ -10,7 +10,8 @@
         {% endif %}
         <div class="badges">
             {% if r.nuevo %}<span class="mb-chip mb-badge-new">Nuevo</span>{% endif %}
-            {% if r.agotado %}<span class="mb-chip mb-badge-out">Agotado</span>{% endif %}
+            {% if r.preorden %}<span class="mb-chip mb-badge-new"><i class="bi bi-fire text-danger me-1"></i>Preorden</span>
+            {% elif r.agotado %}<span class="mb-chip mb-badge-out">Agotado</span>{% endif %}
         </div>
         {% if r.original %}<div class="mb-original-corner">{{ badge_original('Original') }}</div>{% endif %}
     </a>
@@ -36,7 +37,8 @@
 
 {% macro product_card(p, show_release=true) %}
 {% set agotado = p.stock <= 0 %}
-<article class="mb-card {{ 'soldout' if agotado }} {{ 'mb-card-pack' if p.tipo == 'BUNDLE' }}" 
+{% set pre = p.preorden %}
+<article class="mb-card {{ 'soldout' if agotado and not pre }} {{ 'mb-card-pack' if p.tipo == 'BUNDLE' }}" 
          data-producto-id="{{ p.id }}"
          {% if p.imagenes and p.imagenes|length > 1 %}data-imagenes-count="{{ p.imagenes|length }}"{% endif %}>
     <div class="cover">
@@ -66,7 +68,8 @@
         <div class="badges">
             {% if p.tipo == 'BUNDLE' %}<span class="mb-chip mb-badge-pack"><i class="bi bi-box-seam me-1"></i>PACK</span>
             {% elif p.categoria %}<span class="mb-chip bg-white">{{ p.categoria }}</span>{% endif %}
-            {% if agotado %}<span class="mb-chip mb-badge-out">Agotado</span>
+            {% if pre %}<span class="mb-chip mb-badge-new"><i class="bi bi-fire text-danger me-1"></i>Preorden</span>
+            {% elif agotado %}<span class="mb-chip mb-badge-out">Agotado</span>
             {% elif p.stock <= 3 %}<span class="mb-chip mb-badge-new">¡Últimos {{ p.stock }}!</span>{% endif %}
         </div>
         {% if p.original %}<div class="mb-original-corner">{{ badge_original() }}</div>{% endif %}
@@ -90,7 +93,14 @@
         {% if p.incluye %}<span class="small"><i class="bi bi-box-seam me-1 text-primary"></i>Incluye: {{ p.incluye|join(' + ') }}</span>{% endif %}
         <div class="footer">
             <div class="price mb-2">{{ p.precio|cop }}</div>
-            {% if agotado %}
+            {% if pre %}
+            <form class="d-flex flex-wrap gap-2" action="{{ url_for('purchase.addtocart') }}" method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="product_id" value="{{ p.id }}">
+                <input class="form-control text-center px-1 d-none d-sm-block" style="max-width: 4.2rem" type="number" name="quantity" value="1" min="1" max="99" aria-label="Cantidad">
+                <button type="submit" class="btn btn-primary flex-fill px-2"><i class="bi bi-hourglass-split me-1"></i>Preordenar</button>
+            </form>
+            {% elif agotado %}
             <a class="btn btn-outline-secondary w-100" href="{{ url_for('solicitud.nueva') }}"><i class="bi bi-bell me-1"></i>Pedirlo</a>
             {% else %}
             <form class="d-flex flex-wrap gap-2" action="{{ url_for('purchase.addtocart') }}" method="post">
@@ -100,7 +110,7 @@
                 <select class="form-select form-select-sm w-100 mb-2" name="variante_id" required aria-label="Talla o color">
                     <option value="" selected disabled>Elige talla / color</option>
                     {% for v in p.variantes %}
-                    <option value="{{ v.id }}" {{ 'disabled' if v.stock <= 0 }}>{{ v.nombre }} — {{ 'agotado' if v.stock <= 0 else ('quedan ' ~ v.stock if v.stock <= 3 else 'disponible') }}</option>
+                    <option value="{{ v.id }}" {{ 'disabled' if v.stock <= 0 }}>{{ v.nombre }} - {{ 'agotado' if v.stock <= 0 else ('quedan ' ~ v.stock if v.stock <= 3 else 'disponible') }}</option>
                     {% endfor %}
                 </select>
                 {% endif %}

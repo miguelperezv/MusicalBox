@@ -23,6 +23,8 @@ class Lanzamiento(db.Model):
     #album externo (Spotify): para re-sincronizar metadatos; ver app/store/musicapi.py
     external_id = db.Column(db.String(100), unique=True)
     external_url = db.Column(db.String(300))
+    #paraguas de preorden: si la tirada no ha llegado, todos sus productos sueltos se preordinan
+    preorden = db.Column(db.Boolean, nullable=False, default=False, server_default='0')
 
 class Artista(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -65,6 +67,8 @@ class Producto(db.Model):
     tipo = db.Column(db.String(10), nullable=False, default='SIMPLE', server_default='SIMPLE')
     #merch personalizado hecho por Musical Box
     original_mb = db.Column(db.Boolean, nullable=False, default=False, server_default='0')
+    #preorden: se vende antes de que llegue la tirada (paga hoy, llega después); solo SIMPLE sin tallas
+    preorden = db.Column(db.Boolean, nullable=False, default=False, server_default='0')
     #atributos de la relacion
     lanzamiento = db.relationship("Lanzamiento")
     categoria = db.relationship("Categoria")
@@ -233,6 +237,8 @@ class Solicitud(db.Model):
     k_producto = db.Column(db.Integer, db.ForeignKey("producto.id"))
     n_producto_solicitado = db.Column(db.String(150))
     d_producto_solicitado = db.Column(db.String(200))
+    #unidades pedidas (preórdenes por encargo); 1 = nada especial
+    cantidad = db.Column(db.Integer, nullable=False, default=1, server_default='1')
     estado = db.Column(db.String(20), nullable=False, default='ACTIVO')
     f_solicitud = db.Column(db.DateTime, default=datetime.now)
     f_actualizacion = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
@@ -304,7 +310,7 @@ class UsuarioSchema(ma.SQLAlchemyAutoSchema):
 class SolicitudSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Solicitud
-        fields = ["id", "k_usuario", "k_producto", "n_producto_solicitado", "d_producto_solicitado", "estado", "f_solicitud"]
+        fields = ["id", "k_usuario", "k_producto", "n_producto_solicitado", "d_producto_solicitado", "cantidad", "estado", "f_solicitud"]
 
 class RolSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
@@ -948,9 +954,10 @@ def edit_user_by_email(email, nombre,apellido,ciudad,direccion, barrio=None, cel
     
 
 #solicitudes de pedido (integrado desde musical_box_manager)
-def create_solicitud(k_usuario, k_producto, n_producto_solicitado, d_producto_solicitado=None, cel=None, email=None):
+def create_solicitud(k_usuario, k_producto, n_producto_solicitado, d_producto_solicitado=None, cel=None, email=None, cantidad=1):
     solicitud = Solicitud(k_usuario=k_usuario, k_producto=k_producto, n_producto_solicitado=n_producto_solicitado,
                           d_producto_solicitado=d_producto_solicitado, estado='ACTIVO',
+                          cantidad=max(1, int(cantidad or 1)),
                           cel_contacto=cel, email_contacto=(email or '').strip().lower() or None)
     try:
         db.session.add(solicitud)
@@ -1035,6 +1042,7 @@ def get_releases_cards(q=None, k_artista=None, limit=None, genero=None, categori
             "categorias": categorias,
             "nuevo": bool(fecha and (datetime.now().date() - fecha).days < 30),
             "agotado": bool(productos) and all(stock_disponible(p) <= 0 for p in productos),
+            "preorden": bool(lanz.preorden),
             "precio_desde": min((p.p_producto for p in productos), default=None),
             "original": any(es_original(p) for p in productos),
         })
@@ -1085,6 +1093,7 @@ def get_products_cards(limit=None, k_lanzamiento=None, categoria=None, orden='re
             "variantes": [{"id": v.id, "nombre": v.nombre, "stock": int(v.stock or 0)} for v in p.variantes] if p.tipo != 'BUNDLE' else [],
             "incluye": [f"{c.cantidad} × {c.componente.n_producto}" + (f" ({c.variante.nombre})" if c.variante else "") for c in p.componentes] if p.tipo == 'BUNDLE' else [],
             "original": es_original(p),
+            "preorden": es_preorden(p),
             #pack: imágenes de sus productos para armar el collage (máx. 4)
             "collage": [{"id": c.componente.id, "nombre": c.componente.n_producto, "respaldo": c.componente.lanzamiento.i_lanzamiento if c.componente.lanzamiento else ''}
                         for c in p.componentes][:4] if p.tipo == 'BUNDLE' else [],
@@ -1121,6 +1130,22 @@ def get_admin_stats():
         if s <= 3:
             stock_baja.append({"p": p, "stock": s})
     stock_baja.sort(key=lambda f: f["stock"])
+    #preórdenes comprometidas por lanzamiento (pagadas y sin entregar): el número para decidir la tirada
+    preordenes = {}
+    #incluye los marcados a nivel de producto y los heredados del lanzamiento (paraguas)
+    pre_ids = [p.id for p in Producto.query.filter(Producto.tipo == 'SIMPLE').all() if es_preorden(p)]
+    if pre_ids:
+        filas_pre = (db.session.query(Item.k_producto, db.func.sum(Item.cant_item))
+                     .join(Invoice, Invoice.id == Item.k_factura)
+                     .filter(Invoice.estado == 'PAGADO', Item.k_producto.in_(pre_ids),
+                             db.or_(Invoice.estado_envio.is_(None), Invoice.estado_envio != 'ENTREGADO'))
+                     .group_by(Item.k_producto).all())
+        for k_prod, unidades in filas_pre:
+            p = db.session.get(Producto, k_prod)
+            if p and p.lanzamiento:
+                preordenes[p.lanzamiento.n_lanzamiento] = preordenes.get(p.lanzamiento.n_lanzamiento, 0) + int(unidades)
+    preordenes_lista = [{"lanzamiento": n.title(), "u": u} for n, u in preordenes.items()]
+    preordenes_lista.sort(key=lambda f: -f["u"])
     return {
         "solicitudes_activas": Solicitud.query.filter(Solicitud.estado.in_(['ACTIVO', 'EN PROCESO'])).count(),
         "solicitudes_cotizadas": Solicitud.query.filter_by(estado='COTIZADA').count(),
@@ -1139,6 +1164,7 @@ def get_admin_stats():
         "lanzamientos": Lanzamiento.query.count(),
         "clientes": Usuario.query.filter(Usuario.k_rol.in_(['USER', 'CLIENTE'])).count(),
         "ultimas_solicitudes": Solicitud.query.order_by(db.desc(Solicitud.f_solicitud)).limit(5).all(),
+        "preordenes": preordenes_lista,
         "ultimas_ordenes": Invoice.query.order_by(db.desc(Invoice.f_compra)).limit(5).all(),
         "rotulo_estados": ESTADOS_CON_ROTULO,
     }
@@ -1227,6 +1253,8 @@ def unidades_de_stock(producto, variante, cantidad):
 
 def descontar_stock(producto, variante, cantidad):
     #nunca deja stock negativo; devuelve avisos si no alcanzaba
+    if es_preorden(producto):
+        return []  #la tirada llega después: el stock entra cuando se reciba
     avisos = []
     for (tipo, k), n in unidades_de_stock(producto, variante, cantidad).items():
         objeto = db.session.get(Variante if tipo == 'V' else Producto, k)
@@ -1271,6 +1299,14 @@ def validar_carrito(cart):
         if requiere_variante(producto) and variante is None:
             errores.append(f"{nombre_linea(producto)}: elige talla o color")
             continue
+        if es_preorden(producto):
+            #la tirada aún no llega: se paga hoy y se envía después, sin tocar el stock
+            lineas.append((producto, None, cantidad))
+            total += producto.p_producto * cantidad
+            continue
+        if pack_lleva_preorden(producto):
+            errores.append(f"{nombre_linea(producto)}: el pack incluye un producto en preorden; quítalo del carrito")
+            continue
         disponible = stock_disponible(producto, variante)
         if cantidad > disponible:
             errores.append(f"{nombre_linea(producto, variante)}: solo quedan {disponible} disponibles")
@@ -1294,10 +1330,11 @@ def validar_carrito(cart):
 def crear_pedido(cart, datos, k_usuario=None, cotizacion=None):
     """Crea el pedido PENDIENTE con sus líneas. Devuelve (pedido, token, errores).
     El token se entrega una sola vez (enlace de seguimiento); en la BD queda su hash.
-    cotizacion=(producto, precio): pedido a la medida ya acordado; no revisa stock (se consigue por encargo)."""
+    cotizacion=(producto, precio[, cantidad]): pedido a la medida ya acordado; no revisa stock (se consigue por encargo)."""
     if cotizacion:
-        producto, precio = cotizacion
-        lineas, total, errores = [(producto, None, 1, precio)], precio, []
+        producto, precio = cotizacion[0], cotizacion[1]
+        cantidad = max(1, int(cotizacion[2])) if len(cotizacion) > 2 else 1
+        lineas, total, errores = [(producto, None, cantidad, precio)], precio * cantidad, []
     else:
         lineas, total, errores = validar_carrito(cart)
     if errores:
@@ -1443,6 +1480,8 @@ def reservar_stock_pedido(pedido, lineas):
     # Calcular la cantidad total de cada elemento que se necesita
     demanda_total = {}
     for producto, variante, cantidad in lineas:
+        if es_preorden(producto):
+            continue  #no se aparta stock para preórdenes
         # Para cada línea, calcular las unidades físicas necesarias
         for (tipo, k), n in unidades_de_stock(producto, variante, cantidad).items():
             clave = (tipo, k)
@@ -1487,8 +1526,10 @@ def reservar_stock_pedido(pedido, lineas):
             )
             db.session.add(reserva)
         
-        # Marcar el pedido como con stock reservado
-        pedido.stock_reservado = True
+        # Marcar el pedido como con stock reservado (solo si de verdad se reservó algo;
+        # un carrito solo de preórdenes no aparta nada)
+        if demanda_total:
+            pedido.stock_reservado = True
         db.session.commit()
         
         return True, []
@@ -1628,6 +1669,17 @@ def es_original(producto):
     if producto.original_mb:
         return True
     return producto.tipo == 'BUNDLE' and any(c.componente.original_mb for c in producto.componentes)
+
+
+#preorden: se vende antes de que llegue la tirada (paga hoy, llega después); solo SIMPLE sin tallas
+def es_preorden(producto):
+    #se hereda del lanzamiento: si el disco está en preorden, todos sus sueltos también
+    bajo = bool(producto.preorden or (producto.lanzamiento is not None and producto.lanzamiento.preorden))
+    return bajo and producto.tipo != 'BUNDLE' and not producto.variantes
+
+
+def pack_lleva_preorden(producto):
+    return producto.tipo == 'BUNDLE' and any(es_preorden(c.componente) for c in producto.componentes)
 
 def lanzamiento_tiene_original(k_lanzamiento):
     return any(es_original(p) for p in Producto.query.filter_by(k_lanzamiento=k_lanzamiento).all())

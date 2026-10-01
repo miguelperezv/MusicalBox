@@ -24,6 +24,7 @@
     </div>
     {{ field(form.i_lanzamiento, type='url', placeholder='https://...', help='URL de la portada (imagen cuadrada)') }}
     {{ field(form.url_social) }}
+    {{ field(form.preorden, help='Si la tirada aún no llega: todos los productos sueltos de este disco venden en preorden (sin revisar stock).') }}
     <div class="row">
         {{ field(form.f_lanzamiento, col='col-sm-6 mb-3') }}
         {{ field(form.k_genero, col='col-sm-6 mb-3') }}

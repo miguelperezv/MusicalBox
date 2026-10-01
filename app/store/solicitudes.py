@@ -64,10 +64,12 @@ def _respuesta_cotizar(s, token):
     #el enlace solo se puede ver ahora (en la BD queda su hash); se envía al cliente por WhatsApp o correo
     enlace = url_for('solicitud.confirmar', token=token, _external=True)
     disco = s.producto.lanzamiento.n_lanzamiento.title() + " - " if s.producto.lanzamiento else ""
-    mensaje = (f"¡Hola! Conseguimos tu pedido en Musical Box: {disco}{s.producto.n_producto} por ${int(s.precio_cotizado):,}".replace(",", ".")
+    n = s.cantidad or 1
+    unidades = f"{n} unidades de " if n > 1 else ""
+    mensaje = (f"¡Hola! Conseguimos tu pedido en Musical Box: {unidades}{disco}{s.producto.n_producto} por ${int(s.precio_cotizado):,}".replace(",", ".")
                + f". Confirma tu compra y datos de envío aquí: {enlace}")
     cel = "".join(c for c in (s.cel_contacto or "") if c.isdigit())
-    return {"id": s.id, "enlace": enlace,
+    return {"id": s.id, "enlace": enlace, "cantidad": n,
             "whatsapp": f"https://wa.me/{'57' + cel if len(cel) == 10 else cel}?text={quote(mensaje)}",
             "estado": s.estado}
 
@@ -88,7 +90,7 @@ def nueva_admin():
     email = (form.email.data or "").strip().lower() or None
     usuario = get_usuario_por_email(email) if email else None
     s, err = create_solicitud(usuario.id if usuario else None, k_producto, nombre_limpio, None,
-                              form.celular.data.strip(), email)
+                              form.celular.data.strip(), email, cantidad=form.cantidad.data or 1)
     if not s:
         return jsonify({"error": err or "No se pudo registrar"}), 400
     if k_producto and form.precio.data:
@@ -122,6 +124,7 @@ def confirmar(token):
 
     form = CheckoutForm()
     form.metodo_pago.choices = METODOS_PAGO
+    cantidad = s.cantidad or 1
     previos = datos_envio_previos(s.email_contacto or (s.usuario.email_usuario if s.usuario else None))
     if request.method == 'GET':
         for campo, valor in (previos or {"email": s.email_contacto, "telefono": s.cel_contacto}).items():
@@ -131,7 +134,7 @@ def confirmar(token):
     if form.validate_on_submit():
         datos = {campo: form[campo].data for campo in ["nombre", "email", "telefono", "ciudad", "direccion", "barrio", "metodo_pago"]}
         pedido, token_pedido, errores = crear_pedido(None, datos, k_usuario=g.user["id"] if g.user else None,
-                                                     cotizacion=(s.producto, s.precio_cotizado))
+                                                     cotizacion=(s.producto, s.precio_cotizado, cantidad))
         if errores:
             for e in errores:
                 flash(e, "warning")
@@ -140,5 +143,6 @@ def confirmar(token):
             db.session.commit()
             return redirect(url_for('pedido.ver', token=token_pedido))
 
-    return render_template("checkout.html", form=form, lineas=[(s.producto, None, 1, s.precio_cotizado)], total=s.precio_cotizado,
+    return render_template("checkout.html", form=form, lineas=[(s.producto, None, cantidad, s.precio_cotizado)],
+                           total=s.precio_cotizado * cantidad,
                            accion=url_for('solicitud.confirmar', token=token), previos=previos, solicitud=s)

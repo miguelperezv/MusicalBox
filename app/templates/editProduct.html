@@ -28,6 +28,9 @@
     </div>
     {{ field(form.d_producto) }}
     {{ field(form.original_mb) }}
+    {% if producto.tipo == 'SIMPLE' and not producto.variantes %}
+    {{ field(form.preorden, help='El botón de la tienda pasa a "Preordenar" (paga hoy y llega contigo la tirada). Los packs y los productos con tallas no pueden estar en preorden.') }}
+    {% endif %}
     <div class="row">
         {{ field(form.p_producto, col='col-sm-6 mb-3') }}
         {% if producto.tipo == 'BUNDLE' or producto.variantes %}

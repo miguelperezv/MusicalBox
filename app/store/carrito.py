@@ -1,6 +1,6 @@
 """Carrito en la sesión: {"producto" o "producto:variante": cantidad}."""
 from ..db import db
-from .models import Producto, Variante, clave_carrito, nombre_linea, requiere_variante, stock_disponible, validar_carrito
+from .models import Producto, Variante, clave_carrito, nombre_linea, requiere_variante, stock_disponible, validar_carrito, es_preorden
 
 
 def _leer_clave(clave):
@@ -22,7 +22,7 @@ def agregar(cart, k_producto, k_variante, cantidad):
     if requiere_variante(producto) and variante is None:
         return cart, "Elige talla o color antes de agregar", "warning"
     clave = clave_carrito(producto.id, variante.id if variante is not None else None)
-    disponible = stock_disponible(producto, variante)
+    disponible = 99 if es_preorden(producto) else stock_disponible(producto, variante)
     actual = int(cart.get(clave, 0))
     if disponible <= actual:
         return cart, f"{nombre_linea(producto, variante)}: no quedan más unidades disponibles", "warning"
@@ -42,7 +42,7 @@ def cambiar_cantidad(cart, clave, delta):
     if producto is None or nueva <= 0:
         cart.pop(clave)
         return cart, None
-    if delta > 0 and nueva > stock_disponible(producto, variante):
+    if delta > 0 and not es_preorden(producto) and nueva > stock_disponible(producto, variante):
         return cart, "No hay más unidades disponibles"
     cart[clave] = nueva
     return cart, None
@@ -56,10 +56,12 @@ def resumen(cart):
         if producto is None:
             continue
         cantidad = int(cantidad)
-        disponible = stock_disponible(producto, variante)
+        preorden = es_preorden(producto)
+        disponible = 99 if preorden else stock_disponible(producto, variante)
         falta_variante = requiere_variante(producto) and variante is None
         lineas.append({"clave": clave, "producto": producto, "variante": variante, "cantidad": cantidad,
                        "disponible": disponible, "subtotal": producto.p_producto * cantidad,
+                       "preorden": preorden,
                        "problema": "Elige talla o color" if falta_variante else
                                    (f"Solo quedan {disponible}" if cantidad > disponible else None)})
         total += producto.p_producto * cantidad

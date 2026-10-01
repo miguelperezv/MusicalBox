@@ -142,14 +142,15 @@ def redes_verificar(k):
 
 
 #listados del catálogo: ver todo y entrar a editar con un clic (en vez de buscar escribiendo)
-from .models import Producto, Lanzamiento, get_artist_by_release, stock_disponible, es_original
+from .models import Producto, Lanzamiento, get_artist_by_release, stock_disponible, es_original, es_preorden
 
 
 @dashboard.route("/productos")
 def productos_admin():
     productos = Producto.query.order_by(Producto.k_lanzamiento, Producto.id).all()
     filas = [{"p": p, "artista": get_artist_by_release(p.k_lanzamiento) if p.k_lanzamiento else None,
-              "stock": stock_disponible(p), "original": es_original(p)} for p in productos]
+              "stock": stock_disponible(p), "original": es_original(p),
+              "preorden": es_preorden(p)} for p in productos]
     return render_template("productos_admin.html", filas=filas)
 
 
