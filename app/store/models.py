@@ -20,6 +20,9 @@ class Lanzamiento(db.Model):
     i_lanzamiento = db.Column(db.String(500))
     #post de Instagram/TikTok sobre el lanzamiento (opcional)
     url_social = db.Column(db.String(300))
+    #album externo (Spotify): para re-sincronizar metadatos; ver app/store/musicapi.py
+    external_id = db.Column(db.String(100), unique=True)
+    external_url = db.Column(db.String(300))
 
 class Artista(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -250,7 +253,7 @@ class Categoria(db.Model):
 class LanzamientoSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Lanzamiento
-        fields = ["id", "n_lanzamiento", "f_lanzamiento", "i_lanzamiento", "url_social"]
+        fields = ["id", "n_lanzamiento", "f_lanzamiento", "i_lanzamiento", "url_social", "external_id", "external_url"]
 
 class ArtistaSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
@@ -357,9 +360,10 @@ def create_new_artist(n_artista, pais_artista):
             
     
 
-def create_new_release(k_artista, n_lanzamiento,i_lanzamiento, f_lanzamiento, k_genero):
+def create_new_release(k_artista, n_lanzamiento,i_lanzamiento, f_lanzamiento, k_genero, external_id=None, external_url=None):
     #k_lanzamiento = "LANZ"+str(len(get_all_releases())+1)
-    lanzamiento = Lanzamiento(n_lanzamiento=n_lanzamiento, i_lanzamiento=i_lanzamiento, f_lanzamiento=f_lanzamiento)
+    lanzamiento = Lanzamiento(n_lanzamiento=n_lanzamiento, i_lanzamiento=i_lanzamiento, f_lanzamiento=f_lanzamiento,
+                              external_id=(external_id or '').strip() or None, external_url=(external_url or '').strip() or None)
     try:
         db.session.add(lanzamiento)
         k_lanzamiento = get_release_by_name(lanzamiento.n_lanzamiento)
@@ -370,6 +374,55 @@ def create_new_release(k_artista, n_lanzamiento,i_lanzamiento, f_lanzamiento, k_
     except Exception as e:
         db.session.rollback()
         return None
+
+def obtener_artista(n_artista, crear=False):
+    #busca al artista por nombre sin distinguir mayusculas; si no existe y crear=True, lo crea tal cual
+    n = (n_artista or '').strip()
+    if not n:
+        return None
+    a = Artista.query.filter(db.func.upper(Artista.n_artista) == n.upper()).first()
+    if a:
+        return a.id
+    if not crear:
+        return None
+    nuevo = Artista(n_artista=n)
+    db.session.add(nuevo)
+    db.session.commit()
+    return nuevo.id
+
+def _fecha_spotify(valor):
+    #spotify devuelve la fecha con precision variable (año, mes o día)
+    valor = (valor or '').strip()
+    for fmt in ("%Y-%m-%d", "%Y-%m", "%Y"):
+        try:
+            return datetime.strptime(valor, fmt).date()
+        except ValueError:
+            pass
+    return None
+
+def actualizar_lanzamiento_spotify(k_lanzamiento, datos):
+    #refresca metadatos desde la API sin tocar generos ni productos
+    l = db.session.get(Lanzamiento, k_lanzamiento)
+    if not l:
+        return False
+    try:
+        if datos.get("n_lanzamiento"):
+            l.n_lanzamiento = datos["n_lanzamiento"]
+        #solo actualiza la fecha si spotify es igual o mas precisa que la guardada (dia > mes > año)
+        raw = (datos.get("f_lanzamiento") or '').strip()
+        nueva = _fecha_spotify(raw) if raw else None
+        if nueva and len(raw) >= len(str(l.f_lanzamiento) if l.f_lanzamiento else ''):
+            l.f_lanzamiento = nueva
+        if datos.get("i_lanzamiento"):
+            l.i_lanzamiento = datos["i_lanzamiento"]
+        if datos.get("external_url"):
+            l.external_url = datos["external_url"]
+        db.session.commit()
+        return True
+    except Exception as e:
+        print("No se actualizo el lanzamiento desde Spotify:", str(e))
+        db.session.rollback()
+        return False
 
 #n_producto, p_producto, d_producto, stock, i_producto, k_categoria
 def create_new_product(k_lanzamiento, n_producto, p_producto, d_producto, stock, i_producto, k_categoria, tipo='SIMPLE', url_imagen=None):

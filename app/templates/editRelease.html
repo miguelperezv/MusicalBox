@@ -22,6 +22,15 @@
             <div class="fw-bold">{{ lanzamiento.n_lanzamiento.title() }}</div>
         </div>
     </div>
+    {% if lanzamiento.external_id %}
+    <div class="d-flex align-items-center gap-2 mb-4">
+        <form method="POST" action="{{ url_for('dashboard.updaterelease_spotify', k_lanzamiento=lanzamiento.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-cloud-arrow-down me-1"></i>Actualizar metadatos desde Spotify</button>
+        </form>
+        {% if lanzamiento.external_url %}<a class="btn btn-sm btn-outline-secondary" href="{{ lanzamiento.external_url }}" target="_blank" rel="noopener"><i class="bi bi-spotify me-1"></i>Ver en Spotify</a>{% endif %}
+    </div>
+    {% endif %}
     {{ field(form.n_lanzamiento_edit, value=lanzamiento.n_lanzamiento) }}
     <div class="mb-3">
         <label class="form-label" for="artista">Artista</label>

@@ -2,6 +2,17 @@
 <h1 class="h3 mb-4">Nuevo lanzamiento</h1>
 <form class="mb-panel" style="max-width: 760px" method="POST" action="{{ url_for('dashboard.newrelease') }}">
     {{ form.csrf_token }}
+    <div class="mb-3">
+        <label class="form-label" for="spq">Buscar en Spotify</label>
+        <div class="d-flex gap-2">
+            <input type="text" id="spq" class="form-control" placeholder="Artista y disco" autocomplete="off">
+            <button type="button" id="spbuscar" class="btn btn-outline-secondary text-nowrap"><i class="bi bi-search me-1"></i>Buscar</button>
+        </div>
+        <div id="spresultados" class="mt-2"></div>
+        <div class="form-text">Opcional: completa nombre, portada y fecha desde el catálogo de Spotify.</div>
+    </div>
+    {{ form.external_id }}
+    {{ form.external_url }}
     {{ field(form.n_lanzamiento, placeholder='Ej: Happier Than Ever') }}
     <div class="mb-3">
         <label class="form-label" for="artista">Artista</label>
@@ -9,7 +20,7 @@
             <option value="" disabled {{ 'selected' if not '' }}>Elige el artista</option>
             {% for a in artistas %}<option value="{{ a }}" {{ 'selected' if a == '' }}>{{ a.title() }}</option>{% endfor %}
         </select>
-        <div class="form-text">¿No está? Créalo en Artistas, géneros y categorías.</div>
+        <div class="form-text">¿No está? Se crea solo si llega de la búsqueda de Spotify, o créalo en Artistas, géneros y categorías.</div>
     </div>
     {{ field(form.i_lanzamiento, type='url', placeholder='https://...', help='URL de la portada (imagen cuadrada)') }}
     {{ field(form.url_social) }}
@@ -19,3 +30,62 @@
     </div>
     <button type="submit" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Crear lanzamiento</button>
 </form>
+<script>
+(function(){
+    var q = document.getElementById('spq');
+    var resultado = document.getElementById('spresultados');
+    var urlSpotify = "{{ url_for('dashboard.newrelease_spotify') }}";
+    function escapar(t){ return String(t||'').replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+    function asegurarArtista(nombre){
+        var sel = document.getElementById('artista');
+        nombre = (nombre||'').trim();
+        if(!nombre) return;
+        for(var i=0;i<sel.options.length;i++){
+            if(sel.options[i].value.toUpperCase() === nombre.toUpperCase()){ sel.value = sel.options[i].value; return; }
+        }
+        var opt = document.createElement('option');
+        opt.value = nombre.toUpperCase();
+        opt.textContent = nombre;
+        sel.add(opt);
+        sel.value = opt.value;
+    }
+    function usar(album){
+        document.getElementById('lanzamiento').value = album.nombre || '';
+        document.getElementById('i_lanzamiento').value = album.portada || '';
+        var f = album.fecha || '';
+        if(f.length === 4) f = f + '-01-01';
+        else if(f.length === 7) f = f + '-01';
+        document.getElementById('f_lanzamiento').value = f;
+        asegurarArtista(album.artista);
+        document.getElementById('external_id').value = album.id || '';
+        document.getElementById('external_url').value = album.url || '';
+        resultado.innerHTML = '<div class="form-text">Usando <b>' + escapar(album.nombre) + '</b> de Spotify. Revisa los datos antes de crear.</div>';
+    }
+    function buscar(){
+        var consulta = q.value.trim();
+        if(!consulta) return;
+        resultado.innerHTML = '<div class="text-body-secondary small">Buscando…</div>';
+        fetch(urlSpotify + '?q=' + encodeURIComponent(consulta))
+            .then(function(r){ return r.json(); })
+            .then(function(d){
+                if(d.error){ resultado.innerHTML = '<div class="text-danger small">' + escapar(d.error) + '</div>'; return; }
+                if(!d.items.length){ resultado.innerHTML = '<div class="text-body-secondary small">Sin resultados en Spotify.</div>'; return; }
+                var html = d.items.map(function(a, i){
+                    return '<div class="d-flex align-items-center gap-2 mb-2" style="max-width:540px">' +
+                        (a.portada ? '<img src="' + escapar(a.portada) + '" width="44" height="44" class="rounded object-fit-cover" alt="">' : '<div style="width:44px;height:44px" class="rounded bg-body-tertiary"></div>') +
+                        '<div class="min-w-0 flex-fill"><div class="fw-semibold text-truncate">' + escapar(a.nombre) + '</div>' +
+                        '<div class="small text-body-secondary text-truncate">' + escapar(a.artista) + (a.fecha ? ' · ' + escapar(a.fecha) : '') + '</div></div>' +
+                        '<button type="button" class="btn btn-sm btn-outline-primary text-nowrap" data-i="' + i + '">Usar</button></div>';
+                }).join('');
+                resultado.innerHTML = html;
+                var items = d.items;
+                resultado.querySelectorAll('button[data-i]').forEach(function(b){
+                    b.addEventListener('click', function(){ usar(items[parseInt(b.dataset.i, 10)]); });
+                });
+            })
+            .catch(function(){ resultado.innerHTML = '<div class="text-danger small">Error de red al consultar Spotify.</div>'; });
+    }
+    document.getElementById('spbuscar').addEventListener('click', buscar);
+    q.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); buscar(); } });
+})();
+</script>

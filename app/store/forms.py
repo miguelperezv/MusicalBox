@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms.validators import DataRequired, NumberRange, Length, Regexp, EqualTo, Optional
-from wtforms import StringField, SelectField, PasswordField, IntegerField, FileField, DateField, EmailField, RadioField, BooleanField
+from wtforms import StringField, SelectField, PasswordField, IntegerField, FileField, DateField, EmailField, RadioField, BooleanField, HiddenField
 from datetime import date, datetime
 from wtforms import widgets as h5widgets
 import pycountry
@@ -51,6 +51,9 @@ class  newReleaseForm(FlaskForm):
     f_lanzamiento = DateField("Fecha de Lanzamiento", default=date.today)
     k_genero = GenreSelectField("Género", id="k_genero")
     url_social = StringField("Post de Instagram o TikTok (opcional)", render_kw={"placeholder": "https://www.instagram.com/p/... o https://www.tiktok.com/@.../video/..."})
+    #album de Spotify asociado (lo llena la búsqueda del panel; ver app/store/musicapi.py)
+    external_id = HiddenField()
+    external_url = HiddenField()
     
 
     

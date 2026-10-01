@@ -14,6 +14,9 @@ class Config(object):
     #MercadoPago (llaves de pruebas por defecto; en producción van en variables de entorno)
     MERCADOPAGO_PUBLIC_KEY = os.getenv("MERCADOPAGO_PUBLIC_KEY", "YOUR_PUBLIC_KEY")
     MERCADOPAGO_ACCESS_TOKEN = os.getenv("MERCADOPAGO_ACCESS_TOKEN", "YOUR_ACCESS_TOKEN")
+    #Spotify (client credentials; buscar/refrescar metadatos de lanzamientos, ver app/store/musicapi.py)
+    SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
+    SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
     #correo (ver app/correo.py): consola en desarrollo, smtp cuando se configure un proveedor
     #Para usar correo real, establece MAIL_BACKEND=smtp y configura las variables MAIL_*
     #Ejemplo para Gmail:

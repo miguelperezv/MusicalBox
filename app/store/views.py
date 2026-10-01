@@ -4,8 +4,9 @@ from flask.wrappers import Request
 from .forms import ActivarCuentaForm, CreateUsuarioForm, LoginUsuarioForm,  newReleaseForm, newProductForm, newCat_Genre_Artist, newAdmin, editReleaseForm, EditUsuarioForm
 from flask import Blueprint, Response, current_app, flash, session, request, g, render_template, redirect, url_for, jsonify, make_response
 #from app.store.models import create_new_user, get_all_artists, get_user_by_email, create_new_artist
-from .models import create_new_user, get_all_artists, get_user_by_email, create_new_artist, get_k_artist_by_name, create_new_release, get_release_by_name, get_releases_with_artists, get_categories, create_new_product, get_k_release_by_name_artista, create_new_category, create_new_genre, create_release_genre, new_admin, get_all_releases, get_artist_by_release, get_categories_by_release, get_release_by_id, get_genres_by_release, get_products_by_release, get_product_by_id, get_artist_by_release, update_release, get_products_with_info, edit_product, create_new_image, get_rawimage_by_product, edit_image, get_items_by_id_factura, Imagen, Producto
-from .models import producto_card, lanzamiento_tiene_original, ESTADOS_ENVIO, ESTADOS_CON_ROTULO, opciones_componentes, stock_disponible, get_usuario_por_email, get_artist_by_id, get_releases_cards, get_products_cards, get_generos, get_categorias, get_admin_stats, edit_user_by_email, get_purchases_by_user, get_all_invoices, get_solicitudes_by_user, validar_carrito, crear_pedido, get_images_by_product, get_first_image_by_product, crear_variante, agregar_componente, normalizar_url_imagen, validar_url_imagen
+from .models import create_new_user, get_all_artists, get_user_by_email, create_new_artist, get_k_artist_by_name, obtener_artista, create_new_release, get_release_by_name, get_releases_with_artists, get_categories, create_new_product, get_k_release_by_name_artista, create_new_category, create_new_genre, create_release_genre, new_admin, get_all_releases, get_artist_by_release, get_categories_by_release, get_release_by_id, get_genres_by_release, get_products_by_release, get_product_by_id, get_artist_by_release, update_release, get_products_with_info, edit_product, create_new_image, get_rawimage_by_product, edit_image, get_items_by_id_factura, Imagen, Producto
+from .models import actualizar_lanzamiento_spotify
+from .models import producto_card, lanzamiento_tiene_original, ESTADOS_ENVIO, ESTADOS_CON_ROTULO, opciones_componentes, stock_disponible, get_usuario_por_email, get_artist_by_id, get_releases_cards, get_products_cards, get_generos, get_categorias, get_admin_stats, edit_user_by_email, get_purchases_by_user, get_all_invoices, get_solicitudes_by_user, validar_carrito, crear_pedido, get_images_by_product, get_first_image_by_product, crear_variante, agregar_componente, normalizar_url_imagen, validar_url_imagen, Lanzamiento
 import csv
 import io
 import json
@@ -20,6 +21,7 @@ from .imagenes import imagen_producto
 from .redes import seleccion_para_inicio, leer_url
 from ..db import db
 from .notificaciones import correo_activacion, usuario_de_token
+from .musicapi import buscar_albumes_spotify, detalles_album_spotify
 
 
 home = Blueprint('home', __name__)
@@ -327,13 +329,15 @@ def newrelease():
     if request.method == 'POST':
         n_lanzamiento = form_new_release.n_lanzamiento.data
         i_lanzamiento = form_new_release.i_lanzamiento.data
-        k_artista =  get_k_artist_by_name((form_new_release.k_artista.data or '').strip().upper())
+        #si el artista vino de la búsqueda de spotify y no existe, se crea aquí
+        k_artista =  obtener_artista((form_new_release.k_artista.data or '').strip(), crear=True)
         if not k_artista:
             flash("El artista no existe: créalo primero en Género / categoría / artista", "warning")
             return redirect(url_for('home.admin'))
         f_lanzamiento = form_new_release.f_lanzamiento.data
         k_genero = form_new_release.k_genero.data
-        k_lanzamiento= create_new_release(k_artista, n_lanzamiento, i_lanzamiento, f_lanzamiento, k_genero)
+        k_lanzamiento= create_new_release(k_artista, n_lanzamiento, i_lanzamiento, f_lanzamiento, k_genero,
+                                          external_id=form_new_release.external_id.data, external_url=form_new_release.external_url.data)
         if k_lanzamiento :
             guardar_url_social(k_lanzamiento, form_new_release.url_social.data)
             release_genre = create_release_genre(k_lanzamiento,  k_genero)
@@ -353,6 +357,11 @@ def newrelease_artists():
         #selectfieldartist.append((artist['k_artista'], artist['n_artista']))
         selectfieldartist.append((artist['n_artista']))
     return jsonify(selectfieldartist)
+
+@dashboard.route("/newrelease_spotify")
+def newrelease_spotify():
+    #busca albums en Spotify para prellenar el formulario de nuevo lanzamiento
+    return jsonify(buscar_albumes_spotify(request.args.get("q", "")))
 
 @dashboard.route("/newproduct", methods=["GET", "POST"])
 def newproduct():
@@ -503,7 +512,7 @@ def updaterelease(k_lanzamiento):
         k_lanzamiento = int (k_lanzamiento)
         n_lanzamiento = form_edit_release.n_lanzamiento_edit.data
         i_lanzamiento = form_edit_release.i_lanzamiento.data
-        k_artista =  get_k_artist_by_name((form_edit_release.k_artista.data or '').strip().upper())
+        k_artista =  obtener_artista((form_edit_release.k_artista.data or '').strip())
         if not k_artista:
             flash("El artista no existe: créalo primero en Género / categoría / artista", "warning")
             return redirect(url_for('dashboard.updaterelease', k_lanzamiento=k_lanzamiento))
@@ -530,6 +539,22 @@ def updaterelease(k_lanzamiento):
         
     
     return render_template("editRelease.html", form = form_edit_release, get_artist_by_release = get_artist_by_release,  lanzamiento = lanzamiento, artistas = sorted(a['n_artista'] for a in get_all_artists()))
+
+@dashboard.route("/updaterelease_spotify/<int:k_lanzamiento>", methods=["POST"])
+def updaterelease_spotify(k_lanzamiento):
+    #refresca los metadatos del lanzamiento desde su album de Spotify
+    l = db.session.get(Lanzamiento, k_lanzamiento)
+    if not l or not l.external_id:
+        flash("Este lanzamiento no está ligado a un álbum de Spotify", "warning")
+    else:
+        datos = detalles_album_spotify(l.external_id)
+        if datos.get("error"):
+            flash(datos["error"], "error")
+        elif actualizar_lanzamiento_spotify(k_lanzamiento, datos):
+            flash("Metadatos actualizados desde Spotify")
+        else:
+            flash("No se pudo actualizar desde Spotify", "error")
+    return redirect(url_for('dashboard.updaterelease', k_lanzamiento=k_lanzamiento))
 
 
 @dashboard.route("/editproduct",  methods=["GET", "POST"])

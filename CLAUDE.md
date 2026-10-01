@@ -57,10 +57,12 @@ py -3.12 -m venv .venv
 run.py                     crea `app` (flask --app run ...); inyecta truststore y carga `.env` (dotenv)
 app/__init__.py            create_app(): config por APP_CONFIG, blueprints, filtro |cop, context processor
                            (user, purchase_cart), 404, comando crear-admin
-app/config.py              Config / DevelopmentConfig / ProductionConfig (MERCADOPAGO_*, MAIL_*, ACTIVACION_MAX_DIAS)
+app/config.py              Config / DevelopmentConfig / ProductionConfig (MERCADOPAGO_*, SPOTIFY_*, MAIL_*, ACTIVACION_MAX_DIAS)
 app/db.py                  db (naming convention), ma, migrate (render_as_batch)
 app/correo.py              enviar(): backend consola (.eml en instance/correos/) | smtp | memoria (tests)
 app/store/models.py        TODOS los modelos principales + la mayoría de la lógica de negocio
+app/store/musicapi.py      cliente de la API de Spotify (client credentials): búsqueda de álbumes y
+                           metadatos para sincronizar lanzamientos (SPOTIFY_CLIENT_ID/SECRET)
 app/store/views.py         blueprints home, dashboard (admin), releases, artists, purchase, products
 app/store/pedidos.py       /pedido/<token> (seguimiento, actualizar envío), simulación (dev)
 app/store/mercadopago/     payment brick: create_preference, process_payment, webhook (MP)
@@ -88,7 +90,8 @@ docs/                      DEPLOY_PYTHONANYWHERE.md, MER_manager.excalidraw.json
   Correo único, se compara sin distinguir mayúsculas. Contraseñas con **bcrypt** (`app/store/seguridad.py`);
   las cuentas legacy en texto plano autentican y se re-hashean al ingresar.
 - `lanzamiento` (el disco) ↔ `artista` (N:M `lanzamiento__artista`) ↔ `genero` (N:M `lanzamiento__genero`).
-  `url_social`: post opcional de IG/TikTok, se ve en un modal.
+  `url_social`: post opcional de IG/TikTok, se ve en un modal. `external_id`/`external_url`: álbum de
+  Spotify asociado para re-sincronizar metadatos (ver Flujos clave).
 - `producto`: pertenece a **un** lanzamiento (1:N, opcional). `categoria` (texto: VINILO, CD, CAMISETA...),
   `tipo` SIMPLE | BUNDLE, `original_mb` (merch propio → sello "Original MB"), `stock` (solo SIMPLE sin tallas),
   `url_imagen` (opcional: link de compartir de Drive o URL directa; se normaliza al servirla y solo se usa
@@ -109,7 +112,8 @@ docs/                      DEPLOY_PYTHONANYWHERE.md, MER_manager.excalidraw.json
 
 Migraciones (en orden): `5b10cf662d03` línea base → `a36be8d1f63e` checkout sin cuenta →
 `3c91f0d79d11` variantes/bundles y reconstrucción de `item` (**solo SQLite**) → `a8429ab90db1` contacto/cotización/envío →
-`f8c18145ced0` redes/configuración → `67bf9fe64495` original_mb y url_social → `34fd6248975a` url_imagen en producto.
+`f8c18145ced0` redes/configuración → `67bf9fe64495` original_mb y url_social → `34fd6248975a` url_imagen en producto →
+`5215e71ba6b8` spotify external en lanzamiento.
 
 ## Flujos clave
 
@@ -136,6 +140,12 @@ Migraciones (en orden): `5b10cf662d03` línea base → `a36be8d1f63e` checkout s
   config + conjunto). Los embeds se cargan al llegar a la sección (IntersectionObserver); si no cargan en 10 s, se ocultan.
 - **Vista rápida**: `data-quickview="<url>?modal=1"` abre el contenido en `#mbModal` (producto, post del lanzamiento).
   Ctrl+clic abre la página. Usar modal para consultar sin salir; usar página propia para carrito, checkout, pedido y cuenta.
+- **Spotify en lanzamientos**: el formulario "Nuevo lanzamiento" busca álbumes en la API de Spotify
+  (client credentials; `SPOTIFY_CLIENT_ID`/`SPOTIFY_CLIENT_SECRET`). Al elegir uno, se rellenan nombre, portada,
+  fecha y artista (que se crea solo si no existe) y se guardan `external_id`/`external_url`. En la edición del
+  lanzamiento, el botón "Actualizar metadatos desde Spotify" refresca nombre/fecha/portada/URL sin tocar géneros
+  ni productos y sin degradar una fecha guardada más precisa (día > mes > año). Sin llaves, la búsqueda responde
+  con un error amigable.
 
 ## Panel admin (`/dashboard`, requiere rol ADMIN)
 
