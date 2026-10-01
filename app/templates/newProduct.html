@@ -2,13 +2,14 @@
 <h1 class="h3 mb-4">Nuevo producto</h1>
 <form class="mb-panel" style="max-width: 760px" method="POST" action="{{ url_for('dashboard.newproduct') }}" enctype="multipart/form-data">
     {{ form.csrf_token }}
+    {% set valor_lanz = '' %}
+    {% for l in lanzamientos %}{% if preseleccion and l.split('.')[0] == preseleccion|string %}{% set valor_lanz = l %}{% endif %}{% endfor %}
     <div class="mb-3">
         <label class="form-label" for="lanzamiento">Lanzamiento</label>
-        <select class="form-select" name="n_lanzamiento" id="lanzamiento" required>
-            <option value="" disabled {{ 'selected' if not preseleccion }}>Elige el disco al que pertenece</option>
-            {% for l in lanzamientos %}<option value="{{ l }}" {{ 'selected' if l.split('.')[0] == preseleccion|string }}>{{ l.split('. ', 1)[1] if '. ' in l else l }}</option>{% endfor %}
-        </select>
-        <div class="form-text">¿No está? Créalo primero en Lanzamientos.</div>
+        <input class="form-control" type="text" name="n_lanzamiento" id="lanzamiento" required autocomplete="off"
+               placeholder="Escríbelo o elígelo del listado" value="{{ valor_lanz }}"
+               data-autocomplete="{{ url_for('dashboard.newproduct_releases') }}">
+        <div class="form-text">¿No está? Escríbelo y se crea al guardar (o créalos desde Lanzamientos).</div>
     </div>
     <div class="row">
         {{ field(form.n_producto, col='col-sm-8 mb-3') }}
@@ -29,11 +30,4 @@
     {{ field(form.url_imagen, help='Opcional: link de compartir de Google Drive o URL directa a la foto. Se usa solo si no hay imágenes subidas.') }}
     <button type="submit" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Crear producto</button>
 </form>
-
-<script>
-    (function () {
-        var tipo = document.getElementById('tipo'), stock = document.querySelector('.campo-stock');
-        function toggle() { stock.style.display = tipo.value === 'BUNDLE' ? 'none' : ''; }
-        tipo.addEventListener('change', toggle); toggle();
-    })();
-</script>
+{#el show/hide de stock por tipo BUNDLE va en app/static/js/app.js (delegado: funciona en sección y en modal)#}

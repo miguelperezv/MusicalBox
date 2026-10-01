@@ -5,7 +5,7 @@ from .forms import ActivarCuentaForm, CreateUsuarioForm, LoginUsuarioForm,  newR
 from flask import Blueprint, Response, current_app, flash, session, request, g, render_template, redirect, url_for, jsonify, make_response
 #from app.store.models import create_new_user, get_all_artists, get_user_by_email, create_new_artist
 from .models import create_new_user, get_all_artists, get_user_by_email, create_new_artist, get_k_artist_by_name, obtener_artista, create_new_release, get_release_by_name, get_releases_with_artists, get_categories, create_new_product, get_k_release_by_name_artista, create_new_category, create_new_genre, create_release_genre, new_admin, get_all_releases, get_artist_by_release, get_categories_by_release, get_release_by_id, get_genres_by_release, get_products_by_release, get_product_by_id, get_artist_by_release, update_release, get_products_with_info, edit_product, create_new_image, get_rawimage_by_product, edit_image, get_items_by_id_factura, Imagen, Producto
-from .models import actualizar_lanzamiento_spotify
+from .models import actualizar_lanzamiento_spotify, buscar_o_crear_lanzamiento
 from .models import producto_card, lanzamiento_tiene_original, ESTADOS_ENVIO, ESTADOS_CON_ROTULO, opciones_componentes, stock_disponible, get_usuario_por_email, get_artist_by_id, get_releases_cards, get_products_cards, get_generos, get_categorias, get_admin_stats, edit_user_by_email, get_purchases_by_user, get_all_invoices, get_solicitudes_by_user, validar_carrito, crear_pedido, get_images_by_product, get_first_image_by_product, crear_variante, agregar_componente, normalizar_url_imagen, validar_url_imagen, Lanzamiento
 import csv
 import io
@@ -377,9 +377,8 @@ def newproduct():
         i_producto = form_new_product.i_producto.data
         url_imagen = form_new_product.url_imagen.data
         k_categoria = dict(form_new_product.k_category.choices).get(form_new_product.k_category.data)
-        
-        #k_lanzamiento = get_k_release_by_name_artista(n_lanzamiento,n_artista)
-        k_lanzamiento = form_new_product.n_lanzamiento.data.split(".")[0]
+        #si el disco no existe aún se crea al vuelo (nombre libre, sin id "12.")
+        k_lanzamiento, se_creo_lanzamiento = buscar_o_crear_lanzamiento(form_new_product.n_lanzamiento.data)
         image_files = request.files.getlist('inputImages')
         # Filtrar archivos vacíos
         image_files = [f for f in image_files if f and f.filename]
@@ -388,14 +387,15 @@ def newproduct():
             if not ok:
                 flash(err, "error")
                 url_imagen = None
-        product = create_new_product(int(k_lanzamiento), n_producto, p_producto, d_producto, stock, i_producto, k_categoria, form_new_product.tipo.data, url_imagen=url_imagen)
+        product = create_new_product(k_lanzamiento, n_producto, p_producto, d_producto, stock, i_producto, k_categoria, form_new_product.tipo.data, url_imagen=url_imagen)
         if product:
             product.original_mb = bool(form_new_product.original_mb.data)
             db.session.commit()
             if image_files:
                 create_multiple_images(product.id, image_files)
             #a la edición, para configurar tallas/colores o el contenido del pack
-            flash("Producto creado: configura sus tallas o el contenido del pack si aplica", "success")
+            aviso = "Lanzamiento nuevo creado al vuelo · " if se_creo_lanzamiento else ""
+            flash(aviso + "Producto creado: configura sus tallas o el contenido del pack si aplica", "success")
             return redirect(url_for('dashboard.updateproduct', k_producto=product.id))
         else:
             flash("No se pudo registrar")

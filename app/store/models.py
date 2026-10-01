@@ -375,6 +375,28 @@ def create_new_release(k_artista, n_lanzamiento,i_lanzamiento, f_lanzamiento, k_
         db.session.rollback()
         return None
 
+def buscar_o_crear_lanzamiento(texto):
+    #panel: "12. Disco - nombre" usa el id; un nombre libre (sin punto) se crea al vuelo, sin artista ni genero
+    #devuelve (id, se_creó_ahora)
+    texto = (texto or '').strip()
+    if not texto:
+        return None, False
+    token = texto.split(".")[0].strip()
+    if token.isdigit():
+        l = db.session.get(Lanzamiento, int(token))
+        return (l.id, False) if l else (None, False)
+    l = Lanzamiento.query.filter(db.func.upper(Lanzamiento.n_lanzamiento) == texto.upper()).first()
+    if l:
+        return l.id, False
+    nuevo = Lanzamiento(n_lanzamiento=texto)
+    try:
+        db.session.add(nuevo)
+        db.session.commit()
+        return nuevo.id, True
+    except Exception as e:
+        db.session.rollback()
+        return None, False
+
 def obtener_artista(n_artista, crear=False):
     #busca al artista por nombre sin distinguir mayusculas; si no existe y crear=True, lo crea tal cual
     n = (n_artista or '').strip()
