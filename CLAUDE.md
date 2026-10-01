@@ -16,6 +16,11 @@ Repo: `github.com/miguelperezv/MusicalBox` (rama `main`). El remoto `upstream` e
 - Antes de cambios de **esquema** en funcionalidades grandes suele pedir primero un análisis en texto
   (qué existe, qué es aditivo y qué rompe) y esperar su confirmación.
 - Le gustan los datos de prueba en la BD local: **no borrarlos** sin confirmar.
+- **Trabajo paralelo con worktrees**: la carpeta principal vive en `main` (estable; es el único punto que
+  integra a `main`). Una tarea = un worktree: `git worktree add ..\MusicalBox-<nombre> -b feature/<nombre>`.
+  Cada worktree tiene su `instance/` (BD aislada) y reusa el `.venv` principal (`..\MusicalBox\.venv\Scripts\python`).
+  Una rama solo puede estar en un worktree a la vez (git lo impide). Merge a `main`, push y
+  `git worktree remove` se hacen desde la terminal principal cuando la tarea termina y pasó su verificación.
 
 ## Stack
 
@@ -23,8 +28,8 @@ Repo: `github.com/miguelperezv/MusicalBox` (rama `main`). El remoto `upstream` e
   Flask-Migrate (Alembic), Flask-WTF / WTForms 3, marshmallow 3 (<4: se usa `Meta.fields`), Pillow, requests, truststore.
 - Frontend: Jinja + Bootstrap 5.3 + Bootstrap Icons + jQuery 3.7 (solo en el panel) + `app/static/js/app.js`.
 - BD: SQLite en `instance/musicalbox.sqlite3` (ignorada por git). Producción prevista: PythonAnywhere con SQLite.
-- Pagos: **MercadoPago** (payment brick + webhook). ePayco se retiró en 2026-09 (código residual eliminado;
-  la suite de tests aún asume el flujo viejo). No es Wompi ni Stripe.
+- Pagos: **MercadoPago** (payment brick + webhook). ePayco se retiró en 2026-09; quedan residuos
+  (`referencia_epayco()` y el flag `EPAYCO_SIMULACION`) y la suite de tests aún asume el flujo viejo. No es Wompi ni Stripe.
 
 ## Correr en local (Windows)
 
@@ -49,7 +54,7 @@ py -3.12 -m venv .venv
 ## Estructura
 
 ```
-run.py                     crea `app` (flask --app run ...); inyecta truststore
+run.py                     crea `app` (flask --app run ...); inyecta truststore y carga `.env` (dotenv)
 app/__init__.py            create_app(): config por APP_CONFIG, blueprints, filtro |cop, context processor
                            (user, purchase_cart), 404, comando crear-admin
 app/config.py              Config / DevelopmentConfig / ProductionConfig (MERCADOPAGO_*, MAIL_*, ACTIVACION_MAX_DIAS)
@@ -80,7 +85,8 @@ docs/                      DEPLOY_PYTHONANYWHERE.md, MER_manager.excalidraw.json
 - `usuario`: una sola tabla para clientes y admins. `k_rol` ∈ USER, ADMIN, CLIENTE.
   **CLIENTE** = comprador o solicitante **sin login** (contraseña aleatoria). Solo activa su cuenta con el enlace
   firmado que llega a su correo (`/activar/<token>`); registrarse o ingresar con ese correo envía el enlace.
-  Correo único, se compara sin distinguir mayúsculas. Contraseñas en **texto plano** (pendiente).
+  Correo único, se compara sin distinguir mayúsculas. Contraseñas con **bcrypt** (`app/store/seguridad.py`);
+  las cuentas legacy en texto plano autentican y se re-hashean al ingresar.
 - `lanzamiento` (el disco) ↔ `artista` (N:M `lanzamiento__artista`) ↔ `genero` (N:M `lanzamiento__genero`).
   `url_social`: post opcional de IG/TikTok, se ve en un modal.
 - `producto`: pertenece a **un** lanzamiento (1:N, opcional). `categoria` (texto: VINILO, CD, CAMISETA...),
@@ -151,10 +157,19 @@ Las secciones con `data-load` se cargan por AJAX dentro de `#admin-content`; las
 
 ## Pendientes conocidos
 
-- Seguridad: cifrar contraseñas (hoy texto plano, también en la cookie de sesión), CSRF en formularios del panel,
-  llaves de MercadoPago de pruebas por defecto en `config.py`.
-- Despliegue en PythonAnywhere (guía lista). La migración de `item` para MySQL no está escrita.
-- Correo real: definir proveedor y variables `MAIL_*`. Hoy el correo se guarda en `instance/correos/`.
-- Miniaturas reales de Instagram (requiere API de Meta). Carga automática de posts: fuera de alcance por ahora.
-- Método de pago elegido en el checkout: se guarda como preferencia; no restringe los métodos en MercadoPago.
-- El stock no se reserva entre crear el pedido y pagarlo.
+- **Suite de tests desactualizada**: asume el flujo viejo de ePayco (monkey-patchean `consultar_epayco`,
+  que ya no existe) → reescribirla sobre `confirmar_pago`/webhook de MP. Solo si se pide.
+- **Residuos de ePayco**: `referencia_epayco()` (models.py) y el flag `EPAYCO_SIMULACION` (config.py, pedidos.py).
+- **Correo real**: elegir proveedor y `MAIL_*` (`run.py` ya carga `.env`; falta un `.env.example` documentado).
+  Hoy el correo se guarda en `instance/correos/`.
+- **Imagen de producto por link externo** (iCloud/Drive/CDN): campo opcional de URL en la vía
+  `/products/image_<id>`. Pendiente de diseño y esquema.
+- **Despliegue en PythonAnywhere** (guía lista). La migración de `item` para MySQL no está escrita
+  (solo si la BD de producción deja de ser SQLite).
+- **Estacionados** (fuera de alcance por ahora): miniaturas reales de Instagram (API Meta), carga
+  automática de posts, restringir los métodos de MercadoPago según lo elegido en el checkout.
+
+Ya resueltos (no volver a listar): contraseñas con bcrypt + re-hash legacy, CSRF en todo el panel
+(exento solo el webhook de MercadoPago), llaves de MP por defecto (hoy placeholders neutros, vienen del
+entorno), y reserva de stock entre crear y pagar el pedido (`ReservaStock`, liberada en pago/rechazo y
+expiradas al reservar).
