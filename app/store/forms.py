@@ -67,6 +67,7 @@ class newProductForm(FlaskForm):
     d_producto = StringField("Descripción", render_kw={"placeholder": "Opcional. Información adicional"})
     stock = IntegerField("Stock", widget=h5widgets.NumberInput(min=0, max=1000), validators=[DataRequired()])
     i_producto = FileField("Imagen del producto")
+    url_imagen = StringField("Imagen por URL (opcional)", render_kw={"placeholder": "https://drive.google.com/file/d/.../view o URL directa a la imagen"})
     k_category = SelectField("Categoría", id="category", choices=[])
     original_mb = BooleanField("Merch original Musical Box (personalizado por nosotros)")
     tipo = SelectField("Tipo", choices=[('SIMPLE', 'Producto individual'), ('BUNDLE', 'Pack (arma sus productos después)')], default='SIMPLE')

@@ -90,7 +90,9 @@ docs/                      DEPLOY_PYTHONANYWHERE.md, MER_manager.excalidraw.json
 - `lanzamiento` (el disco) ↔ `artista` (N:M `lanzamiento__artista`) ↔ `genero` (N:M `lanzamiento__genero`).
   `url_social`: post opcional de IG/TikTok, se ve en un modal.
 - `producto`: pertenece a **un** lanzamiento (1:N, opcional). `categoria` (texto: VINILO, CD, CAMISETA...),
-  `tipo` SIMPLE | BUNDLE, `original_mb` (merch propio → sello "Original MB"), `stock` (solo SIMPLE sin tallas).
+  `tipo` SIMPLE | BUNDLE, `original_mb` (merch propio → sello "Original MB"), `stock` (solo SIMPLE sin tallas),
+  `url_imagen` (opcional: link de compartir de Drive o URL directa; se normaliza al servirla y solo se usa
+  si no hay fotos subidas; se valida al guardar que responda `image/*`).
 - `variante`: talla/color/sku/stock de un producto. Si un producto tiene variantes, el stock vive ahí.
 - `producto_componente`: contenido de un pack (bundle → componente [+ variante] × cantidad). Los packs no se anidan.
 - `imagen`: foto del producto guardada en la BD (bytes). Se sirve redimensionada en `/products/image_<id>?w=300|600|1200`;
@@ -107,7 +109,7 @@ docs/                      DEPLOY_PYTHONANYWHERE.md, MER_manager.excalidraw.json
 
 Migraciones (en orden): `5b10cf662d03` línea base → `a36be8d1f63e` checkout sin cuenta →
 `3c91f0d79d11` variantes/bundles y reconstrucción de `item` (**solo SQLite**) → `a8429ab90db1` contacto/cotización/envío →
-`f8c18145ced0` redes/configuración → `67bf9fe64495` original_mb y url_social.
+`f8c18145ced0` redes/configuración → `67bf9fe64495` original_mb y url_social → `34fd6248975a` url_imagen en producto.
 
 ## Flujos clave
 
@@ -161,8 +163,6 @@ Las secciones con `data-load` se cargan por AJAX dentro de `#admin-content`; las
   que ya no existe) → reescribirla sobre `confirmar_pago`/webhook de MP. Solo si se pide.
 - **Correo real**: elegir proveedor y `MAIL_*` (`run.py` ya carga `.env`; falta un `.env.example` documentado).
   Hoy el correo se guarda en `instance/correos/`.
-- **Imagen de producto por link externo** (iCloud/Drive/CDN): campo opcional de URL en la vía
-  `/products/image_<id>`. Pendiente de diseño y esquema.
 - **Despliegue en PythonAnywhere** (guía lista). La migración de `item` para MySQL no está escrita
   (solo si la BD de producción deja de ser SQLite).
 - **Estacionados** (fuera de alcance por ahora): miniaturas reales de Instagram (API Meta), carga
@@ -171,4 +171,6 @@ Las secciones con `data-load` se cargan por AJAX dentro de `#admin-content`; las
 Ya resueltos (no volver a listar): contraseñas con bcrypt + re-hash legacy, CSRF en todo el panel
 (exento solo el webhook de MercadoPago), llaves de MP por defecto (hoy placeholders neutros, vienen del
 entorno), y reserva de stock entre crear y pagar el pedido (`ReservaStock`, liberada en pago/rechazo y
-expiradas al reservar) y residuos de ePayco (`referencia_epayco`, flag `EPAYCO_SIMULACION` → `SIMULACION_PAGO`).
+expiradas al reservar), residuos de ePayco (`referencia_epayco`, flag `EPAYCO_SIMULACION` → `SIMULACION_PAGO`),
+e imagen por link externo (`url_imagen` en producto: link de Drive normalizado a URL directa, validado al
+guardar, usado solo si no hay fotos subidas; migración `34fd6248975a`).

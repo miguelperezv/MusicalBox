@@ -4,8 +4,10 @@ from werkzeug.utils import secure_filename
 from ..db import db, ma
 from datetime import datetime
 from base64 import b64encode
+import re
 import secrets
 import hashlib
+import requests
 from sqlalchemy.exc import IntegrityError
 from .seguridad import hash_password, check_password
 
@@ -51,7 +53,9 @@ class Producto(db.Model):
     d_producto = db.Column(db.String(200))
     #stock propio solo para SIMPLE sin variantes; con variantes vive en Variante y en un BUNDLE se calcula
     stock = db.Column(db.Numeric(5,0), nullable=False)
-    #i_producto = db.Column(db.String(500))
+    #imagen externa opcional (link de Google Drive o URL directa a un archivo de imagen);
+    #se guarda tal cual la pegó el admin y se normaliza al servirla. Solo se usa si no hay fotos subidas.
+    url_imagen = db.Column(db.String(500))
     
     f_producto = db.Column(db.DateTime, default=datetime.now)
     #SIMPLE: se vende tal cual · BUNDLE: pack que descuenta el stock de sus componentes
@@ -368,10 +372,11 @@ def create_new_release(k_artista, n_lanzamiento,i_lanzamiento, f_lanzamiento, k_
         return None
 
 #n_producto, p_producto, d_producto, stock, i_producto, k_categoria
-def create_new_product(k_lanzamiento, n_producto, p_producto, d_producto, stock, i_producto, k_categoria, tipo='SIMPLE'):
+def create_new_product(k_lanzamiento, n_producto, p_producto, d_producto, stock, i_producto, k_categoria, tipo='SIMPLE', url_imagen=None):
     #un pack no tiene stock propio: se calcula con sus componentes
     product = Producto(k_lanzamiento=k_lanzamiento, n_producto=n_producto, p_producto=p_producto, d_producto=d_producto,
-                       stock=0 if tipo == 'BUNDLE' else (stock or 0), k_categoria=k_categoria, tipo=tipo if tipo in TIPOS_PRODUCTO else 'SIMPLE')
+                       stock=0 if tipo == 'BUNDLE' else (stock or 0), k_categoria=k_categoria, tipo=tipo if tipo in TIPOS_PRODUCTO else 'SIMPLE',
+                       url_imagen=(url_imagen or '').strip() or None)
     try:
         db.session.add(product)
         db.session.commit()
@@ -673,6 +678,30 @@ def get_first_image_by_product(k_producto):
         return None
 
 
+#link de compartir de Google Drive -> id del archivo
+_DRIVE_VIEW = re.compile(r"drive\.google\.com/file/d/([A-Za-z0-9_-]+)")
+
+def normalizar_url_imagen(valor):
+    #convierte el link de compartir de Drive en la URL directa que devuelve la imagen
+    if not valor:
+        return None
+    valor = valor.strip()
+    m = _DRIVE_VIEW.search(valor)
+    if m:
+        return f"https://drive.google.com/thumbnail?id={m.group(1)}&sz=w1200"
+    return valor or None
+
+def validar_url_imagen(url, timeout=15):
+    #confirma que la URL responda con una imagen; las paginas de compartir no pasan
+    try:
+        r = requests.get(url, timeout=timeout, allow_redirects=True,
+                         headers={"User-Agent": "Mozilla/5.0"})
+        if r.status_code == 200 and (r.headers.get("Content-Type") or "").startswith("image/"):
+            return True, None
+        return False, "Ese link no devuelve una imagen directa (parece una página). Usá el link de compartir de Drive o una URL directa a la foto."
+    except Exception:
+        return False, "No se pudo abrir el link. Revisá que sea una URL válida."
+
 def get_artist_by_release(k_lanzamiento):
     lanz_art = Lanzamiento_Artista.query.filter_by(k_lanzamiento=k_lanzamiento).first()
     if not lanz_art:
@@ -740,11 +769,12 @@ def reorder_images(k_producto, ordenes):
         return False
 
 
-def edit_product(k_producto, n_producto, d_producto, p_producto, image_files, k_category, stock):
+def edit_product(k_producto, n_producto, d_producto, p_producto, image_files, k_category, stock, url_imagen=None):
     producto = Producto.query.filter_by(id = k_producto).first()
     try:
         producto.n_producto = n_producto
         producto.d_producto = d_producto
+        producto.url_imagen = (url_imagen or '').strip() or None
         if p_producto is not None:
             producto.p_producto = p_producto
         else:

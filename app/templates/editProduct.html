@@ -56,6 +56,8 @@
             <input class="form-control" type="file" name="inputImages" id="inputImages" accept="image/*" multiple>
             <div class="form-text">Puedes seleccionar múltiples imágenes. La primera será la principal.</div>
         </div>
+
+        {{ field(form.url_imagen, help='Opcional: link de compartir de Google Drive o URL directa a la foto. Se usa solo si no hay imágenes subidas.') }}
         
         <!-- Lista de imágenes existentes con controles de orden -->
         {% if producto.imagenes and producto.imagenes|length > 0 %}
