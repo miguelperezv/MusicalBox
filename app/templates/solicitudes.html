@@ -1,8 +1,44 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
-    <h1 class="h3 mb-0">Solicitudes de pedido</h1>
+    <h1 class="h3 mb-0">Pedidos a la medida</h1>
     <input class="form-control" style="max-width: 280px" type="search" id="filtro-solicitudes" placeholder="Filtrar por disco, contacto...">
 </div>
-<p class="small text-body-secondary">Contacta al cliente, asocia el disco a un producto del catálogo (créalo en <em>Nuevo producto</em> si no existe) y envíale el enlace para confirmar la compra.</p>
+<div class="mb-panel p-3 mb-4">
+    <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#mini-pedido-medida">
+        <i class="bi bi-plus-lg me-1"></i>Nuevo pedido a la medida
+    </button>
+    <div class="collapse{{ ' show' if request.args.get('nuevo') }}" id="mini-pedido-medida">
+        <p class="small text-body-secondary mt-2 mb-2">Para el que te escribió por el sitio, Instagram o WhatsApp: con disco del catálogo + precio, sale ya con su enlace; solo con disco, queda para que le pongas precio.</p>
+        <form id="form-mini-pedido" class="row g-2">
+            <div class="col-md-2">
+                <label class="form-label small mb-1">WhatsApp</label>
+                <input class="form-control form-control-sm" name="celular" type="tel" required placeholder="300 000 0000">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1">Nombre</label>
+                <input class="form-control form-control-sm" name="nombre" placeholder="Opcional">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1">Correo</label>
+                <input class="form-control form-control-sm" name="email" type="email" placeholder="Opcional">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Disco</label>
+                <input class="form-control form-control-sm" name="producto" required placeholder="Catálogo o sus palabras"
+                       data-autocomplete="{{ url_for('dashboard.editproduct_productList') }}">
+            </div>
+            <div class="col-md-1">
+                <label class="form-label small mb-1">Precio</label>
+                <input class="form-control form-control-sm" name="precio" type="number" min="0" placeholder="COP">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1"></label>
+                <button type="submit" class="btn btn-sm btn-primary w-100"><i class="bi bi-send me-1"></i>Registrar</button>
+            </div>
+            <div class="col-12"><div id="mini-pedido-respuesta" class="small d-flex align-items-center gap-2 flex-wrap"></div></div>
+        </form>
+    </div>
+</div>
+<p class="small text-body-secondary">Contacta al cliente, asócialo con un producto del catálogo (créalo en <em>Nuevo producto</em> si no existe) y envíale el enlace para que confirme la compra.</p>
 <div class="mb-panel p-0">
     <div class="table-responsive">
         <table class="table table-hover mb-0" id="tabla-solicitudes">
@@ -90,5 +126,33 @@
     $('#filtro-solicitudes').on('input', function () {
         var q = this.value.toLowerCase();
         $('#tabla-solicitudes tbody tr').each(function () { $(this).toggle($(this).text().toLowerCase().indexOf(q) !== -1); });
+    });
+    //mini-form "nuevo pedido a la medida": registra y, si hay precio, deja el whatsapp listo para enviar
+    mbAutocomplete(document.getElementById('form-mini-pedido'));
+    function refrescarLista() {
+        $('#admin-content').load('{{ url_for("solicitud.lista") }}', function () { mbAutocomplete($('#admin-content')); });
+    }
+    $('#form-mini-pedido').on('submit', function (e) {
+        e.preventDefault();
+        var form = this, salida = document.getElementById('mini-pedido-respuesta');
+        salida.innerHTML = '<span class="text-body-secondary">Guardando…</span>';
+        $.post("{{ url_for('solicitud.nueva_admin') }}", $(form).serialize())
+            .done(function (r) {
+                if (r.whatsapp) {
+                    salida.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Pedido #' + r.id + ' cotizado</span>' +
+                        '<a class="btn btn-sm btn-success" target="_blank" rel="noopener" href="' + r.whatsapp + '"><i class="bi bi-whatsapp me-1"></i>Enviar por WhatsApp</a>' +
+                        '<button type="button" class="btn btn-sm btn-outline-secondary mini-copiar">Copiar enlace</button>' +
+                        '<button type="button" class="btn btn-sm btn-link mini-refrescar">Ver lista</button>';
+                    salida.querySelector('.mini-copiar').onclick = function () { navigator.clipboard.writeText(r.enlace); this.textContent = 'Copiado'; };
+                    salida.querySelector('.mini-refrescar').onclick = refrescarLista;
+                } else {
+                    salida.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Pedido #' + r.id + ' registrado</span>' +
+                        '<button type="button" class="btn btn-sm btn-link mini-refrescar">Ver lista para ponerle precio</button>';
+                    salida.querySelector('.mini-refrescar').onclick = refrescarLista;
+                }
+            })
+            .fail(function (x) {
+                salida.innerHTML = '<span class="text-danger">' + ((x.responseJSON || {}).error || 'No se pudo registrar') + '</span>';
+            });
     });
 </script>

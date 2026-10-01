@@ -2,7 +2,7 @@
 from urllib.parse import quote
 
 from flask import Blueprint, flash, request, g, render_template, redirect, url_for, jsonify, session, abort
-from .forms import RegistroSolicitudForm, CheckoutForm
+from .forms import RegistroSolicitudForm, CheckoutForm, CotizacionRapidaForm
 from .models import (create_solicitud, get_all_solicitudes, update_estado_solicitud, get_catalogo_solicitud, get_product_by_id,
                      get_usuario_por_email, cotizar_solicitud, get_solicitud_por_token, datos_envio_previos, crear_pedido,
                      ESTADOS_SOLICITUD, METODOS_PAGO, Solicitud)
@@ -60,6 +60,45 @@ def estado(id):
     return jsonify({"error": "No se pudo actualizar la solicitud"}), 400
 
 
+def _respuesta_cotizar(s, token):
+    #el enlace solo se puede ver ahora (en la BD queda su hash); se envía al cliente por WhatsApp o correo
+    enlace = url_for('solicitud.confirmar', token=token, _external=True)
+    disco = s.producto.lanzamiento.n_lanzamiento.title() + " - " if s.producto.lanzamiento else ""
+    mensaje = (f"¡Hola! Conseguimos tu pedido en Musical Box: {disco}{s.producto.n_producto} por ${int(s.precio_cotizado):,}".replace(",", ".")
+               + f". Confirma tu compra y datos de envío aquí: {enlace}")
+    cel = "".join(c for c in (s.cel_contacto or "") if c.isdigit())
+    return {"id": s.id, "enlace": enlace,
+            "whatsapp": f"https://wa.me/{'57' + cel if len(cel) == 10 else cel}?text={quote(mensaje)}",
+            "estado": s.estado}
+
+
+@solicitud.route("/nueva_admin", methods=["POST"])
+@admin_required
+def nueva_admin():
+    #pedido a la medida que nace en el panel (la conversación empezó en el sitio, Instagram o WhatsApp)
+    form = CotizacionRapidaForm()
+    if not form.validate():
+        return jsonify({"error": "Revisa los campos: mínimo el WhatsApp y el disco"}), 400
+    texto = (form.producto.data or "").strip()
+    k_producto = int(texto.split(".")[0]) if texto.split(".")[0].strip().isdigit() else None
+    if k_producto and not get_product_by_id(k_producto):
+        k_producto = None
+    #si vino del catálogo, el nombre limpio es lo que va después de "id."
+    nombre_limpio = texto.split(". ", 1)[1].strip() if k_producto else texto
+    email = (form.email.data or "").strip().lower() or None
+    usuario = get_usuario_por_email(email) if email else None
+    s, err = create_solicitud(usuario.id if usuario else None, k_producto, nombre_limpio, None,
+                              form.celular.data.strip(), email)
+    if not s:
+        return jsonify({"error": err or "No se pudo registrar"}), 400
+    if k_producto and form.precio.data:
+        token, cerr = cotizar_solicitud(s.id, k_producto, form.precio.data)
+        if cerr:
+            return jsonify({"error": cerr, "id": s.id, "estado": s.estado}), 400
+        return jsonify(_respuesta_cotizar(s, token))
+    return jsonify({"id": s.id, "estado": s.estado})
+
+
 @solicitud.route("/<int:id>/cotizar", methods=["POST"])
 @admin_required
 def cotizar(id):
@@ -67,14 +106,8 @@ def cotizar(id):
     token, err = cotizar_solicitud(id, int(k_producto) if k_producto.isdigit() else None, request.form.get("precio", type=int))
     if err:
         return jsonify({"error": err}), 400
-    #el enlace solo se puede ver ahora (en la BD queda su hash); se envía al cliente por WhatsApp o correo
-    enlace = url_for('solicitud.confirmar', token=token, _external=True)
     s = db.session.get(Solicitud, id)
-    mensaje = (f"¡Hola! Conseguimos tu pedido en Musical Box: {s.producto.lanzamiento.n_lanzamiento.title() + ' - ' if s.producto.lanzamiento else ''}"
-               f"{s.producto.n_producto} por ${int(s.precio_cotizado):,}".replace(",", ".") + f". Confirma tu compra y datos de envío aquí: {enlace}")
-    cel = "".join(c for c in (s.cel_contacto or "") if c.isdigit())
-    return jsonify({"enlace": enlace, "whatsapp": f"https://wa.me/{'57' + cel if len(cel) == 10 else cel}?text={quote(mensaje)}",
-                    "estado": s.estado})
+    return jsonify(_respuesta_cotizar(s, token))
 
 
 @solicitud.route("/confirmar/<token>", methods=["GET", "POST"])

@@ -15,7 +15,7 @@
                 <a class="nav-link {{ 'active' if request.endpoint == 'home.admin' }}" href="{{ url_for('home.admin') }}"><i class="bi bi-speedometer2"></i>Resumen</a>
 
                 <div class="section">Ventas</div>
-                <a class="nav-link" href="#" data-load="{{ url_for('solicitud.lista') }}"><i class="bi bi-send"></i>Solicitudes de pedido</a>
+                <a class="nav-link" href="#" data-load="{{ url_for('solicitud.lista') }}"><i class="bi bi-send"></i>Pedidos a la medida</a>
                 <a class="nav-link" href="#" data-load="{{ url_for('dashboard.invoices') }}"><i class="bi bi-receipt"></i>Órdenes de compra</a>
 
                 <div class="section">Catálogo</div>
@@ -42,6 +42,12 @@
             {% block content %}
             {% if stats %}
             <h1 class="h3 mb-4">Resumen</h1>
+            <div class="d-flex flex-wrap gap-2 mb-4">
+                <a class="btn btn-sm btn-outline-primary" href="#" data-load="{{ url_for('solicitud.lista', nuevo=1) }}"><i class="bi bi-send me-1"></i>Nuevo pedido a la medida</a>
+                <a class="btn btn-sm btn-outline-primary" href="#" data-quickview="{{ url_for('dashboard.newrelease') }}"><i class="bi bi-plus-lg me-1"></i>Nuevo lanzamiento</a>
+                <a class="btn btn-sm btn-outline-primary" href="#" data-quickview="{{ url_for('dashboard.newproduct') }}"><i class="bi bi-bag-plus me-1"></i>Nuevo producto</a>
+                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('dashboard.batch_upload') }}"><i class="bi bi-file-earmark-arrow-up me-1"></i>Carga masiva</a>
+            </div>
             <div class="row row-cols-2 row-cols-xl-4 g-3 mb-4">
                 <div class="col"><div class="mb-stat"><i class="bi bi-send"></i><div class="value mt-2">{{ stats.solicitudes_activas }}</div><div class="label">Solicitudes por atender</div></div></div>
                 <div class="col"><div class="mb-stat"><i class="bi bi-receipt"></i><div class="value mt-2">{{ stats.ordenes }}</div><div class="label">Pagadas · {{ stats.ventas|cop }}{% if stats.pendientes %} · {{ stats.pendientes }} pendientes{% endif %}</div></div></div>

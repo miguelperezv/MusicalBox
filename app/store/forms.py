@@ -97,6 +97,18 @@ class newAdmin(FlaskForm):
     email = StringField("Ingresa el email del nuevo usuario ADMINISTRADOR")
     pwd = PasswordField("Ingresa tu contraseña")
 
+class CotizacionRapidaForm(FlaskForm):
+    #pedido a la medida que nace en el panel (conversaciones por sitio, Instagram o WhatsApp)
+    nombre = StringField("Nombre del cliente", render_kw={"placeholder": "Opcional"})
+    celular = StringField("WhatsApp", validators=[DataRequired(message="Escribe el WhatsApp del cliente"), Length(max=20)])
+    email = EmailField("Correo", validators=[Optional(), Length(max=100),
+                                              Regexp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", message="Revisa el correo")])
+    producto = StringField("Disco / producto", render_kw={"placeholder": "Del catálogo o con sus palabras"})
+    precio = IntegerField("Precio acordado", widget=h5widgets.NumberInput(min=0, max=1000000, step=50),
+                          validators=[Optional()],
+                          render_kw={"placeholder": "Opcional: con precio, se cotiza ya"})
+
+
 class editReleaseForm(FlaskForm):
     
     n_lanzamiento = StringField("Lanzamiento asociado", id="lanzamiento", render_kw={"placeholder": "Lanzamiento al que se registra el producto"})
