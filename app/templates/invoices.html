@@ -1,4 +1,12 @@
 <h1 class="h3 mb-4">Órdenes de compra</h1>
+<div class="d-flex flex-wrap gap-2 mb-3" role="group" aria-label="Filtrar órdenes">
+    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary active" data-filtro="todas">Todas</button>
+    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtro="pendientes">Pendientes de pago</button>
+    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtro="POR PREPARAR">Por preparar</button>
+    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtro="EN PREPARACION">En preparación</button>
+    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtro="ENVIADO">Enviado</button>
+    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtro="ENTREGADO">Entregado</button>
+</div>
 <div class="mb-panel p-0">
     <div class="table-responsive">
         <table class="table table-hover mb-0">
@@ -16,7 +24,7 @@
             </thead>
             <tbody>
                 {% for i in invoices %}
-                <tr>
+                <tr data-estado="{{ i.estado }}" data-envio="{{ i.estado_envio or '' }}">
                     <td class="ps-3 text-body-secondary">{{ i.id }}</td>
                     <td class="text-nowrap">{{ i.f_compra.strftime('%d/%m/%Y %H:%M') if i.f_compra }}</td>
                     <td><span class="mb-estado mb-estado-{{ i.estado }}">{{ i.estado }}</span>{% if i.metodo_pago %}<br><small class="text-body-secondary">{{ i.metodo_pago }}</small>{% endif %}</td>
@@ -46,6 +54,7 @@
                 {% else %}
                 <tr><td colspan="8" class="mb-empty">No hay órdenes de compra</td></tr>
                 {% endfor %}
+                <tr class="fila-sin-resultado d-none"><td colspan="8" class="mb-empty">No hay órdenes con este estado</td></tr>
             </tbody>
         </table>
     </div>
@@ -55,7 +64,12 @@
     $('.estado-envio').on('change', function () {
         var select = $(this);
         $.post(select.data('url'), {estado_envio: select.val()})
-            .done(function (r) { select.siblings('.rotulo').toggleClass('d-none', !r.rotulo); })
+            .done(function (r) {
+                select.siblings('.rotulo').toggleClass('d-none', !r.rotulo);
+                var fila = select.closest('tr');
+                fila.dataset.envio = r.estado_envio;
+                if (window.aplicarFiltroOrdenes) aplicarFiltroOrdenes(fila);
+            })
             .fail(function () { select.addClass('is-invalid'); });
     });
 </script>

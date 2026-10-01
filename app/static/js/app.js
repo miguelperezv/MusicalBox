@@ -206,3 +206,170 @@ document.addEventListener('change', function (e) {
     var s = document.querySelector('.campo-stock');
     if (s) s.style.display = t.value === 'BUNDLE' ? 'none' : '';
 });
+
+//edición rápida en los listados: clic en la celda de stock/precio (productos) o fecha (lanzamientos)
+(function () {
+    function precioCOP(n) { return '$' + Number(n).toLocaleString('es-CO'); }
+    function fechaBonita(iso) {
+        var p = String(iso || '').slice(0, 10).split('-');
+        return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : String(iso || '');
+    }
+    function pintarStock(celda, v) {
+        celda.dataset.valor = v;
+        celda.innerHTML = v <= 0 ? '<span class="mb-estado mb-estado-RECHAZADO">Agotado</span>'
+            : (v <= 3 ? '<span class="mb-estado mb-estado-PENDIENTE">' + v + ' · bajo</span>' : String(v));
+    }
+    document.addEventListener('click', function (e) {
+        var celda = e.target.closest('td.stock-editable, td.precio-celda, td.fecha-celda');
+        if (!celda || celda.querySelector('form.mb-celda')) return;
+        var campo = celda.classList.contains('precio-celda') ? 'precio' : (celda.classList.contains('fecha-celda') ? 'f_lanzamiento' : 'stock');
+        var url = campo === 'f_lanzamiento'
+            ? '/dashboard/lanzamiento/' + celda.dataset.id + '/f_lanzamiento'
+            : '/dashboard/producto/' + celda.dataset.id + '/' + campo;
+        var form = document.createElement('form');
+        form.className = 'mb-celda d-inline-flex align-items-center gap-1';
+        form.dataset.campo = campo;
+        form.dataset.url = url;
+        form.dataset.html = celda.innerHTML;
+        form.dataset.valor = celda.dataset.valor || '';
+        var input = document.createElement('input');
+        input.type = campo === 'f_lanzamiento' ? 'date' : 'number';
+        input.min = '0';
+        input.className = 'form-control form-control-sm py-0';
+        input.style.width = campo === 'f_lanzamiento' ? '140px' : '64px';
+        input.value = celda.dataset.valor || '';
+        var ok = document.createElement('button');
+        ok.type = 'submit'; ok.className = 'btn btn-sm btn-primary py-0'; ok.title = 'Guardar'; ok.innerHTML = '<i class="bi bi-check-lg"></i>';
+        var no = document.createElement('button');
+        no.type = 'button'; no.className = 'btn btn-sm btn-outline-secondary py-0'; no.title = 'Cancelar'; no.innerHTML = '<i class="bi bi-x-lg"></i>';
+        form.appendChild(input); form.appendChild(ok); form.appendChild(no);
+        celda.innerHTML = '';
+        celda.appendChild(form);
+        input.focus();
+        if (input.select) input.select();
+        input.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Enter') { ev.preventDefault(); ok.click(); }
+            if (ev.key === 'Escape') no.click();
+        });
+        no.addEventListener('click', function () { celda.innerHTML = form.dataset.html; celda.dataset.valor = form.dataset.valor; });
+    });
+    document.addEventListener('submit', function (e) {
+        var form = e.target.closest && e.target.closest('form.mb-celda');
+        if (!form) return;
+        e.preventDefault();
+        if (form.dataset.enviado) return;
+        var input = form.querySelector('input');
+        var campo = form.dataset.campo, valor = input.value.trim();
+        if (campo === 'stock') { var s = parseInt(valor, 10); if (isNaN(s) || s < 0) { input.classList.add('is-invalid'); return; } }
+        if (campo === 'precio') { var p = parseInt(valor, 10); if (isNaN(p) || p <= 0) { input.classList.add('is-invalid'); return; } }
+        if (campo === 'f_lanzamiento' && valor && !/^\d{4}-\d{2}-\d{2}$/.test(valor)) { input.classList.add('is-invalid'); return; }
+        form.dataset.enviado = '1';
+        var datos = {};
+        datos[campo === 'f_lanzamiento' ? 'valor' : campo] = valor;
+        $.post(form.dataset.url, datos)
+            .done(function (r) {
+                var celda = form.closest('td');
+                if (campo === 'stock') pintarStock(celda, r.stock);
+                else if (campo === 'precio') { celda.innerHTML = precioCOP(r.precio); celda.dataset.valor = r.precio; }
+                else { celda.innerHTML = r.f_lanzamiento ? fechaBonita(r.f_lanzamiento) : ''; celda.dataset.valor = r.f_lanzamiento; }
+            })
+            .fail(function () { form.dataset.enviado = ''; input.classList.add('is-invalid'); });
+    });
+})();
+
+//órdenes: chips para filtrar la lista por estado (delegado: también en secciones data-load)
+(function () {
+    function aplicar(filtro, chip) {
+        document.querySelectorAll('.chip-filtro').forEach(function (b) {
+            b.classList.toggle('active', b === chip);
+            b.classList.toggle('btn-primary', b === chip);
+            b.classList.toggle('btn-outline-secondary', b !== chip);
+        });
+        var panel = chip.closest('#admin-content') || document;
+        var tabla = panel.querySelector('table');
+        var filas = tabla.querySelectorAll('tr[data-estado]');
+        var visibles = 0;
+        filas.forEach(function (tr) {
+            var ok = filtro === 'todas'
+                || (filtro === 'pendientes' && tr.dataset.estado === 'PENDIENTE')
+                || (filtro !== 'todas' && filtro !== 'pendientes' && tr.dataset.estado === 'PAGADO' && tr.dataset.envio === filtro);
+            tr.classList.toggle('d-none', !ok);
+            if (ok) visibles++;
+        });
+        var vacio = tabla.querySelector('.fila-sin-resultado');
+        if (vacio) vacio.classList.toggle('d-none', visibles > 0);
+    }
+    document.addEventListener('click', function (e) {
+        var chip = e.target.closest && e.target.closest('.chip-filtro');
+        if (chip) aplicar(chip.dataset.filtro, chip);
+    });
+    window.aplicarFiltroOrdenes = function (row) {
+        //al cambiar el estado de envío, la fila pasa al grupo que le toca
+        var panel = row.closest('#admin-content') || document;
+        var chip = panel.querySelector('.chip-filtro.active');
+        if (chip && chip.dataset.filtro !== 'todas') {
+            var env = row.dataset.envio, esta = row.dataset.estado;
+            var sigue = chip.dataset.filtro === 'pendientes' ? esta === 'PENDIENTE' : (esta === 'PAGADO' && env === chip.dataset.filtro);
+            if (!sigue) aplicar('todas', panel.querySelector('.chip-filtro[data-filtro="todas"]'));
+        }
+    };
+})();
+
+//lanzamientos: portada, post y Spotify por un campo en modal (delegado: sección y modal)
+(function () {
+    var titulos = { i_lanzamiento: 'Portada (URL)', url_social: 'Post de Instagram/TikTok (URL)' };
+    function esc(t) { return String(t || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+    document.addEventListener('click', function (e) {
+        var b = e.target.closest && e.target.closest('[data-cambio]');
+        if (!b) return;
+        e.preventDefault();
+        var campo = b.dataset.cambio, id = b.dataset.id;
+        var m = document.getElementById('mbModal');
+        var body = m.querySelector('.modal-body');
+        body.innerHTML = '<div style="max-width:560px;margin:0 auto">' +
+            '<h6 class="h6">' + titulos[campo] + '</h6>' +
+            '<input id="mb-cambio-url" class="form-control" value="' + esc(b.dataset.valor) + '" placeholder="https://...">' +
+            '<div class="form-text">Deja vacío para quitar el campo.</div>' +
+            '<div id="mb-cambio-err" class="text-danger small mt-2"></div>' +
+            '<div class="d-flex gap-2 mt-2"><button type="button" class="btn btn-primary btn-sm" id="mb-cambio-ok">Guardar</button>' +
+            '<button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button></div></div>';
+        bootstrap.Modal.getOrCreateInstance(m).show();
+        var input = document.getElementById('mb-cambio-url');
+        input.focus();
+        input.select();
+        function guardar() {
+            var btn = document.getElementById('mb-cambio-ok');
+            var err = document.getElementById('mb-cambio-err');
+            btn.disabled = true;
+            input.classList.remove('is-invalid');
+            err.textContent = '';
+            $.post('/dashboard/lanzamiento/' + id + '/' + campo, { valor: input.value.trim() })
+                .done(function (r) {
+                    var tr = b.closest('tr');
+                    var v = r[campo] || '';
+                    b.dataset.valor = v;
+                    if (campo === 'i_lanzamiento') {
+                        var img = tr.querySelector('td img');
+                        if (v) {
+                            if (img) img.src = v;
+                            else tr.querySelector('td .d-flex').insertAdjacentHTML('afterbegin',
+                                '<img src="' + esc(v) + '" alt="" width="48" height="48" class="rounded object-fit-cover flex-shrink-0">');
+                        } else if (img) img.remove();
+                    }
+                    if (campo === 'url_social' && tr) {
+                        var hint = tr.querySelector('[data-post-hint]');
+                        if (hint) hint.classList.toggle('d-none', !v);
+                    }
+                    var inst = bootstrap.Modal.getInstance(m);
+                    if (inst) inst.hide();
+                })
+                .fail(function (xhr) {
+                    btn.disabled = false;
+                    input.classList.add('is-invalid');
+                    err.textContent = (xhr.responseJSON && xhr.responseJSON.error) || 'Error al guardar';
+                });
+        }
+        document.getElementById('mb-cambio-ok').addEventListener('click', guardar);
+        input.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); guardar(); } });
+    });
+})();

@@ -23,8 +23,13 @@
                     </td>
                     <td class="small">{{ f.artista.n_artista.title() ~ ' · ' if f.artista }}{{ p.lanzamiento.n_lanzamiento.title() if p.lanzamiento else '—' }}</td>
                     <td class="small">{% if p.tipo == 'BUNDLE' %}<span class="mb-chip mb-badge-pack">PACK</span>{% else %}{{ p.k_categoria or '' }}{% if p.variantes %} · {{ p.variantes|length }} tallas{% endif %}{% endif %}</td>
-                    <td class="text-end text-nowrap">{{ p.p_producto|cop }}</td>
-                    <td class="text-end">{% if f.stock <= 0 %}<span class="mb-estado mb-estado-RECHAZADO">Agotado</span>{% else %}{{ f.stock }}{% endif %}</td>
+                    <td class="text-end text-nowrap precio-celda" data-id="{{ p.id }}" data-valor="{{ p.p_producto }}" title="Clic para cambiar el precio">{{ p.p_producto|cop }}</td>
+                    <td class="text-end stock-celda{% if p.tipo != 'BUNDLE' and not p.variantes %} stock-editable{% endif %}" data-id="{{ p.id }}" data-valor="{{ f.stock }}"
+                        title="{% if p.tipo != 'BUNDLE' and not p.variantes %}Clic para cambiar el stock{% else %}El stock se cambia por talla o en el contenido del pack (Editar){% endif %}">
+                        {% if f.stock <= 0 %}<span class="mb-estado mb-estado-RECHAZADO">Agotado</span>
+                        {% elif f.stock <= 3 %}<span class="mb-estado mb-estado-PENDIENTE">{{ f.stock }} · bajo</span>
+                        {% else %}{{ f.stock }}{% endif %}
+                    </td>
                     <td class="pe-3 text-end text-nowrap">
                         <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('products.detalle', k_producto=p.id) }}" target="_blank" title="Ver en la tienda"><i class="bi bi-box-arrow-up-right"></i></a>
                         <a class="btn btn-sm btn-primary" href="{{ url_for('dashboard.updateproduct', k_producto=p.id) }}"><i class="bi bi-pencil me-1"></i>Editar</a>

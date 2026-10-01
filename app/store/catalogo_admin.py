@@ -158,3 +158,59 @@ def lanzamientos_admin():
     filas = [{"l": l, "artista": get_artist_by_release(l.id), "productos": Producto.query.filter_by(k_lanzamiento=l.id).count()}
              for l in Lanzamiento.query.order_by(db.desc(Lanzamiento.f_lanzamiento)).all()]
     return render_template("lanzamientos_admin.html", filas=filas)
+
+
+#edición rápida desde los listados: stock/precio de producto y campos de lanzamiento,
+#sin abrir la página de edición completa (lo estructural sigue por "Editar")
+from datetime import date as fecha_date
+
+
+@dashboard.route("/producto/<int:k_producto>/stock", methods=["POST"])
+def producto_stock(k_producto):
+    p = db.session.get(Producto, k_producto) or abort(404)
+    if p.tipo == 'BUNDLE' or p.variantes:
+        return jsonify({"error": "Tiene tallas o es un pack: el stock se cambia en Editar"}), 400
+    valor = request.form.get("stock", type=int)
+    if valor is None or not (0 <= valor <= 9999):
+        return jsonify({"error": "Stock inválido"}), 400
+    p.stock = valor
+    db.session.commit()
+    return jsonify({"stock": int(p.stock)})
+
+
+@dashboard.route("/producto/<int:k_producto>/precio", methods=["POST"])
+def producto_precio(k_producto):
+    p = db.session.get(Producto, k_producto) or abort(404)
+    valor = request.form.get("precio", type=int)
+    if valor is None or not (1 <= valor <= 99999999):
+        return jsonify({"error": "Precio inválido (en pesos, sin puntos)"}), 400
+    p.p_producto = valor
+    db.session.commit()
+    return jsonify({"precio": int(p.p_producto)})
+
+
+CAMPOS_LANZAMIENTO = {
+    "f_lanzamiento": "Fecha",
+    "i_lanzamiento": "Portada (URL)",
+    "url_social": "Post (URL)",
+}
+
+
+@dashboard.route("/lanzamiento/<int:k_lanzamiento>/<campo>", methods=["POST"])
+def lanzamiento_campo(k_lanzamiento, campo):
+    if campo not in CAMPOS_LANZAMIENTO:
+        abort(404)
+    l = db.session.get(Lanzamiento, k_lanzamiento) or abort(404)
+    valor = (request.form.get("valor") or "").strip()
+    if campo == "f_lanzamiento":
+        if valor:
+            try:
+                l.f_lanzamiento = fecha_date.fromisoformat(valor)
+            except ValueError:
+                return jsonify({"error": "Fecha inválida (se espera AAAA-MM-DD)"}), 400
+        else:
+            l.f_lanzamiento = None
+    else:
+        setattr(l, campo, valor or None)
+    db.session.commit()
+    return jsonify({campo: (l.f_lanzamiento.isoformat() if campo == "f_lanzamiento" else getattr(l, campo) or "")})
