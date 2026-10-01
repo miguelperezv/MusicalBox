@@ -26,7 +26,8 @@ En producción la app **no arranca** si falta `SECRET_KEY` (así no queda una cl
 1. Crea la cuenta en <https://www.pythonanywhere.com>.
 2. La cuenta **gratuita** sirve para probar, pero su acceso a internet está limitado a una
    **lista blanca** de dominios. Verifica que estén:
-   - `secure.epayco.co` (validación de pagos)
+   - `api.mercadopago.com` (el SDK lo usa para crear la preference y consultar el pago; el
+     payment brick se carga en el navegador del cliente y no pasa por esta lista)
    - el servidor SMTP de tu proveedor de correo (cuando lo configures)
 
    Si no están, necesitas el plan **Hacker** (≈ 5 USD/mes).
@@ -146,10 +147,6 @@ python -c "import secrets; print(secrets.token_hex(32))"
       (el webhook de confirmación solo llega en el servidor, no en local)
 - [ ] En la página del pedido **no** aparecen los botones de "simular pago".
 - [ ] El panel `/dashboard` pide login de administrador.
-- [ ] Pendientes de seguridad antes de recibir clientes reales:
-  - [ ] Contraseñas cifradas (hoy se guardan en texto plano).
-  - [ ] Protección CSRF en todos los formularios del panel.
-  - [ ] La contraseña no debe quedar guardada en la cookie de sesión.
 - [ ] Correo real configurado (`MAIL_BACKEND=smtp` y variables `MAIL_*`).
 - [ ] Llaves de producción de MercadoPago (`MERCADOPAGO_PUBLIC_KEY` / `MERCADOPAGO_ACCESS_TOKEN`) cuando se cobre de verdad.
 

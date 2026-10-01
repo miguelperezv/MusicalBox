@@ -82,7 +82,7 @@ def ver(token):
         session["purchase"] = session["ultimo_carrito"]
     
     return render_template("pedido.html", pedido=p, token=token,
-                           simulacion=current_app.config.get("EPAYCO_SIMULACION"), form_envio=form_envio)
+                            simulacion=current_app.config.get("SIMULACION_PAGO"), form_envio=form_envio)
 
 
 def _pedido_o_404(token):
@@ -95,7 +95,7 @@ def _pedido_o_404(token):
 @pedido.route("/<token>/simular", methods=["POST"])
 def simular(token):
     #solo desarrollo: recorre el mismo camino que una confirmación real de MercadoPago
-    if not current_app.config.get("EPAYCO_SIMULACION"):
+    if not current_app.config.get("SIMULACION_PAGO"):
         abort(404)
     p = _pedido_o_404(token)
     if request.form.get("resultado") == "aprobado":

@@ -28,8 +28,8 @@ Repo: `github.com/miguelperezv/MusicalBox` (rama `main`). El remoto `upstream` e
   Flask-Migrate (Alembic), Flask-WTF / WTForms 3, marshmallow 3 (<4: se usa `Meta.fields`), Pillow, requests, truststore.
 - Frontend: Jinja + Bootstrap 5.3 + Bootstrap Icons + jQuery 3.7 (solo en el panel) + `app/static/js/app.js`.
 - BD: SQLite en `instance/musicalbox.sqlite3` (ignorada por git). Producción prevista: PythonAnywhere con SQLite.
-- Pagos: **MercadoPago** (payment brick + webhook). ePayco se retiró en 2026-09; quedan residuos
-  (`referencia_epayco()` y el flag `EPAYCO_SIMULACION`) y la suite de tests aún asume el flujo viejo. No es Wompi ni Stripe.
+- Pagos: **MercadoPago** (payment brick + webhook). ePayco se retiró por completo en 2026-09; la suite de
+  tests aún asume el flujo viejo. No es Wompi ni Stripe.
 
 ## Correr en local (Windows)
 
@@ -159,7 +159,6 @@ Las secciones con `data-load` se cargan por AJAX dentro de `#admin-content`; las
 
 - **Suite de tests desactualizada**: asume el flujo viejo de ePayco (monkey-patchean `consultar_epayco`,
   que ya no existe) → reescribirla sobre `confirmar_pago`/webhook de MP. Solo si se pide.
-- **Residuos de ePayco**: `referencia_epayco()` (models.py) y el flag `EPAYCO_SIMULACION` (config.py, pedidos.py).
 - **Correo real**: elegir proveedor y `MAIL_*` (`run.py` ya carga `.env`; falta un `.env.example` documentado).
   Hoy el correo se guarda en `instance/correos/`.
 - **Imagen de producto por link externo** (iCloud/Drive/CDN): campo opcional de URL en la vía
@@ -172,4 +171,4 @@ Las secciones con `data-load` se cargan por AJAX dentro de `#admin-content`; las
 Ya resueltos (no volver a listar): contraseñas con bcrypt + re-hash legacy, CSRF en todo el panel
 (exento solo el webhook de MercadoPago), llaves de MP por defecto (hoy placeholders neutros, vienen del
 entorno), y reserva de stock entre crear y pagar el pedido (`ReservaStock`, liberada en pago/rechazo y
-expiradas al reservar).
+expiradas al reservar) y residuos de ePayco (`referencia_epayco`, flag `EPAYCO_SIMULACION` → `SIMULACION_PAGO`).

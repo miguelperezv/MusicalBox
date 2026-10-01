@@ -1220,10 +1220,6 @@ def get_pedido_por_token(token):
         return None
     return Invoice.query.filter_by(token_hash=hash_token(token)).first()
 
-def referencia_epayco(pedido):
-    #número de factura que viaja a ePayco; incluye parte del hash para no chocar si la BD de desarrollo se regenera
-    return f"MB{pedido.id}-{pedido.token_hash[:8]}"
-
 def confirmar_pago(pedido, ref_payco, id_factura_payco=None, franquicia=None):
     #idempotente: el stock se descuenta una sola vez, en el paso a PAGADO. Devuelve (pedido, pago_nuevo)
     if pedido.estado == 'PAGADO':
