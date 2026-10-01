@@ -2,7 +2,7 @@
 from flask.wrappers import Response
 from werkzeug.utils import secure_filename
 from ..db import db, ma
-from datetime import datetime
+from datetime import datetime, timedelta
 from base64 import b64encode
 import re
 import secrets
@@ -1094,17 +1094,53 @@ def get_products_cards(limit=None, k_lanzamiento=None, categoria=None, orden='re
     return cards
 
 def get_admin_stats():
+    #el resumen responde "¿qué hago hoy?": ventas del mes, lo que va saliendo, stock crítico y pendientes
+    ahora = datetime.now()
+    inicio_mes = datetime(ahora.year, ahora.month, 1)
+    inicio_prev = datetime(ahora.year - 1, 12, 1) if ahora.month == 1 else datetime(ahora.year, ahora.month - 1, 1)
+    hace_30 = ahora - timedelta(days=30)
+    pagados_mes = Invoice.query.filter(Invoice.estado == 'PAGADO', Invoice.f_compra >= inicio_mes)
+    pagados_prev = Invoice.query.filter(Invoice.estado == 'PAGADO',
+                                       Invoice.f_compra >= inicio_prev, Invoice.f_compra < inicio_mes)
+    #top 5 de los últimos 30 días por unidades vendidas
+    col_unidades = db.func.sum(Item.cant_item).label("u")
+    filas_top = (db.session.query(Item.k_producto, col_unidades)
+                 .join(Invoice, Invoice.id == Item.k_factura)
+                 .filter(Invoice.estado == 'PAGADO', Invoice.f_compra >= hace_30)
+                 .group_by(Item.k_producto).order_by(col_unidades.desc()).limit(5).all())
+    top5 = []
+    for k_prod, unidades in filas_top:
+        p = db.session.get(Producto, k_prod)
+        if p:
+            top5.append({"nombre": p.n_producto or '(sin nombre)',
+                         "lanzamiento": p.lanzamiento.n_lanzamiento.title() if p.lanzamiento else '',
+                         "u": int(unidades)})
+    stock_baja = []
+    for p in Producto.query.order_by(Producto.id).all():
+        s = stock_disponible(p)
+        if s <= 3:
+            stock_baja.append({"p": p, "stock": s})
+    stock_baja.sort(key=lambda f: f["stock"])
     return {
         "solicitudes_activas": Solicitud.query.filter(Solicitud.estado.in_(['ACTIVO', 'EN PROCESO'])).count(),
+        "solicitudes_cotizadas": Solicitud.query.filter_by(estado='COTIZADA').count(),
         "ordenes": Invoice.query.filter_by(estado='PAGADO').count(),
         "pendientes": Invoice.query.filter_by(estado='PENDIENTE').count(),
         "ventas": sum((i.total or 0) for i in Invoice.query.filter_by(estado='PAGADO').all()),
+        "ventas_mes": float(sum((i.total or 0) for i in pagados_mes.all())),
+        "ordenes_mes": pagados_mes.count(),
+        "ventas_prev": float(sum((i.total or 0) for i in pagados_prev.all())),
+        "top5": top5,
+        "stock_baja": stock_baja,
+        "pendientes_envio": Invoice.query.filter(Invoice.estado == 'PAGADO',
+                                                Invoice.estado_envio.in_(['POR PREPARAR', 'EN PREPARACION'])).count(),
         "productos": Producto.query.count(),
         "agotados": Producto.query.filter(Producto.stock <= 0).count(),
         "lanzamientos": Lanzamiento.query.count(),
         "clientes": Usuario.query.filter(Usuario.k_rol.in_(['USER', 'CLIENTE'])).count(),
         "ultimas_solicitudes": Solicitud.query.order_by(db.desc(Solicitud.f_solicitud)).limit(5).all(),
         "ultimas_ordenes": Invoice.query.order_by(db.desc(Invoice.f_compra)).limit(5).all(),
+        "rotulo_estados": ESTADOS_CON_ROTULO,
     }
 
 
@@ -1379,8 +1415,8 @@ def rechazar_pago(pedido, ref_payco):
 
 def limpiar_reservas_expiradas():
     """Limpia las reservas de stock que han expirado y libera el stock correspondiente."""
-    from datetime import datetime
-    
+    from datetime import datetime, timedelta
+
     # Obtener todas las reservas expiradas
     reservas_expiradas = ReservaStock.query.filter(
         ReservaStock.f_expiracion < datetime.now()
