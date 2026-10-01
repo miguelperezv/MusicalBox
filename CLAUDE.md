@@ -11,7 +11,7 @@ Repo: `github.com/miguelperezv/MusicalBox` (rama `main`). El remoto `upstream` e
 - Respuestas **breves y estratégicas**; ahorrar tokens.
 - **No escribir tests salvo que se pidan.** Hay una suite (`tests/`), pero no se amplía ni se corre en cada cambio.
   Basta una verificación rápida (curl/requests o una captura) de lo tocado.
-- Commits pequeños y descriptivos, con la línea `Co-Authored-By` que indique el sistema. Hacer push cuando lo pida
+- Commits pequeños y descriptivos, **sin** línea `Co-Authored-By` (el dueño pidió no vincular el sistema a su cuenta). Hacer push cuando lo pida
   (suele pedir "commit y push").
 - Antes de cambios de **esquema** en funcionalidades grandes suele pedir primero un análisis en texto
   (qué existe, qué es aditivo y qué rompe) y esperar su confirmación.
