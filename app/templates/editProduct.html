@@ -4,6 +4,7 @@
 {% block content %}
 <h1 class="h3 mb-4">Editar producto</h1>
 <form class="mb-panel mb-4" style="max-width: 760px" method="POST" action="{{ url_for('dashboard.editproduct') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <label class="form-label" for="producto">Buscar producto</label>
     <div class="d-flex gap-2">
         {{ form.n_producto(class_='form-control', placeholder='Escribe para buscar', **{'data-autocomplete': url_for('dashboard.editproduct_productList')}) }}
@@ -114,7 +115,7 @@
                 <td>{{ c.componente.n_producto }}{% if c.variante %} <span class="mb-chip">{{ c.variante.nombre }}</span>{% endif %}</td>
                 <td class="small text-body-secondary">stock {{ stock_disponible(c.componente, c.variante) }}</td>
                 <td class="text-end">
-                    <form method="POST" action="{{ url_for('dashboard.componente_eliminar', k_componente=c.id) }}"><button class="btn btn-sm btn-outline-danger" title="Quitar"><i class="bi bi-x-lg"></i></button></form>
+                    <form method="POST" action="{{ url_for('dashboard.componente_eliminar', k_componente=c.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline-danger" title="Quitar"><i class="bi bi-x-lg"></i></button></form>
                 </td>
             </tr>
             {% else %}
@@ -123,6 +124,7 @@
         </tbody>
     </table>
     <form class="row g-2 align-items-end" method="POST" action="{{ url_for('dashboard.componente_nuevo', k_bundle=producto.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="col-sm-8">
             <label class="form-label small">Producto</label>
             <select class="form-select" name="componente" required>
@@ -142,6 +144,7 @@
     <div class="d-flex flex-wrap align-items-center gap-2 py-2 border-top">
         <span class="fw-semibold me-auto">{{ v.nombre }}</span>
         <form class="d-flex gap-2" method="POST" action="{{ url_for('dashboard.variante_editar', k_variante=v.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input class="form-control form-control-sm" style="width:7rem" name="sku" value="{{ v.sku or '' }}" placeholder="SKU">
             <input class="form-control form-control-sm" style="width:5rem" type="number" name="stock" value="{{ v.stock }}" min="0" aria-label="Stock">
             <button class="btn btn-sm btn-outline-primary">Guardar</button>
@@ -210,10 +213,11 @@
         this.appendChild(input);
     });
 </script>
-        <form method="POST" action="{{ url_for('dashboard.variante_eliminar', k_variante=v.id) }}"><button class="btn btn-sm btn-outline-danger" title="Eliminar"><i class="bi bi-trash3"></i></button></form>
+        <form method="POST" action="{{ url_for('dashboard.variante_eliminar', k_variante=v.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline-danger" title="Eliminar"><i class="bi bi-trash3"></i></button></form>
     </div>
     {% endfor %}
     <form class="row g-2 align-items-end mt-2" method="POST" action="{{ url_for('dashboard.variante_nueva', k_producto=producto.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="col-6 col-sm-3"><label class="form-label small">Talla</label><input class="form-control" name="talla" placeholder="M"></div>
         <div class="col-6 col-sm-3"><label class="form-label small">Color</label><input class="form-control" name="color" placeholder="Negro"></div>
         <div class="col-6 col-sm-2"><label class="form-label small">Stock</label><input class="form-control" type="number" name="stock" value="0" min="0"></div>

@@ -38,11 +38,9 @@ def create_app(config=None):
     for url, blueprint in ACTIVE_ENDPOINTS:
         app.register_blueprint(blueprint, url_prefix=url)
 
-    # Eximir los endpoints de MercadoPago de CSRF
+    # Eximir solo el webhook de MercadoPago (peticiones externas, sin navegador)
     csrf.exempt(mercadopago_views.mercadopago_bp)
-    
-    # Eximir el endpoint de batch upload de CSRF
-    csrf.exempt(dashboard)
+    # el resto del panel usa tokens CSRF: {{ form.csrf_token }} / hidden input / header X-CSRFToken
 
     @app.cli.command("crear-admin")
     @click.argument("email")

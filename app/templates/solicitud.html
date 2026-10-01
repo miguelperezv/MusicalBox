@@ -20,6 +20,7 @@
 
         <div class="col-lg-7">
             <form class="mb-panel p-4" method="POST" action="{{ url_for('solicitud.nueva') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 {{ form.hidden_tag() }}
                 <div class="mb-3">
                     {{ form.producto.label(class_='form-label') }}

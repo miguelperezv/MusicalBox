@@ -165,8 +165,10 @@ function openEnvioModal() {
                 formData.append(key, result.value[key]);
             });
             
+            var csrfMeta = document.querySelector('meta[name="csrf-token"]');
             fetch('{{ url_for("purchase.process_checkout") }}', {
                 method: 'POST',
+                headers: csrfMeta ? { 'X-CSRFToken': csrfMeta.content } : {},
                 body: formData
             })
             .then(response => {

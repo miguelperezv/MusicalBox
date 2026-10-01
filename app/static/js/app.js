@@ -1,5 +1,13 @@
 /* Musical Box — utilidades de la interfaz */
 
+// CSRF global para AJAX (jQuery): el token viaja en el header X-CSRFToken
+(function () {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta && window.jQuery) {
+        jQuery.ajaxSetup({ headers: { 'X-CSRFToken': meta.getAttribute('content') } });
+    }
+})();
+
 // Función para mostrar alertas con SweetAlert
 function showAlert(message, type, timer = 4000) {
     let icon = 'info';

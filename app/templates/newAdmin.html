@@ -1,6 +1,7 @@
 {% from "_macros.html" import field %}
 <h1 class="h3 mb-4">Nuevo administrador</h1>
 <form class="mb-panel" style="max-width: 520px" method="POST" action="{{ url_for('dashboard.newadmin') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <p class="text-body-secondary small">El usuario debe tener una cuenta creada. Confirma con tu propia contraseña.</p>
     {{ field(form.email, type='email', placeholder='correo@ejemplo.com') }}
     {{ field(form.pwd, autocomplete='current-password') }}

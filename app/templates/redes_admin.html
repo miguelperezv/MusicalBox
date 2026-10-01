@@ -5,6 +5,7 @@
 {% for a in avisos %}<div class="alert alert-warning small"><i class="bi bi-exclamation-triangle me-1"></i>{{ a }}</div>{% endfor %}
 
 <form class="mb-panel mb-4" style="max-width: 760px" method="POST" action="{{ url_for('dashboard.redes_config') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <h2 class="h6 mb-3">Configuración de la sección</h2>
     <div class="form-check form-switch mb-3">
         <input class="form-check-input" type="checkbox" role="switch" id="activa" name="activa" value="1" {{ 'checked' if cfg.activa }}>
@@ -31,6 +32,7 @@
 <div class="mb-panel" style="max-width: 980px">
     <h2 class="h6 mb-3">Publicaciones</h2>
     <form class="row g-2 align-items-end mb-3" method="POST" action="{{ url_for('dashboard.redes_nueva') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="col-sm-3">
             <select class="form-select" name="plataforma">{% for k, v in plataformas.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
         </div>
@@ -44,12 +46,13 @@
                 {% for p in pubs %}
                 <tr class="{{ 'opacity-50' if not p.activo }}">
                     <td class="text-nowrap">
-                        <form class="d-inline" method="POST" action="{{ url_for('dashboard.redes_mover', k=p.id, direccion='arriba') }}"><button class="btn btn-sm btn-light" title="Subir" {{ 'disabled' if loop.first }}><i class="bi bi-arrow-up"></i></button></form>
-                        <form class="d-inline" method="POST" action="{{ url_for('dashboard.redes_mover', k=p.id, direccion='abajo') }}"><button class="btn btn-sm btn-light" title="Bajar" {{ 'disabled' if loop.last }}><i class="bi bi-arrow-down"></i></button></form>
+                        <form class="d-inline" method="POST" action="{{ url_for('dashboard.redes_mover', k=p.id, direccion='arriba') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-light" title="Subir" {{ 'disabled' if loop.first }}><i class="bi bi-arrow-up"></i></button></form>
+                        <form class="d-inline" method="POST" action="{{ url_for('dashboard.redes_mover', k=p.id, direccion='abajo') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-light" title="Bajar" {{ 'disabled' if loop.last }}><i class="bi bi-arrow-down"></i></button></form>
                     </td>
                     <td><i class="bi bi-{{ 'tiktok' if p.plataforma == 'tiktok' else 'instagram' }} me-1"></i>{{ plataformas[p.plataforma] }}</td>
                     <td class="small" style="max-width: 360px">
                         <form class="d-flex gap-1" method="POST" action="{{ url_for('dashboard.redes_editar', k=p.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="plataforma" value="{{ p.plataforma }}">
                             <input class="form-control form-control-sm" name="url" value="{{ p.url }}">
                             <button class="btn btn-sm btn-outline-primary" title="Guardar URL"><i class="bi bi-check-lg"></i></button>
@@ -62,8 +65,8 @@
                         {% else %}<span class="mb-estado mb-estado-PAGADO">Visible</span>{% endif %}
                     </td>
                     <td class="text-end text-nowrap">
-                        <form class="d-inline" method="POST" action="{{ url_for('dashboard.redes_verificar', k=p.id) }}"><button class="btn btn-sm btn-outline-secondary" title="Verificar embed"><i class="bi bi-arrow-repeat"></i></button></form>
-                        <form class="d-inline" method="POST" action="{{ url_for('dashboard.redes_activo', k=p.id) }}"><button class="btn btn-sm btn-outline-{{ 'danger' if p.activo else 'success' }}">{{ 'Desactivar' if p.activo else 'Activar' }}</button></form>
+                        <form class="d-inline" method="POST" action="{{ url_for('dashboard.redes_verificar', k=p.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline-secondary" title="Verificar embed"><i class="bi bi-arrow-repeat"></i></button></form>
+                        <form class="d-inline" method="POST" action="{{ url_for('dashboard.redes_activo', k=p.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline-{{ 'danger' if p.activo else 'success' }}">{{ 'Desactivar' if p.activo else 'Activar' }}</button></form>
                     </td>
                 </tr>
                 {% else %}
