@@ -159,7 +159,7 @@ self.addEventListener('fetch', (e) => {
 
 @home.route("/login", methods=["GET", 'POST'])
 def login():
-    from .seguridad import check_password
+    from .seguridad import check_password, hash_password
     form_login = LoginUsuarioForm()
 
     if request.method == 'POST':
@@ -172,12 +172,18 @@ def login():
             flash("No existe una cuenta con ese correo", "warning")
             return redirect(url_for('home.login'))
         elif check_password(pwd, user['pwd_usuario']):
+            if not str(user['pwd_usuario']).startswith('$2'):
+                # cuenta legacy en texto plano: se re-hashea a bcrypt al autenticarse
+                existente.pwd_usuario = hash_password(pwd)
+                db.session.commit()
+                user = get_user_by_email(existente.email_usuario)
             if user['k_rol'] == 'CLIENTE':
                 #compró o pidió sin cuenta: la contraseña se crea con el enlace que enviamos a su correo
                 correo_activacion(existente)
                 flash("Aún no tienes contraseña. Te enviamos a tu correo un enlace para crearla.", "info")
                 return redirect(url_for('home.login'))
             flash("Bienvenido " + user['n_usuario'])
+            user.pop('pwd_usuario', None)  # la clave no viaja en la cookie de sesion
             session["user"] = user
             if user['k_rol'] == 'ADMIN':
                 return redirect(url_for('home.admin'))
@@ -191,10 +197,7 @@ def login():
             flash("Contraseña incorrecta", "warning")
             return redirect(url_for('home.login'))
 
-    resp = make_response(render_template('login.html', form=form_login))
-    resp.set_cookie('same-site-cookie', 'foo', samesite='Lax')
-    resp.set_cookie('cross-site-cookie', 'bar', samesite='Lax', secure=True)
-    return resp
+    return make_response(render_template('login.html', form=form_login))
     
 
 @home.route("/signup", methods=["GET", 'POST'])
@@ -239,7 +242,9 @@ def activar(token):
         usuario.pwd_usuario = hash_password(form.pwd.data)
         usuario.k_rol = 'USER'
         db.session.commit()
-        session["user"] = get_user_by_email(usuario.email_usuario)
+        u = get_user_by_email(usuario.email_usuario)
+        u.pop('pwd_usuario', None)  # la clave no viaja en la cookie de sesion
+        session["user"] = u
         flash("¡Listo! Tu contraseña quedó creada.", "success")
         return redirect(url_for('home.account'))
     return render_template("activar.html", form=form, usuario=usuario)
@@ -269,7 +274,9 @@ def account():
         if result:
             flash("Usuario modificado correctamente")
             #g.user = result
-            session["user"] = get_user_by_email(session["user"]["email_usuario"])
+            u = get_user_by_email(session["user"]["email_usuario"])
+            u.pop('pwd_usuario', None)  # la clave no viaja en la cookie de sesion
+            session["user"] = u
             return redirect(request.referrer)
         else:
             flash("No se pudo actualizar el usuario")
@@ -448,7 +455,7 @@ def newadmin():
         
         email = form_new_admin.email.data
         pwd = form_new_admin.pwd.data
-        result = new_admin(email, pwd, session["user"])
+        result = new_admin(email, pwd, session["user"]["email_usuario"])
         if result:
             flash("Nuevo administrador con el correo "+ email)
             return redirect(url_for("home.admin"))

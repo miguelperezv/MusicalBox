@@ -425,10 +425,12 @@ def create_release_genre(k_lanzamiento, k_genero):
     except:
         return None
 
-def new_admin(email, pwd, guser):
+def new_admin(email, pwd, email_admin):
+    #la clave se lee de la BD: la sesion ya no lleva pwd_usuario
     from .seguridad import check_password
     try:
-        if check_password(pwd, guser['pwd_usuario']):
+        admin = get_usuario_por_email(email_admin)
+        if admin and check_password(pwd, admin.pwd_usuario):
             
             try:
                 Usuario.query.filter_by(email_usuario = email).update({"k_rol": 'ADMIN' })
@@ -1293,7 +1295,10 @@ def limpiar_reservas_expiradas():
 def reservar_stock_pedido(pedido, lineas):
     """Reserva el stock necesario para un pedido y crea registros de reserva."""
     from datetime import datetime, timedelta
-    
+
+    # libera antes las reservas de pedidos abandonados que ya expiraron
+    limpiar_reservas_expiradas()
+
     # Verificar que el pedido aún no tenga stock reservado
     if pedido.stock_reservado:
         return True, []
@@ -1530,34 +1535,4 @@ def liberar_reserva_stock(k_invoice):
     db.session.commit()
 
 
-def limpiar_reservas_expiradas():
-    """Limpia las reservas de stock que han expirado y libera el stock correspondiente."""
-    from datetime import datetime
-    
-    # Obtener todas las reservas expiradas
-    reservas_expiradas = ReservaStock.query.filter(
-        ReservaStock.f_expiracion < datetime.now()
-    ).all()
-    
-    # Liberar el stock de cada reserva expirada
-    for reserva in reservas_expiradas:
-        # Liberar el stock reservado
-        if reserva.tipo_elemento == 'P':  # Producto
-            producto = db.session.get(Producto, reserva.k_elemento)
-            if producto:
-                producto.stock = (producto.stock or 0) + reserva.cantidad
-        elif reserva.tipo_elemento == 'V':  # Variante
-            variante = db.session.get(Variante, reserva.k_elemento)
-            if variante:
-                variante.stock = (variante.stock or 0) + reserva.cantidad
-        
-        # Eliminar la reserva
-        db.session.delete(reserva)
-        
-        # Marcar el pedido como no reservado
-        pedido = db.session.get(Invoice, reserva.k_invoice)
-        if pedido:
-            pedido.stock_reservado = False
-    
-    db.session.commit()
-    return len(reservas_expiradas)
+
