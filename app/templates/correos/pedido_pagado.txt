@@ -2,7 +2,7 @@
 
 Recibimos el pago de tu pedido #{{ pedido.id }} en Musical Box.
 
-{% for item in pedido.items %}- {{ item.cant_item|int }} x {{ item.producto.lanzamiento.n_lanzamiento.title() if item.producto and item.producto.lanzamiento }} {{ item.producto.n_producto if item.producto }}{% if item.variante %} ({{ item.variante.nombre }}){% endif %} ... {{ (item.p_item * item.cant_item)|cop }}
+{% for item in pedido.items %}- {{ item.cant_item|int }} x {{ (item.producto.lanzamiento.n_lanzamiento.title() if item.producto and item.producto.lanzamiento) or (item.lanzamiento.n_lanzamiento.title() if item.lanzamiento) }} {{ item.producto.n_producto if item.producto else item.n_item }}{% if item.variante %} ({{ item.variante.nombre }}){% endif %} ... {{ (item.p_item * item.cant_item)|cop }}
 {% endfor %}
 Total: {{ pedido.total|cop }}
 

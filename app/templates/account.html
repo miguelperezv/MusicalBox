@@ -38,13 +38,21 @@
                 </div>
                 {% for item in compra[1] %}
                 {% set producto = item.producto %}
+                {% set lanz = producto.lanzamiento if producto else item.lanzamiento %}
                 <div class="d-flex align-items-center gap-3 py-2 border-top">
                     <div class="mb-thumb flex-shrink-0">
-                        {% if producto %}{{ product_cover(producto.id, producto.lanzamiento.i_lanzamiento if producto.lanzamiento else '', producto.n_producto, w=300) }}{% endif %}
+                        {% if producto %}
+                        {{ product_cover(producto.id, lanz.i_lanzamiento if lanz else '', producto.n_producto, w=300) }}
+                        {% elif lanz and lanz.i_lanzamiento %}
+                        <img src="{{ lanz.i_lanzamiento }}" alt="{{ lanz.n_lanzamiento }}" loading="lazy" decoding="async"
+                             onerror="this.onerror=null; this.src='{{ url_for('static', filename='imgs/musicalbox.png') }}'; this.classList.add('bg-info');">
+                        {% else %}
+                        <img src="{{ url_for('static', filename='imgs/musicalbox.png') }}" alt="" class="bg-info" loading="lazy" decoding="async">
+                        {% endif %}
                     </div>
                     <div class="flex-fill min-w-0">
-                        <div class="fw-semibold text-truncate">{{ producto.lanzamiento.n_lanzamiento.title() if producto and producto.lanzamiento }}</div>
-                        <small class="text-body-secondary">{{ producto.n_producto if producto }}{% if item.variante %} ({{ item.variante.nombre }}){% endif %} · {{ item.cant_item|int }} × {{ item.p_item|cop }}</small>
+                        <div class="fw-semibold text-truncate">{{ lanz.n_lanzamiento.title() if lanz }}</div>
+                        <small class="text-body-secondary">{{ producto.n_producto if producto else item.n_item }}{% if item.variante %} ({{ item.variante.nombre }}){% endif %} · {{ item.cant_item|int }} × {{ item.p_item|cop }}</small>
                     </div>
                     <div class="fw-semibold">{{ (item.p_item * item.cant_item)|cop }}</div>
                 </div>
@@ -70,7 +78,7 @@
                             <tr>
                                 <td class="text-body-secondary">{{ s.id }}</td>
                                 <td class="text-nowrap">{{ s.f_solicitud.strftime('%d/%m/%Y') if s.f_solicitud }}</td>
-                                <td>{{ s.n_producto_solicitado or '' }}{% if s.d_producto_solicitado %}<br><small class="text-body-secondary">{{ s.d_producto_solicitado }}</small>{% endif %}</td>
+                                <td>{{ s.n_resumen }}{% if s.items and s.items[0].descripcion %}<br><small class="text-body-secondary">{{ s.items[0].descripcion }}</small>{% elif s.d_producto_solicitado %}<br><small class="text-body-secondary">{{ s.d_producto_solicitado }}</small>{% endif %}</td>
                                 <td><span class="mb-estado mb-estado-{{ s.estado|replace(' ', '-') }}">{{ s.estado }}</span></td>
                             </tr>
                             {% endfor %}

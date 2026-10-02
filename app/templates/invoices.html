@@ -51,7 +51,7 @@
                     </td>
                     <td class="small">
                         {% for item in get_items_by_id_factura(i.id) %}
-                        {{ item.cant_item|int }} × {{ item.producto.lanzamiento.n_lanzamiento.title() if item.producto and item.producto.lanzamiento }} <span class="text-body-secondary">{{ item.producto.n_producto if item.producto }}{% if item.variante %} ({{ item.variante.nombre }}){% endif %}</span><br>
+                        {{ item.cant_item|int }} × {{ (item.producto.lanzamiento.n_lanzamiento.title() if item.producto and item.producto.lanzamiento) or (item.lanzamiento.n_lanzamiento.title() if item.lanzamiento) }} <span class="text-body-secondary">{{ item.producto.n_producto if item.producto else item.n_item }}{% if item.variante %} ({{ item.variante.nombre }}){% endif %}</span><br>
                         {% endfor %}
                     </td>
                     <td class="text-end fw-semibold text-nowrap">{{ i.total|cop }}</td>

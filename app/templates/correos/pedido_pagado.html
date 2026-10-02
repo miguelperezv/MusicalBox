@@ -14,8 +14,8 @@
             {% for item in pedido.items %}
             <tr>
                 <td style="padding:10px 0;border-bottom:1px solid #edf1f4;">
-                    <strong>{{ item.producto.lanzamiento.n_lanzamiento.title() if item.producto and item.producto.lanzamiento }}</strong><br>
-                    <span style="color:#5f7380;font-size:13px;">{{ item.producto.n_producto if item.producto }}{% if item.variante %} ({{ item.variante.nombre }}){% endif %} · {{ item.cant_item|int }} × {{ item.p_item|cop }}</span>
+                    <strong>{{ (item.producto.lanzamiento.n_lanzamiento.title() if item.producto and item.producto.lanzamiento) or (item.lanzamiento.n_lanzamiento.title() if item.lanzamiento) }}</strong><br>
+                    <span style="color:#5f7380;font-size:13px;">{{ item.producto.n_producto if item.producto else item.n_item }}{% if item.variante %} ({{ item.variante.nombre }}){% endif %} · {{ item.cant_item|int }} × {{ item.p_item|cop }}</span>
                 </td>
                 <td align="right" style="padding:10px 0;border-bottom:1px solid #edf1f4;font-weight:bold;">{{ (item.p_item * item.cant_item)|cop }}</td>
             </tr>
