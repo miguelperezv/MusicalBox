@@ -1,6 +1,6 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <h1 class="h3 mb-0">Pedidos a la medida</h1>
-    <input class="form-control" style="max-width: 280px" type="search" id="filtro-solicitudes" placeholder="Filtrar por disco, contacto...">
+    <input class="form-control" style="max-width: 280px" type="search" id="filtro-solicitudes" placeholder="Filtrar por producto, contacto...">
 </div>
 <div class="d-flex flex-wrap gap-2 mb-3" data-grupo-solicitudes>
     <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary active" data-filtra="solicitudes" data-filtro="todas">Todas</button>
@@ -15,7 +15,7 @@
         <i class="bi bi-plus-lg me-1"></i>Nuevo pedido a la medida
     </button>
     <div class="collapse{{ ' show' if request.args.get('nuevo') }}" id="mini-pedido-medida">
-        <p class="small text-body-secondary mt-2 mb-2">Para el que te escribió por el sitio, Instagram o WhatsApp: con disco del catálogo + precio, sale ya con su enlace; solo con disco, queda para que le pongas precio.</p>
+        <p class="small text-body-secondary mt-2 mb-2">Para el que te escribió por el sitio, Instagram o WhatsApp: con producto + precio, sale ya con su enlace; solo con producto, queda para que le pongas precio.</p>
         <form id="form-mini-pedido" class="row g-2">
             <div class="col-md-2">
                 <label class="form-label small mb-1">WhatsApp</label>
@@ -30,7 +30,7 @@
                 <input class="form-control form-control-sm" name="email" type="email" placeholder="Opcional">
             </div>
             <div class="col-md-2">
-                <label class="form-label small mb-1">Disco</label>
+                <label class="form-label small mb-1">Producto</label>
                 <input class="form-control form-control-sm" name="producto" required placeholder="Catálogo o sus palabras"
                        data-autocomplete="{{ url_for('dashboard.editproduct_productList') }}">
             </div>
@@ -50,7 +50,7 @@
         </form>
     </div>
 </div>
-<p class="small text-body-secondary">Contacta al cliente, asócialo con un producto del catálogo (créalo en <em>Nuevo producto</em> si no existe) y envíale el enlace para que confirme la compra.</p>
+<p class="small text-body-secondary">Contacta al cliente y ponle precio a cada ítem: el producto del catálogo es opcional, y puedes asociar un lanzamiento (da la portada en el mensaje y en la orden). La nota viaja en el mensaje de WhatsApp.</p>
 <div class="mb-panel p-0">
     <div class="table-responsive">
         <table class="table table-hover mb-0" id="tabla-solicitudes">
@@ -58,20 +58,24 @@
                 <tr>
                     <th class="ps-3">#</th>
                     <th>Fecha</th>
-                    <th>Disco</th>
+                    <th>Producto</th>
                     <th>Contacto</th>
                     <th style="min-width: 140px">Estado</th>
-                    <th class="pe-3" style="min-width: 280px">Cotización</th>
+                    <th class="pe-3" style="min-width: 340px">Cotización</th>
                 </tr>
             </thead>
             <tbody>
-                {% for s in solicitudes %}
+                {% for s, items in solicitudes %}
                 <tr data-est="{{ s.estado }}">
                     <td class="ps-3 text-body-secondary">{{ s.id }}</td>
                     <td class="text-nowrap">{{ s.f_solicitud.strftime('%d/%m/%Y') if s.f_solicitud }}</td>
                     <td>
-                        <div class="fw-semibold">{{ s.n_producto_solicitado or '' }}</div>
-                        {% if s.d_producto_solicitado %}<div class="small text-body-secondary">{{ s.d_producto_solicitado }}</div>{% endif %}
+                        <div class="fw-semibold d-flex align-items-center gap-2 flex-wrap">
+                            <span class="text-truncate">{{ items[0].nombre }}</span>
+                            {% if items|length > 1 %}<span class="mb-chip small flex-shrink-0">+{{ items|length - 1 }} ítem{{ 's' if items|length > 2 }}</span>{% endif %}
+                        </div>
+                        {% for it in items %}{% if it.categoria and loop.first %}<span class="mb-chip small">{{ it.categoria }}</span>{% endif %}{% endfor %}
+                        {% if items[0].descripcion %}<div class="small text-body-secondary">{{ items[0].descripcion }}</div>{% endif %}
                     </td>
                     <td class="small">
                         {% set cel = s.cel_contacto or (s.usuario.cel_usuario if s.usuario) %}
@@ -95,12 +99,26 @@
                         {% if s.pedido %}
                         Orden <a href="{{ url_for('dashboard.invoices', busca=s.pedido.id) }}" title="Ver la orden"><strong>#{{ s.pedido.id }}</strong></a> · <span class="mb-estado mb-estado-{{ s.pedido.estado }}">{{ s.pedido.estado }}</span> · {{ s.pedido.total|cop }}
                         {% elif s.estado in ['ACTIVO', 'EN PROCESO', 'COTIZADA'] %}
-                        {% if s.precio_cotizado %}<div class="mb-1">Cotizada: {{ s.producto.n_producto if s.producto }} · <strong>{{ s.precio_cotizado|cop }}</strong></div>{% endif %}
-                        <form class="form-cotizar d-flex flex-wrap gap-1" data-url="{{ url_for('solicitud.cotizar', id=s.id) }}">
-                            <input class="form-control form-control-sm" style="min-width: 160px; flex: 2" name="producto" placeholder="Producto del catálogo" required
-                                   data-autocomplete="{{ url_for('dashboard.editproduct_productList') }}" value="{{ (s.producto.id ~ '. ') if s.producto }}">
-                            <input class="form-control form-control-sm" style="width: 6.5rem; flex: 1" type="number" name="precio" min="1" placeholder="Precio" required value="{{ s.precio_cotizado|int if s.precio_cotizado }}">
-                            <button class="btn btn-sm btn-primary">{{ 'Nuevo enlace' if s.precio_cotizado else 'Cotizar' }}</button>
+                        {% if s.total_cotizado %}<div class="mb-1">Cotizada · Total <strong>{{ s.total_cotizado|cop }}</strong>{% if s.d_cotizacion %} · {{ s.d_cotizacion }}{% endif %}</div>{% endif %}
+                        <form class="form-cotizar d-flex flex-column gap-1" data-url="{{ url_for('solicitud.cotizar', id=s.id) }}">
+                            {% for it in items %}
+                            <div class="cotizar-linea d-flex flex-wrap gap-1 align-items-center">
+                                <span class="cotizar-nombre" style="flex: 2 1 130px; min-width: 130px" title="{{ it.descripcion or '' }}">{{ it.cantidad or 1 }}× {{ it.nombre }}</span>
+                                <input class="form-control form-control-sm" style="width: 4rem" type="number" name="item_{{ loop.index0 }}_cantidad" min="1" max="99" value="{{ it.cantidad or 1 }}" title="Cantidad">
+                                <input class="form-control form-control-sm" style="flex: 1 1 150px" name="item_{{ loop.index0 }}_producto" placeholder="Producto del catálogo (opcional)"
+                                       data-autocomplete="{{ url_for('dashboard.editproduct_productList') }}"
+                                       value="{{ (it.producto.id ~ '. ' ~ (it.producto.n_producto or '')) if it.producto }}">
+                                <input class="form-control form-control-sm" style="flex: 1 1 150px" name="item_{{ loop.index0 }}_lanzamiento" placeholder="Lanzamiento (portada, opcional)"
+                                       data-autocomplete="{{ url_for('dashboard.newproduct_releases') }}"
+                                       value="{{ (it.lanzamiento.id ~ '. ' ~ it.lanzamiento.n_lanzamiento) if it.lanzamiento }}">
+                                <input class="form-control form-control-sm" style="width: 6.5rem" type="number" name="item_{{ loop.index0 }}_precio" min="1" placeholder="Precio" required
+                                       value="{{ it.precio_unit|int if it.precio_unit }}">
+                            </div>
+                            {% endfor %}
+                            <div class="d-flex gap-1">
+                                <input class="form-control form-control-sm" name="d_cotizacion" placeholder="Nota: tiempos, edición... (viaja en el mensaje de WhatsApp)" value="{{ s.d_cotizacion or '' }}">
+                                <button class="btn btn-sm btn-primary flex-shrink-0">{{ 'Nuevo enlace' if s.total_cotizado else 'Cotizar' }}</button>
+                            </div>
                         </form>
                         <div class="resultado-cotizar mt-1"></div>
                         {% else %}
@@ -132,8 +150,10 @@
         var form = $(this), salida = form.siblings('.resultado-cotizar');
         $.post(form.data('url'), form.serialize())
             .done(function (r) {
-                salida.html('<a class="btn btn-sm btn-success me-1" target="_blank" rel="noopener" href="' + r.whatsapp + '"><i class="bi bi-whatsapp me-1"></i>Enviar por WhatsApp</a>' +
-                            '<button type="button" class="btn btn-sm btn-outline-secondary copiar">Copiar enlace</button>');
+                var preview = r.preview ? '<img src="' + r.preview + '" alt="Portada" width="44" height="44" class="rounded object-fit-cover flex-shrink-0 me-1">' : '';
+                salida.html(preview +
+                    '<a class="btn btn-sm btn-success me-1" target="_blank" rel="noopener" href="' + r.whatsapp + '"><i class="bi bi-whatsapp me-1"></i>Enviar por WhatsApp</a>' +
+                    '<button type="button" class="btn btn-sm btn-outline-secondary copiar">Copiar enlace</button>');
                 salida.find('.copiar').on('click', function () { navigator.clipboard.writeText(r.enlace); this.textContent = 'Copiado'; });
             })
             .fail(function (x) { salida.html('<span class="text-danger">' + ((x.responseJSON || {}).error || 'Error') + '</span>'); });
@@ -151,7 +171,8 @@
         $.post("{{ url_for('solicitud.nueva_admin') }}", $(form).serialize())
             .done(function (r) {
                 if (r.whatsapp) {
-                    salida.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Pedido #' + r.id + ' cotizado</span>' +
+                    var preview = r.preview ? '<img src="' + r.preview + '" alt="Portada" width="44" height="44" class="rounded object-fit-cover flex-shrink-0">' : '';
+                    salida.innerHTML = preview + '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Pedido #' + r.id + ' cotizado</span>' +
                         '<a class="btn btn-sm btn-success" target="_blank" rel="noopener" href="' + r.whatsapp + '"><i class="bi bi-whatsapp me-1"></i>Enviar por WhatsApp</a>' +
                         '<button type="button" class="btn btn-sm btn-outline-secondary mini-copiar">Copiar enlace</button>' +
                         '<button type="button" class="btn btn-sm btn-link mini-refrescar">Ver lista</button>';
