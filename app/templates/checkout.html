@@ -23,7 +23,7 @@
 
     <div class="row g-4">
         <div class="col-lg-7">
-            <form class="mb-panel p-4" method="POST" action="{{ accion or url_for('purchase.checkout') }}" novalidate>
+            <form id="form-checkout" class="mb-panel p-4" method="POST" action="{{ accion or url_for('purchase.checkout') }}" novalidate>
                 {% if previos %}
                 <div class="alert alert-info small"><i class="bi bi-arrow-repeat me-1"></i>Llenamos el formulario con los datos de tu compra anterior. Revisa que sigan correctos y continúa.</div>
                 {% endif %}
@@ -79,11 +79,12 @@
                         <small class="text-body-secondary">{{ l.producto.n_producto if l.producto else l.n_item }}{% if l.variante %} ({{ l.variante.nombre }}){% endif %}</small>
                         <div class="d-flex align-items-center gap-2 mt-1 flex-wrap">
                             {% if solicitud %}
+                            {#los campos están fuera del <form> (panel del pedido); el atributo form los asocia para que se envíen#}
                             <input type="number" name="cant_{{ l.idx }}" value="{{ l.cantidad or 1 }}" min="1" max="99"
                                    class="form-control form-control-sm" style="width: 4.2rem" data-precio="{{ l.precio|int }}" aria-label="Cantidad"
-                                   {{ 'disabled' if l.retirado }}>
+                                   form="form-checkout" {{ 'disabled' if l.retirado }}>
                             <label class="form-check form-check-input-retirar small text-body-secondary mb-0" title="Este ítem no va en tu pedido">
-                                <input class="form-check-input" type="checkbox" name="retirar_{{ l.idx }}" {{ 'checked' if l.retirado }}> no lo quiero
+                                <input class="form-check-input" type="checkbox" name="retirar_{{ l.idx }}" {{ 'checked' if l.retirado }} form="form-checkout"> no lo quiero
                             </label>
                             {% else %}<span class="text-body-secondary">{{ l.cantidad }}</span>{% endif %}
                             <span class="text-body-secondary">{{ l.precio|cop }} {{ 'c/u' if l.cantidad|default(1) > 1 or solicitud else '' }}</span>
