@@ -28,7 +28,6 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-cloud-arrow-down me-1"></i>Actualizar datos del disco</button>
         </form>
-        {% if lanzamiento.external_url %}<a class="btn btn-sm btn-outline-secondary" href="{{ lanzamiento.external_url }}" target="_blank" rel="noopener"><i class="bi bi-link-45deg me-1"></i>Abrir el disco</a>{% endif %}
     </div>
     {% endif %}
     {{ field(form.n_lanzamiento_edit, value=lanzamiento.n_lanzamiento) }}
