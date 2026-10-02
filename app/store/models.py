@@ -154,15 +154,20 @@ class ReservaStock(db.Model):
 class Item(db.Model):
     #línea de pedido; id propio para permitir el mismo producto con distintas variantes en un pedido
     id = db.Column(db.Integer, primary_key=True)
-    k_producto = db.Column(db.Integer, db.ForeignKey("producto.id"), nullable=False)
+    #opcional: las líneas a la medida pueden venderse sin producto de catálogo
+    k_producto = db.Column(db.Integer, db.ForeignKey("producto.id"))
     k_factura = db.Column(db.Integer,db.ForeignKey("invoice.id"), nullable=False, index=True)
     k_variante = db.Column(db.Integer, db.ForeignKey("variante.id"))
+    #lanzamiento de referencia (portada) y descripción propia cuando no hay producto de catálogo
+    k_lanzamiento = db.Column(db.Integer, db.ForeignKey("lanzamiento.id"))
+    n_item = db.Column(db.String(150))
     cant_item = db.Column(db.Numeric(3,0), nullable=False)
     p_item = db.Column(db.Numeric(11,2), nullable=False)
     #atributos de la relacion
     producto = db.relationship("Producto")
     factura = db.relationship("Invoice")
     variante = db.relationship("Variante")
+    lanzamiento = db.relationship("Lanzamiento")
 
 class Invoice(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -239,8 +244,10 @@ class Solicitud(db.Model):
     k_producto = db.Column(db.Integer, db.ForeignKey("producto.id"))
     n_producto_solicitado = db.Column(db.String(150))
     d_producto_solicitado = db.Column(db.String(200))
-    #unidades pedidas (preórdenes por encargo); 1 = nada especial
+    #unidades pedidas (preórdenes por encargo); 1 = nada especial (legacy: hoy viven en los ítems)
     cantidad = db.Column(db.Integer, nullable=False, default=1, server_default='1')
+    #nota del admin sobre la cotización (tiempos, edición, acuerdos); va en el mensaje de WhatsApp
+    d_cotizacion = db.Column(db.String(300))
     estado = db.Column(db.String(20), nullable=False, default='ACTIVO')
     f_solicitud = db.Column(db.DateTime, default=datetime.now)
     f_actualizacion = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
@@ -248,6 +255,38 @@ class Solicitud(db.Model):
     usuario = db.relationship("Usuario")
     producto = db.relationship("Producto")
     pedido = db.relationship("Invoice")
+    items = db.relationship("SolicitudItem", back_populates="solicitud", cascade="all, delete-orphan", order_by="SolicitudItem.id")
+
+    @property
+    def n_resumen(self):
+        #primer ítem (o el campo legacy) con "+N" si hay más; para listados cortos del panel
+        items = self.items or [ItemSolicitudVirtual(self)]
+        nombre = items[0].nombre or ''
+        return nombre + (f" +{len(items) - 1}" if len(items) > 1 else '')
+
+    @property
+    def total_cotizado(self):
+        #suma precio por unidad × cantidad de sus líneas; 0 si aún no está cotizada
+        return sum(int(it.precio_unit or 0) * int(it.cantidad or 1) for it in items_efectivos(self))
+
+class SolicitudItem(db.Model):
+    #línea de una solicitud a la medida: qué pide el cliente y la cotización del admin (precio y asociaciones)
+    id = db.Column(db.Integer, primary_key=True)
+    k_solicitud = db.Column(db.Integer, db.ForeignKey("solicitud.id"), nullable=False, index=True)
+    #opcionales: producto del catálogo y/o lanzamiento (el que da la portada en el mensaje y en la orden)
+    k_producto = db.Column(db.Integer, db.ForeignKey("producto.id"))
+    k_lanzamiento = db.Column(db.Integer, db.ForeignKey("lanzamiento.id"))
+    nombre = db.Column(db.String(150), nullable=False)
+    descripcion = db.Column(db.String(200))
+    categoria = db.Column(db.String(30))
+    cantidad = db.Column(db.Integer, nullable=False, default=1, server_default='1')
+    #precio unitario acordado por el admin
+    precio_unit = db.Column(db.Numeric(11,2))
+    f_creacion = db.Column(db.DateTime, default=datetime.now)
+    #atributos de la relacion
+    solicitud = db.relationship("Solicitud", back_populates="items")
+    producto = db.relationship("Producto")
+    lanzamiento = db.relationship("Lanzamiento")
 
 #ENVIADO/ENTREGADO quedan solo como historial de las solicitudes antiguas (el envío ahora es de la orden)
 ESTADOS_SOLICITUD = ['ACTIVO', 'EN PROCESO', 'COTIZADA', 'COMPRADA', 'CANCELADO']
@@ -297,7 +336,7 @@ class ImagenSchema(ma.SQLAlchemyAutoSchema):
 class ItemSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Item
-        fields = ["id", "k_factura", "k_producto", "k_variante", "cant_item", "p_item"]
+        fields = ["id", "k_factura", "k_producto", "k_variante", "k_lanzamiento", "n_item", "cant_item", "p_item"]
 
 class InvoiceSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
@@ -312,7 +351,12 @@ class UsuarioSchema(ma.SQLAlchemyAutoSchema):
 class SolicitudSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
         model = Solicitud
-        fields = ["id", "k_usuario", "k_producto", "n_producto_solicitado", "d_producto_solicitado", "cantidad", "estado", "f_solicitud"]
+        fields = ["id", "k_usuario", "k_producto", "n_producto_solicitado", "d_producto_solicitado", "cantidad", "d_cotizacion", "estado", "f_solicitud"]
+
+class SolicitudItemSchema(ma.SQLAlchemyAutoSchema):
+    class Meta:
+        model = SolicitudItem
+        fields = ["id", "k_solicitud", "k_producto", "k_lanzamiento", "nombre", "descripcion", "categoria", "cantidad", "precio_unit"]
 
 class RolSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
@@ -956,11 +1000,25 @@ def edit_user_by_email(email, nombre,apellido,ciudad,direccion, barrio=None, cel
     
 
 #solicitudes de pedido (integrado desde musical_box_manager)
-def create_solicitud(k_usuario, k_producto, n_producto_solicitado, d_producto_solicitado=None, cel=None, email=None, cantidad=1):
-    solicitud = Solicitud(k_usuario=k_usuario, k_producto=k_producto, n_producto_solicitado=n_producto_solicitado,
-                          d_producto_solicitado=d_producto_solicitado, estado='ACTIVO',
-                          cantidad=max(1, int(cantidad or 1)),
+def create_solicitud(k_usuario, items, cel=None, email=None):
+    #items: lista de {nombre, descripcion, categoria, cantidad, k_producto} (uno o más por solicitud)
+    validos = []
+    for it in (items or []):
+        nombre = (it.get("nombre") or '').strip()
+        if not nombre:
+            continue
+        validos.append(SolicitudItem(
+            nombre=nombre[:150],
+            descripcion=(it.get("descripcion") or '').strip()[:200] or None,
+            categoria=(it.get("categoria") or '').strip()[:30] or None,
+            cantidad=max(1, min(99, int(it.get("cantidad") or 1))),
+            k_producto=it.get("k_producto")))
+    if not validos:
+        return None, "Agrega al menos un producto"
+    solicitud = Solicitud(k_usuario=k_usuario, estado='ACTIVO',
                           cel_contacto=cel, email_contacto=(email or '').strip().lower() or None)
+    for it in validos:
+        solicitud.items.append(it)
     try:
         db.session.add(solicitud)
         db.session.commit()
@@ -968,6 +1026,26 @@ def create_solicitud(k_usuario, k_producto, n_producto_solicitado, d_producto_so
     except Exception as e:
         db.session.rollback()
         return None, str(e)
+
+
+class ItemSolicitudVirtual:
+    #una solicitud antigua (sin solicitud_item) se sirve como un ítem único desde sus campos legacy
+    def __init__(self, s):
+        self.solicitud = s
+        self.k_producto = s.k_producto
+        self.k_lanzamiento = None
+        self.producto = s.producto
+        self.lanzamiento = None
+        self.nombre = s.n_producto_solicitado or ''
+        self.descripcion = s.d_producto_solicitado
+        self.categoria = None
+        self.cantidad = s.cantidad or 1
+        self.precio_unit = s.precio_cotizado
+
+
+def items_efectivos(s):
+    #líneas de una solicitud: las suyas si las tiene; si no, un ítem virtual con los campos legacy
+    return s.items if s.items else [ItemSolicitudVirtual(s)]
 
 def get_all_solicitudes():
     return Solicitud.query.order_by(db.desc(Solicitud.f_solicitud)).all()
@@ -1332,13 +1410,24 @@ def validar_carrito(cart):
 def crear_pedido(cart, datos, k_usuario=None, cotizacion=None):
     """Crea el pedido PENDIENTE con sus líneas. Devuelve (pedido, token, errores).
     El token se entrega una sola vez (enlace de seguimiento); en la BD queda su hash.
-    cotizacion=(producto, precio[, cantidad]): pedido a la medida ya acordado; no revisa stock (se consigue por encargo)."""
+    cotizacion: lista de líneas de un pedido a la medida ya acordado, cada una
+    {producto, cantidad, precio, k_lanzamiento, n_item}; no revisa stock (se consigue por encargo)."""
     if cotizacion:
-        producto, precio = cotizacion[0], cotizacion[1]
-        cantidad = max(1, int(cotizacion[2])) if len(cotizacion) > 2 else 1
-        lineas, total, errores = [(producto, None, cantidad, precio)], precio * cantidad, []
+        lineas, total, errores = [], 0, []
+        for l in cotizacion:
+            try:
+                cantidad, precio = int(l.get("cantidad") or 1), int(l.get("precio"))
+            except (TypeError, ValueError):
+                cantidad, precio = 1, None
+            if not precio or precio <= 0:
+                return None, None, ["Revisa la cotización: falta el precio de un ítem"]
+            cantidad = max(1, min(99, cantidad))
+            lineas.append((l.get("producto"), None, cantidad, precio, l.get("k_lanzamiento"), l.get("n_item")))
+            total += precio * cantidad
     else:
         lineas, total, errores = validar_carrito(cart)
+        #misma forma que la cotizacion: (producto, variante, cantidad, precio, k_lanzamiento, n_item)
+        lineas = [(*l, None, None, None) for l in lineas]
     if errores:
         return None, None, errores
     
@@ -1373,14 +1462,16 @@ def crear_pedido(cart, datos, k_usuario=None, cotizacion=None):
                              barrio_envio=barrio_envio if datos_validos and barrio_envio else None)
             db.session.add(pedido)
             db.session.flush()
-            for producto, variante, cantidad, *precio in lineas:
-                item = Item(k_producto=producto.id, k_factura=pedido.id, k_variante=variante.id if variante is not None else None,
-                                    cant_item=cantidad, p_item=precio[0] if precio else producto.p_producto)
+            for producto, variante, cantidad, precio, k_lanzamiento, n_item in lineas:
+                item = Item(k_producto=producto.id if producto else None, k_factura=pedido.id,
+                            k_variante=variante.id if variante is not None else None,
+                            k_lanzamiento=k_lanzamiento, n_item=n_item,
+                            cant_item=cantidad, p_item=precio if precio is not None else producto.p_producto)
                 db.session.add(item)
             
             # Reservar stock para el pedido
             if not cotizacion:  # No reservar stock para pedidos a la medida
-                exito, errores_reserva = reservar_stock_pedido(pedido, [(producto, variante, cantidad) for producto, variante, cantidad, *precio in lineas])
+                exito, errores_reserva = reservar_stock_pedido(pedido, [(producto, variante, cantidad) for producto, variante, cantidad, *_resto in lineas])
                 if not exito:
                     db.session.rollback()
                     return None, None, errores_reserva
@@ -1621,17 +1712,36 @@ def eliminar_componente(k_componente):
 
 
 #pedidos a la medida: cotización -> enlace "confirmar compra" -> pedido normal
-def cotizar_solicitud(k_solicitud, k_producto, precio):
+def cotizar_solicitud(k_solicitud, lineas, d_cotizacion=None):
+    #lineas: [{k_producto, k_lanzamiento, cantidad, precio}, ...] alineadas con los ítems de la solicitud
     s = db.session.get(Solicitud, k_solicitud)
-    producto = db.session.get(Producto, k_producto) if k_producto else None
     if not s or s.estado == 'COMPRADA':
         return None, "La solicitud no existe o ya se compró"
-    if not producto or producto.tipo == 'BUNDLE' or requiere_variante(producto):
-        return None, "Elige un producto individual del catálogo (créalo en Nuevo producto si no existe)"
-    if not precio or precio <= 0:
-        return None, "Indica el precio acordado"
+    #una línea legacy (sin ítems) se materializa para poder guardarle precio y asociaciones
+    if not s.items:
+        v = ItemSolicitudVirtual(s)
+        s.items.append(SolicitudItem(k_solicitud=s.id, k_producto=v.k_producto, nombre=v.nombre,
+                                     descripcion=v.descripcion, categoria=v.categoria, cantidad=v.cantidad))
+        db.session.flush()
+    items = list(s.items)
+    if not lineas or len(lineas) != len(items):
+        return None, "Revisa las líneas de la cotización"
+    for it, linea in zip(items, lineas):
+        try:
+            precio = int(linea.get("precio"))
+        except (TypeError, ValueError):
+            precio = None
+        if not precio or precio <= 0:
+            return None, "Indica el precio de cada ítem"
+        it.precio_unit = precio
+        it.cantidad = max(1, min(99, int(linea.get("cantidad") or it.cantidad or 1)))
+        k_producto = linea.get("k_producto")
+        it.k_producto = db.session.get(Producto, k_producto).id if k_producto else None
+        k_lanzamiento = linea.get("k_lanzamiento")
+        it.k_lanzamiento = db.session.get(Lanzamiento, k_lanzamiento).id if k_lanzamiento else None
     token = secrets.token_urlsafe(32)
-    s.k_producto, s.precio_cotizado, s.token_hash, s.estado = producto.id, precio, hash_token(token), 'COTIZADA'
+    s.d_cotizacion = (d_cotizacion or '').strip()[:300] or None
+    s.token_hash, s.estado = hash_token(token), 'COTIZADA'
     db.session.commit()
     return token, None
 
