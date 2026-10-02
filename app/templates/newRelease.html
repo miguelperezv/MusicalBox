@@ -3,13 +3,13 @@
 <form class="mb-panel" style="max-width: 760px" method="POST" action="{{ url_for('dashboard.newrelease') }}">
     {{ form.csrf_token }}
     <div class="mb-3">
-        <label class="form-label" for="spq">Buscar en Spotify</label>
+        <label class="form-label" for="spq">Buscar disco</label>
         <div class="d-flex gap-2">
             <input type="text" id="spq" class="form-control" placeholder="Artista y disco" autocomplete="off">
             <button type="button" id="spbuscar" class="btn btn-outline-secondary text-nowrap"><i class="bi bi-search me-1"></i>Buscar</button>
         </div>
         <div id="spresultados" class="mt-2"></div>
-        <div class="form-text">Opcional: completa nombre, portada y fecha desde el catálogo de Spotify.</div>
+        <div class="form-text">Opcional: busca el disco y se completan nombre, portada y fecha.</div>
     </div>
     {{ form.external_id }}
     {{ form.external_url }}
@@ -20,7 +20,7 @@
             <option value="" disabled {{ 'selected' if not '' }}>Elige el artista</option>
             {% for a in artistas %}<option value="{{ a }}" {{ 'selected' if a == '' }}>{{ a.title() }}</option>{% endfor %}
         </select>
-        <div class="form-text">¿No está? Se crea solo si llega de la búsqueda de Spotify, o créalo en Artistas, géneros y categorías.</div>
+        <div class="form-text">¿No está? Se crea solo si llega de la búsqueda, o créalo en Artistas, géneros y categorías.</div>
     </div>
     {{ field(form.i_lanzamiento, type='url', placeholder='https://...', help='URL de la portada (imagen cuadrada)') }}
     {{ field(form.url_social) }}
@@ -31,4 +31,4 @@
     </div>
     <button type="submit" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Crear lanzamiento</button>
 </form>
-{#la búsqueda de Spotify va en app/static/js/app.js (delegado: funciona en sección y en modal)#}
+{#la búsqueda de discos va en app/static/js/app.js (delegado: funciona en sección y en modal)#}

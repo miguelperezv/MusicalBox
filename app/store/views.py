@@ -554,15 +554,15 @@ def updaterelease_spotify(k_lanzamiento):
     #refresca los metadatos del lanzamiento desde su album de Spotify
     l = db.session.get(Lanzamiento, k_lanzamiento)
     if not l or not l.external_id:
-        flash("Este lanzamiento no está ligado a un álbum de Spotify", "warning")
+        flash("Este lanzamiento no está ligado a un disco externo", "warning")
     else:
         datos = detalles_album_spotify(l.external_id)
         if datos.get("error"):
             flash(datos["error"], "error")
         elif actualizar_lanzamiento_spotify(k_lanzamiento, datos):
-            flash("Metadatos actualizados desde Spotify")
+            flash("Datos del disco actualizados")
         else:
-            flash("No se pudo actualizar desde Spotify", "error")
+            flash("No se pudieron actualizar los datos del disco", "error")
     return redirect(url_for('dashboard.updaterelease', k_lanzamiento=k_lanzamiento))
 
 

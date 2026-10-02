@@ -16,7 +16,7 @@
     <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="solicitudes" data-filtro="COMPRADA">Compradas</button>
     <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="solicitudes" data-filtro="CANCELADO">Canceladas</button>
 </div>
-<p class="small text-body-secondary">El precio es obligatorio; el producto del catálogo y el lanzamiento son opcionales (el lanzamiento da la portada en el mensaje y en la orden). Puedes escribir el disco a mano o buscarlo en Spotify: si no existe, se crea.</p>
+<p class="small text-body-secondary">El precio es obligatorio; el producto del catálogo y el lanzamiento son opcionales (el lanzamiento da la portada en el mensaje y en la orden). Puedes escribir el disco a mano o buscarlo: si no existe, se crea.</p>
 <div class="mb-panel p-0">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0" id="tabla-solicitudes">
@@ -105,7 +105,7 @@
                                                         <input class="form-control" type="text" name="item_{{ loop.index0 }}_lanzamiento" placeholder="Portada, opcional"
                                                                data-autocomplete="{{ url_for('dashboard.newproduct_releases') }}"
                                                                value="{{ (it.lanzamiento.id ~ '. ' ~ it.lanzamiento.n_lanzamiento) if it.lanzamiento }}">
-                                                        <button class="btn btn-outline-secondary" type="button" data-spotify title="Buscar en Spotify y asociar (o crear) el lanzamiento"><i class="bi bi-music-note-beamed me-1"></i>Spotify</button>
+                                                        <button class="btn btn-outline-secondary" type="button" data-spotify title="Buscar el disco y asociar (o crear) el lanzamiento"><i class="bi bi-music-note-beamed me-1"></i>Buscar disco</button>
                                                     </div>
                                                     <div class="spotify-box d-none mt-1">
                                                         <div class="input-group input-group-sm">
@@ -309,7 +309,7 @@
                             res.appendChild(el);
                         });
                     })
-                    .catch(function () { res.innerHTML = '<span class="small text-danger d-block py-1">No se pudo conectar con Spotify</span>'; });
+                    .catch(function () { res.innerHTML = '<span class="small text-danger d-block py-1">No se pudo buscar el disco</span>'; });
             }
             function elegirSpotify(a, fila, input, res) {
                 res.innerHTML = '<span class="small text-body-secondary d-block py-1">Guardando…</span>';

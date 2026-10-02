@@ -33,7 +33,7 @@ def _headers():
     return {"Authorization": "Bearer " + t} if t else None
 
 def _error_config():
-    return {"error": "Falta configurar SPOTIFY_CLIENT_ID y SPOTIFY_CLIENT_SECRET"}
+    return {"error": "El buscador de discos no está configurado"}
 
 def buscar_albumes_spotify(consulta):
     #busca albums por texto; devuelve {"items":[...]} o {"error": "..."}
@@ -44,7 +44,7 @@ def buscar_albumes_spotify(consulta):
         r = requests.get(BASE + "/search", params={"q": (consulta or '').strip(), "type": "album", "limit": 8},
                          headers=h, timeout=10)
         if r.status_code == 429:
-            return {"error": "Límite de llamadas a Spotify: espera un momento e intenta de nuevo"}
+            return {"error": "El buscador de discos está ocupado: espera un momento e intenta de nuevo"}
         r.raise_for_status()
         items = []
         for a in r.json().get("albums", {}).get("items", []):
@@ -59,7 +59,7 @@ def buscar_albumes_spotify(consulta):
             })
         return {"items": items}
     except requests.RequestException:
-        return {"error": "No se pudo conectar con Spotify"}
+        return {"error": "No se pudo conectar con el buscador de discos"}
 
 def detalles_album_spotify(external_id):
     #metadatos de un album ya guardado (para el botón "Actualizar desde Spotify")
@@ -78,4 +78,4 @@ def detalles_album_spotify(external_id):
             "external_url": (a.get("external_urls") or {}).get("spotify", ""),
         }
     except requests.RequestException:
-        return {"error": "No se pudo conectar con Spotify"}
+        return {"error": "No se pudo conectar con el buscador de discos"}

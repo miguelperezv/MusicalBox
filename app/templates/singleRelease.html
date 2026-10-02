@@ -49,7 +49,7 @@
                     <i class="bi bi-{{ social.plataforma }} me-1"></i>Ver post</a>
                 {% endif %}
                 {% if lanzamiento.external_url %}
-                <a class="btn btn-outline-light" href="{{ lanzamiento.external_url }}" target="_blank" rel="noopener" title="Escuchar en Spotify"><i class="bi bi-spotify me-1"></i>Escuchar</a>
+                <a class="btn btn-outline-light" href="{{ lanzamiento.external_url }}" target="_blank" rel="noopener" title="Escuchar el disco"><i class="bi bi-headphones me-1"></i>Escuchar</a>
                 {% endif %}
                 {% if user and user['k_rol'] == 'ADMIN' %}
                 <a class="btn btn-outline-light" href="{{ url_for('dashboard.updaterelease', k_lanzamiento=lanzamiento.id) }}" title="Editar"><i class="bi bi-pencil"></i></a>
@@ -60,7 +60,7 @@
         <a class="btn btn-sm btn-outline-light mt-3 d-md-none" href="{{ social.url }}" target="_blank" rel="noopener" data-quickview="{{ url_for('releases.post_lanzamiento', k_lanzamiento=lanzamiento.id) }}"><i class="bi bi-{{ social.plataforma }} me-1"></i>Ver post</a>
         {% endif %}
         {% if lanzamiento.external_url %}
-        <a class="btn btn-sm btn-outline-light {{ 'mt-3' if not social else 'ms-2' }} d-md-none" href="{{ lanzamiento.external_url }}" target="_blank" rel="noopener"><i class="bi bi-spotify me-1"></i>Escuchar en Spotify</a>
+        <a class="btn btn-sm btn-outline-light {{ 'mt-3' if not social else 'ms-2' }} d-md-none" href="{{ lanzamiento.external_url }}" target="_blank" rel="noopener"><i class="bi bi-headphones me-1"></i>Escuchar</a>
         {% endif %}
     </div>
 </section>

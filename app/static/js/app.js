@@ -241,7 +241,7 @@ document.addEventListener('click', function (e) {
     });
 });
 
-//nuevo lanzamiento: búsqueda de Spotify (el formulario llega por data-load o por modal)
+//nuevo lanzamiento: búsqueda de discos (el formulario llega por data-load o por modal)
 (function () {
     var urlSpotify = '/dashboard/newrelease_spotify';
     function escapar(t) { return String(t || '').replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -268,7 +268,7 @@ document.addEventListener('click', function (e) {
         asegurarArtista(album.artista);
         document.getElementById('external_id').value = album.id || '';
         document.getElementById('external_url').value = album.url || '';
-        document.getElementById('spresultados').innerHTML = '<div class="form-text">Usando <b>' + escapar(album.nombre) + '</b> de Spotify. Revisa los datos antes de crear.</div>';
+        document.getElementById('spresultados').innerHTML = '<div class="form-text">Usando <b>' + escapar(album.nombre) + '</b> del buscador. Revisa los datos antes de crear.</div>';
     }
     function buscar() {
         var q = document.getElementById('spq');
@@ -280,7 +280,7 @@ document.addEventListener('click', function (e) {
             .then(function (r) { return r.json(); })
             .then(function (d) {
                 if (d.error) { resultado.innerHTML = '<div class="text-danger small">' + escapar(d.error) + '</div>'; return; }
-                if (!d.items.length) { resultado.innerHTML = '<div class="text-body-secondary small">Sin resultados en Spotify.</div>'; return; }
+                if (!d.items.length) { resultado.innerHTML = '<div class="text-body-secondary small">Sin resultados.</div>'; return; }
                 var html = d.items.map(function (a, i) {
                     return '<div class="d-flex align-items-center gap-2 mb-2" style="max-width:540px">' +
                         (a.portada ? '<img src="' + escapar(a.portada) + '" width="44" height="44" class="rounded object-fit-cover" alt="">' : '<div style="width:44px;height:44px" class="rounded bg-body-tertiary"></div>') +
@@ -294,7 +294,7 @@ document.addEventListener('click', function (e) {
                     b.addEventListener('click', function () { usar(items[parseInt(b.dataset.i, 10)]); });
                 });
             })
-            .catch(function () { resultado.innerHTML = '<div class="text-danger small">Error de red al consultar Spotify.</div>'; });
+            .catch(function () { resultado.innerHTML = '<div class="text-danger small">Error de red al buscar el disco.</div>'; });
     }
     document.addEventListener('click', function (e) {
         if (e.target.closest && e.target.closest('#spbuscar')) buscar();
@@ -476,7 +476,7 @@ document.addEventListener('change', function (e) {
     };
 })();
 
-//lanzamientos: portada, post y Spotify por un campo en modal (delegado: sección y modal)
+//lanzamientos: portada, post y disco por un campo en modal (delegado: sección y modal)
 (function () {
     var titulos = { i_lanzamiento: 'Portada (URL)', url_social: 'Post de Instagram/TikTok (URL)' };
     function esc(t) { return String(t || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
