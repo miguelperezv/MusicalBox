@@ -422,3 +422,22 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 .cot-mensaje { background: #f8fafc; border: 1px solid #e6edf3; border-radius: .5rem; padding: .75rem; font-size: .8rem; white-space: pre-wrap; max-height: 320px; overflow: auto; }
 /* ítem retirado de una cotización (panel y confirmar compra) */
 .cot-retirada { opacity: .45; }
+
+/* ---------- autocompletado en vivo (mbAutocomplete) ---------- */
+.mb-ac-wrap { position: relative; }
+.mb-ac-list {
+    position: absolute; top: 100%; left: 0; right: 0; z-index: 1060;
+    display: none; margin-top: 6px; max-height: 280px; overflow: auto;
+    background: #fff; border: 1px solid rgba(15, 42, 49, .08); border-radius: .75rem;
+    box-shadow: 0 1.25rem 2.5rem rgba(15, 42, 49, .16), 0 .25rem .5rem rgba(15, 42, 49, .06);
+    padding: .35rem 0;
+    animation: mbAcIn .16s ease-out;
+}
+@keyframes mbAcIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: none; }
+}
+.mb-ac-opt { padding: .55rem .9rem; cursor: pointer; font-size: .925rem; color: #1f2d33; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mb-ac-opt:hover, .mb-ac-opt.mb-ac-active { background: #e7f5f8; color: #0c5b66; }
+.mb-ac-hit { font-weight: 600; color: #0c6b78; }
+.mb-ac-vacio { padding: .55rem .9rem; font-size: .85rem; font-style: italic; color: var(--mb-muted, #6b7a83); }

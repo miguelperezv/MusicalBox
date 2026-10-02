@@ -126,6 +126,7 @@
             lista.appendChild(frag);
             renumerar();
             fila.querySelector('.campo-nombre').addEventListener('input', function () { infoProducto(this, fila); });
+            if (window.mbAutocomplete) window.mbAutocomplete(document.getElementById('item-list'));
             fila.querySelector('.quitar-item').addEventListener('click', function () {
                 if (lista.querySelectorAll('.solicitud-item').length > 1) { fila.remove(); renumerar(); }
             });

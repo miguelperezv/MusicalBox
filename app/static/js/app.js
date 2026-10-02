@@ -37,47 +37,147 @@ function showAlert(message, type, timer = 4000) {
     });
 }
 
-// <input data-autocomplete="/url"> : llena un <datalist> con el JSON (lista de textos) de esa URL
+// <input data-autocomplete="/url"> o <input list="...">: búsqueda en vivo sobre las opciones existentes
+// (desde 2 letras, busca en todo el texto de cada opción: artista, disco, categoría); al elegir, llena el campo
 function mbAutocomplete(root) {
-    (root || document).querySelectorAll('input[data-autocomplete]').forEach(function (input) {
+    (root || document).querySelectorAll('input[data-autocomplete], input[list]').forEach(function (input) {
         if (input.dataset.autocompleteReady) return;
         input.dataset.autocompleteReady = '1';
-        var list = document.createElement('datalist');
-        list.id = (input.id || input.name) + '-opciones';
-        input.setAttribute('list', list.id);
         input.setAttribute('autocomplete', 'off');
-        input.after(list);
-        fetch(input.dataset.autocomplete)
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                (data || []).forEach(function (texto) {
-                    var o = document.createElement('option');
-                    o.value = texto;
-                    list.appendChild(o);
+        var listId = input.getAttribute('list');
+        if (listId) input.removeAttribute('list');
+
+        //contenedor relativo para anclar el desplegable justo bajo el input
+        var wrap = document.createElement('div');
+        wrap.className = 'mb-ac-wrap';
+        input.parentNode.insertBefore(wrap, input);
+        wrap.appendChild(input);
+        var lista = document.createElement('div');
+        lista.className = 'mb-ac-list';
+        wrap.appendChild(lista);
+
+        var cache = null, timer = null, activo = -1, visibles = [], silencio = false;
+
+        //cb(ops, listo): listo=false significa que la fuente aún se está cargando (no mostrar "sin coincidencias")
+        function obtener(cb) {
+            if (cache) { cb(cache, true); return; }
+            if (input.dataset.autocomplete) {
+                fetch(input.dataset.autocomplete)
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        cache = (data || []).map(function (t) {
+                            t = String(t);
+                            return { valor: t, texto: t.replace(/^\d+\.\s*/, '') };
+                        });
+                        cb(cache, true);
+                    });
+            } else {
+                var dl = document.getElementById(listId);
+                if (!dl || !dl.options.length) { cb([], false); return; } //aún se está llenando: se reintenta en la siguiente pulsación
+                cache = Array.prototype.map.call(dl.options, function (o) {
+                    var t = String(o.value);
+                    return { valor: t, texto: t.replace(/^\d+\.\s*/, '') };
                 });
+                cb(cache, true);
+            }
+        }
+
+        function cerrar() {
+            lista.style.display = 'none';
+            lista.innerHTML = '';
+            activo = -1;
+        }
+
+        function elegir(op) {
+            clearTimeout(timer);
+            input.value = op.valor;
+            cerrar();
+            //el evento input (que alimenta infoProducto u otros) no debe reabrir el desplegable
+            silencio = true;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            setTimeout(function () { silencio = false; }, 0);
+        }
+
+        function buscar() {
+            var q = input.value.trim().toLowerCase();
+            if (q.length < 2) { cerrar(); return; }
+            obtener(function (ops, listo) {
+                visibles = ops.filter(function (o) { return o.valor.toLowerCase().indexOf(q) !== -1; }).slice(0, 12);
+                if (!visibles.length) {
+                    if (!listo) { cerrar(); return; }
+                    lista.innerHTML = '<div class="mb-ac-vacio">Sin coincidencias</div>';
+                    lista.style.display = 'block';
+                    activo = -1;
+                    return;
+                }
+                lista.innerHTML = '';
+                var escapar = function (s) {
+                    return s.replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; });
+                };
+                visibles.forEach(function (o) {
+                    var el = document.createElement('div');
+                    el.className = 'mb-ac-opt';
+                    var idx = o.texto.toLowerCase().indexOf(q);
+                    if (idx === -1) {
+                        el.textContent = o.texto;
+                    } else {
+                        el.innerHTML = escapar(o.texto.slice(0, idx)) +
+                            '<span class="mb-ac-hit">' + escapar(o.texto.slice(idx, idx + q.length)) + '</span>' +
+                            escapar(o.texto.slice(idx + q.length));
+                    }
+                    el.addEventListener('mousedown', function (e) { e.preventDefault(); elegir(o); });
+                    lista.appendChild(el);
+                });
+                lista.style.display = 'block';
+                activo = -1;
             });
+        }
+
+        input.addEventListener('input', function () {
+            if (silencio) return;
+            clearTimeout(timer);
+            timer = setTimeout(buscar, 120);
+        });
+        input.addEventListener('keydown', function (e) {
+            if (lista.style.display !== 'block') return;
+            var opciones = lista.querySelectorAll('.mb-ac-opt');
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                activo += (e.key === 'ArrowDown' ? 1 : -1);
+                if (activo < 0) activo = opciones.length - 1;
+                if (activo >= opciones.length) activo = 0;
+                opciones.forEach(function (o, i) { o.classList.toggle('mb-ac-active', i === activo); });
+            } else if (e.key === 'Enter') {
+                if (visibles.length) { e.preventDefault(); elegir(visibles[activo >= 0 ? activo : 0]); }
+            } else if (e.key === 'Escape') {
+                cerrar();
+            }
+        });
+        input.addEventListener('blur', function () { setTimeout(cerrar, 150); });
     });
 }
 
 // panel admin: enlaces con data-load cargan su contenido en #admin-content sin recargar la página
+// (por delegación: también sirven los enlaces que llegan después por AJAX, p. ej. "Orden #N")
 function mbAdminLoader() {
     var content = document.getElementById('admin-content');
     if (!content) return;
-    document.querySelectorAll('[data-load]').forEach(function (link) {
-        link.addEventListener('click', function (e) {
-            e.preventDefault();
-            document.querySelectorAll('.mb-sidebar .nav-link').forEach(function (l) { l.classList.remove('active'); });
-            link.classList.add('active');
-            content.innerHTML = '<div class="mb-loading"><div class="spinner-border" role="status"></div></div>';
-            $(content).load(link.dataset.load, function () {
-                mbAutocomplete(content);
-                //secciones cargadas por AJAX respetan su filtro (p. ej. "Orden #N" de pedidos a la medida)
-                var bus = content.querySelector('#buscador-ordenes');
-                if (bus && bus.value && window.mbFiltrarOrdenes) window.mbFiltrarOrdenes(content);
-            });
-            var sidebar = bootstrap.Offcanvas.getInstance(document.getElementById('adminSidebar'));
-            if (sidebar) sidebar.hide();
+    document.addEventListener('click', function (e) {
+        var link = e.target.closest('[data-load]');
+        if (!link) return;
+        e.preventDefault();
+        document.querySelectorAll('.mb-sidebar .nav-link').forEach(function (l) { l.classList.remove('active'); });
+        if (link.classList.contains('nav-link')) link.classList.add('active');
+        content.innerHTML = '<div class="mb-loading"><div class="spinner-border" role="status"></div></div>';
+        $(content).load(link.dataset.load, function () {
+            mbAutocomplete(content);
+            //secciones cargadas por AJAX respetan su filtro (p. ej. "Orden #N" de pedidos a la medida)
+            var bus = content.querySelector('#buscador-ordenes');
+            if (bus && bus.value && window.mbFiltrarOrdenes) window.mbFiltrarOrdenes(content);
         });
+        var sidebar = bootstrap.Offcanvas.getInstance(document.getElementById('adminSidebar'));
+        if (sidebar) sidebar.hide();
     });
 }
 
