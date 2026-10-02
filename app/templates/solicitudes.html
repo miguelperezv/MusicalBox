@@ -63,7 +63,7 @@
                     </td>
                     <td class="pe-3">
                         {% if s.pedido %}
-                        <a href="{{ url_for('dashboard.invoices', busca=s.pedido.id) }}" title="Ver la orden"><i class="bi bi-box me-1"></i>Orden #{{ s.pedido.id }}</a>
+                        <a href="#" class="text-decoration-none" data-load="{{ url_for('dashboard.invoices', busca=s.pedido.id) }}" title="Ver la orden"><i class="bi bi-box me-1"></i>Orden #{{ s.pedido.id }}</a>
                         <div class="small mt-1"><span class="mb-estado mb-estado-{{ s.pedido.estado }}">{{ s.pedido.estado }}</span> · {{ s.pedido.total|cop }}</div>
                         {% elif s.estado in ['ACTIVO', 'EN PROCESO', 'COTIZADA'] %}
                         {% if s.total_cotizado %}<div class="small mb-1">Total <strong>{{ s.total_cotizado|cop }}</strong>{% if s.d_cotizacion %} · <span class="text-body-secondary">{{ s.d_cotizacion }}</span>{% endif %}</div>{% endif %}

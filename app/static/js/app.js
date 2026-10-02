@@ -69,7 +69,12 @@ function mbAdminLoader() {
             document.querySelectorAll('.mb-sidebar .nav-link').forEach(function (l) { l.classList.remove('active'); });
             link.classList.add('active');
             content.innerHTML = '<div class="mb-loading"><div class="spinner-border" role="status"></div></div>';
-            $(content).load(link.dataset.load, function () { mbAutocomplete(content); });
+            $(content).load(link.dataset.load, function () {
+                mbAutocomplete(content);
+                //secciones cargadas por AJAX respetan su filtro (p. ej. "Orden #N" de pedidos a la medida)
+                var bus = content.querySelector('#buscador-ordenes');
+                if (bus && bus.value && window.mbFiltrarOrdenes) window.mbFiltrarOrdenes(content);
+            });
             var sidebar = bootstrap.Offcanvas.getInstance(document.getElementById('adminSidebar'));
             if (sidebar) sidebar.hide();
         });

@@ -71,7 +71,7 @@
                     <td class="pe-3 text-nowrap">
                         <button type="button" class="btn btn-sm {{ 'btn-outline-warning text-warning' if i.nota else 'btn-outline-secondary' }}"
                                 data-nota data-id="{{ i.id }}" data-url="{{ url_for('dashboard.pedido_nota', k_invoice=i.id) }}" data-nota="{{ i.nota or '' }}"
-                                title="{{ i.nota or 'Agregar nota interna' }}">{{ '<i class="bi bi-sticky-fill"></i> Ver nota' if i.nota else '<i class="bi bi-sticky"></i> Nota' }}</button>
+                                title="{{ i.nota or 'Agregar nota interna' }}">{% if i.nota %}<i class="bi bi-sticky-fill"></i> Ver nota{% else %}<i class="bi bi-sticky"></i> Nota{% endif %}</button>
                     </td>
                 </tr>
                 {% else %}
