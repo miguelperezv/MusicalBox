@@ -6,8 +6,10 @@ from flask import Blueprint, flash, request, g, render_template, redirect, url_f
 from .forms import RegistroSolicitudForm, CheckoutForm, CotizacionRapidaForm
 from .models import (create_solicitud, get_all_solicitudes, update_estado_solicitud, get_catalogo_solicitud, get_product_by_id,
                      get_usuario_por_email, cotizar_solicitud, get_solicitud_por_token, datos_envio_previos, crear_pedido,
-                     items_efectivos, get_categorias,
-                     ESTADOS_SOLICITUD, METODOS_PAGO, Solicitud)
+                     items_efectivos, get_categorias, get_all_releases, buscar_o_crear_lanzamiento,
+                     buscar_o_crear_lanzamiento_spotify,
+                     ESTADOS_SOLICITUD, METODOS_PAGO, Solicitud, Lanzamiento)
+from .musicapi import buscar_albumes_spotify
 from ..db import db
 from .views import before_request, admin_required
 
@@ -76,9 +78,31 @@ def productos():
 @solicitud.route("/solicitudes")
 @admin_required
 def lista():
+    portadas = {}
+    for l in Lanzamiento.query.filter(Lanzamiento.i_lanzamiento.isnot(None)).all():
+        portadas[str(l.id)] = l.i_lanzamiento
     return render_template('solicitudes.html',
                            solicitudes=[(s, items_efectivos(s)) for s in get_all_solicitudes()],
-                           estados=ESTADOS_SOLICITUD)
+                           estados=ESTADOS_SOLICITUD, portadas=portadas)
+
+
+@solicitud.route("/lanzamiento_spotify", methods=["GET", "POST"])
+@admin_required
+def lanzamiento_spotify():
+    #busca álbumes en Spotify y, al elegir uno, lo guarda (o lo recupera) para asociarlo a un ítem
+    if request.method == "GET":
+        return jsonify(buscar_albumes_spotify(request.args.get("q", "")))
+    datos = request.get_json(silent=True) or request.form
+    l, nuevo = buscar_o_crear_lanzamiento_spotify({
+        "external_id": datos.get("external_id"),
+        "n_lanzamiento": datos.get("nombre"),
+        "artista": datos.get("artista"),
+        "f_lanzamiento": datos.get("fecha"),
+        "i_lanzamiento": datos.get("portada"),
+        "external_url": datos.get("url")})
+    if not l:
+        return jsonify({"error": "Elige un álbum de la lista"}), 400
+    return jsonify({"id": l.id, "nombre": l.n_lanzamiento, "portada": l.i_lanzamiento, "nuevo": nuevo})
 
 
 @solicitud.route("/<int:id>/estado", methods=["POST"])
@@ -171,9 +195,10 @@ def cotizar(id):
     lineas = []
     for i in range(len(items)):
         k_producto = (request.form.get(f"item_{i}_producto") or "").split(".")[0].strip()
-        k_lanzamiento = (request.form.get(f"item_{i}_lanzamiento") or "").split(".")[0].strip()
+        #lanzamiento: "id. Nombre" usa el id; un texto libre se busca o crea al vuelo
+        k_lanzamiento, _ = buscar_o_crear_lanzamiento(request.form.get(f"item_{i}_lanzamiento"))
         lineas.append({"k_producto": int(k_producto) if k_producto.isdigit() else None,
-                       "k_lanzamiento": int(k_lanzamiento) if k_lanzamiento.isdigit() else None,
+                       "k_lanzamiento": k_lanzamiento,
                        "cantidad": request.form.get(f"item_{i}_cantidad", type=int),
                        "precio": request.form.get(f"item_{i}_precio", type=int)})
     token, err = cotizar_solicitud(id, lineas, request.form.get("d_cotizacion"))

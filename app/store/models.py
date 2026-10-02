@@ -474,6 +474,29 @@ def _fecha_spotify(valor):
             pass
     return None
 
+def buscar_o_crear_lanzamiento_spotify(datos):
+    #carga un álbum de Spotify si no existe ya (por external_id); devuelve (lanzamiento, se_creo_ahora)
+    ext = (datos.get("external_id") or "").strip()
+    if ext:
+        l = Lanzamiento.query.filter_by(external_id=ext).first()
+        if l:
+            return l, False
+    nombre = (datos.get("n_lanzamiento") or "").strip()
+    if not nombre:
+        return None, False
+    k_artista = obtener_artista(datos.get("artista"), crear=True)
+    l = Lanzamiento(n_lanzamiento=nombre,
+                    i_lanzamiento=(datos.get("i_lanzamiento") or "").strip() or None,
+                    f_lanzamiento=_fecha_spotify(datos.get("f_lanzamiento")),
+                    external_id=ext or None,
+                    external_url=(datos.get("external_url") or "").strip() or None)
+    db.session.add(l)
+    db.session.flush()
+    if k_artista:
+        db.session.add(Lanzamiento_Artista(k_lanzamiento=l.id, k_artista=k_artista))
+    db.session.commit()
+    return l, True
+
 def actualizar_lanzamiento_spotify(k_lanzamiento, datos):
     #refresca metadatos desde la API sin tocar generos ni productos
     l = db.session.get(Lanzamiento, k_lanzamiento)
