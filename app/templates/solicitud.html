@@ -10,27 +10,58 @@
         <div class="col-lg-5">
             <span class="mb-eyebrow">Pedidos a la medida</span>
             <h1 class="mt-1">¿No lo encuentras? ¡Pídelo!</h1>
-            <p class="text-body-secondary">Busca en nuestro catálogo o escribe el disco que quieres. Nosotros lo conseguimos y te lo enviamos.</p>
+            <p class="text-body-secondary">Busca en nuestro catálogo o escríbelo con tus palabras. Nosotros lo conseguimos y te lo enviamos.</p>
             <ol class="list-unstyled d-grid gap-3 mt-4">
-                <li class="d-flex gap-3"><span class="mb-step">1</span><span>Cuéntanos qué disco buscas y cómo contactarte.</span></li>
+                <li class="d-flex gap-3"><span class="mb-step">1</span><span>Cuéntanos qué quieres (uno o varios) y cómo contactarte.</span></li>
                 <li class="d-flex gap-3"><span class="mb-step">2</span><span>Te escribimos por <strong>WhatsApp</strong> con precio y tiempos.</span></li>
                 <li class="d-flex gap-3"><span class="mb-step">3</span><span>Si te sirve, confirmas tu compra y dirección con el enlace que te enviamos, y lo recibes en tu casa.</span></li>
             </ol>
+            <div class="d-flex flex-wrap gap-2 mt-4">
+                <span class="mb-chip small"><i class="bi bi-check-circle me-1"></i>Cotizas gratis, sin compromiso</span>
+                <span class="mb-chip small"><i class="bi bi-shield-lock me-1"></i>Pagas solo si confirmas, por enlace seguro</span>
+                <span class="mb-chip small"><i class="bi bi-truck me-1"></i>Envíos a todo Colombia</span>
+                <span class="mb-chip small"><i class="bi bi-whatsapp me-1"></i>Te respondemos por WhatsApp</span>
+            </div>
         </div>
 
         <div class="col-lg-7">
             <form class="mb-panel p-4" method="POST" action="{{ url_for('solicitud.nueva') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 {{ form.hidden_tag() }}
-                <div class="mb-3">
-                    {{ form.producto.label(class_='form-label') }}
-                    {{ form.producto(class_='form-control' ~ (' is-invalid' if form.producto.errors else ''), list='producto-list', autocomplete='off') }}
-                    <datalist id="producto-list"></datalist>
-                    <input type="hidden" id="producto-id" name="producto_id">
-                    <div id="producto-info" class="form-text"></div>
-                    {% for e in form.producto.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
-                </div>
-                {{ field(form.d_producto) }}
+                <h2 class="h6 mb-3"><i class="bi bi-bag me-2 text-primary"></i>Qué quieres pedir</h2>
+                <datalist id="producto-list"></datalist>
+                <div id="item-list"></div>
+                <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="agregar-item">
+                    <i class="bi bi-plus-lg me-1"></i>Agregar otro producto
+                </button>
+
+                <template id="item-template">
+                    <div class="solicitud-item row g-2 g-lg-2 align-items-start mt-3 p-3 mb-panel" style="background:#f8fafc">
+                        <div class="col-lg-5">
+                            <label class="form-label small mb-1">Disco / producto</label>
+                            <input type="text" class="form-control form-control-sm campo-nombre" list="producto-list" autocomplete="off" required placeholder="Busca en el catálogo o escribe artista y disco">
+                            <input type="hidden" class="campo-producto-id">
+                            <div class="form-text small campo-info"></div>
+                        </div>
+                        <div class="col-lg-3">
+                            <label class="form-label small mb-1">Tipo</label>
+                            <select class="form-select form-select-sm campo-categoria">
+                                {% for c in categorias %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-lg-1">
+                            <label class="form-label small mb-1">Cant.</label>
+                            <input type="number" class="form-control form-control-sm campo-cantidad" min="1" max="99" value="1">
+                        </div>
+                        <div class="col-lg-2">
+                            <label class="form-label small mb-1">Detalles</label>
+                            <input type="text" class="form-control form-control-sm campo-detalle" placeholder="Edición, color, talla...">
+                        </div>
+                        <div class="col-lg-1 d-flex align-items-center justify-content-end">
+                            <button type="button" class="btn btn-sm btn-outline-danger quitar-item" title="Quitar" aria-label="Quitar producto"><i class="bi bi-x-lg"></i></button>
+                        </div>
+                    </div>
+                </template>
 
                 <h2 class="h6 mt-4 mb-3"><i class="bi bi-whatsapp me-2 text-success"></i>¿Cómo te contactamos?</h2>
                 <div class="row">
@@ -49,28 +80,53 @@
 {% block scripts %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        var productoInput = document.getElementById('producto');
+        var lista = document.getElementById('item-list');
+        var template = document.getElementById('item-template');
         var productos = {};
         fetch('{{ url_for("solicitud.productos") }}')
             .then(r => r.json())
             .then(data => {
-                var list = document.getElementById('producto-list');
+                var dl = document.getElementById('producto-list');
                 data.forEach(function (p) {
                     var label = p.nombre + ' (' + p.categoria + ')';
                     productos[label] = p;
                     var o = document.createElement('option');
                     o.value = label;
-                    list.appendChild(o);
+                    dl.appendChild(o);
                 });
             });
-        productoInput.addEventListener('input', function () {
-            var p = productos[this.value];
-            document.getElementById('producto-id').value = p ? p.id : '';
-            document.getElementById('producto-info').innerHTML = !this.value ? '' :
+
+        function infoProducto(input, fila) {
+            var p = productos[input.value];
+            var info = fila.querySelector('.campo-info');
+            fila.querySelector('.campo-producto-id').value = p ? p.id : '';
+            info.innerHTML = !input.value ? '' :
                 p ? (p.stock > 0 ? '<i class="bi bi-check-circle text-success"></i> En catálogo: ' + p.stock + ' disponibles'
-                                 : '<i class="bi bi-hourglass-split"></i> En catálogo, agotado: lo pedimos para ti')
+                                 : '<i class="bi bi-hourglass-split"></i> En catálogo, agotado: lo conseguimos para ti')
                   : '<i class="bi bi-stars"></i> Pedido especial: lo buscaremos para ti';
-        });
+            var cat = fila.querySelector('.campo-categoria');
+            if (p && p.categoria && [...cat.options].some(o => o.value === p.categoria)) cat.value = p.categoria;
+        }
+
+        var indice = 0;
+        function agregarItem() {
+            var frag = template.content.cloneNode(true);
+            var fila = frag.querySelector('.solicitud-item');
+            fila.querySelector('.campo-nombre').name = 'items[' + indice + '][nombre]';
+            fila.querySelector('.campo-categoria').name = 'items[' + indice + '][categoria]';
+            fila.querySelector('.campo-cantidad').name = 'items[' + indice + '][cantidad]';
+            fila.querySelector('.campo-detalle').name = 'items[' + indice + '][descripcion]';
+            fila.querySelector('.campo-producto-id').name = 'items[' + indice + '][producto_id]';
+            indice++;
+            lista.appendChild(frag);
+            fila.querySelector('.campo-nombre').addEventListener('input', function () { infoProducto(this, fila); });
+            fila.querySelector('.quitar-item').addEventListener('click', function () {
+                if (lista.querySelectorAll('.solicitud-item').length > 1) fila.remove();
+            });
+        }
+
+        document.getElementById('agregar-item').addEventListener('click', agregarItem);
+        agregarItem();
     });
 </script>
 {% endblock %}
