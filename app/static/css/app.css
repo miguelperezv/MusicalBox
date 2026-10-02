@@ -413,12 +413,6 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 .solicitud-item { background: #f8fafc; border: 1px solid #e6edf3; }
 /* modal de cotización del panel */
 .cot-item { border: 1px solid #e6edf3; border-radius: .5rem; background: #f8fafc; padding: .75rem; }
-.spotify-box { border: 1px solid #d5dee4; border-radius: .5rem; background: #fff; padding: .5rem; max-height: 280px; overflow: auto; }
-.spotify-item { display: flex; align-items: center; gap: .5rem; padding: .3rem .35rem; border-radius: .4rem; cursor: pointer; }
-.spotify-item:hover { background: #e7f5f8; }
-.spotify-item img { width: 36px; height: 36px; object-fit: cover; border-radius: .3rem; flex-shrink: 0; }
-.spotify-item .nom { font-size: .8rem; font-weight: 600; line-height: 1.15; }
-.spotify-item .art { font-size: .7rem; color: var(--mb-muted); }
 .cot-mensaje { background: #f8fafc; border: 1px solid #e6edf3; border-radius: .5rem; padding: .75rem; font-size: .8rem; white-space: pre-wrap; max-height: 320px; overflow: auto; }
 /* ítem retirado de una cotización (panel y confirmar compra) */
 .cot-retirada { opacity: .45; }
@@ -441,3 +435,9 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 .mb-ac-opt:hover, .mb-ac-opt.mb-ac-active { background: #e7f5f8; color: #0c5b66; }
 .mb-ac-hit { font-weight: 600; color: #0c6b78; }
 .mb-ac-vacio { padding: .55rem .9rem; font-size: .85rem; font-style: italic; color: var(--mb-muted, #6b7a83); }
+/* separador y filas de resultados en línea dentro del desplegable */
+.mb-ac-sep { font-size: .68rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--mb-muted); padding: .45rem .9rem .2rem; }
+.mb-ac-opt.mb-ac-remoto { display: flex; align-items: center; gap: .65rem; white-space: normal; padding: .5rem .75rem; }
+.mb-ac-opt.mb-ac-remoto img { width: 42px; height: 42px; object-fit: cover; border-radius: .45rem; flex-shrink: 0; box-shadow: 0 1px 3px rgba(15, 42, 49, .18); }
+.mb-ac-opt.mb-ac-remoto .n { font-size: .85rem; font-weight: 600; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; }
+.mb-ac-opt.mb-ac-remoto .a { font-size: .72rem; color: var(--mb-muted); overflow: hidden; text-overflow: ellipsis; }

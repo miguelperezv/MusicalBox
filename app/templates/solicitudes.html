@@ -101,19 +101,10 @@
                                                 </div>
                                                 <div class="col-12 col-sm-4">
                                                     <label class="form-label small mb-0">Lanzamiento</label>
-                                                    <div class="input-group input-group-sm">
-                                                        <input class="form-control" type="text" name="item_{{ loop.index0 }}_lanzamiento" placeholder="Portada, opcional"
-                                                               data-autocomplete="{{ url_for('dashboard.newproduct_releases') }}"
-                                                               value="{{ (it.lanzamiento.id ~ '. ' ~ it.lanzamiento.n_lanzamiento) if it.lanzamiento }}">
-                                                        <button class="btn btn-outline-secondary" type="button" data-spotify title="Buscar el disco y asociar (o crear) el lanzamiento"><i class="bi bi-music-note-beamed me-1"></i>Buscar disco</button>
-                                                    </div>
-                                                    <div class="spotify-box d-none mt-1">
-                                                        <div class="input-group input-group-sm">
-                                                            <input class="form-control spotify-q" type="text" placeholder="Artista y disco...">
-                                                            <button class="btn btn-sm btn-primary" type="button" data-spotify-buscar>Buscar</button>
-                                                        </div>
-                                                        <div class="spotify-res"></div>
-                                                    </div>
+                                                    <input class="form-control form-control-sm" type="text" name="item_{{ loop.index0 }}_lanzamiento" placeholder="Portada, opcional"
+                                                           data-autocomplete="{{ url_for('dashboard.newproduct_releases') }}"
+                                                           data-remote="{{ url_for('solicitud.lanzamiento_spotify') }}"
+                                                           value="{{ (it.lanzamiento.id ~ '. ' ~ it.lanzamiento.n_lanzamiento) if it.lanzamiento }}">
                                                 </div>
                                                 <div class="col-12 col-sm-2">
                                                     <label class="form-label small mb-0">Precio (COP)</label>
@@ -220,7 +211,6 @@
 <script>
 (function () {
     var PORTADAS = {{ portadas|tojson }};
-    var SPOTIFY_URL = "{{ url_for('solicitud.lanzamiento_spotify') }}";
     var $cuerpo = document.getElementById('cotizar-cuerpo');
 
     function esc(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
@@ -280,59 +270,20 @@
         if (e.target.matches && e.target.matches('[name$="_precio"], [name$="_cantidad"]')) recalcTotales($cuerpo);
     });
 
-    function wireSpotify(cuerpo) {
+    //portada del item segun el lanzamiento elegido (catalogo o disco en linea guardado al vuelo)
+    function wireLanzamiento(cuerpo) {
         cuerpo.querySelectorAll('.cot-item').forEach(function (fila) {
             var input = fila.querySelector('input[name$="_lanzamiento"]');
-            var caja = fila.querySelector('.spotify-box');
-            var q = caja.querySelector('.spotify-q');
-            var res = caja.querySelector('.spotify-res');
-            fila.querySelector('[data-spotify]').addEventListener('click', function () {
-                caja.classList.toggle('d-none');
-                if (!caja.classList.contains('d-none')) q.focus();
-            });
-            function buscar() {
-                var texto = q.value.trim();
-                if (!texto) return;
-                res.innerHTML = '<span class="small text-body-secondary d-block py-1">Buscando…</span>';
-                fetch(SPOTIFY_URL + '?q=' + encodeURIComponent(texto))
-                    .then(function (r) { return r.json(); })
-                    .then(function (r) {
-                        if (r.error) { res.innerHTML = '<span class="small text-danger d-block py-1">' + esc(r.error) + '</span>'; return; }
-                        if (!r.items || !r.items.length) { res.innerHTML = '<span class="small text-body-secondary d-block py-1">Sin resultados. Prueba con otro nombre o escribe el disco a mano: se crea al vuelo.</span>'; return; }
-                        res.innerHTML = '';
-                        r.items.forEach(function (a) {
-                            var el = document.createElement('div');
-                            el.className = 'spotify-item';
-                            el.innerHTML = (a.portada ? '<img src="' + esc(a.portada) + '" alt="" loading="lazy">' : '') +
-                                '<div><div class="nom">' + esc(a.nombre) + '</div><div class="art">' + esc(a.artista) + (a.fecha ? ' · ' + esc(a.fecha) : '') + '</div></div>';
-                            el.addEventListener('click', function () { elegirSpotify(a, fila, input, res); });
-                            res.appendChild(el);
-                        });
-                    })
-                    .catch(function () { res.innerHTML = '<span class="small text-danger d-block py-1">No se pudo buscar el disco</span>'; });
-            }
-            function elegirSpotify(a, fila, input, res) {
-                res.innerHTML = '<span class="small text-body-secondary d-block py-1">Guardando…</span>';
-                $.ajax({
-                    url: SPOTIFY_URL, type: 'POST', contentType: 'application/json',
-                    data: JSON.stringify({external_id: a.id, nombre: a.nombre, artista: a.artista, fecha: a.fecha, portada: a.portada, url: a.url})
-                }).done(function (r) {
-                    input.value = r.id + '. ' + (a.artista ? a.artista + ' - ' : '') + (r.nombre || a.nombre);
-                    var img = fila.querySelector('.cot-portada');
-                    if (r.portada) { img.src = r.portada; img.classList.remove('d-none'); }
-                    fila.querySelector('.spotify-box').classList.add('d-none');
-                }).fail(function (x) {
-                    res.innerHTML = '<span class="small text-danger d-block py-1">' + esc((x.responseJSON || {}).error || 'No se pudo guardar el lanzamiento') + '</span>';
-                });
-            }
-            caja.querySelector('[data-spotify-buscar]').addEventListener('click', buscar);
-            q.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); buscar(); } });
             input.addEventListener('change', function () {
                 var tok = (input.value || '').split('.')[0].trim();
                 var img = fila.querySelector('.cot-portada');
                 var src = PORTADAS[tok] || '';
                 if (src) { img.src = src; img.classList.remove('d-none'); }
                 else img.classList.add('d-none');
+            });
+            input.addEventListener('mbac-select', function (ev) {
+                var img = fila.querySelector('.cot-portada');
+                if (ev.detail && ev.detail.portada) { img.src = ev.detail.portada; img.classList.remove('d-none'); }
             });
         });
     }
@@ -347,7 +298,7 @@
         document.getElementById('cotizar-guardar').classList.remove('d-none');
         mbAutocomplete($cuerpo);
         recalcTotales($cuerpo);
-        wireSpotify($cuerpo);
+        wireLanzamiento($cuerpo);
         guardado = false;
         bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-cotizar')).show();
     }

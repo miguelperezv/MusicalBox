@@ -38,7 +38,9 @@ function showAlert(message, type, timer = 4000) {
 }
 
 // <input data-autocomplete="/url"> o <input list="...">: búsqueda en vivo sobre las opciones existentes
-// (desde 2 letras, busca en todo el texto de cada opción: artista, disco, categoría); al elegir, llena el campo
+// (desde 2 letras, busca en todo el texto de cada opción: artista, disco, categoría); al elegir, llena el campo.
+// data-remote: además busca en una fuente en línea (?q=) y, al elegir uno de sus resultados,
+// lo guarda por POST (JSON) y emite 'mbac-select' con {portada} en el input
 function mbAutocomplete(root) {
     (root || document).querySelectorAll('input[data-autocomplete], input[list]').forEach(function (input) {
         if (input.dataset.autocompleteReady) return;
@@ -56,7 +58,14 @@ function mbAutocomplete(root) {
         lista.className = 'mb-ac-list';
         wrap.appendChild(lista);
 
-        var cache = null, timer = null, activo = -1, visibles = [], silencio = false;
+        var cache = null, timer = null, activo = -1, silencio = false, seq = 0, filaOps = [];
+        var remoteUrl = input.getAttribute('data-remote') || '';
+        var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        var csrf = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+        function escapar(s) {
+            return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; });
+        }
 
         //cb(ops, listo): listo=false significa que la fuente aún se está cargando (no mostrar "sin coincidencias")
         function obtener(cb) {
@@ -83,15 +92,14 @@ function mbAutocomplete(root) {
         }
 
         function cerrar() {
+            seq++;
+            filaOps = [];
             lista.style.display = 'none';
             lista.innerHTML = '';
             activo = -1;
         }
 
-        function elegir(op) {
-            clearTimeout(timer);
-            input.value = op.valor;
-            cerrar();
+        function anima() {
             //el evento input (que alimenta infoProducto u otros) no debe reabrir el desplegable
             silencio = true;
             input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -99,45 +107,116 @@ function mbAutocomplete(root) {
             setTimeout(function () { silencio = false; }, 0);
         }
 
+        function elegirLocal(op) {
+            clearTimeout(timer);
+            input.value = op.valor;
+            cerrar();
+            anima();
+        }
+
+        //elige un disco en línea: guarda (o recupera) el lanzamiento y llena el campo
+        function elegirRemoto(a) {
+            clearTimeout(timer);
+            seq++;
+            lista.innerHTML = '<div class="mb-ac-vacio">Guardando…</div>';
+            fetch(remoteUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                body: JSON.stringify({ external_id: a.id, nombre: a.nombre, artista: a.artista, fecha: a.fecha, portada: a.portada, url: a.url })
+            })
+            .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+            .then(function (x) {
+                if (!x.ok) throw new Error((x.d && x.d.error) || 'No se pudo guardar el disco');
+                var d = x.d;
+                input.value = d.id + '. ' + (a.artista ? a.artista + ' - ' : '') + (d.nombre || a.nombre);
+                cache = (cache || []).concat([{ valor: input.value, texto: (a.artista ? a.artista + ' - ' : '') + (d.nombre || a.nombre) }]);
+                cerrar();
+                anima();
+                input.dispatchEvent(new CustomEvent('mbac-select', { bubbles: true, detail: { portada: d.portada || a.portada } }));
+            })
+            .catch(function (err) {
+                lista.innerHTML = '<div class="mb-ac-vacio">' + escapar(err.message || 'No se pudo guardar el disco') + '</div>';
+                lista.style.display = 'block';
+            });
+        }
+
+        function filaRemota(a) {
+            var el = document.createElement('div');
+            el.className = 'mb-ac-opt mb-ac-remoto';
+            el.innerHTML = (a.portada ? '<img src="' + escapar(a.portada) + '" alt="" loading="lazy">' : '') +
+                '<div class="min-w-0"><div class="n">' + escapar(a.nombre) + '</div><div class="a">' +
+                escapar(a.artista || '') + (a.fecha ? ' · ' + escapar(a.fecha) : '') + '</div></div>';
+            el.addEventListener('mousedown', function (e) { e.preventDefault(); elegirRemoto(a); });
+            lista.appendChild(el);
+            filaOps.push({ remoto: a });
+        }
+
         function buscar() {
             var q = input.value.trim().toLowerCase();
             if (q.length < 2) { cerrar(); return; }
+            var token = ++seq;
             obtener(function (ops, listo) {
-                visibles = ops.filter(function (o) { return o.valor.toLowerCase().indexOf(q) !== -1; }).slice(0, 12);
-                if (!visibles.length) {
-                    if (!listo) { cerrar(); return; }
-                    lista.innerHTML = '<div class="mb-ac-vacio">Sin coincidencias</div>';
-                    lista.style.display = 'block';
-                    activo = -1;
-                    return;
-                }
+                if (token !== seq) return;
+                var locales = ops.filter(function (o) { return o.valor.toLowerCase().indexOf(q) !== -1; }).slice(0, 12);
                 lista.innerHTML = '';
-                var escapar = function (s) {
-                    return s.replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; });
-                };
-                visibles.forEach(function (o) {
-                    var el = document.createElement('div');
-                    el.className = 'mb-ac-opt';
-                    var idx = o.texto.toLowerCase().indexOf(q);
-                    if (idx === -1) {
-                        el.textContent = o.texto;
-                    } else {
-                        el.innerHTML = escapar(o.texto.slice(0, idx)) +
-                            '<span class="mb-ac-hit">' + escapar(o.texto.slice(idx, idx + q.length)) + '</span>' +
-                            escapar(o.texto.slice(idx + q.length));
-                    }
-                    el.addEventListener('mousedown', function (e) { e.preventDefault(); elegir(o); });
-                    lista.appendChild(el);
-                });
+                filaOps = [];
+                if (locales.length) {
+                    locales.forEach(function (o) {
+                        var el = document.createElement('div');
+                        el.className = 'mb-ac-opt';
+                        var idx = o.texto.toLowerCase().indexOf(q);
+                        if (idx === -1) {
+                            el.textContent = o.texto;
+                        } else {
+                            el.innerHTML = escapar(o.texto.slice(0, idx)) +
+                                '<span class="mb-ac-hit">' + escapar(o.texto.slice(idx, idx + q.length)) + '</span>' +
+                                escapar(o.texto.slice(idx + q.length));
+                        }
+                        el.addEventListener('mousedown', function (e) { e.preventDefault(); elegirLocal(o); });
+                        lista.appendChild(el);
+                        filaOps.push({ op: o });
+                    });
+                } else if (!listo && !remoteUrl) {
+                    cerrar();
+                    return;
+                } else if (!listo) {
+                    lista.innerHTML = '<div class="mb-ac-vacio">Buscando…</div>';
+                } else {
+                    lista.innerHTML = '<div class="mb-ac-vacio">' + (remoteUrl ? 'Buscando…' : 'Sin coincidencias') + '</div>';
+                }
                 lista.style.display = 'block';
                 activo = -1;
+                if (remoteUrl) {
+                    fetch(remoteUrl + '?q=' + encodeURIComponent(q))
+                        .then(function (r) { return r.json(); })
+                        .then(function (d) {
+                            if (token !== seq || lista.style.display === 'none') return;
+                            var espera = lista.querySelector('.mb-ac-vacio');
+                            if (d.error) {
+                                if (espera) espera.textContent = d.error;
+                                return;
+                            }
+                            var items = (d.items || []).slice(0, 6);
+                            if (!items.length) {
+                                if (espera && !filaOps.length) espera.textContent = 'Sin coincidencias';
+                                return;
+                            }
+                            if (espera) espera.remove();
+                            var sep = document.createElement('div');
+                            sep.className = 'mb-ac-sep';
+                            sep.textContent = 'Discos en línea';
+                            lista.appendChild(sep);
+                            items.forEach(filaRemota);
+                        })
+                        .catch(function () { /*la búsqueda en línea falla en silencio*/ });
+                }
             });
         }
 
         input.addEventListener('input', function () {
             if (silencio) return;
             clearTimeout(timer);
-            timer = setTimeout(buscar, 120);
+            timer = setTimeout(buscar, 150);
         });
         input.addEventListener('keydown', function (e) {
             if (lista.style.display !== 'block') return;
@@ -149,7 +228,12 @@ function mbAutocomplete(root) {
                 if (activo >= opciones.length) activo = 0;
                 opciones.forEach(function (o, i) { o.classList.toggle('mb-ac-active', i === activo); });
             } else if (e.key === 'Enter') {
-                if (visibles.length) { e.preventDefault(); elegir(visibles[activo >= 0 ? activo : 0]); }
+                var f = filaOps[activo >= 0 ? activo : 0];
+                if (f) {
+                    e.preventDefault();
+                    if (f.op) elegirLocal(f.op);
+                    else elegirRemoto(f.remoto);
+                }
             } else if (e.key === 'Escape') {
                 cerrar();
             }
