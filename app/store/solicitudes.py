@@ -1,10 +1,12 @@
-#pedidos a la medida: solicitud (disco + contacto) -> cotización por WhatsApp/correo -> confirmar compra (checkout normal)
+#pedidos a la medida: solicitud (uno o más productos + contacto) -> cotización por ítem -> confirmar compra
+import re
 from urllib.parse import quote
 
-from flask import Blueprint, flash, request, g, render_template, redirect, url_for, jsonify, session, abort
+from flask import Blueprint, flash, request, g, render_template, redirect, url_for, jsonify, abort
 from .forms import RegistroSolicitudForm, CheckoutForm, CotizacionRapidaForm
 from .models import (create_solicitud, get_all_solicitudes, update_estado_solicitud, get_catalogo_solicitud, get_product_by_id,
                      get_usuario_por_email, cotizar_solicitud, get_solicitud_por_token, datos_envio_previos, crear_pedido,
+                     items_efectivos, get_categorias,
                      ESTADOS_SOLICITUD, METODOS_PAGO, Solicitud)
 from ..db import db
 from .views import before_request, admin_required
@@ -12,6 +14,32 @@ from .views import before_request, admin_required
 
 solicitud = Blueprint('solicitud', __name__, url_prefix='/solicitud')
 solicitud.before_request(before_request)
+
+_ITEM_RE = re.compile(r"^items\[(\d+)\]\[(\w+)\]$")
+
+
+def _items_del_formulario():
+    #filas del formulario público: items[N][nombre|categoria|cantidad|descripcion|producto_id]
+    filas = {}
+    for clave, valor in request.form.items():
+        m = _ITEM_RE.match(clave)
+        if m:
+            filas.setdefault(int(m.group(1)), {})[m.group(2)] = (valor or '').strip()
+    items = []
+    for i in sorted(filas):
+        fila = filas[i]
+        nombre = (fila.get("nombre") or '').strip()
+        if not nombre:
+            continue
+        k_producto = fila.get("producto_id")
+        k_producto = int(k_producto) if (k_producto or '').isdigit() else None
+        if k_producto and not get_product_by_id(k_producto):
+            k_producto = None
+        cantidad = fila.get("cantidad")
+        cantidad = int(cantidad) if (cantidad or '').isdigit() else 1
+        items.append({"nombre": nombre, "descripcion": fila.get("descripcion"),
+                      "categoria": fila.get("categoria"), "cantidad": cantidad, "k_producto": k_producto})
+    return items
 
 
 @solicitud.route("/", methods=["GET", "POST"])
@@ -22,22 +50,22 @@ def nueva():
         form.email.data = g.user.get("email_usuario")
 
     if form.validate_on_submit():
-        email = (form.email.data or '').strip().lower() or None
-        #se asocia a una cuenta si ya existe; si no, el comprador se crea al confirmar la compra
-        usuario = get_usuario_por_email(g.user["email_usuario"]) if g.user else (get_usuario_por_email(email) if email else None)
-        k_producto = request.form.get("producto_id", type=int)
-        if k_producto and not get_product_by_id(k_producto):
-            k_producto = None
-        s, err = create_solicitud(usuario.id if usuario else None, k_producto, form.producto.data.strip(), form.d_producto.data,
-                                  form.celular.data.strip(), email)
-        if s:
-            flash("¡Recibimos tu solicitud #" + str(s.id) + "! Te escribiremos por WhatsApp con precio y tiempos.", "success")
-            return redirect(url_for('home.index'))
-        flash("Error registrando la solicitud: " + str(err), "error")
+        items = _items_del_formulario()
+        if not items:
+            flash("Cuéntanos qué producto buscas", "warning")
+        else:
+            email = (form.email.data or '').strip().lower() or None
+            #se asocia a una cuenta si ya existe; si no, el comprador se crea al confirmar la compra
+            usuario = get_usuario_por_email(g.user["email_usuario"]) if g.user else (get_usuario_por_email(email) if email else None)
+            s, err = create_solicitud(usuario.id if usuario else None, items, form.celular.data.strip(), email)
+            if s:
+                flash("¡Recibimos tu solicitud #" + str(s.id) + "! Te escribiremos por WhatsApp con precio y tiempos.", "success")
+                return redirect(url_for('home.index'))
+            flash("Error registrando la solicitud: " + str(err), "error")
     elif request.method == 'POST':
         flash("Revisa los campos del formulario", "warning")
 
-    return render_template('solicitud.html', form=form)
+    return render_template('solicitud.html', form=form, categorias=(get_categorias() or []) + ['OTRO'])
 
 
 @solicitud.route("/productos")
@@ -48,7 +76,9 @@ def productos():
 @solicitud.route("/solicitudes")
 @admin_required
 def lista():
-    return render_template('solicitudes.html', solicitudes=get_all_solicitudes(), estados=ESTADOS_SOLICITUD)
+    return render_template('solicitudes.html',
+                           solicitudes=[(s, items_efectivos(s)) for s in get_all_solicitudes()],
+                           estados=ESTADOS_SOLICITUD)
 
 
 @solicitud.route("/<int:id>/estado", methods=["POST"])
@@ -60,16 +90,40 @@ def estado(id):
     return jsonify({"error": "No se pudo actualizar la solicitud"}), 400
 
 
+def _precio_cop(valor):
+    return "${:,}".format(int(valor)).replace(",", ".")
+
+
 def _respuesta_cotizar(s, token):
     #el enlace solo se puede ver ahora (en la BD queda su hash); se envía al cliente por WhatsApp o correo
     enlace = url_for('solicitud.confirmar', token=token, _external=True)
-    disco = s.producto.lanzamiento.n_lanzamiento.title() + " - " if s.producto.lanzamiento else ""
-    n = s.cantidad or 1
-    unidades = f"{n} unidades de " if n > 1 else ""
-    mensaje = (f"¡Hola! Conseguimos tu pedido en Musical Box: {unidades}{disco}{s.producto.n_producto} por ${int(s.precio_cotizado):,}".replace(",", ".")
-               + f". Confirma tu compra y datos de envío aquí: {enlace}")
+    items = items_efectivos(s)
+    lineas, preview, portada = [], None, None
+    for it in items:
+        n = int(it.cantidad or 1)
+        if it.producto:
+            lanz = it.producto.lanzamiento
+            label = " - ".join(x for x in [lanz.n_lanzamiento.title() if lanz else '', it.producto.n_producto or ''] if x) or it.nombre
+        else:
+            label = it.nombre
+        fila = f"• {n} × {label}" + (f" ({it.descripcion})" if it.descripcion else "")
+        if n > 1:
+            fila += f"\n   {_precio_cop(it.precio_unit)} c/u  →  {_precio_cop(it.precio_unit * n)}"
+        lineas.append(fila)
+        if not preview:
+            l = it.lanzamiento or (it.producto.lanzamiento if it.producto else None)
+            if l:
+                preview, portada = l.i_lanzamiento, l
+    total = sum(int(it.precio_unit or 0) * int(it.cantidad or 1) for it in items)
+    partes = ["¡Hola! Tu pedido a la medida en Musical Box quedó así:", "", *lineas, "", f"Total: {_precio_cop(total)}"]
+    if s.d_cotizacion:
+        partes.append(s.d_cotizacion)
+    if portada:
+        partes.append(f"Portada: {url_for('releases.release', k_lanzamiento=portada.id, _external=True)}")
+    partes += ["", "Confirma tu compra y datos de envío aquí:", enlace]
+    mensaje = "\n".join(partes)
     cel = "".join(c for c in (s.cel_contacto or "") if c.isdigit())
-    return {"id": s.id, "enlace": enlace, "cantidad": n,
+    return {"id": s.id, "enlace": enlace, "preview": preview, "mensaje": mensaje,
             "whatsapp": f"https://wa.me/{'57' + cel if len(cel) == 10 else cel}?text={quote(mensaje)}",
             "estado": s.estado}
 
@@ -89,12 +143,17 @@ def nueva_admin():
     nombre_limpio = texto.split(". ", 1)[1].strip() if k_producto else texto
     email = (form.email.data or "").strip().lower() or None
     usuario = get_usuario_por_email(email) if email else None
-    s, err = create_solicitud(usuario.id if usuario else None, k_producto, nombre_limpio, None,
-                              form.celular.data.strip(), email, cantidad=form.cantidad.data or 1)
+    s, err = create_solicitud(usuario.id if usuario else None,
+                              [{"nombre": nombre_limpio, "cantidad": form.cantidad.data or 1, "k_producto": k_producto}],
+                              form.celular.data.strip(), email)
     if not s:
         return jsonify({"error": err or "No se pudo registrar"}), 400
-    if k_producto and form.precio.data:
-        token, cerr = cotizar_solicitud(s.id, k_producto, form.precio.data)
+    if form.precio.data:
+        it = s.items[0]
+        token, cerr = cotizar_solicitud(s.id,
+                                        [{"k_producto": it.k_producto,
+                                          "k_lanzamiento": it.producto.k_lanzamiento if it.producto else None,
+                                          "cantidad": it.cantidad, "precio": form.precio.data}])
         if cerr:
             return jsonify({"error": cerr, "id": s.id, "estado": s.estado}), 400
         return jsonify(_respuesta_cotizar(s, token))
@@ -104,11 +163,22 @@ def nueva_admin():
 @solicitud.route("/<int:id>/cotizar", methods=["POST"])
 @admin_required
 def cotizar(id):
-    k_producto = request.form.get("producto", "").split(".")[0].strip()
-    token, err = cotizar_solicitud(id, int(k_producto) if k_producto.isdigit() else None, request.form.get("precio", type=int))
+    s = db.session.get(Solicitud, id)
+    if not s:
+        return jsonify({"error": "La solicitud no existe"}), 400
+    #una línea por ítem: cantidad, producto del catálogo (opcional), lanzamiento (opcional) y precio
+    items = items_efectivos(s)
+    lineas = []
+    for i in range(len(items)):
+        k_producto = (request.form.get(f"item_{i}_producto") or "").split(".")[0].strip()
+        k_lanzamiento = (request.form.get(f"item_{i}_lanzamiento") or "").split(".")[0].strip()
+        lineas.append({"k_producto": int(k_producto) if k_producto.isdigit() else None,
+                       "k_lanzamiento": int(k_lanzamiento) if k_lanzamiento.isdigit() else None,
+                       "cantidad": request.form.get(f"item_{i}_cantidad", type=int),
+                       "precio": request.form.get(f"item_{i}_precio", type=int)})
+    token, err = cotizar_solicitud(id, lineas, request.form.get("d_cotizacion"))
     if err:
         return jsonify({"error": err}), 400
-    s = db.session.get(Solicitud, id)
     return jsonify(_respuesta_cotizar(s, token))
 
 
@@ -116,15 +186,17 @@ def cotizar(id):
 def confirmar(token):
     #paso 2 del flujo: el cliente ya recibió precio y tiempos; aquí se piden datos de envío y se paga
     s = get_solicitud_por_token(token)
-    if not s or not s.producto or not s.precio_cotizado:
+    if not s:
         abort(404)
     if s.estado == 'COMPRADA':
         flash("Esta solicitud ya fue pagada. Revisa el enlace del pedido que llegó a tu correo.", "info")
         return redirect(url_for('home.index'))
+    items = items_efectivos(s)
+    if not s.token_hash or not all(it.precio_unit for it in items):
+        abort(404)
 
     form = CheckoutForm()
     form.metodo_pago.choices = METODOS_PAGO
-    cantidad = s.cantidad or 1
     previos = datos_envio_previos(s.email_contacto or (s.usuario.email_usuario if s.usuario else None))
     if request.method == 'GET':
         for campo, valor in (previos or {"email": s.email_contacto, "telefono": s.cel_contacto}).items():
@@ -133,8 +205,15 @@ def confirmar(token):
 
     if form.validate_on_submit():
         datos = {campo: form[campo].data for campo in ["nombre", "email", "telefono", "ciudad", "direccion", "barrio", "metodo_pago"]}
-        pedido, token_pedido, errores = crear_pedido(None, datos, k_usuario=g.user["id"] if g.user else None,
-                                                     cotizacion=(s.producto, s.precio_cotizado, cantidad))
+        #las cantidades las elige el cliente aquí; el precio por unidad es el cotizado por el admin
+        lineas = []
+        for i, it in enumerate(items):
+            cantidad = request.form.get(f"cant_{i}", type=int) or int(it.cantidad or 1)
+            cantidad = max(1, min(99, cantidad))
+            lineas.append({"producto": it.producto, "cantidad": cantidad, "precio": int(it.precio_unit),
+                           "k_lanzamiento": it.k_lanzamiento,
+                           "n_item": None if it.producto else it.nombre})
+        pedido, token_pedido, errores = crear_pedido(None, datos, k_usuario=g.user["id"] if g.user else None, cotizacion=lineas)
         if errores:
             for e in errores:
                 flash(e, "warning")
@@ -143,6 +222,12 @@ def confirmar(token):
             db.session.commit()
             return redirect(url_for('pedido.ver', token=token_pedido))
 
-    return render_template("checkout.html", form=form, lineas=[(s.producto, None, cantidad, s.precio_cotizado)],
-                           total=s.precio_cotizado * cantidad,
+    lineas_vista, total = [], 0
+    for i, it in enumerate(items):
+        cantidad, precio = int(it.cantidad or 1), int(it.precio_unit)
+        total += precio * cantidad
+        lineas_vista.append({"producto": it.producto, "variante": None, "cantidad": cantidad, "precio": precio,
+                             "lanzamiento": it.lanzamiento or (it.producto.lanzamiento if it.producto else None),
+                             "n_item": None if it.producto else it.nombre, "subtotal": precio * cantidad, "idx": i})
+    return render_template("checkout.html", form=form, lineas=lineas_vista, total=total,
                            accion=url_for('solicitud.confirmar', token=token), previos=previos, solicitud=s)

@@ -129,9 +129,7 @@ TIPOS_DOCUMENTO = [
 ]
 
 class RegistroSolicitudForm(FlaskForm):
-    #solo lo necesario para buscar el disco y contactar; los datos de envío se piden al confirmar la compra
-    producto = StringField('¿Qué disco buscas?', validators=[DataRequired(message="Cuéntanos qué disco buscas"), Length(max=150)], render_kw={"placeholder": "Busca en el catálogo o escribe artista y disco"})
-    d_producto = StringField('Detalles', validators=[Length(max=200)], render_kw={"placeholder": "Opcional. Edición, color, formato..."})
+    #contacto de la solicitud; los ítems (uno o más) se parsean en la vista desde items[N][...]
     celular = StringField('Celular (WhatsApp)', validators=[DataRequired(message="Déjanos tu celular"), Length(max=20)])
     email = EmailField('Correo', validators=[Optional(), Length(max=100), Regexp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", message="Revisa el correo")])
 
