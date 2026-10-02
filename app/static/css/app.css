@@ -407,3 +407,16 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
         min-height: 240px;
     }
 }
+
+/* ---------- pedidos a la medida ---------- */
+/* formulario público: tarjeta por ítem */
+.solicitud-item { background: #f8fafc; border: 1px solid #e6edf3; }
+/* modal de cotización del panel */
+.cot-item { border: 1px solid #e6edf3; border-radius: .5rem; background: #f8fafc; padding: .75rem; }
+.spotify-box { border: 1px solid #d5dee4; border-radius: .5rem; background: #fff; padding: .5rem; max-height: 280px; overflow: auto; }
+.spotify-item { display: flex; align-items: center; gap: .5rem; padding: .3rem .35rem; border-radius: .4rem; cursor: pointer; }
+.spotify-item:hover { background: #e7f5f8; }
+.spotify-item img { width: 36px; height: 36px; object-fit: cover; border-radius: .3rem; flex-shrink: 0; }
+.spotify-item .nom { font-size: .8rem; font-weight: 600; line-height: 1.15; }
+.spotify-item .art { font-size: .7rem; color: var(--mb-muted); }
+.cot-mensaje { background: #f8fafc; border: 1px solid #e6edf3; border-radius: .5rem; padding: .75rem; font-size: .8rem; white-space: pre-wrap; max-height: 320px; overflow: auto; }

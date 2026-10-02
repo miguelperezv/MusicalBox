@@ -1,6 +1,12 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <h1 class="h3 mb-0">Pedidos a la medida</h1>
-    <input class="form-control" style="max-width: 280px" type="search" id="filtro-solicitudes" placeholder="Filtrar por producto, contacto...">
+    <div>
+        <h1 class="h3 mb-0">Pedidos a la medida</h1>
+        <div class="small text-body-secondary">Cotiza cada ítem, genera el enlace y envíaselo por WhatsApp.</div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <input class="form-control form-control-sm" style="width: 240px" type="search" id="filtro-solicitudes" placeholder="Filtrar por producto, contacto...">
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-nuevo-medida"><i class="bi bi-plus-lg me-1"></i>Nuevo pedido a la medida</button>
+    </div>
 </div>
 <div class="d-flex flex-wrap gap-2 mb-3" data-grupo-solicitudes>
     <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary active" data-filtra="solicitudes" data-filtro="todas">Todas</button>
@@ -10,58 +16,18 @@
     <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="solicitudes" data-filtro="COMPRADA">Compradas</button>
     <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="solicitudes" data-filtro="CANCELADO">Canceladas</button>
 </div>
-<div class="mb-panel p-3 mb-4">
-    <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#mini-pedido-medida">
-        <i class="bi bi-plus-lg me-1"></i>Nuevo pedido a la medida
-    </button>
-    <div class="collapse{{ ' show' if request.args.get('nuevo') }}" id="mini-pedido-medida">
-        <p class="small text-body-secondary mt-2 mb-2">Para el que te escribió por el sitio, Instagram o WhatsApp: con producto + precio, sale ya con su enlace; solo con producto, queda para que le pongas precio.</p>
-        <form id="form-mini-pedido" class="row g-2">
-            <div class="col-md-2">
-                <label class="form-label small mb-1">WhatsApp</label>
-                <input class="form-control form-control-sm" name="celular" type="tel" required placeholder="300 000 0000">
-            </div>
-            <div class="col-md-2">
-                <label class="form-label small mb-1">Nombre</label>
-                <input class="form-control form-control-sm" name="nombre" placeholder="Opcional">
-            </div>
-            <div class="col-md-2">
-                <label class="form-label small mb-1">Correo</label>
-                <input class="form-control form-control-sm" name="email" type="email" placeholder="Opcional">
-            </div>
-            <div class="col-md-2">
-                <label class="form-label small mb-1">Producto</label>
-                <input class="form-control form-control-sm" name="producto" required placeholder="Catálogo o sus palabras"
-                       data-autocomplete="{{ url_for('dashboard.editproduct_productList') }}">
-            </div>
-            <div class="col-md-2">
-                <label class="form-label small mb-1">Precio</label>
-                <input class="form-control form-control-sm" name="precio" type="number" min="0" placeholder="COP">
-            </div>
-            <div class="col-md-1">
-                <label class="form-label small mb-1">Cant.</label>
-                <input class="form-control form-control-sm" name="cantidad" type="number" min="1" max="99" value="1" title="Unidades (preórdenes por encargo)">
-            </div>
-            <div class="col-md-1">
-                <label class="form-label small mb-1"></label>
-                <button type="submit" class="btn btn-sm btn-primary w-100"><i class="bi bi-send me-1"></i>Registrar</button>
-            </div>
-            <div class="col-12"><div id="mini-pedido-respuesta" class="small d-flex align-items-center gap-2 flex-wrap"></div></div>
-        </form>
-    </div>
-</div>
-<p class="small text-body-secondary">Contacta al cliente y ponle precio a cada ítem: el producto del catálogo es opcional, y puedes asociar un lanzamiento (da la portada en el mensaje y en la orden). La nota viaja en el mensaje de WhatsApp.</p>
+<p class="small text-body-secondary">El precio es obligatorio; el producto del catálogo y el lanzamiento son opcionales (el lanzamiento da la portada en el mensaje y en la orden). Puedes escribir el disco a mano o buscarlo en Spotify: si no existe, se crea.</p>
 <div class="mb-panel p-0">
     <div class="table-responsive">
-        <table class="table table-hover mb-0" id="tabla-solicitudes">
+        <table class="table table-hover align-middle mb-0" id="tabla-solicitudes">
             <thead>
                 <tr>
-                    <th class="ps-3">#</th>
-                    <th>Fecha</th>
-                    <th>Producto</th>
-                    <th>Contacto</th>
-                    <th style="min-width: 140px">Estado</th>
-                    <th class="pe-3" style="min-width: 340px">Cotización</th>
+                    <th class="ps-3" style="width: 44px">#</th>
+                    <th style="width: 96px">Fecha</th>
+                    <th style="min-width: 210px">Pedido</th>
+                    <th style="min-width: 160px">Contacto</th>
+                    <th style="width: 140px">Estado</th>
+                    <th class="pe-3" style="min-width: 190px">Cotización</th>
                 </tr>
             </thead>
             <tbody>
@@ -70,16 +36,16 @@
                     <td class="ps-3 text-body-secondary">{{ s.id }}</td>
                     <td class="text-nowrap">{{ s.f_solicitud.strftime('%d/%m/%Y') if s.f_solicitud }}</td>
                     <td>
-                        <div class="fw-semibold d-flex align-items-center gap-2 flex-wrap">
-                            <span class="text-truncate">{{ items[0].nombre }}</span>
-                            {% if items|length > 1 %}<span class="mb-chip small flex-shrink-0">+{{ items|length - 1 }} ítem{{ 's' if items|length > 2 }}</span>{% endif %}
+                        <div class="fw-semibold text-truncate" style="max-width: 260px">{{ items[0].nombre }}</div>
+                        <div class="d-flex gap-1 flex-wrap mt-1">
+                            {% if items|length > 1 %}<span class="mb-chip small">+{{ items|length - 1 }} ítem{{ 's' if items|length > 2 }}</span>{% endif %}
+                            {% for it in items %}{% if it.categoria and loop.index0 < 3 %}<span class="mb-chip small">{{ it.categoria }}</span>{% endif %}{% endfor %}
                         </div>
-                        {% for it in items %}{% if it.categoria and loop.first %}<span class="mb-chip small">{{ it.categoria }}</span>{% endif %}{% endfor %}
-                        {% if items[0].descripcion %}<div class="small text-body-secondary">{{ items[0].descripcion }}</div>{% endif %}
+                        {% if items[0].descripcion %}<div class="small text-body-secondary text-truncate" style="max-width: 260px">{{ items[0].descripcion }}</div>{% endif %}
                     </td>
                     <td class="small">
                         {% set cel = s.cel_contacto or (s.usuario.cel_usuario if s.usuario) %}
-                        {% if s.usuario %}<div>{{ s.usuario.n_usuario }} {{ s.usuario.ape_usuario }}</div>{% endif %}
+                        {% if s.usuario %}<div class="fw-semibold">{{ s.usuario.n_usuario }} {{ s.usuario.ape_usuario }}</div>{% endif %}
                         {% if cel %}<a href="https://wa.me/57{{ cel|replace(' ', '') }}" target="_blank" rel="noopener"><i class="bi bi-whatsapp me-1 text-success"></i>{{ cel }}</a><br>{% endif %}
                         {% set correo = s.email_contacto or (s.usuario.email_usuario if s.usuario) %}
                         {% if correo %}<a href="mailto:{{ correo }}">{{ correo }}</a>{% endif %}
@@ -95,32 +61,77 @@
                         </select>
                         {% endif %}
                     </td>
-                    <td class="pe-3 small">
+                    <td class="pe-3">
                         {% if s.pedido %}
-                        Orden <a href="{{ url_for('dashboard.invoices', busca=s.pedido.id) }}" title="Ver la orden"><strong>#{{ s.pedido.id }}</strong></a> · <span class="mb-estado mb-estado-{{ s.pedido.estado }}">{{ s.pedido.estado }}</span> · {{ s.pedido.total|cop }}
+                        <a href="{{ url_for('dashboard.invoices', busca=s.pedido.id) }}" title="Ver la orden"><i class="bi bi-box me-1"></i>Orden #{{ s.pedido.id }}</a>
+                        <div class="small mt-1"><span class="mb-estado mb-estado-{{ s.pedido.estado }}">{{ s.pedido.estado }}</span> · {{ s.pedido.total|cop }}</div>
                         {% elif s.estado in ['ACTIVO', 'EN PROCESO', 'COTIZADA'] %}
-                        {% if s.total_cotizado %}<div class="mb-1">Cotizada · Total <strong>{{ s.total_cotizado|cop }}</strong>{% if s.d_cotizacion %} · {{ s.d_cotizacion }}{% endif %}</div>{% endif %}
-                        <form class="form-cotizar d-flex flex-column gap-1" data-url="{{ url_for('solicitud.cotizar', id=s.id) }}">
-                            {% for it in items %}
-                            <div class="cotizar-linea d-flex flex-wrap gap-1 align-items-center">
-                                <span class="cotizar-nombre" style="flex: 2 1 130px; min-width: 130px" title="{{ it.descripcion or '' }}">{{ it.cantidad or 1 }}× {{ it.nombre }}</span>
-                                <input class="form-control form-control-sm" style="width: 4rem" type="number" name="item_{{ loop.index0 }}_cantidad" min="1" max="99" value="{{ it.cantidad or 1 }}" title="Cantidad">
-                                <input class="form-control form-control-sm" style="flex: 1 1 150px" name="item_{{ loop.index0 }}_producto" placeholder="Producto del catálogo (opcional)"
-                                       data-autocomplete="{{ url_for('dashboard.editproduct_productList') }}"
-                                       value="{{ (it.producto.id ~ '. ' ~ (it.producto.n_producto or '')) if it.producto }}">
-                                <input class="form-control form-control-sm" style="flex: 1 1 150px" name="item_{{ loop.index0 }}_lanzamiento" placeholder="Lanzamiento (portada, opcional)"
-                                       data-autocomplete="{{ url_for('dashboard.newproduct_releases') }}"
-                                       value="{{ (it.lanzamiento.id ~ '. ' ~ it.lanzamiento.n_lanzamiento) if it.lanzamiento }}">
-                                <input class="form-control form-control-sm" style="width: 6.5rem" type="number" name="item_{{ loop.index0 }}_precio" min="1" placeholder="Precio" required
-                                       value="{{ it.precio_unit|int if it.precio_unit }}">
+                        {% if s.total_cotizado %}<div class="small mb-1">Total <strong>{{ s.total_cotizado|cop }}</strong>{% if s.d_cotizacion %} · <span class="text-body-secondary">{{ s.d_cotizacion }}</span>{% endif %}</div>{% endif %}
+                        <button type="button" class="btn btn-sm {{ 'btn-primary' if not s.total_cotizado else 'btn-outline-primary' }} btn-cotizar" data-id="{{ s.id }}" data-contacto="{{ (s.usuario.n_usuario if s.usuario else s.cel_contacto) or '' }}">
+                            <i class="bi {{ 'bi-cash-stack' if not s.total_cotizado else 'bi-link-45deg' }} me-1"></i>{{ 'Cotizar' if not s.total_cotizado else 'Nuevo enlace' }}
+                        </button>
+                        <template id="tpl-cot-{{ s.id }}">
+                            <div class="cotizar-items" data-url="{{ url_for('solicitud.cotizar', id=s.id) }}">
+                                {% for it in items %}
+                                {% set portada = it.lanzamiento.i_lanzamiento if it.lanzamiento else ((it.producto.lanzamiento.i_lanzamiento) if it.producto and it.producto.lanzamiento else '') %}
+                                <div class="cot-item{{ ' mb-3' if not loop.last }}">
+                                    <div class="d-flex align-items-start gap-2">
+                                        {% if portada %}<img class="cot-portada rounded flex-shrink-0" width="48" height="48" alt="" src="{{ portada }}">{% else %}<img class="cot-portada rounded flex-shrink-0 d-none" width="48" height="48" alt="" src="">{% endif %}
+                                        <div class="w-100">
+                                            <div class="small">
+                                                <span class="fw-semibold">{{ it.nombre }}</span>
+                                                {% if it.descripcion %}<span class="text-body-secondary"> — {{ it.descripcion }}</span>{% endif %}
+                                                {% if it.categoria %}<span class="mb-chip small ms-1">{{ it.categoria }}</span>{% endif %}
+                                            </div>
+                                            <div class="row g-2 mt-1">
+                                                <div class="col-4 col-sm-2">
+                                                    <label class="form-label small mb-0">Cantidad</label>
+                                                    <input class="form-control form-control-sm" type="number" name="item_{{ loop.index0 }}_cantidad" min="1" max="99" value="{{ it.cantidad or 1 }}">
+                                                </div>
+                                                <div class="col-8 col-sm-4">
+                                                    <label class="form-label small mb-0">Producto del catálogo</label>
+                                                    <input class="form-control form-control-sm" type="text" name="item_{{ loop.index0 }}_producto" placeholder="Opcional"
+                                                           data-autocomplete="{{ url_for('dashboard.editproduct_productList') }}"
+                                                           value="{{ (it.producto.id ~ '. ' ~ (it.producto.n_producto or '')) if it.producto }}">
+                                                </div>
+                                                <div class="col-12 col-sm-4">
+                                                    <label class="form-label small mb-0">Lanzamiento</label>
+                                                    <div class="input-group input-group-sm">
+                                                        <input class="form-control" type="text" name="item_{{ loop.index0 }}_lanzamiento" placeholder="Portada, opcional"
+                                                               data-autocomplete="{{ url_for('dashboard.newproduct_releases') }}"
+                                                               value="{{ (it.lanzamiento.id ~ '. ' ~ it.lanzamiento.n_lanzamiento) if it.lanzamiento }}">
+                                                        <button class="btn btn-outline-secondary" type="button" data-spotify title="Buscar en Spotify y asociar (o crear) el lanzamiento"><i class="bi bi-music-note-beamed me-1"></i>Spotify</button>
+                                                    </div>
+                                                    <div class="spotify-box d-none mt-1">
+                                                        <div class="input-group input-group-sm">
+                                                            <input class="form-control spotify-q" type="text" placeholder="Artista y disco...">
+                                                            <button class="btn btn-sm btn-primary" type="button" data-spotify-buscar>Buscar</button>
+                                                        </div>
+                                                        <div class="spotify-res"></div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-12 col-sm-2">
+                                                    <label class="form-label small mb-0">Precio (COP)</label>
+                                                    <input class="form-control form-control-sm" type="number" name="item_{{ loop.index0 }}_precio" min="1" placeholder="0"
+                                                           value="{{ it.precio_unit|int if it.precio_unit }}">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                                <div class="row g-2 cot-pie mt-3">
+                                    <div class="col-12 col-lg-8">
+                                        <label class="form-label small mb-0">Nota para el cliente</label>
+                                        <input class="form-control form-control-sm" type="text" name="d_cotizacion" placeholder="Tiempos, edición... (viaja en el mensaje de WhatsApp)" value="{{ s.d_cotizacion or '' }}">
+                                    </div>
+                                    <div class="col-12 col-lg-4 text-lg-end">
+                                        <div class="small text-body-secondary mb-1">Total: <span class="cot-total fw-semibold">{{ s.total_cotizado|cop if s.total_cotizado else '$0' }}</span></div>
+                                    </div>
+                                </div>
+                                <div id="cotizar-error" class="text-danger small mt-2"></div>
                             </div>
-                            {% endfor %}
-                            <div class="d-flex gap-1">
-                                <input class="form-control form-control-sm" name="d_cotizacion" placeholder="Nota: tiempos, edición... (viaja en el mensaje de WhatsApp)" value="{{ s.d_cotizacion or '' }}">
-                                <button class="btn btn-sm btn-primary flex-shrink-0">{{ 'Nuevo enlace' if s.total_cotizado else 'Cotizar' }}</button>
-                            </div>
-                        </form>
-                        <div class="resultado-cotizar mt-1"></div>
+                        </template>
                         {% else %}
                         <span class="text-body-secondary">—</span>
                         {% endif %}
@@ -137,33 +148,91 @@
     </div>
 </div>
 
+<div class="modal fade" id="modal-nuevo-medida" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h5 class="modal-title h6"><i class="bi bi-plus-circle me-2 text-primary"></i>Nuevo pedido a la medida</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-body-secondary mb-3">Para el que te escribió por el sitio, Instagram o WhatsApp: con producto y precio sale ya con su enlace; solo con producto queda para que le pongas precio.</p>
+                <form id="form-mini-pedido" class="row g-2">
+                    <div class="col-md-4 col-lg-3">
+                        <label class="form-label small mb-1">WhatsApp *</label>
+                        <input class="form-control form-control-sm" name="celular" type="tel" required placeholder="300 000 0000">
+                    </div>
+                    <div class="col-md-4 col-lg-3">
+                        <label class="form-label small mb-1">Nombre</label>
+                        <input class="form-control form-control-sm" name="nombre" placeholder="Opcional">
+                    </div>
+                    <div class="col-md-4 col-lg-3">
+                        <label class="form-label small mb-1">Correo</label>
+                        <input class="form-control form-control-sm" name="email" type="email" placeholder="Opcional">
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <label class="form-label small mb-1">Producto *</label>
+                        <input class="form-control form-control-sm" name="producto" required placeholder="Catálogo o sus palabras"
+                               data-autocomplete="{{ url_for('dashboard.editproduct_productList') }}">
+                    </div>
+                    <div class="col-md-3 col-lg-2">
+                        <label class="form-label small mb-1">Precio</label>
+                        <input class="form-control form-control-sm" name="precio" type="number" min="0" placeholder="COP">
+                    </div>
+                    <div class="col-md-3 col-lg-1">
+                        <label class="form-label small mb-1">Cant.</label>
+                        <input class="form-control form-control-sm" name="cantidad" type="number" min="1" max="99" value="1" title="Unidades (preórdenes por encargo)">
+                    </div>
+                    <div class="col-12">
+                        <div id="mini-pedido-respuesta" class="d-flex align-items-center gap-2 flex-wrap small"></div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+                <button type="submit" form="form-mini-pedido" class="btn btn-primary btn-sm"><i class="bi bi-send me-1"></i>Registrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modal-cotizar" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h5 class="modal-title h6"><i class="bi bi-cash-stack me-2 text-primary"></i><span id="cotizar-titulo">Cotizar</span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body" id="cotizar-cuerpo"></div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-primary btn-sm" id="cotizar-guardar"><i class="bi bi-send me-1"></i>Cotizar y generar enlace</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-    mbAutocomplete(document.getElementById('tabla-solicitudes'));
+(function () {
+    var PORTADAS = {{ portadas|tojson }};
+    var SPOTIFY_URL = "{{ url_for('solicitud.lanzamiento_spotify') }}";
+    var $cuerpo = document.getElementById('cotizar-cuerpo');
+
+    function esc(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+    function refrescarLista() {
+        $('#admin-content').load('{{ url_for("solicitud.lista") }}', function () { mbAutocomplete($('#admin-content')); });
+    }
+
+    mbAutocomplete(document.getElementById('admin-content'));
+
     $('.estado-solicitud').on('change', function () {
         var select = $(this);
         $.post("{{ url_for('solicitud.estado', id=0) }}".replace('/0/', '/' + select.data('id') + '/'), {estado: select.val()})
             .done(function () { select.addClass('is-valid'); setTimeout(function () { select.removeClass('is-valid'); }, 1500); })
             .fail(function () { select.addClass('is-invalid'); });
     });
-    $('.form-cotizar').on('submit', function (e) {
-        e.preventDefault();
-        var form = $(this), salida = form.siblings('.resultado-cotizar');
-        $.post(form.data('url'), form.serialize())
-            .done(function (r) {
-                var preview = r.preview ? '<img src="' + r.preview + '" alt="Portada" width="44" height="44" class="rounded object-fit-cover flex-shrink-0 me-1">' : '';
-                salida.html(preview +
-                    '<a class="btn btn-sm btn-success me-1" target="_blank" rel="noopener" href="' + r.whatsapp + '"><i class="bi bi-whatsapp me-1"></i>Enviar por WhatsApp</a>' +
-                    '<button type="button" class="btn btn-sm btn-outline-secondary copiar">Copiar enlace</button>');
-                salida.find('.copiar').on('click', function () { navigator.clipboard.writeText(r.enlace); this.textContent = 'Copiado'; });
-            })
-            .fail(function (x) { salida.html('<span class="text-danger">' + ((x.responseJSON || {}).error || 'Error') + '</span>'); });
-    });
 
-    //mini-form "nuevo pedido a la medida": registra y, si hay precio, deja el whatsapp listo para enviar
-    mbAutocomplete(document.getElementById('form-mini-pedido'));
-    function refrescarLista() {
-        $('#admin-content').load('{{ url_for("solicitud.lista") }}', function () { mbAutocomplete($('#admin-content')); });
-    }
+    //mini-form "nuevo pedido a la medida" (modal): registra y, si hay precio, deja el whatsapp listo para enviar
     $('#form-mini-pedido').on('submit', function (e) {
         e.preventDefault();
         var form = this, salida = document.getElementById('mini-pedido-respuesta');
@@ -171,21 +240,157 @@
         $.post("{{ url_for('solicitud.nueva_admin') }}", $(form).serialize())
             .done(function (r) {
                 if (r.whatsapp) {
-                    var preview = r.preview ? '<img src="' + r.preview + '" alt="Portada" width="44" height="44" class="rounded object-fit-cover flex-shrink-0">' : '';
+                    var preview = r.preview ? '<img src="' + esc(r.preview) + '" alt="Portada" width="44" height="44" class="rounded object-fit-cover flex-shrink-0 me-2">' : '';
                     salida.innerHTML = preview + '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Pedido #' + r.id + ' cotizado</span>' +
-                        '<a class="btn btn-sm btn-success" target="_blank" rel="noopener" href="' + r.whatsapp + '"><i class="bi bi-whatsapp me-1"></i>Enviar por WhatsApp</a>' +
+                        '<a class="btn btn-sm btn-success" target="_blank" rel="noopener" href="' + esc(r.whatsapp) + '"><i class="bi bi-whatsapp me-1"></i>Enviar por WhatsApp</a>' +
                         '<button type="button" class="btn btn-sm btn-outline-secondary mini-copiar">Copiar enlace</button>' +
                         '<button type="button" class="btn btn-sm btn-link mini-refrescar">Ver lista</button>';
                     salida.querySelector('.mini-copiar').onclick = function () { navigator.clipboard.writeText(r.enlace); this.textContent = 'Copiado'; };
-                    salida.querySelector('.mini-refrescar').onclick = refrescarLista;
+                    salida.querySelector('.mini-refrescar').onclick = function () { bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-nuevo-medida')).hide(); refrescarLista(); };
                 } else {
                     salida.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Pedido #' + r.id + ' registrado</span>' +
                         '<button type="button" class="btn btn-sm btn-link mini-refrescar">Ver lista para ponerle precio</button>';
-                    salida.querySelector('.mini-refrescar').onclick = refrescarLista;
+                    salida.querySelector('.mini-refrescar').onclick = function () { bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-nuevo-medida')).hide(); refrescarLista(); };
                 }
             })
             .fail(function (x) {
-                salida.innerHTML = '<span class="text-danger">' + ((x.responseJSON || {}).error || 'No se pudo registrar') + '</span>';
+                salida.innerHTML = '<span class="text-danger">' + esc((x.responseJSON || {}).error || 'No se pudo registrar') + '</span>';
             });
     });
+    {% if request.args.get('nuevo') %}new bootstrap.Modal(document.getElementById('modal-nuevo-medida')).show();{% endif %}
+
+    //modal de cotización: se llena desde el template de la fila (ítems con cantidad, producto, lanzamiento y precio)
+    var guardado = false;
+    function recalcTotales(cuerpo) {
+        var total = 0;
+        cuerpo.querySelectorAll('.cot-item').forEach(function (fila) {
+            var p = parseInt(fila.querySelector('[name$="_precio"]').value, 10) || 0;
+            var c = parseInt(fila.querySelector('[name$="_cantidad"]').value, 10) || 1;
+            total += p * c;
+        });
+        var el = cuerpo.querySelector('.cot-total');
+        if (el) el.textContent = '$' + total.toLocaleString('es-CO');
+    }
+    $cuerpo.addEventListener('input', function (e) {
+        if (e.target.matches && e.target.matches('[name$="_precio"], [name$="_cantidad"]')) recalcTotales($cuerpo);
+    });
+
+    function wireSpotify(cuerpo) {
+        cuerpo.querySelectorAll('.cot-item').forEach(function (fila) {
+            var input = fila.querySelector('input[name$="_lanzamiento"]');
+            var caja = fila.querySelector('.spotify-box');
+            var q = caja.querySelector('.spotify-q');
+            var res = caja.querySelector('.spotify-res');
+            fila.querySelector('[data-spotify]').addEventListener('click', function () {
+                caja.classList.toggle('d-none');
+                if (!caja.classList.contains('d-none')) q.focus();
+            });
+            function buscar() {
+                var texto = q.value.trim();
+                if (!texto) return;
+                res.innerHTML = '<span class="small text-body-secondary d-block py-1">Buscando…</span>';
+                fetch(SPOTIFY_URL + '?q=' + encodeURIComponent(texto))
+                    .then(function (r) { return r.json(); })
+                    .then(function (r) {
+                        if (r.error) { res.innerHTML = '<span class="small text-danger d-block py-1">' + esc(r.error) + '</span>'; return; }
+                        if (!r.items || !r.items.length) { res.innerHTML = '<span class="small text-body-secondary d-block py-1">Sin resultados. Prueba con otro nombre o escribe el disco a mano: se crea al vuelo.</span>'; return; }
+                        res.innerHTML = '';
+                        r.items.forEach(function (a) {
+                            var el = document.createElement('div');
+                            el.className = 'spotify-item';
+                            el.innerHTML = (a.portada ? '<img src="' + esc(a.portada) + '" alt="" loading="lazy">' : '') +
+                                '<div><div class="nom">' + esc(a.nombre) + '</div><div class="art">' + esc(a.artista) + (a.fecha ? ' · ' + esc(a.fecha) : '') + '</div></div>';
+                            el.addEventListener('click', function () { elegirSpotify(a, fila, input, res); });
+                            res.appendChild(el);
+                        });
+                    })
+                    .catch(function () { res.innerHTML = '<span class="small text-danger d-block py-1">No se pudo conectar con Spotify</span>'; });
+            }
+            function elegirSpotify(a, fila, input, res) {
+                res.innerHTML = '<span class="small text-body-secondary d-block py-1">Guardando…</span>';
+                $.ajax({
+                    url: SPOTIFY_URL, type: 'POST', contentType: 'application/json',
+                    data: JSON.stringify({external_id: a.id, nombre: a.nombre, artista: a.artista, fecha: a.fecha, portada: a.portada, url: a.url})
+                }).done(function (r) {
+                    input.value = r.id + '. ' + (a.artista ? a.artista + ' - ' : '') + (r.nombre || a.nombre);
+                    var img = fila.querySelector('.cot-portada');
+                    if (r.portada) { img.src = r.portada; img.classList.remove('d-none'); }
+                    fila.querySelector('.spotify-box').classList.add('d-none');
+                }).fail(function (x) {
+                    res.innerHTML = '<span class="small text-danger d-block py-1">' + esc((x.responseJSON || {}).error || 'No se pudo guardar el lanzamiento') + '</span>';
+                });
+            }
+            caja.querySelector('[data-spotify-buscar]').addEventListener('click', buscar);
+            q.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { ev.preventDefault(); buscar(); } });
+            input.addEventListener('change', function () {
+                var tok = (input.value || '').split('.')[0].trim();
+                var img = fila.querySelector('.cot-portada');
+                var src = PORTADAS[tok] || '';
+                if (src) { img.src = src; img.classList.remove('d-none'); }
+                else img.classList.add('d-none');
+            });
+        });
+    }
+
+    function abrirCotizar(btn) {
+        var tpl = document.getElementById('tpl-cot-' + btn.dataset.id);
+        if (!tpl) return;
+        $cuerpo.innerHTML = '';
+        $cuerpo.appendChild(tpl.content.cloneNode(true));
+        document.getElementById('cotizar-titulo').textContent = 'Solicitud #' + btn.dataset.id + (btn.dataset.contacto ? ' · ' + btn.dataset.contacto : '');
+        document.getElementById('cotizar-error').textContent = '';
+        document.getElementById('cotizar-guardar').classList.remove('d-none');
+        mbAutocomplete($cuerpo);
+        recalcTotales($cuerpo);
+        wireSpotify($cuerpo);
+        guardado = false;
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-cotizar')).show();
+    }
+    document.querySelectorAll('.btn-cotizar').forEach(function (b) {
+        b.addEventListener('click', function () { abrirCotizar(b); });
+    });
+
+    document.getElementById('cotizar-guardar').addEventListener('click', function () {
+        var btn = this, cuerpo = document.getElementById('cotizar-cuerpo'), err = cuerpo.querySelector('#cotizar-error');
+        var data = {};
+        cuerpo.querySelectorAll('input[name]').forEach(function (i) { data[i.name] = i.value; });
+        var faltan = [];
+        cuerpo.querySelectorAll('input[name$="_precio"]').forEach(function (i, n) {
+            if (!(parseInt(i.value, 10) > 0)) { i.classList.add('is-invalid'); faltan.push(n + 1); }
+        });
+        if (faltan.length) { err.textContent = 'Indica el precio (COP) del ítem ' + faltan.join(', '); return; }
+        err.textContent = '';
+        btn.disabled = true;
+        $.post(cuerpo.querySelector('.cotizar-items').dataset.url, data)
+            .done(function (r) {
+                guardado = true;
+                var preview = r.preview ? '<img src="' + esc(r.preview) + '" alt="Portada" width="56" height="56" class="rounded object-fit-cover flex-shrink-0 me-2">' : '';
+                cuerpo.innerHTML =
+                    '<div class="d-flex align-items-start">' + preview +
+                    '<div class="w-100"><div class="fw-semibold mb-1">¡Cotización lista!</div>' +
+                    '<div class="small text-body-secondary mb-2">Mensaje para el cliente:</div>' +
+                    '<pre class="cot-mensaje">' + esc(r.mensaje) + '</pre></div></div>' +
+                    '<div class="d-flex flex-wrap gap-2 mt-3">' +
+                    '<a class="btn btn-success" target="_blank" rel="noopener" href="' + esc(r.whatsapp) + '"><i class="bi bi-whatsapp me-1"></i>Enviar por WhatsApp</a>' +
+                    '<button type="button" class="btn btn-outline-secondary cot-copiar"><i class="bi bi-clipboard me-1"></i>Copiar enlace</button></div>';
+                btn.classList.add('d-none');
+                cuerpo.querySelector('.cot-copiar').addEventListener('click', function () {
+                    navigator.clipboard.writeText(r.enlace);
+                    this.innerHTML = '<i class="bi bi-check-lg me-1"></i>Copiado';
+                });
+            })
+            .fail(function (x) {
+                err.textContent = (x.responseJSON || {}).error || 'No se pudo cotizar';
+                btn.disabled = false;
+            });
+    });
+
+    document.getElementById('modal-cotizar').addEventListener('hidden.bs.modal', function () {
+        var btn = document.getElementById('cotizar-guardar');
+        btn.disabled = false;
+        btn.classList.remove('d-none');
+        if (guardado) { guardado = false; refrescarLista(); }
+        $cuerpo.innerHTML = '';
+    });
+})();
 </script>
