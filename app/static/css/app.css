@@ -420,3 +420,5 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 .spotify-item .nom { font-size: .8rem; font-weight: 600; line-height: 1.15; }
 .spotify-item .art { font-size: .7rem; color: var(--mb-muted); }
 .cot-mensaje { background: #f8fafc; border: 1px solid #e6edf3; border-radius: .5rem; padding: .75rem; font-size: .8rem; white-space: pre-wrap; max-height: 320px; overflow: auto; }
+/* ítem retirado de una cotización (panel y confirmar compra) */
+.cot-retirada { opacity: .45; }

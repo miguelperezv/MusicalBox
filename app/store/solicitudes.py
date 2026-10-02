@@ -8,7 +8,7 @@ from .models import (create_solicitud, get_all_solicitudes, update_estado_solici
                      get_usuario_por_email, cotizar_solicitud, get_solicitud_por_token, datos_envio_previos, crear_pedido,
                      items_efectivos, get_categorias, get_all_releases, buscar_o_crear_lanzamiento,
                      buscar_o_crear_lanzamiento_spotify,
-                     ESTADOS_SOLICITUD, METODOS_PAGO, Solicitud, Lanzamiento)
+                     ESTADOS_SOLICITUD, METODOS_PAGO, Solicitud, SolicitudItem, Lanzamiento)
 from .musicapi import buscar_albumes_spotify
 from ..db import db
 from .views import before_request, admin_required
@@ -122,7 +122,7 @@ def _respuesta_cotizar(s, token):
     #el enlace solo se puede ver ahora (en la BD queda su hash); se envía al cliente por WhatsApp o correo
     enlace = url_for('solicitud.confirmar', token=token, _external=True)
     items = items_efectivos(s)
-    lineas, preview, portada = [], None, None
+    lineas, preview = [], None
     for it in items:
         n = int(it.cantidad or 1)
         if it.producto:
@@ -136,14 +136,13 @@ def _respuesta_cotizar(s, token):
         lineas.append(fila)
         if not preview:
             l = it.lanzamiento or (it.producto.lanzamiento if it.producto else None)
-            if l:
-                preview, portada = l.i_lanzamiento, l
+            if l and l.i_lanzamiento:
+                preview = l.i_lanzamiento
     total = sum(int(it.precio_unit or 0) * int(it.cantidad or 1) for it in items)
     partes = ["¡Hola! Tu pedido a la medida en Musical Box quedó así:", "", *lineas, "", f"Total: {_precio_cop(total)}"]
     if s.d_cotizacion:
         partes.append(s.d_cotizacion)
-    if portada:
-        partes.append(f"Portada: {url_for('releases.release', k_lanzamiento=portada.id, _external=True)}")
+    #el preview de WhatsApp sale de la página de confirmar (portada del disco o logo de Musical Box)
     partes += ["", "Confirma tu compra y datos de envío aquí:", enlace]
     mensaje = "\n".join(partes)
     cel = "".join(c for c in (s.cel_contacto or "") if c.isdigit())
@@ -190,10 +189,22 @@ def cotizar(id):
     s = db.session.get(Solicitud, id)
     if not s:
         return jsonify({"error": "La solicitud no existe"}), 400
-    #una línea por ítem: cantidad, producto del catálogo (opcional), lanzamiento (opcional) y precio
     items = items_efectivos(s)
+    #retirar los ítems que el admin marcó: se quitan de la solicitud y no van en la cotización
+    retiros = [i for i in range(len(items)) if request.form.get(f"item_{i}_retirar") == "on"]
+    if retiros:
+        if any(not isinstance(items[i], SolicitudItem) for i in retiros):
+            return jsonify({"error": "No se puede retirar un ítem de una solicitud antigua: cancela la solicitud si ya no le interesa"}), 400
+        if len(items) - len(retiros) < 1:
+            return jsonify({"error": "Queda al menos un ítem: si el pedido ya no le interesa, marca la solicitud como cancelada"}), 400
+        for i in retiros:
+            db.session.delete(items[i])
+        db.session.commit()
+    #una línea por ítem que queda: cantidad, producto del catálogo (opcional), lanzamiento (opcional) y precio
     lineas = []
     for i in range(len(items)):
+        if i in retiros:
+            continue
         k_producto = (request.form.get(f"item_{i}_producto") or "").split(".")[0].strip()
         #lanzamiento: "id. Nombre" usa el id; un texto libre se busca o crea al vuelo
         k_lanzamiento, _ = buscar_o_crear_lanzamiento(request.form.get(f"item_{i}_lanzamiento"))
@@ -230,29 +241,43 @@ def confirmar(token):
 
     if form.validate_on_submit():
         datos = {campo: form[campo].data for campo in ["nombre", "email", "telefono", "ciudad", "direccion", "barrio", "metodo_pago"]}
-        #las cantidades las elige el cliente aquí; el precio por unidad es el cotizado por el admin
+        #las cantidades las elige el cliente aquí; el precio por unidad es el cotizado por el admin.
+        #los ítems marcados "no lo quiero" quedan fuera del pedido
         lineas = []
         for i, it in enumerate(items):
+            if request.form.get(f"retirar_{i}") == "on":
+                continue
             cantidad = request.form.get(f"cant_{i}", type=int) or int(it.cantidad or 1)
             cantidad = max(1, min(99, cantidad))
             lineas.append({"producto": it.producto, "cantidad": cantidad, "precio": int(it.precio_unit),
                            "k_lanzamiento": it.k_lanzamiento,
                            "n_item": None if it.producto else it.nombre})
-        pedido, token_pedido, errores = crear_pedido(None, datos, k_usuario=g.user["id"] if g.user else None, cotizacion=lineas)
-        if errores:
-            for e in errores:
-                flash(e, "warning")
+        if not lineas:
+            flash("Tienes que dejar al menos un ítem: desmarca el que ya no quieres", "warning")
         else:
-            s.k_invoice = pedido.id
-            db.session.commit()
-            return redirect(url_for('pedido.ver', token=token_pedido))
+            pedido, token_pedido, errores = crear_pedido(None, datos, k_usuario=g.user["id"] if g.user else None, cotizacion=lineas)
+            if errores:
+                for e in errores:
+                    flash(e, "warning")
+            else:
+                s.k_invoice = pedido.id
+                db.session.commit()
+                return redirect(url_for('pedido.ver', token=token_pedido))
 
+    #marcados "no lo quiero" en el último envío (para grisearlos si el formulario se repinta por errores)
+    retiros = set()
+    if request.method == 'POST':
+        for i in range(len(items)):
+            if request.form.get(f"retirar_{i}") == "on":
+                retiros.add(i)
     lineas_vista, total = [], 0
     for i, it in enumerate(items):
         cantidad, precio = int(it.cantidad or 1), int(it.precio_unit)
-        total += precio * cantidad
-        lineas_vista.append({"producto": it.producto, "variante": None, "cantidad": cantidad, "precio": precio,
+        retirado = i in retiros
+        total += 0 if retirado else precio * cantidad
+        lineas_vista.append({"producto": it.producto, "variante": None, "cantidad": 0 if retirado else cantidad, "precio": precio,
                              "lanzamiento": it.lanzamiento or (it.producto.lanzamiento if it.producto else None),
-                             "n_item": None if it.producto else it.nombre, "subtotal": precio * cantidad, "idx": i})
+                             "n_item": None if it.producto else it.nombre, "subtotal": 0 if retirado else precio * cantidad,
+                             "idx": i, "retirado": retirado})
     return render_template("checkout.html", form=form, lineas=lineas_vista, total=total,
                            accion=url_for('solicitud.confirmar', token=token), previos=previos, solicitud=s)
