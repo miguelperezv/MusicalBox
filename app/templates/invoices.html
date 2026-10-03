@@ -54,7 +54,10 @@
                         {{ item.cant_item|int }} × {{ (item.producto.lanzamiento.n_lanzamiento.title() if item.producto and item.producto.lanzamiento) or (item.lanzamiento.n_lanzamiento.title() if item.lanzamiento) }} <span class="text-body-secondary">{{ item.producto.n_producto if item.producto else item.n_item }}{% if item.variante %} ({{ item.variante.nombre }}){% endif %}</span><br>
                         {% endfor %}
                     </td>
-                    <td class="text-end fw-semibold text-nowrap">{{ i.total|cop }}</td>
+                    <td class="text-end text-nowrap">
+                        <span class="total-pago fw-semibold">{{ ((i.total or 0) + (i.p_envio or 0))|cop }}</span>
+                        {% if i.p_envio and i.p_envio > 0 %}<br><small class="text-body-secondary">envío +{{ i.p_envio|cop }}{% if i.envio_manual %} <i class="bi bi-pencil" title="Ajustado manualmente"></i>{% endif %}</small>{% endif %}
+                    </td>
                     <td>
                         {% if i.estado == 'PAGADO' %}
                         <select class="form-select form-select-sm estado-envio" data-url="{{ url_for('dashboard.pedido_envio', k_invoice=i.id) }}" aria-label="Estado de envío del pedido {{ i.id }}">
@@ -66,6 +69,15 @@
                         <span class="text-body-secondary small">—</span>
                         {% if i.estado == 'PENDIENTE' %}<button type="button" class="btn btn-sm btn-outline-danger mt-1" data-rechazar data-id="{{ i.id }}"
                             data-url="{{ url_for('dashboard.pedido_rechazar', k_invoice=i.id) }}"><i class="bi bi-x-lg me-1"></i>Rechazar</button>{% endif %}
+                        {% endif %}
+                        {% if i.estado in ('PENDIENTE', 'PAGADO') and i.estado_envio not in ('ENVIADO', 'ENTREGADO') %}
+                        <form class="envio-override mt-1" data-url="{{ url_for('dashboard.pedido_costo_envio', k_invoice=i.id) }}">
+                            <div class="d-flex gap-1">
+                                <input class="form-control form-control-sm" type="number" name="p_envio" min="0" value="{{ i.p_envio|int if i.p_envio else 0 }}"
+                                       style="width: 84px" aria-label="Costo de envío del pedido {{ i.id }}" title="Costo de envío (se ajusta hasta que el pedido quede ENVIADO)">
+                                <button class="btn btn-sm btn-outline-secondary" title="Actualizar el costo de envío"><i class="bi bi-pencil"></i></button>
+                            </div>
+                        </form>
                         {% endif %}
                     </td>
                     <td class="pe-3 text-nowrap">
@@ -94,5 +106,16 @@
                 if (window.aplicarFiltroOrdenes) aplicarFiltroOrdenes(fila);
             })
             .fail(function () { select.addClass('is-invalid'); });
+    });
+
+    //ajustar el costo de envío de una orden (hasta que quede ENVIADO)
+    $('.envio-override').on('submit', function (e) {
+        e.preventDefault();
+        var f = $(this);
+        $.post(f.data('url'), {p_envio: f.find('input[name=p_envio]').val()})
+            .done(function (r) {
+                f.closest('tr').find('.total-pago').text('$' + Number(r.total_pago).toLocaleString('es-CO'));
+            })
+            .fail(function (x) { alert((x.responseJSON || {}).error || 'No se pudo actualizar el costo de envío'); });
     });
 </script>
