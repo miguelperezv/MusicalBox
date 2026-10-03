@@ -135,15 +135,15 @@ def regla_envio_aplicada(lineas, total):
     categorias = [(p.k_categoria if p is not None else None) for p, _v, _c, *_r in lineas]
     for regla in ReglaEnvio.query.filter_by(activo=True).order_by(ReglaEnvio.orden, ReglaEnvio.id).all():
         if regla.tipo == 'SIEMPRE':
-            return "Envío gratis por regla"
+            return "Envío gratis · consulta nuestra política de envíos"
         if regla.tipo == 'TOTAL_MIN' and total >= (regla.total_min or 0):
-            return "Envío gratis por regla"
+            return "Envío gratis · consulta nuestra política de envíos"
         if regla.tipo in ('SOLO_CATEGORIA', 'CANTIDAD_CATEGORIA') and regla.k_categoria:
             if regla.tipo == 'SOLO_CATEGORIA' and categorias and all(c == regla.k_categoria for c in categorias):
-                return "Envío gratis por regla"
+                return "Envío gratis · consulta nuestra política de envíos"
             unidades = sum(int(c or 1) for p, _v, c, *_r in lineas if p is not None and p.k_categoria == regla.k_categoria)
             if regla.tipo == 'CANTIDAD_CATEGORIA' and unidades >= (regla.cantidad or 0):
-                return "Envío gratis por regla"
+                return "Envío gratis · consulta nuestra política de envíos"
     return None
 
 

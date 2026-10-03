@@ -149,7 +149,7 @@
                         if (d.p_envio == null) { envioActual = 0; envioEl.textContent = d.detalle || 'Se coordina al pagar'; }
                         else if (Number(d.p_envio) === 0) {
                             envioActual = 0;
-                            envioEl.innerHTML = '<i class="bi bi-check-circle-fill text-success me-1"></i><a href="{{ url_for("home.politica_envios") }}" class="text-success fw-semibold text-decoration-none">¡gratis!</a> · ' + (d.detalle || '');
+                            envioEl.innerHTML = '<i class="bi bi-check-circle-fill text-success me-1"></i><strong class="text-success">¡gratis!</strong> · <a href="{{ url_for("home.politica_envios") }}" class="text-success fw-semibold text-decoration-none">consulta nuestra política de envíos</a>';
                         }
                         else { envioActual = Number(d.p_envio); envioEl.innerHTML = '<strong>' + cop(envioActual) + '</strong> · ' + (d.detalle || ''); }
                         refrescar();
