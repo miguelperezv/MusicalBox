@@ -5,6 +5,7 @@ from .models import get_pedido_por_token, confirmar_pago, rechazar_pago
 from .views import before_request
 from ..db import db
 from .notificaciones import correo_pedido_pagado
+from .notif_admin import aviso_pago_aprobado, aviso_pago_rechazado
 from flask_wtf import FlaskForm
 from wtforms import StringField
 from wtforms.validators import DataRequired, Email
@@ -102,9 +103,11 @@ def simular(token):
         p, pago_nuevo = confirmar_pago(p, "SIMULADO", "SIMULADO", "SIM")
         if pago_nuevo:
             correo_pedido_pagado(p, token)
+            aviso_pago_aprobado(p, token)
         flash("Pago simulado: aprobado", "success")
     else:
         rechazar_pago(p, "SIMULADO")
+        aviso_pago_rechazado(p)
         flash("Pago simulado: rechazado", "error")
     return redirect(url_for('pedido.ver', token=token))
 

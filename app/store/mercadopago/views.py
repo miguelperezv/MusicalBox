@@ -5,6 +5,7 @@ import mercadopago
 from mercadopago import config as mp_config
 from ..models import Invoice, confirmar_pago, rechazar_pago
 from ..notificaciones import correo_pedido_pagado
+from ..notif_admin import aviso_pago_aprobado, aviso_pago_rechazado
 
 mercadopago_bp = Blueprint('mercadopago', __name__, url_prefix='/mercadopago')
 
@@ -285,10 +286,12 @@ def process_payment():
                 correo_pedido_pagado(p, payload.get("token_hash"))
             except Exception as e:
                 current_app.logger.exception(f"[MP] Fallo envío de email para pedido {inv.id}: {e}")
+            aviso_pago_aprobado(p, payload.get("token_hash"))
             current_app.logger.info(f"[MP] Pedido {inv.id} confirmado, stock y solicitud actualizados")
     elif mp_body.get("status") == "rejected":
         current_app.logger.info(f"[MP] Pago rechazado para pedido {inv.id}: {mp_body.get('status_detail')}")
         rechazar_pago(inv, str(mp_body.get("id") or ""))
+        aviso_pago_rechazado(inv)
     elif mp_http_status == 424:
         # Error específico de BankTransfers Api fail
         current_app.logger.error(f"[MP] Error 424 - BankTransfers Api fail para pedido {inv.id}")
@@ -410,6 +413,7 @@ def process_payment_notification(data):
                     correo_pedido_pagado(p, p.token_hash)
                 except Exception as e:
                     current_app.logger.exception(f"[MP-WEBHOOK] Fallo envío de email para pedido {inv.id}: {e}")
+                aviso_pago_aprobado(p)
                 current_app.logger.info(f"[MP-WEBHOOK] Pedido {inv.id} confirmado exitosamente")
             return jsonify({"status": "processed"}), 200
 
@@ -419,6 +423,7 @@ def process_payment_notification(data):
             if inv.estado == "PENDIENTE":
                 inv.mp_payment_id = str(payment.get("id", ""))
                 rechazar_pago(inv, inv.mp_payment_id)
+                aviso_pago_rechazado(inv)
                 current_app.logger.info(f"[MP-WEBHOOK] Pedido {inv.id} marcado como rechazado")
                 return jsonify({"status": "processed"}), 200
             else:

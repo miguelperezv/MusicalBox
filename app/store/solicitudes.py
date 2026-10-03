@@ -12,6 +12,7 @@ from .models import (create_solicitud, get_all_solicitudes, update_estado_solici
 from .musicapi import buscar_albumes_spotify
 from ..db import db
 from .views import before_request, admin_required
+from .notif_admin import aviso_solicitud, aviso_pedido_creado
 
 
 solicitud = Blueprint('solicitud', __name__, url_prefix='/solicitud')
@@ -61,6 +62,7 @@ def nueva():
             usuario = get_usuario_por_email(g.user["email_usuario"]) if g.user else (get_usuario_por_email(email) if email else None)
             s, err = create_solicitud(usuario.id if usuario else None, items, form.celular.data.strip(), email)
             if s:
+                aviso_solicitud(s)
                 flash("¡Recibimos tu solicitud #" + str(s.id) + "! Te escribiremos por WhatsApp con precio y tiempos.", "success")
                 return redirect(url_for('home.index'))
             flash("Error registrando la solicitud: " + str(err), "error")
@@ -262,6 +264,7 @@ def confirmar(token):
             else:
                 s.k_invoice = pedido.id
                 db.session.commit()
+                aviso_pedido_creado(pedido, token_pedido)
                 return redirect(url_for('pedido.ver', token=token_pedido))
 
     #marcados "no lo quiero" en el último envío (para grisearlos si el formulario se repinta por errores)
