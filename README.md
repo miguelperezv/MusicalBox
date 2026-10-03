@@ -10,7 +10,8 @@ MercadoPago, costo de envío cotizado con EnvíoClick, pedidos a la medida y pan
 
 - **Tienda pública**: lanzamientos, productos (con variantes de talla/color y packs), vista rápida en modal,
   posts de Instagram/TikTok en el inicio.
-- **Compra sin cuenta**: carrito → checkout (nombre, correo, celular, envío y método de pago) → orden PENDIENTE
+- **Compra sin cuenta**: carrito → checkout (nombre, correo, celular y envío; el método de pago lo elige el
+  cliente dentro de MercadoPago) → orden PENDIENTE
   → `/pedido/<token>` con el payment brick de MercadoPago → confirmación idempotente del pago.
 - **Costo de envío**: se calcula al crear la orden (reglas de envío gratis → cotización real de EnvíoClick →
   tarifa por zona de respaldo) y se cobra con la compra. El cliente ve el estimado en vivo al escribir su

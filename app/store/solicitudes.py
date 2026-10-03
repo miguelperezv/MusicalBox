@@ -8,7 +8,7 @@ from .models import (create_solicitud, get_all_solicitudes, update_estado_solici
                      get_usuario_por_email, cotizar_solicitud, get_solicitud_por_token, datos_envio_previos, crear_pedido,
                      items_efectivos, get_categorias, get_all_releases, buscar_o_crear_lanzamiento,
                      buscar_o_crear_lanzamiento_spotify,
-                     ESTADOS_SOLICITUD, METODOS_PAGO, Solicitud, SolicitudItem, Lanzamiento)
+                     ESTADOS_SOLICITUD, Solicitud, SolicitudItem, Lanzamiento)
 from .musicapi import buscar_albumes_spotify
 from .envio import costo_envio, lineas_desde_cats
 from ..db import db
@@ -246,7 +246,6 @@ def confirmar(token):
         abort(404)
 
     form = CheckoutForm()
-    form.metodo_pago.choices = METODOS_PAGO
     previos = datos_envio_previos(s.email_contacto or (s.usuario.email_usuario if s.usuario else None))
     if request.method == 'GET':
         for campo, valor in (previos or {"email": s.email_contacto, "telefono": s.cel_contacto}).items():
@@ -257,7 +256,7 @@ def confirmar(token):
             form.ciudad.data = s.lugar_solicitud
 
     if form.validate_on_submit():
-        datos = {campo: form[campo].data for campo in ["nombre", "email", "telefono", "ciudad", "direccion", "barrio", "metodo_pago"]}
+        datos = {campo: form[campo].data for campo in ["nombre", "email", "telefono", "ciudad", "direccion", "barrio"]}
         #las cantidades las elige el cliente aquí; el precio por unidad es el cotizado por el admin.
         #los ítems marcados "no lo quiero" quedan fuera del pedido
         lineas = []

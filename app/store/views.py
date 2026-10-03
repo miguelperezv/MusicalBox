@@ -991,8 +991,8 @@ def process_checkout():
         "telefono": request.form.get("telefono", "").strip(),
         "ciudad": request.form.get("ciudad", "").strip(),
         "direccion": request.form.get("direccion", "").strip(),
-        "barrio": request.form.get("barrio", "").strip(),
-        "metodo_pago": "TARJETA"  # Valor por defecto
+        "barrio": request.form.get("barrio", "").strip()
+        #el metodo de pago lo escribe MercadoPago al confirmar (franquicia en confirmar_pago)
     }
     
     # Validar que los datos no estén vacíos

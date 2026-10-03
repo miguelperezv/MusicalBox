@@ -119,7 +119,8 @@ Migraciones (en orden): `5b10cf662d03` línea base → `a36be8d1f63e` checkout s
 
 - **Compra sin cuenta**:
   1. Carrito en sesión, con claves `"producto"` o `"producto:variante"`.
-  2. `/purchase/checkout` (`CheckoutForm`: nombre, correo, celular, envío, método de pago; sin contraseña).
+  2. `/purchase/checkout` (`CheckoutForm`: nombre, correo, celular, envío; sin contraseña). El método de
+     pago no se pide: lo escribe MercadoPago al confirmar (franquicia en `confirmar_pago` → `metodo_pago`).
      `crear_pedido()` crea el pedido PENDIENTE y devuelve un token `secrets.token_urlsafe(32)`.
   3. `/pedido/<token>` carga el payment brick de MercadoPago; al aprobarse el frontend llama a
      `/mercadopago/process_payment` (PSE tarda: lo confirma el webhook `/mercadopago/webhook`).

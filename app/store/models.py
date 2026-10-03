@@ -250,8 +250,6 @@ ESTADOS_PEDIDO = ['PENDIENTE', 'PAGADO', 'RECHAZADO']
 ESTADOS_ENVIO = ['POR PREPARAR', 'EN PREPARACION', 'ENVIADO', 'ENTREGADO']
 #el rótulo solo tiene sentido cuando el pedido se está preparando o ya salió
 ESTADOS_CON_ROTULO = ['EN PREPARACION', 'ENVIADO']
-METODOS_PAGO = [('TARJETA', 'Tarjeta de crédito o débito'), ('PSE', 'PSE (débito desde tu banco)'), ('EFECTIVO', 'Efectivo (Efecty, Baloto y otros)')]
-
 class Usuario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     k_rol = db.Column(db.String(20), db.ForeignKey('rol.k_rol'))
@@ -1614,7 +1612,7 @@ def confirmar_pago(pedido, ref_payco, id_factura_payco=None, franquicia=None):
             s.k_usuario = s.k_usuario or pedido.k_usuario
         pedido.id_factura_payco = id_factura_payco
         if franquicia:
-            pedido.metodo_pago = f"{pedido.metodo_pago or ''} ({franquicia})".strip()[:30]
+            pedido.metodo_pago = (f"{pedido.metodo_pago} ({franquicia})" if pedido.metodo_pago else franquicia)[:30]
         db.session.commit()
         return pedido, True
     
@@ -1627,7 +1625,7 @@ def confirmar_pago(pedido, ref_payco, id_factura_payco=None, franquicia=None):
         s.k_usuario = s.k_usuario or pedido.k_usuario
     pedido.id_factura_payco = id_factura_payco
     if franquicia:
-        pedido.metodo_pago = f"{pedido.metodo_pago or ''} ({franquicia})".strip()[:30]
+        pedido.metodo_pago = (f"{pedido.metodo_pago} ({franquicia})" if pedido.metodo_pago else franquicia)[:30]
     for item in Item.query.filter_by(k_factura=pedido.id).all():
         if item.producto:
             for aviso in descontar_stock(item.producto, item.variante, int(item.cant_item)):

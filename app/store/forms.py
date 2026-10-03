@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms.validators import DataRequired, NumberRange, Length, Regexp, EqualTo, Optional
-from wtforms import StringField, SelectField, PasswordField, IntegerField, FileField, DateField, EmailField, RadioField, BooleanField, HiddenField
+from wtforms import StringField, SelectField, PasswordField, IntegerField, FileField, DateField, EmailField, BooleanField, HiddenField
 from datetime import date, datetime
 from wtforms import widgets as h5widgets
 import pycountry
@@ -148,7 +148,6 @@ class CheckoutForm(FlaskForm):
     ciudad = StringField('Municipio | Ciudad, Departamento', validators=[DataRequired(message="Escribe el municipio"), Length(max=80)], filters=[_limpiar])
     direccion = StringField('Dirección', validators=[DataRequired(message="Escribe la dirección"), Length(max=200)], filters=[_limpiar])
     barrio = StringField('Barrio', validators=[Length(max=30)], filters=[_limpiar])
-    metodo_pago = RadioField('Método de pago', validators=[DataRequired(message="Elige un método de pago")])
 
 
 class ActivarCuentaForm(FlaskForm):

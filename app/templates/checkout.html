@@ -43,17 +43,7 @@
                     {{ field(form.barrio, col='col-sm-4 mb-3') }}
                 </div>
 
-                <h2 class="h5 mt-3 mb-3"><i class="bi bi-credit-card me-2 text-primary"></i>Método de pago</h2>
-                <div class="d-grid gap-2 mb-2">
-                    {% for opcion in form.metodo_pago %}
-                    <label class="border rounded-3 p-3 d-flex align-items-center gap-3 mb-metodo">
-                        {{ opcion(class_='form-check-input mt-0') }}
-                        <span>{{ opcion.label.text }}</span>
-                    </label>
-                    {% endfor %}
-                    {% for e in form.metodo_pago.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
-                </div>
-                <p class="small text-body-secondary"><i class="bi bi-shield-lock me-1"></i>Al confirmar, serás redirigido al proceso de pago seguro.</p>
+                <p class="small text-body-secondary mt-3"><i class="bi bi-shield-lock me-1"></i>Al confirmar, elegirá su medio de pago (tarjetas, PSE y más) en la ventana segura de MercadoPago.</p>
 
                 <button type="submit" class="btn btn-primary btn-lg w-100 mt-2">Confirmar y pagar <i class="bi bi-lock ms-1"></i></button>
             </form>

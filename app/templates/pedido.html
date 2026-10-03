@@ -117,7 +117,6 @@
             <div class="mb-panel mb-sticky">
                 {% if pedido.estado in ['PENDIENTE', 'RECHAZADO'] %}
                 <h2 class="h5 mb-2">Pagar {{ ((pedido.total or 0) + (pedido.p_envio or 0))|cop }}</h2>
-                <p class="small text-body-secondary">Selecciona tu método de pago preferido.</p>
                 
                 <!-- Botón de pago MercadoPago -->
                 <div class="mb-3">
