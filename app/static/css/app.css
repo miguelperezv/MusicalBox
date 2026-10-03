@@ -444,6 +444,9 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 
 /* tira horizontal deslizable (lanzamientos del inicio) */
 .mb-strip { display: flex; gap: 1rem; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: .25rem; }
+/* modo automático: sin snap ni scrollbars a la vista (la mueve el JS en bucle) */
+.mb-strip-auto { scroll-snap-type: none; scrollbar-width: none; }
+.mb-strip-auto::-webkit-scrollbar { display: none; }
 .mb-strip > div { flex: 0 0 calc((100% - 3rem) / 4); scroll-snap-align: start; min-width: 0; }
 .mb-strip > div:last-child { margin-right: 0; }
 .mb-strip > div:only-child { flex-basis: 100%; }

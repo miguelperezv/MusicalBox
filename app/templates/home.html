@@ -52,19 +52,20 @@
                 <span class="mb-eyebrow">Recién llegados</span>
                 <h2>Últimos lanzamientos</h2>
             </div>
-            <div class="d-flex gap-2">
-                <button type="button" class="btn btn-outline-secondary btn-sm strip-nav" data-dir="-1" data-target="strip-lanzamientos" aria-label="Lanzamientos anteriores"><i class="bi bi-chevron-left"></i></button>
-                <button type="button" class="btn btn-outline-secondary btn-sm strip-nav" data-dir="1" data-target="strip-lanzamientos" aria-label="Siguientes lanzamientos"><i class="bi bi-chevron-right"></i></button>
-                <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('releases.home_releases') }}">Ver todos <i class="bi bi-arrow-right"></i></a>
-            </div>
+            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('releases.home_releases') }}">Ver todos <i class="bi bi-arrow-right"></i></a>
         </div>
-        <div class="mb-strip" id="strip-lanzamientos">
+        {% if releases %}
+        <div class="mb-strip mb-strip-auto" id="strip-lanzamientos" tabindex="0" aria-label="Últimos lanzamientos, tira deslizable">
             {% for r in releases %}
             <div class="col">{{ release_card(r) }}</div>
-            {% else %}
-            <div class="col-12 mb-empty"><i class="bi bi-vinyl"></i>Muy pronto tendremos lanzamientos.</div>
+            {% endfor %}
+            {% for r in releases %}
+            <div class="col" aria-hidden="true">{{ release_card(r) }}</div>
             {% endfor %}
         </div>
+        {% else %}
+        <div class="mb-empty"><i class="bi bi-vinyl"></i>Muy pronto tendremos lanzamientos.</div>
+        {% endif %}
     </section>
 
     {% if redes %}
@@ -144,13 +145,36 @@
 {% endif %}
 
 <script>
-    // flechas de la tira de lanzamientos (scroll horizontal con snap)
-    document.querySelectorAll('.strip-nav').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            var tira = document.getElementById(btn.dataset.target);
-            if (tira) tira.scrollBy({ left: btn.dataset.dir * tira.clientWidth * 0.8, behavior: 'smooth' });
-        });
-    });
+    // tira de lanzamientos: se mueve sola en bucle; se pausa al pasar el mouse o al deslizarla
+    (function () {
+        var tira = document.getElementById('strip-lanzamientos');
+        if (!tira) return;
+        var media = function () { return tira.scrollWidth / 2; }; // la mitad es una vuelta completa (contenidos duplicados)
+        var x = 0, auto = true, tRes;
+        function sincronizar() { x = tira.scrollLeft % media(); }
+        function pausa(milis) {
+            auto = false;
+            clearTimeout(tRes);
+            if (milis != null) tRes = setTimeout(function () { sincronizar(); auto = true; }, milis);
+        }
+        function paso() {
+            if (auto) {
+                x += 0.5;
+                if (x >= media()) x -= media(); // bucle: el segundo set de cards es idéntico, el salto no se nota
+                tira.scrollLeft = x;
+            }
+            requestAnimationFrame(paso);
+        }
+        tira.addEventListener('mouseenter', function () { pausa(null); });
+        tira.addEventListener('mouseleave', function () { clearTimeout(tRes); sincronizar(); auto = true; });
+        tira.addEventListener('wheel', function (e) {
+            e.preventDefault();
+            tira.scrollBy({ left: e.deltaY });
+            pausa(3000);
+        }, { passive: false });
+        tira.addEventListener('touchstart', function () { pausa(4000); }, { passive: true });
+        requestAnimationFrame(paso);
+    })();
 
     // Inicializar tooltips de Bootstrap
     document.addEventListener('DOMContentLoaded', function() {
