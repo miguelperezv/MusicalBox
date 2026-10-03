@@ -38,6 +38,10 @@ class Config(object):
     MAIL_FROM = os.getenv("MAIL_FROM", "Musical Box <pedidos@musicalbox.local>")
     #vigencia del enlace para crear contraseña que llega por correo
     ACTIVACION_MAX_DIAS = 7
+    #avisos al admin por Telegram (ver app/telegram.py): sin credenciales cae a consola
+    TG_BACKEND = os.getenv("TG_BACKEND", "real")
+    TG_BOT_TOKEN = os.getenv("TG_BOT_TOKEN", "")
+    TG_ADMIN_CHAT_ID = os.getenv("TG_ADMIN_CHAT_ID", "")
 
 
 

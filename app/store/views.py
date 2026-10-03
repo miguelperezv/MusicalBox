@@ -21,6 +21,7 @@ from .imagenes import imagen_producto
 from .redes import seleccion_para_inicio, leer_url
 from ..db import db
 from .notificaciones import correo_activacion, usuario_de_token
+from .notif_admin import aviso_pedido_creado
 from .musicapi import buscar_albumes_spotify, detalles_album_spotify
 
 
@@ -994,6 +995,7 @@ def process_checkout():
         for e in errores:
             flash(e, "warning")
         return redirect(url_for('purchase.summary'))
+    aviso_pedido_creado(pedido, token)
     
     # Guardar datos para futuros checkouts
     session["checkout_datos"] = datos
