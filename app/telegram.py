@@ -6,6 +6,9 @@ TG_BACKEND:
   memoria -> los guarda en app.extensions["telegram_enviados"] (pruebas)
   off     -> no hace nada
 
+Los avisos llevan parse_mode HTML (negritas, links <a>): los textos se arman en
+app/store/notif_admin.py escapando los valores dinámicos.
+
 Nunca lanza excepciones: si un aviso falla, se registra y la operación que lo pidió sigue adelante.
 """
 import os
@@ -32,7 +35,8 @@ def enviar_admin(mensaje):
         if backend == "real":
             r = requests.post(
                 f"https://api.telegram.org/bot{token}/sendMessage",
-                json={"chat_id": chat, "text": mensaje, "disable_web_page_preview": True},
+                json={"chat_id": chat, "text": mensaje, "parse_mode": "HTML",
+                      "disable_web_page_preview": True},
                 timeout=10,
             )
             if r.status_code != 200:
