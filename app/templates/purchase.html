@@ -64,7 +64,7 @@
                 <h2 class="h5 mb-3">Resumen</h2>
                 <div class="d-flex justify-content-between mb-2"><span class="text-body-secondary">Productos ({{ lineas|sum(attribute='cantidad') }})</span><span>{{ total|cop }}</span></div>
                 <div class="d-flex justify-content-between mb-1"><span class="text-body-secondary">Envío</span><span class="text-body-secondary">Se estima con tu municipio</span></div>
-                <small class="text-body-secondary d-block mb-3"><i class="bi bi-truck me-1"></i>Preparamos tu pedido en {{ envio_cfg.proceso }} · Bogotá {{ envio_cfg.bogota }} · hasta {{ envio_cfg.resto }} · <a href="{{ url_for('home.ayuda_envios') }}">ver detalles</a></small>
+                <small class="text-body-secondary d-block mb-3"><i class="bi bi-truck me-1"></i>Preparamos tu pedido en {{ envio_cfg.proceso }} · Bogotá {{ envio_cfg.bogota }} · hasta {{ envio_cfg.resto }} · <a href="{{ url_for('home.politica_envios') }}">ver detalles</a></small>
                 <hr>
                 <div class="d-flex justify-content-between align-items-baseline mb-4">
                     <span class="fw-bold">Total</span><span class="fs-4 fw-bold">{{ total|cop }}</span>
@@ -149,6 +149,7 @@ function openEnvioModal() {
                     .then(d => {
                         if (seq !== envioSeq) return;
                         if (d.p_envio == null) envioEl.innerHTML = 'Envío: ' + (d.detalle || 'se coordina al pagar');
+                        else if (Number(d.p_envio) === 0) envioEl.innerHTML = 'Envío: <i class="bi bi-check-circle-fill text-success me-1"></i><a href="{{ url_for("home.politica_envios") }}" class="text-success fw-semibold text-decoration-none">¡gratis!</a> ' + (d.detalle || '');
                         else envioEl.innerHTML = 'Envío: <strong>$' + Number(d.p_envio).toLocaleString('es-CO') + '</strong> · ' + (d.detalle || '');
                     })
                     .catch(() => {

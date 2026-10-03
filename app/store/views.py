@@ -83,11 +83,6 @@ def index():
     return render_template("home.html", releases = get_releases_cards(limit=12), productos = get_products_cards(limit=10),
                             redes = seleccion_para_inicio())
 
-@home.route("/ayuda/envios")
-def ayuda_envios():
-    #ayuda de envío: zonas, cómo sale el pedido, preordenes, perdidos/dañados
-    return render_template("ayuda_envios.html")
-
 @home.route("/robots.txt")
 def robots():
     #seo: permite todo y senala el sitemap
@@ -104,7 +99,7 @@ def sitemap():
         (url_for('releases.home_releases', _external=True), None),
         (url_for('products.home_products', _external=True), None),
         (url_for('solicitud.nueva', _external=True), None),
-        (url_for('home.ayuda_envios', _external=True), None),
+        (url_for('home.politica_envios', _external=True), None),
     ]
     for r in Lanzamiento.query.all():
         entradas.append((url_for('releases.release', k_lanzamiento=r.id, _external=True), r.f_lanzamiento))
@@ -313,6 +308,12 @@ def admin():
 LOCALIDADES_BOGOTA = ["Usaquén", "Chapinero", "Santa Fe", "San Cristóbal", "Usme", "Tunjuelito", "Bosa", "Kennedy",
     "Fontibón", "Engativá", "Suba", "Barrios Unidos", "Teusaquillo", "Los Mártires", "Antonio Nariño", "Puente Aranda",
     "La Candelaria", "Rafael Uribe Uribe", "Ciudad Bolívar", "Sumapaz"]
+
+@home.route("/politica-envios")
+def politica_envios():
+    #informacion publica de envios: costos, tiempos y promociones de envio gratis
+    return render_template("politica_envios.html")
+
 
 @home.route("/colombia", methods=["GET"])
 def colombia():
