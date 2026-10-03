@@ -308,6 +308,12 @@ LOCALIDADES_BOGOTA = ["Usaquén", "Chapinero", "Santa Fe", "San Cristóbal", "Us
     "Fontibón", "Engativá", "Suba", "Barrios Unidos", "Teusaquillo", "Los Mártires", "Antonio Nariño", "Puente Aranda",
     "La Candelaria", "Rafael Uribe Uribe", "Ciudad Bolívar", "Sumapaz"]
 
+@home.route("/politica-envios")
+def politica_envios():
+    #informacion publica de envios: costos, tiempos y promociones de envio gratis
+    return render_template("politica_envios.html")
+
+
 @home.route("/colombia", methods=["GET"])
 def colombia():
     #municipios DIVIPOLA (datos.gov.co gdxc-w37w) guardados en static/data; Bogotá se reemplaza por sus localidades (del manager)

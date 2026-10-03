@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Política de envíos{% endblock %}
+{% block description %}Cómo enviamos, cuánto cuesta y cuándo el envío es gratis en Musical Box.{% endblock %}
+
+{% block contenido %}
+<div class="container">
+    <header class="mb-page-header">
+        <span class="mb-eyebrow">Información de la tienda</span>
+        <h1 class="mt-1">Política de envíos</h1>
+    </header>
+
+    <div class="mb-panel p-4 p-lg-4 mb-4" style="max-width: 820px">
+        <h2 class="h5 mb-2">Todo Colombia, desde Bogotá</h2>
+        <p class="mb-2">Hacemos envíos a todo el país desde nuestra tienda en Bogotá D.C. El pedido viaja protegido y, una vez pagado, se prepara en 1 a 2 días hábiles.</p>
+        <p class="mb-0">El costo del envío depende de la paquetería y del municipio de destino. Lo <strong>calculamos y te lo mostramos antes de pagar</strong>: al escribir tu municipio en el checkout verás la estimación y el tiempo de entrega, y solo se cobra junto con el pedido. Puedes corregirlo con nosotros hasta que el pedido quede enviado.</p>
+    </div>
+
+    <div class="mb-panel p-4 p-lg-4 mb-4" style="max-width: 820px">
+        <h2 class="h5 mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>¿Cuándo el envío es <a href="#gratis" class="text-success text-decoration-underline">gratis</a>?</h2>
+        <p class="mb-2">Hay promociones fijas de envío gratis por reglas de negocio. Las vigentes hoy:</p>
+        <ul class="mb-0" id="gratis">
+            <li class="mb-2"><i class="bi bi-vinyl text-primary me-1"></i>Pedidos de <strong>vinilos</strong> (solo vinilos): envío gratis.</li>
+            <li class="mb-0"><i class="bi bi-disc me-1"></i><strong>4 o más CDs</strong> en el mismo pedido: envío gratis.</li>
+        </ul>
+        <p class="small text-body-secondary mt-3 mb-0">Las promociones pueden cambiar; si en tu pedido se aplicó el envío gratis lo verás marcado en tu orden y en el correo de confirmación.</p>
+    </div>
+
+    <div class="mb-panel p-4 p-lg-4" style="max-width: 820px">
+        <h2 class="h5 mb-2">Tiempos y seguimiento</h2>
+        <ul class="mb-0">
+            <li class="mb-2">Bogotá: normalmente 1 día hábil. Capital de cada departamento: de 1 a 3 días. Resto del país: de 2 a 8 días según la paquetería.</li>
+            <li class="mb-2">Al pagarse el pedido, el estado pasa a "Por preparar"; cuando sale con la paquetería te escribimos y puedes seguirlo desde tu enlace de pedido.</li>
+            <li class="mb-0">Los tiempos son estimados de la paquetería; si tu pedido tarda lo anormal, escríbenos y lo rastreamos con ellos.</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

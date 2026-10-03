@@ -148,6 +148,7 @@ function openEnvioModal() {
                     .then(d => {
                         if (seq !== envioSeq) return;
                         if (d.p_envio == null) envioEl.innerHTML = 'Envío: ' + (d.detalle || 'se coordina al pagar');
+                        else if (Number(d.p_envio) === 0) envioEl.innerHTML = 'Envío: <i class="bi bi-check-circle-fill text-success me-1"></i><a href="{{ url_for("home.politica_envios") }}" class="text-success fw-semibold text-decoration-none">¡gratis!</a> ' + (d.detalle || '');
                         else envioEl.innerHTML = 'Envío: <strong>$' + Number(d.p_envio).toLocaleString('es-CO') + '</strong> · ' + (d.detalle || '');
                     })
                     .catch(() => {
