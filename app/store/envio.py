@@ -49,6 +49,31 @@ def _cargar_ciudades():
             _CIUDADES.setdefault(_norm(c.get("name")), (c.get("name"), c.get("departmentId"), c.get("id")))
 
 
+def _buscar_ciudad(ciudad, dep_id):
+    """(nombre, departmentId, id) de la ciudad de la API que corresponde al texto digitado.
+    La API usa nombres formales ('San Andres de Tumaco', 'Guadalajara de Buga'), por lo que se
+    acepta: igual, empieza por, empieza por al revés ('Cartagena de Indias' -> 'Cartagena') y
+    contiene solo si el municipio fue dicho con departamento. Devuelve None si es ambiguo."""
+    if ciudad in _CIUDADES:
+        return _CIUDADES[ciudad]
+    if dep_id is None:
+        pref = [n for n in _CIUDADES if n.startswith(ciudad)]
+        return _CIUDADES[pref[0]] if len(pref) == 1 else None
+    pref = [n for n in _CIUDADES if n.startswith(ciudad) and _CIUDADES[n][1] == dep_id]
+    if len(pref) == 1:
+        return _CIUDADES[pref[0]]
+    if pref:  #varias con el mismo prefijo: si una coincide en nombre exacto sin departamento, no hay forma de elegir
+        return None
+    rev = [n for n in _CIUDADES if len(n) >= 4 and ciudad.startswith(n) and _CIUDADES[n][1] == dep_id]
+    if len(rev) == 1:
+        return _CIUDADES[rev[0]]
+    if len(ciudad) >= 5:
+        cont = [n for n in _CIUDADES if ciudad in n and _CIUDADES[n][1] == dep_id]
+        if len(cont) == 1:
+            return _CIUDADES[cont[0]]
+    return None
+
+
 def resolver_dane(nombre_municipio):
     """Devuelve el código DANE de 8 dígitos de "Medellín, Antioquia" (o "Kennedy, Bogotá D.C.").
     Bogotá siempre es 11001000; el resto se resuelve con api-colombia y queda guardado en ubicacion."""
@@ -72,13 +97,7 @@ def resolver_dane(nombre_municipio):
             for d in _http(f"{API_COLOMBIA}/Department"):
                 _DEPARTAMENTOS.setdefault(_norm(d.get("name")), d.get("id"))
             dep_id = _DEPARTAMENTOS.get(dep)
-        #match exacto primero; si no, candidatos que empiezan por el nombre (con el departamento, si se dijo)
-        if ciudad in _CIUDADES:
-            match = _CIUDADES[ciudad]
-        else:
-            nombres = [n for n in _CIUDADES if n.startswith(ciudad)]
-            match = next(((_CIUDADES[n]) for n in nombres if dep_id is None or _CIUDADES[n][1] == dep_id), None) or \
-                    (next(((_CIUDADES[n]) for n in nombres if _CIUDADES[n][1] == dep_id), None) if dep_id else None)
+        match = _buscar_ciudad(ciudad, dep_id)
         if match:
             _, _dep, city_id = match
             centros = _http(f"{API_COLOMBIA}/UrbanCenter/city/{city_id}")
