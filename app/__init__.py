@@ -75,6 +75,12 @@ def create_app(config=None):
         return {"user": g.get("user"), "purchase_cart": g.get("purchase")}
 
     @app.context_processor
+    def textos_envio():
+        #textos de envío (zonas y procesado) disponibles en todas las plantillas
+        from .store.redes import envio
+        return {"envio_cfg": envio()}
+
+    @app.context_processor
     def seo_defaultes():
         #canonical y OG por defecto; las plantillas pueden sobreescribir los bloques og_*
         from flask import request as _request, url_for as _url_for

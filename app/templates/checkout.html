@@ -35,7 +35,8 @@
                     {{ field(form.telefono, col='col-sm-6 mb-3', type='tel', autocomplete='tel', placeholder='300 000 0000') }}
                 </div>
 
-                <h2 class="h5 mt-3 mb-3"><i class="bi bi-truck me-2 text-primary"></i>Envío</h2>
+                <h2 class="h5 mt-3 mb-1"><i class="bi bi-truck me-2 text-primary"></i>Envío</h2>
+                <p class="small text-body-secondary mb-3">Preparamos tu pedido en {{ envio_cfg.proceso }} · Bogotá {{ envio_cfg.bogota }} · hasta {{ envio_cfg.resto }} a todo el país. <a href="{{ url_for('home.ayuda_envios') }}">Ver tiempos y detalles</a></p>
                 {{ field(form.ciudad, autocomplete='off', placeholder='Escribe tu municipio o localidad', **{'data-autocomplete': url_for('home.colombia')}) }}
                 <div class="row">
                     {{ field(form.direccion, col='col-sm-8 mb-3', autocomplete='street-address') }}

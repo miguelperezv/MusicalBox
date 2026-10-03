@@ -120,7 +120,7 @@
     <footer class="mb-footer pt-5 pb-4">
         <div class="container">
             <div class="row g-4">
-                <div class="col-lg-5">
+                <div class="col-lg-4">
                     <div class="brand font-brand mb-2">musical box</div>
                     <p class="mb-3">CD's, vinilos, cassettes y más desde Bogotá, Colombia. Desde 2015.</p>
                     <div class="social">
@@ -130,7 +130,7 @@
                         <a href="https://tiktok.com/@musicalboxcol" aria-label="TikTok"><i class="bi bi-tiktok"></i></a>
                     </div>
                 </div>
-                <div class="col-6 col-lg-3">
+                <div class="col-6 col-lg-2">
                     <h6>Tienda</h6>
                     <ul class="list-unstyled d-grid gap-2">
                         <li><a href="{{ url_for('releases.home_releases') }}">Lanzamientos</a></li>
@@ -138,12 +138,19 @@
                         <li><a href="{{ url_for('solicitud.nueva') }}">Pide tu disco</a></li>
                     </ul>
                 </div>
-                <div class="col-6 col-lg-4">
+                <div class="col-6 col-lg-3">
                     <h6>Tu cuenta</h6>
                     <ul class="list-unstyled d-grid gap-2">
                         <li><a href="{{ url_for('home.account') }}">Mis compras y solicitudes</a></li>
                         <li><a href="{{ url_for('purchase.summary') }}">Carrito</a></li>
-                        <li><a href="https://www.instagram.com/musicalboxcol/">Contacto</a></li>
+                    </ul>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <h6>Ayuda</h6>
+                    <ul class="list-unstyled d-grid gap-2">
+                        <li><a href="{{ url_for('home.ayuda_envios') }}">Envíos y entregas</a></li>
+                        <li><a href="{{ url_for('home.account') }}">Seguimiento de mi pedido</a></li>
+                        <li><a href="https://www.instagram.com/musicalboxcol/">Escríbenos</a></li>
                     </ul>
                 </div>
             </div>
