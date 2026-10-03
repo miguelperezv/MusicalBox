@@ -17,6 +17,8 @@ class Config(object):
     #Spotify (client credentials; buscar/refrescar metadatos de lanzamientos, ver app/store/musicapi.py)
     SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
     SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
+    #EnvíoClick Pro (cotización de fletes real; cuenta gratis en envioclick.com, ver app/store/envio.py)
+    ENVIOCLICK_TOKEN = os.getenv("ENVIOCLICK_TOKEN")
     #correo (ver app/correo.py): consola en desarrollo, smtp cuando se configure un proveedor
     #Para usar correo real, establece MAIL_BACKEND=smtp y configura las variables MAIL_*
     #Ejemplo para Gmail:

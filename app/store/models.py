@@ -109,6 +109,45 @@ class ProductoComponente(db.Model):
     componente = db.relationship("Producto", foreign_keys=[k_componente])
     variante = db.relationship("Variante")
 
+class Ubicacion(db.Model):
+    #cache: "municipio, departamento" (tal como lo elige el cliente) -> código DANE de 8 dígitos
+    #se resuelve al vuelo con api-colombia.com y se guarda para no repetir la llamada
+    __tablename__ = 'ubicacion'
+    id = db.Column(db.Integer, primary_key=True)
+    n_ubicacion = db.Column(db.String(80), unique=True, index=True)
+    c_dane = db.Column(db.String(8), nullable=False)
+    f_creacion = db.Column(db.DateTime, default=datetime.now)
+
+
+class ReglaEnvio(db.Model):
+    #regla de envío gratis; la primera activa (por orden) que aplique manda: el pedido no paga envío
+    __tablename__ = 'regla_envio'
+    id = db.Column(db.Integer, primary_key=True)
+    #SOLO_CATEGORIA (todo el pedido de una categoría) | CANTIDAD_CATEGORIA (N+ unidades de una)
+    #TOTAL_MIN (total a partir de $X) | SIEMPRE (envío siempre gratis)
+    tipo = db.Column(db.String(20), nullable=False)
+    k_categoria = db.Column(db.String(30))
+    cantidad = db.Column(db.Integer)
+    total_min = db.Column(db.Numeric(11,2))
+    orden = db.Column(db.Integer, nullable=False, default=0, server_default='0')
+    activo = db.Column(db.Boolean, nullable=False, default=True, server_default='1')
+    f_creacion = db.Column(db.DateTime, default=datetime.now)
+
+
+class CotizacionCache(db.Model):
+    #cotización de EnvíoClick ya hecha (TTL 24 h): destino + peso -> flete elegido
+    __tablename__ = 'cotizacion_cache'
+    id = db.Column(db.Integer, primary_key=True)
+    c_dane = db.Column(db.String(8), nullable=False, index=True)
+    peso_g = db.Column(db.Integer, nullable=False)
+    p_envio = db.Column(db.Numeric(11,2), nullable=False)
+    carrier = db.Column(db.String(30))
+    product = db.Column(db.String(40))
+    id_rate = db.Column(db.String(30))
+    dias = db.Column(db.Integer)
+    f_creacion = db.Column(db.DateTime, default=datetime.now)
+
+
 class Imagen(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     k_producto = db.Column(db.Integer, db.ForeignKey("producto.id"), nullable=False)
@@ -195,6 +234,12 @@ class Invoice(db.Model):
     f_actualizacion = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     #campo para indicar si el stock ha sido reservado
     stock_reservado = db.Column(db.Boolean, default=False, server_default='0')
+    #costo de envío del pedido (cotización real o regla de gratis); el admin lo puede corregir hasta que quede ENVIADO
+    p_envio = db.Column(db.Numeric(11,2), default=0, server_default='0')
+    d_envio = db.Column(db.String(100))
+    envio_manual = db.Column(db.Boolean, default=False, server_default='0')
+    envio_carrier = db.Column(db.String(30))
+    envio_id_rate = db.Column(db.String(30))
     #nota interna del admin (corrección de dirección, detalles del cliente, etc.)
     nota = db.Column(db.Text)
     #atributos de la relacion
@@ -248,6 +293,8 @@ class Solicitud(db.Model):
     cantidad = db.Column(db.Integer, nullable=False, default=1, server_default='1')
     #nota del admin sobre la cotización (tiempos, edición, acuerdos); va en el mensaje de WhatsApp
     d_cotizacion = db.Column(db.String(300))
+    #municipio del cliente (opcional en el formulario): para prellenar el checkout y cotizarle el envío
+    lugar_solicitud = db.Column(db.String(80))
     estado = db.Column(db.String(20), nullable=False, default='ACTIVO')
     f_solicitud = db.Column(db.DateTime, default=datetime.now)
     f_actualizacion = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
@@ -1023,7 +1070,7 @@ def edit_user_by_email(email, nombre,apellido,ciudad,direccion, barrio=None, cel
     
 
 #solicitudes de pedido (integrado desde musical_box_manager)
-def create_solicitud(k_usuario, items, cel=None, email=None):
+def create_solicitud(k_usuario, items, cel=None, email=None, lugar=None):
     #items: lista de {nombre, descripcion, categoria, cantidad, k_producto} (uno o más por solicitud)
     validos = []
     for it in (items or []):
@@ -1039,7 +1086,8 @@ def create_solicitud(k_usuario, items, cel=None, email=None):
     if not validos:
         return None, "Agrega al menos un producto"
     solicitud = Solicitud(k_usuario=k_usuario, estado='ACTIVO',
-                          cel_contacto=cel, email_contacto=(email or '').strip().lower() or None)
+                          cel_contacto=cel, email_contacto=(email or '').strip().lower() or None,
+                          lugar_solicitud=(lugar or '').strip()[:80] or None)
     for it in validos:
         solicitud.items.append(it)
     try:
@@ -1477,7 +1525,11 @@ def crear_pedido(cart, datos, k_usuario=None, cotizacion=None):
         lineas = [(*l, None, None, None) for l in lineas]
     if errores:
         return None, None, errores
-    
+
+    #costo de envío (regla de gratis, cotización real o tarifa por zona); None si la función está apagada
+    from .envio import costo_envio
+    envio = costo_envio(lineas, total, datos["ciudad"])
+
     # Validar que los datos de envío no estén vacíos
     nombre_envio = datos["nombre"].strip()
     email_envio = datos["email"].strip().lower()
@@ -1501,6 +1553,10 @@ def crear_pedido(cart, datos, k_usuario=None, cotizacion=None):
             # Solo guardar datos de envío si son válidos
             pedido = Invoice(k_usuario=comprador.id, total=total, estado='PENDIENTE', metodo_pago=datos.get("metodo_pago"),
                              token_hash=hash_token(token), token_creado=datetime.now(),
+                             p_envio=float(envio["p_envio"]) if envio else 0,
+                             d_envio=(envio["detalle"][:100] if envio else None),
+                             envio_carrier=(envio.get("carrier") or None) if envio else None,
+                             envio_id_rate=(envio.get("id_rate") or None) if envio else None,
                              n_envio=nombre_envio if datos_validos else None,
                              email_envio=email_envio if datos_validos else None,
                              tel_envio=telefono_envio if datos_validos else None,

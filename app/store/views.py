@@ -934,7 +934,12 @@ def artist(k_artista):
 def summary():
     #el stock por variante y de los packs se revisa aquí, antes de ir a pagar
     lineas, total, errores = carrito.resumen(session.get("purchase"))
-    return render_template("purchase.html", lineas=lineas, total=total, errores=errores)
+    cats = {}
+    for l in lineas:
+        cat = l["producto"].k_categoria or "OTRO"
+        cats[cat] = cats.get(cat, 0) + int(l["cantidad"])
+    return render_template("purchase.html", lineas=lineas, total=total, errores=errores,
+                           cats="|".join(f"{k}:{v}" for k, v in sorted(cats.items())))
 
 
 @purchase.route("/addtocart" ,methods=["POST"])
@@ -961,6 +966,18 @@ def updatesingle(k_producto, opc):
     if aviso:
         flash(aviso, "warning")
     return redirect(request.referrer or url_for('purchase.summary'))
+
+
+@purchase.route("/envio", methods=["GET"])
+def costo_envio_vista():
+    #estimado en vivo del envío al elegir el municipio en el checkout (no guarda nada)
+    from .envio import costo_envio, lineas_desde_cats
+    ciudad = (request.args.get("ciudad") or "").strip()
+    if not ciudad:
+        return jsonify({"p_envio": None, "detalle": "Elige tu municipio"})
+    total = request.args.get("total", type=int) or 0
+    res = costo_envio(lineas_desde_cats(request.args.get("cats")), total, ciudad)
+    return jsonify(res or {"p_envio": None, "detalle": "El costo de envío se coordina al confirmar"})
 
 
 @purchase.route('/process_checkout', methods=["POST"])

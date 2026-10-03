@@ -46,6 +46,7 @@
                     <td class="small">
                         {% set cel = s.cel_contacto or (s.usuario.cel_usuario if s.usuario) %}
                         {% if s.usuario %}<div class="fw-semibold">{{ s.usuario.n_usuario }} {{ s.usuario.ape_usuario }}</div>{% endif %}
+                        {% if s.lugar_solicitud %}<i class="bi bi-geo-alt me-1 text-body-secondary"></i>{{ s.lugar_solicitud }}<br>{% endif %}
                         {% if cel %}<a href="https://wa.me/57{{ cel|replace(' ', '') }}" target="_blank" rel="noopener"><i class="bi bi-whatsapp me-1 text-success"></i>{{ cel }}</a><br>{% endif %}
                         {% set correo = s.email_contacto or (s.usuario.email_usuario if s.usuario) %}
                         {% if correo %}<a href="mailto:{{ correo }}">{{ correo }}</a>{% endif %}

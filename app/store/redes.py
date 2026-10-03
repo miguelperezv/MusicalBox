@@ -43,6 +43,11 @@ MODOS = {'ultimas_n': 'Últimas N', 'random_n_de_m': 'N al azar de las últimas 
 DEFAULTS = {'redes.activa': '0',
             'redes.instagram.modo': 'ultimas_n', 'redes.instagram.n': '9', 'redes.instagram.m': '9',
             'redes.tiktok.modo': 'random_n_de_m', 'redes.tiktok.n': '1', 'redes.tiktok.m': '10',
+            #envío (ver app/store/envio.py y la sección "Envíos" del panel)
+            'envio.habilitado': '1',
+            'envio.criterio': 'COORDINADORA',  #paquetería preferida; también 'MENOR_COSTO' u 'MENOR_TIEMPO'
+            'envio.zona_bogota': '12000', 'envio.zona_nacional': '20000',  #tarifa de respaldo si no se puede cotizar
+            'envio.caja': '31x30x5',
             #textos de envío visibles en tienda (clave-valor; si no hay fila en Configuracion vale el default)
             'envio.proceso': '1–2 días hábiles',
             'envio.bogota': '24–72 h',

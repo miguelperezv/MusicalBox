@@ -47,8 +47,18 @@
                 </div>
                 {% endfor %}
                 <hr>
+                {% if pedido.p_envio and pedido.p_envio > 0 %}
+                <div class="d-flex justify-content-between align-items-baseline mb-1 small">
+                    <span class="text-body-secondary">Envío</span>
+                    <span class="text-body-secondary">{{ pedido.p_envio|cop }}{% if pedido.d_envio %} · {{ pedido.d_envio }}{% endif %}</span>
+                </div>
+                {% elif pedido.d_envio %}
+                <div class="d-flex justify-content-between align-items-baseline mb-1 small">
+                    <span class="text-body-secondary">Envío</span><span class="text-success fw-semibold">{{ pedido.d_envio }}</span>
+                </div>
+                {% endif %}
                 <div class="d-flex justify-content-between align-items-baseline">
-                    <span class="fw-bold">Total</span><span class="fs-4 fw-bold">{{ pedido.total|cop }}</span>
+                    <span class="fw-bold">Total</span><span class="fs-4 fw-bold">{{ ((pedido.total or 0) + (pedido.p_envio or 0))|cop }}</span>
                 </div>
             </div>
 
@@ -105,7 +115,7 @@
         <div class="col-lg-5">
             <div class="mb-panel mb-sticky">
                 {% if pedido.estado in ['PENDIENTE', 'RECHAZADO'] %}
-                <h2 class="h5 mb-2">Pagar {{ pedido.total|cop }}</h2>
+                <h2 class="h5 mb-2">Pagar {{ ((pedido.total or 0) + (pedido.p_envio or 0))|cop }}</h2>
                 <p class="small text-body-secondary">Selecciona tu método de pago preferido.</p>
                 
                 <!-- Botón de pago MercadoPago -->

@@ -63,7 +63,7 @@
             <div class="mb-panel mb-sticky">
                 <h2 class="h5 mb-3">Resumen</h2>
                 <div class="d-flex justify-content-between mb-2"><span class="text-body-secondary">Productos ({{ lineas|sum(attribute='cantidad') }})</span><span>{{ total|cop }}</span></div>
-                <div class="d-flex justify-content-between mb-1"><span class="text-body-secondary">Envío</span><span class="text-body-secondary">Se coordina al confirmar</span></div>
+                <div class="d-flex justify-content-between mb-1"><span class="text-body-secondary">Envío</span><span class="text-body-secondary">Se estima con tu municipio</span></div>
                 <small class="text-body-secondary d-block mb-3"><i class="bi bi-truck me-1"></i>Preparamos tu pedido en {{ envio_cfg.proceso }} · Bogotá {{ envio_cfg.bogota }} · hasta {{ envio_cfg.resto }} · <a href="{{ url_for('home.ayuda_envios') }}">ver detalles</a></small>
                 <hr>
                 <div class="d-flex justify-content-between align-items-baseline mb-4">
@@ -107,9 +107,11 @@ function openEnvioModal() {
                     <input type="tel" class="form-control" id="swal-telefono" name="telefono" required>
                 </div>
                 <div class="mb-3">
-                    <label for="swal-ciudad" class="form-label">Ciudad *</label>
-                    <input type="text" class="form-control" id="swal-ciudad" name="ciudad" list="ciudades-list" required>
-                    <datalist id="ciudades-list"></datalist>
+                    <label for="swal-ciudad" class="form-label">Ciudad / municipio *</label>
+                    <input type="text" class="form-control" id="swal-ciudad" name="ciudad" required
+                           placeholder="Escribe tu municipio, ej. Medellín, Antioquia"
+                           data-autocomplete="{{ url_for('home.colombia') }}" autocomplete="off">
+                    <div id="swal-envio" class="small text-body-secondary mt-2">El costo de envío se estima al escribir tu municipio</div>
                 </div>
                 <div class="mb-3">
                     <label for="swal-direccion" class="form-label">Dirección completa *</label>
@@ -127,21 +129,37 @@ function openEnvioModal() {
         cancelButtonText: 'Cancelar',
         focusConfirm: false,
         didOpen: () => {
-            // Cargar lista de ciudades
-            fetch('/colombia')
-                .then(response => response.json())
-                .then(ciudades => {
-                    const datalist = document.getElementById('ciudades-list');
-                    datalist.innerHTML = '';
-                    ciudades.forEach(ciudad => {
-                        const option = document.createElement('option');
-                        option.value = ciudad;
-                        datalist.appendChild(option);
+            //autocompletado del municipio con el estilo del sitio (misma lista "Ciudad, Departamento" que el checkout)
+            if (window.mbAutocomplete) window.mbAutocomplete(document.getElementById('swal-form'));
+            //estimado del envío en vivo: el valor elegido ya viene en el formato que calcula el costo
+            const ciudadInput = document.getElementById('swal-ciudad');
+            const envioEl = document.getElementById('swal-envio');
+            let envioTimer = null, envioSeq = 0;
+            const cotizar = () => {
+                const ciudad = ciudadInput.value.trim();
+                if (ciudad.length < 2) {
+                    envioEl.innerHTML = 'El costo de envío se estima al escribir tu municipio';
+                    return;
+                }
+                const seq = ++envioSeq;
+                envioEl.textContent = 'Cotizando el envío…';
+                const q = new URLSearchParams({ ciudad, total: {{ total }}, cats: {{ cats|tojson }} });
+                fetch('{{ url_for("purchase.costo_envio_vista") }}?' + q.toString())
+                    .then(r => r.json())
+                    .then(d => {
+                        if (seq !== envioSeq) return;
+                        if (d.p_envio == null) envioEl.innerHTML = 'Envío: ' + (d.detalle || 'se coordina al pagar');
+                        else envioEl.innerHTML = 'Envío: <strong>$' + Number(d.p_envio).toLocaleString('es-CO') + '</strong> · ' + (d.detalle || '');
+                    })
+                    .catch(() => {
+                        if (seq !== envioSeq) return;
+                        envioEl.textContent = 'No se pudo cotizar ahora; el costo se confirma al pagar';
                     });
-                })
-                .catch(error => {
-                    console.error('Error cargando ciudades:', error);
-                });
+            };
+            ciudadInput.addEventListener('input', () => {
+                clearTimeout(envioTimer);
+                envioTimer = setTimeout(cotizar, 400);
+            });
         },
         preConfirm: () => {
             const form = document.getElementById('swal-form');

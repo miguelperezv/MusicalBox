@@ -95,6 +95,9 @@
                 </div>
                 {% endfor %}
                 <hr>
+                <div class="d-flex justify-content-between align-items-baseline mb-1">
+                    <span class="text-body-secondary">Envío</span><span id="total-envio" class="text-body-secondary small">Se estima al escribir tu municipio</span>
+                </div>
                 <div class="d-flex justify-content-between align-items-baseline">
                     <span class="fw-bold">Total</span><span class="fs-4 fw-bold" id="total-pedido">{{ total|cop }}</span>
                 </div>
@@ -127,7 +130,43 @@
                 fila.classList.toggle('cot-retirada', retada);
                 inp.disabled = retada;
             });
-            total.textContent = cop(suma);
+            total.textContent = cop(suma + envioActual);
+        }
+        //estimado del envío según el municipio elegido (no guarda nada; la orden cobra lo suyo)
+        var ciudad = document.querySelector('form#form-checkout input[name="ciudad"]');
+        var envioEl = document.getElementById('total-envio');
+        var envioActual = 0;
+        var CATS = {{ cats|default('')|tojson }} || '';
+        if (ciudad) {
+            ciudad.addEventListener('change', function () {
+                var valor = ciudad.value.trim();
+                if (!valor) { envioActual = 0; envioEl.textContent = 'Se estima al escribir tu municipio'; refrescar(); return; }
+                envioEl.textContent = 'Cotizando el envío…';
+                var q = new URLSearchParams({ ciudad: valor, total: sumaProductos(), cats: CATS });
+                fetch('{{ url_for("purchase.costo_envio_vista") }}?' + q.toString())
+                    .then(function (r) { return r.json(); })
+                    .then(function (d) {
+                        if (d.p_envio == null) { envioActual = 0; envioEl.textContent = d.detalle || 'Se coordina al pagar'; }
+                        else { envioActual = Number(d.p_envio); envioEl.innerHTML = '<strong>' + cop(envioActual) + '</strong> · ' + (d.detalle || ''); }
+                        refrescar();
+                    })
+                    .catch(function () {
+                        envioActual = 0;
+                        envioEl.textContent = 'No se pudo cotizar ahora; se confirma al pagar';
+                    });
+            });
+        }
+        function sumaProductos() {
+            var suma = 0;
+            inputs.forEach(function (inp) {
+                var fila = inp.closest('.linea-item');
+                var retirada = fila.querySelector('input[name^="retirar_"]');
+                if (retirada && retirada.checked) return;
+                var precio = parseInt(inp.dataset.precio, 10) || 0;
+                var cant = Math.max(1, Math.min(99, parseInt(inp.value, 10) || 1));
+                suma += precio * cant;
+            });
+            return suma;
         }
         inputs.forEach(function (inp) { inp.addEventListener('input', refrescar); });
         retiros.forEach(function (cb) { cb.addEventListener('change', refrescar); });

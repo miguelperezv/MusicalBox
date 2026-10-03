@@ -6,6 +6,10 @@ from wtforms import widgets as h5widgets
 import pycountry
 from .models import get_all_genres
 
+def _limpiar(valor):
+    return valor.strip() if isinstance(valor, str) else valor
+
+
 class CreateUsuarioForm(FlaskForm):
     name = StringField('Nombre', validators=[DataRequired(message="Ingresa un nombre")])
     lastname = StringField('Apellido', validators= [DataRequired(message = "Ingresa un apellido")])
@@ -132,10 +136,7 @@ class RegistroSolicitudForm(FlaskForm):
     #contacto de la solicitud; los ítems (uno o más) se parsean en la vista desde items[N][...]
     celular = StringField('Celular (WhatsApp)', validators=[DataRequired(message="Déjanos tu celular"), Length(max=20)])
     email = EmailField('Correo', validators=[Optional(), Length(max=100), Regexp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", message="Revisa el correo")])
-
-
-def _limpiar(valor):
-    return valor.strip() if isinstance(valor, str) else valor
+    ciudad = StringField('Municipio / ciudad (opcional)', validators=[Optional(), Length(max=80)], filters=[_limpiar])
 
 
 class CheckoutForm(FlaskForm):

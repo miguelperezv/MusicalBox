@@ -10,6 +10,7 @@ from .store.solicitudes import solicitud
 from .store.pedidos import pedido
 from .store.mercadopago import views as mercadopago_views
 from .store import catalogo_admin  # noqa: F401 (rutas de tallas y packs en el panel)
+from .store import envios_admin  # noqa: F401 (sección "Envíos" del panel y costo por orden)
 
 ACTIVE_ENDPOINTS = [('/',home), ('/dashboard', dashboard), ('/releases', releases), ('/artists', artists), ('/purchase', purchase), ("/products", products), ("/solicitud", solicitud), ("/pedido", pedido), ("/mercadopago", mercadopago_views.mercadopago_bp) ]
 
