@@ -1275,6 +1275,192 @@ def get_products_cards(limit=None, k_lanzamiento=None, categoria=None, orden='re
         })
     return cards
 
+def get_productos_mas_vendidos(limit=10, dias=30):
+    """Obtiene los productos más vendidos en un período determinado"""
+    desde = datetime.now() - timedelta(days=dias)
+    
+    # Obtener productos más vendidos por unidades
+    col_unidades = db.func.sum(Item.cant_item).label("u")
+    filas = (db.session.query(Item.k_producto, col_unidades)
+             .join(Invoice, Invoice.id == Item.k_factura)
+             .filter(Invoice.estado == 'PAGADO', Invoice.f_compra >= desde)
+             .group_by(Item.k_producto)
+             .order_by(col_unidades.desc())
+             .limit(limit).all())
+    
+    productos = []
+    for k_prod, unidades in filas:
+        p = db.session.get(Producto, k_prod)
+        if p:
+            productos.append({
+                "producto": p,
+                "nombre": p.n_producto or '(sin nombre)',
+                "lanzamiento": p.lanzamiento.n_lanzamiento.title() if p.lanzamiento else '',
+                "u": int(unidades),
+                "total_ventas": float((p.p_producto or 0) * int(unidades))
+            })
+    
+    return productos
+
+
+def get_ventas_por_mes(meses=12):
+    """Obtiene las ventas totales por mes para los últimos N meses"""
+    ahora = datetime.now()
+    resultados = []
+    
+    for i in range(meses):
+        # Calcular el mes y año para cada iteración
+        mes = ahora.month - i
+        anio = ahora.year
+        
+        # Ajustar el año y mes si es necesario
+        while mes <= 0:
+            mes += 12
+            anio -= 1
+            
+        # Primer día del mes
+        inicio_mes = datetime(anio, mes, 1)
+        
+        # Último día del mes
+        if mes == 12:
+            fin_mes = datetime(anio + 1, 1, 1) - timedelta(days=1)
+        else:
+            fin_mes = datetime(anio, mes + 1, 1) - timedelta(days=1)
+        
+        # Ventas del mes
+        ventas_mes = (db.session.query(db.func.sum(Invoice.total))
+                     .filter(Invoice.estado == 'PAGADO',
+                            Invoice.f_compra >= inicio_mes,
+                            Invoice.f_compra <= fin_mes).scalar() or 0)
+        
+        resultados.append({
+            "mes": mes,
+            "anio": anio,
+            "nombre": MESES[mes],
+            "ventas": float(ventas_mes),
+            "periodo": f"{MESES[mes][:3]}. {anio}"
+        })
+    
+    # Ordenar por fecha ascendente (más antiguo primero)
+    resultados.reverse()
+    return resultados
+
+
+def get_estadisticas_inventario():
+    """Obtiene estadísticas generales del inventario"""
+    # Productos totales
+    total_productos = Producto.query.count()
+    
+    # Productos agotados
+    productos_agotados = Producto.query.filter(Producto.stock <= 0).count()
+    
+    # Productos con stock bajo (≤ 3 unidades)
+    productos_bajo_stock = Producto.query.filter(Producto.stock > 0, Producto.stock <= 3).count()
+    
+    # Productos con stock suficiente (> 3 unidades)
+    productos_stock_suficiente = Producto.query.filter(Producto.stock > 3).count()
+    
+    # Porcentaje de productos agotados
+    porcentaje_agotados = (productos_agotados / total_productos * 100) if total_productos > 0 else 0
+    
+    return {
+        "total_productos": total_productos,
+        "productos_agotados": productos_agotados,
+        "productos_bajo_stock": productos_bajo_stock,
+        "productos_stock_suficiente": productos_stock_suficiente,
+        "porcentaje_agotados": round(porcentaje_agotados, 2)
+    }
+
+
+def get_estadisticas_clientes():
+    """Obtiene estadísticas generales de clientes y pedidos"""
+    # Clientes totales
+    total_clientes = Usuario.query.filter(Usuario.k_rol.in_(['USER', 'CLIENTE'])).count()
+    
+    # Clientes nuevos en los últimos 30 días
+    hace_30 = datetime.now() - timedelta(days=30)
+    nuevos_clientes = Usuario.query.filter(
+        Usuario.k_rol.in_(['USER', 'CLIENTE']),
+        Usuario.f_registro >= hace_30
+    ).count()
+    
+    # Pedidos por cliente (promedio)
+    total_pedidos = Invoice.query.filter_by(estado='PAGADO').count()
+    pedidos_por_cliente = total_pedidos / total_clientes if total_clientes > 0 else 0
+    
+    # Ticket promedio
+    ventas_totales = sum((i.total or 0) for i in Invoice.query.filter_by(estado='PAGADO').all())
+    ticket_promedio = ventas_totales / total_pedidos if total_pedidos > 0 else 0
+    
+    return {
+        "total_clientes": total_clientes,
+        "nuevos_clientes": nuevos_clientes,
+        "pedidos_por_cliente": round(pedidos_por_cliente, 2),
+        "ticket_promedio": round(ticket_promedio, 2)
+    }
+
+
+def get_ventas_por_categoria(dias=30):
+    """Obtiene las ventas totales por categoría de producto en un período determinado"""
+    desde = datetime.now() - timedelta(days=dias)
+    
+    # Obtener ventas por categoría
+    resultados = (db.session.query(Producto.k_categoria, db.func.sum(Item.cant_item * Producto.p_producto))
+                 .join(Item, Item.k_producto == Producto.id)
+                 .join(Invoice, Invoice.id == Item.k_factura)
+                 .filter(Invoice.estado == 'PAGADO', Invoice.f_compra >= desde)
+                 .group_by(Producto.k_categoria)
+                 .all())
+    
+    categorias = []
+    for categoria, ventas in resultados:
+        categorias.append({
+            "categoria": categoria or 'Sin categoría',
+            "ventas": float(ventas or 0)
+        })
+    
+    # Ordenar por ventas descendente
+    categorias.sort(key=lambda x: x["ventas"], reverse=True)
+    return categorias
+
+
+def get_crecimiento_ventas(meses=3):
+    """Obtiene el crecimiento de ventas en porcentaje para los últimos N meses"""
+    ahora = datetime.now()
+    
+    # Ventas del mes actual
+    inicio_mes_actual = datetime(ahora.year, ahora.month, 1)
+    ventas_mes_actual = float(sum((i.total or 0) for i in Invoice.query.filter(
+        Invoice.estado == 'PAGADO', Invoice.f_compra >= inicio_mes_actual).all()))
+    
+    # Ventas del mismo período del mes anterior
+    if ahora.month == 1:
+        inicio_mes_anterior = datetime(ahora.year - 1, 12, 1)
+        fin_mes_anterior = datetime(ahora.year, 1, 1) - timedelta(days=1)
+    else:
+        inicio_mes_anterior = datetime(ahora.year, ahora.month - 1, 1)
+        fin_mes_anterior = datetime(ahora.year, ahora.month, 1) - timedelta(days=1)
+    
+    ventas_mes_anterior = float(sum((i.total or 0) for i in Invoice.query.filter(
+        Invoice.estado == 'PAGADO', 
+        Invoice.f_compra >= inicio_mes_anterior, 
+        Invoice.f_compra <= fin_mes_anterior).all()))
+    
+    # Calcular crecimiento
+    if ventas_mes_anterior > 0:
+        crecimiento = ((ventas_mes_actual - ventas_mes_anterior) / ventas_mes_anterior) * 100
+    elif ventas_mes_actual > 0:
+        crecimiento = 100  # Crecimiento del 100% si el mes anterior fue 0
+    else:
+        crecimiento = 0  # Sin crecimiento si ambos meses son 0
+    
+    return {
+        "actual": ventas_mes_actual,
+        "anterior": ventas_mes_anterior,
+        "crecimiento": crecimiento
+    }
+
+
 def get_admin_stats():
     #el resumen responde "¿qué hago hoy?": ventas del mes, lo que va saliendo, stock crítico y pendientes
     ahora = datetime.now()
@@ -1319,6 +1505,29 @@ def get_admin_stats():
                 preordenes[p.lanzamiento.n_lanzamiento] = preordenes.get(p.lanzamiento.n_lanzamiento, 0) + int(unidades)
     preordenes_lista = [{"lanzamiento": n.title(), "u": u} for n, u in preordenes.items()]
     preordenes_lista.sort(key=lambda f: -f["u"])
+    
+    # Estados de pedidos
+    estados_pedido = {}
+    for estado in ['PENDIENTE', 'PAGADO', 'RECHAZADO']:
+        estados_pedido[estado] = Invoice.query.filter_by(estado=estado).count()
+    
+    # Estados de envío
+    estados_envio = {}
+    for estado in ESTADOS_ENVIO:
+        estados_envio[estado] = Invoice.query.filter(Invoice.estado == 'PAGADO', Invoice.estado_envio == estado).count()
+    
+    # Crecimiento de ventas
+    crecimiento_ventas = get_crecimiento_ventas(1)  # Último mes
+    
+    # Ventas por categoría
+    ventas_por_categoria = get_ventas_por_categoria(30)  # Últimos 30 días
+    
+    # Estadísticas de clientes
+    estadisticas_clientes = get_estadisticas_clientes()
+    
+    # Estadísticas de inventario
+    estadisticas_inventario = get_estadisticas_inventario()
+    
     return {
         "solicitudes_activas": Solicitud.query.filter(Solicitud.estado.in_(['ACTIVO', 'EN PROCESO'])).count(),
         "solicitudes_cotizadas": Solicitud.query.filter_by(estado='COTIZADA').count(),
@@ -1340,6 +1549,14 @@ def get_admin_stats():
         "preordenes": preordenes_lista,
         "ultimas_ordenes": Invoice.query.order_by(db.desc(Invoice.f_compra)).limit(5).all(),
         "rotulo_estados": ESTADOS_CON_ROTULO,
+        "estados_pedido": estados_pedido,
+        "estados_envio": estados_envio,
+        "ventas_por_mes": get_ventas_por_mes(6),  # Últimos 6 meses
+        "productos_mas_vendidos": get_productos_mas_vendidos(10, 30),  # Top 10 últimos 30 días
+        "crecimiento_ventas": crecimiento_ventas,
+        "ventas_por_categoria": ventas_por_categoria,
+        "estadisticas_clientes": estadisticas_clientes,
+        "estadisticas_inventario": estadisticas_inventario,
     }
 
 

@@ -102,6 +102,120 @@
                     </div>
                 </div>
             </div>
+            <div class="row g-4 mb-4">
+                <div class="col-xl-6">
+                    <div class="mb-panel h-100">
+                        <h2 class="h6 mb-2">Ventas por mes <span class="text-body-secondary fw-normal">(últimos 6 meses)</span></h2>
+                        <div class="d-flex align-items-end h-75 gap-1">
+                            {% for mes in stats.ventas_por_mes %}
+                            <div class="flex-grow-1">
+                                <div class="bg-primary rounded-top" 
+                                     style="height: {{ ((mes.ventas / stats.ventas_por_mes|map(attribute='ventas')|max) * 100) if stats.ventas_por_mes|map(attribute='ventas')|max > 0 else 0 }}%; min-height: 5px;"
+                                     title="{{ mes.periodo }}: {{ mes.ventas|cop }}"></div>
+                                <div class="text-center small text-body-secondary mt-1">{{ mes.nombre[:3] }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="mt-2 small text-body-secondary">
+                            {% set max_ventas = stats.ventas_por_mes|map(attribute='ventas')|max %}
+                            {% set min_ventas = stats.ventas_por_mes|map(attribute='ventas')|min %}
+                            {% set avg_ventas = stats.ventas_por_mes|map(attribute='ventas')|sum / stats.ventas_por_mes|length %}
+                            Mejor mes: {{ max_ventas|cop }} · Promedio: {{ avg_ventas|cop }}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xl-6">
+                    <div class="mb-panel h-100">
+                        <h2 class="h6 mb-2">Ventas por categoría <span class="text-body-secondary fw-normal">(últimos 30 días)</span></h2>
+                        {% set total_ventas_categoria = stats.ventas_por_categoria|map(attribute='ventas')|sum %}
+                        {% for cat in stats.ventas_por_categoria[:5] %}
+                        <div class="d-flex justify-content-between align-items-center gap-2 py-1 border-bottom border-secondary-subtle">
+                            <div class="small text-truncate">{{ cat.categoria }}</div>
+                            <div class="text-end small text-nowrap">
+                                <span class="fw-semibold">{{ cat.ventas|cop }}</span>
+                                {% if total_ventas_categoria > 0 %}
+                                <span class="text-body-secondary">({{ "%.1f"|format((cat.ventas / total_ventas_categoria) * 100) }}%)</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="text-body-secondary small">No hay ventas en los últimos 30 días</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="row g-4 mb-4">
+                <div class="col-xl-6">
+                    <div class="mb-panel h-100">
+                        <h2 class="h6 mb-2">Productos más vendidos <span class="text-body-secondary fw-normal">(últimos 30 días)</span></h2>
+                        {% for p in stats.productos_mas_vendidos %}
+                        <a class="d-flex justify-content-between align-items-center gap-2 py-1 border-bottom border-secondary-subtle text-decoration-none small"
+                           href="{{ url_for('dashboard.updateproduct', k_producto=p.producto.id) }}">
+                            <span class="text-truncate">{{ p.nombre }}{% if p.lanzamiento %} <span class="text-body-secondary">· {{ p.lanzamiento }}</span>{% endif %}</span>
+                            <span class="text-end small text-nowrap">
+                                <span class="fw-semibold">{{ p.u }}</span> <span class="text-body-secondary">und ·</span>
+                                <span class="fw-semibold">{{ p.total_ventas|cop }}</span>
+                            </span>
+                        </a>
+                        {% else %}
+                        <div class="text-body-secondary small">No hay ventas en los últimos 30 días</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            <div class="row g-4 mb-4">
+                <div class="col-xl-6">
+                    <div class="mb-panel h-100">
+                        <h2 class="h6 mb-2">Productos más vendidos <span class="text-body-secondary fw-normal">(últimos 30 días)</span></h2>
+                        {% for p in stats.productos_mas_vendidos %}
+                        <a class="d-flex justify-content-between align-items-center gap-2 py-1 border-bottom border-secondary-subtle text-decoration-none small"
+                           href="{{ url_for('dashboard.updateproduct', k_producto=p.producto.id) }}">
+                            <span class="text-truncate">{{ p.nombre }}{% if p.lanzamiento %} <span class="text-body-secondary">· {{ p.lanzamiento }}</span>{% endif %}</span>
+                            <span class="text-end small text-nowrap">
+                                <span class="fw-semibold">{{ p.u }}</span> <span class="text-body-secondary">und ·</span>
+                                <span class="fw-semibold">{{ p.total_ventas|cop }}</span>
+                            </span>
+                        </a>
+                        {% else %}
+                        <div class="text-body-secondary small">No hay ventas en los últimos 30 días</div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="col-xl-6">
+                    <div class="mb-panel h-100">
+                        <h2 class="h6 mb-2">KPIs Clave</h2>
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <div class="bg-light p-3 rounded">
+                                    <div class="small text-body-secondary">Ticket promedio</div>
+                                    <div class="fs-5 fw-bold">
+                                        {{ stats.estadisticas_clientes.ticket_promedio|cop }}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="bg-light p-3 rounded">
+                                    <div class="small text-body-secondary">Crecimiento ventas</div>
+                                    <div class="fs-5 fw-bold {{ 'text-success' if stats.crecimiento_ventas.crecimiento >= 0 else 'text-danger' }}">
+                                        {% if stats.crecimiento_ventas.crecimiento >= 0 %}+{% endif %}{{ "%.1f"|format(stats.crecimiento_ventas.crecimiento) }}%
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="bg-light p-3 rounded">
+                                    <div class="small text-body-secondary">Productos agotados</div>
+                                    <div class="fs-5 fw-bold text-danger">{{ stats.agotados }}</div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="bg-light p-3 rounded">
+                                    <div class="small text-body-secondary">Clientes activos</div>
+                                    <div class="fs-5 fw-bold">{{ stats.estadisticas_clientes.total_clientes }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div class="row g-4">
                 <div class="col-xl-6">
                     <div class="mb-panel h-100">
