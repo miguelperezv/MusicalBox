@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_cards.html" import product_card with context %}
 {% block title %}{{ p.nombre }}{% endblock %}
 {% block description %}{{ p.nombre }}{{ ' - ' ~ p.lanzamiento.n_lanzamiento.title() if p.lanzamiento }} en Musical Box. {{ p.descripcion or '' }}{% endblock %}
 {% block og_title %}{{ p.nombre }}{{ ' · ' ~ p.lanzamiento.n_lanzamiento.title() if p.lanzamiento }} · Musical Box{% endblock %}
@@ -40,6 +41,20 @@
     <div class="mb-panel p-3 p-md-4">
         {% include "_producto_detalle.html" %}
     </div>
+
+    {% if relacionados %}
+    <section class="mb-4">
+        <div class="mb-section-title">
+            <div><span class="mb-eyebrow">También de este lanzamiento</span><h2 class="h5">{{ p.lanzamiento.n_lanzamiento.title() }}</h2></div>
+            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('releases.release', k_lanzamiento=p.lanzamiento.id) }}">Ver todo <i class="bi bi-arrow-right"></i></a>
+        </div>
+        <div class="row row-cols-2 row-cols-md-4 g-3 g-lg-4">
+            {% for r in relacionados %}
+            <div class="col">{{ product_card(r, show_release=false) }}</div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
 </div>
 {% endblock %}
 

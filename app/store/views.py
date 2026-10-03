@@ -80,8 +80,13 @@ def validate_admin():
 
 @home.route("/")
 def index():
-    return render_template("home.html", releases = get_releases_cards(limit=10), productos = get_products_cards(limit=4),
-                           redes = seleccion_para_inicio())
+    return render_template("home.html", releases = get_releases_cards(limit=10), productos = get_products_cards(limit=8),
+                            redes = seleccion_para_inicio())
+
+@home.route("/ayuda/envios")
+def ayuda_envios():
+    #ayuda de envío: zonas, cómo sale el pedido, preordenes, perdidos/dañados
+    return render_template("ayuda_envios.html")
 
 @home.route("/robots.txt")
 def robots():
@@ -99,6 +104,7 @@ def sitemap():
         (url_for('releases.home_releases', _external=True), None),
         (url_for('products.home_products', _external=True), None),
         (url_for('solicitud.nueva', _external=True), None),
+        (url_for('home.ayuda_envios', _external=True), None),
     ]
     for r in Lanzamiento.query.all():
         entradas.append((url_for('releases.release', k_lanzamiento=r.id, _external=True), r.f_lanzamiento))
@@ -831,22 +837,38 @@ def home_releases():
     genero = (request.args.get("genero") or "").strip()
     formato = (request.args.get("formato") or "").strip()
     orden = request.args.get("orden") or "recientes"
-    if orden not in ("recientes", "antiguos", "nombre", "precio"):
+    if orden not in ("recientes", "antiguos", "nombre", "precio", "vendidos"):
         orden = "recientes"
+    semana = request.args.get("semana") == "1"
     try:
         page = max(1, int(request.args.get("page") or 1))
     except ValueError:
         page = 1
-    cards = get_releases_cards(q=q, genero=genero or None, categoria=formato or None, orden=orden)
+    cards = get_releases_cards(q=q, genero=genero or None, categoria=formato or None, orden=orden,
+                               dias=7 if semana else None)
     per_page = 20
     total = len(cards)
     pages = max(1, (total + per_page - 1) // per_page)
     page = min(page, pages)
     return render_template("releases.html",
                            releases=cards[(page - 1) * per_page:page * per_page],
-                           q=q, genero=genero, formato=formato, orden=orden,
+                           q=q, genero=genero, formato=formato, orden=orden, semana=semana,
                            page=page, pages=pages, total=total,
                            generos=get_generos(), categorias=get_categorias())
+
+MESES = {1: 'enero', 2: 'febrero', 3: 'marzo', 4: 'abril', 5: 'mayo', 6: 'junio',
+         7: 'julio', 8: 'agosto', 9: 'septiembre', 10: 'octubre', 11: 'noviembre', 12: 'diciembre'}
+
+
+def fecha_lanzamiento_pronta(lanzamiento):
+    #si la fecha del lanzamiento es futura, la devuelve en texto ("13 de noviembre de 2026"); si no, None
+    raw = (lanzamiento or {}).get("f_lanzamiento")
+    try:
+        d = datetime.date.fromisoformat(raw)
+    except (TypeError, ValueError):
+        return None
+    return f"{d.day} de {MESES[d.month]} de {d.year}" if d > datetime.date.today() else None
+
 
 @releases.route("/<int:k_lanzamiento>", methods=["GET", "POST"])
 def release(k_lanzamiento):
@@ -859,8 +881,9 @@ def release(k_lanzamiento):
             return render_template("404.html"), 404
         cards = get_products_cards(k_lanzamiento=k_lanzamiento)
         return render_template("singleRelease.html", artista=artista, lanzamiento=lanzamiento, generos = generos, productos=productos,
-                               packs=[c for c in cards if c["tipo"] == 'BUNDLE'], sueltos=[c for c in cards if c["tipo"] != 'BUNDLE'],
-                               social=post_social(lanzamiento.get("url_social")), original=any(c["original"] for c in cards))
+                                packs=[c for c in cards if c["tipo"] == 'BUNDLE'], sueltos=[c for c in cards if c["tipo"] != 'BUNDLE'],
+                                social=post_social(lanzamiento.get("url_social")), original=any(c["original"] for c in cards),
+                                fecha_pronta=fecha_lanzamiento_pronta(lanzamiento))
 
 
 def guardar_url_social(k_lanzamiento, url):
@@ -1016,15 +1039,20 @@ def detalle(k_producto):
     p = producto_card(k_producto)
     if not p:
         return render_template("404.html"), 404
+    #otros productos del mismo lanzamiento (los de al lado, sin repetir el actual)
+    relacionados = []
+    if p.get("lanzamiento"):
+        relacionados = [c for c in get_products_cards(k_lanzamiento=p["lanzamiento"].id)
+                        if c["id"] != p["id"]][:4]
     if request.args.get("modal"):
         return render_template("_producto_detalle.html", p=p, modal=True)
-    return render_template("producto.html", p=p)
+    return render_template("producto.html", p=p, relacionados=relacionados)
 
 @products.route("/", methods=["POST", "GET"])
 def home_products():
     categoria = (request.args.get("categoria") or "").strip()
     orden = request.args.get("orden") or "recientes"
-    if orden not in ("recientes", "precio_asc", "precio_desc", "nombre"):
+    if orden not in ("recientes", "precio_asc", "precio_desc", "nombre", "vendidos"):
         orden = "recientes"
     try:
         page = max(1, int(request.args.get("page") or 1))

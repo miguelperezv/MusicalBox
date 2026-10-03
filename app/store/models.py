@@ -1117,7 +1117,8 @@ def _fecha(valor):
             return None
     return valor
 
-def get_releases_cards(q=None, k_artista=None, limit=None, genero=None, categoria=None, orden='recientes'):
+def get_releases_cards(q=None, k_artista=None, limit=None, genero=None, categoria=None, orden='recientes', dias=None):
+    #dias: si se pasa (p. ej. 7), solo quedan los lanzamientos de los últimos N días ("Esta semana")
     q = (q or '').strip().lower()
     cards = []
     for lanz in Lanzamiento.query.order_by(db.desc(Lanzamiento.f_lanzamiento)).all():
@@ -1135,6 +1136,8 @@ def get_releases_cards(q=None, k_artista=None, limit=None, genero=None, categori
         if categoria and categoria not in categorias:
             continue
         fecha = _fecha(lanz.f_lanzamiento)
+        if dias is not None and not (fecha and (datetime.now().date() - fecha).days < dias):
+            continue
         cards.append({
             "id": lanz.id,
             "nombre": lanz.n_lanzamiento,
@@ -1144,6 +1147,7 @@ def get_releases_cards(q=None, k_artista=None, limit=None, genero=None, categori
             "generos": generos,
             "categorias": categorias,
             "nuevo": bool(fecha and (datetime.now().date() - fecha).days < 30),
+            "pronto": bool(fecha and fecha > datetime.now().date()),
             "agotado": bool(productos) and all(stock_disponible(p) <= 0 for p in productos),
             "preorden": bool(lanz.preorden),
             "precio_desde": min((p.p_producto for p in productos), default=None),
@@ -1157,6 +1161,18 @@ def get_releases_cards(q=None, k_artista=None, limit=None, genero=None, categori
         cards.sort(key=lambda c: (c['nombre'] or '').lower())
     elif orden == 'precio':
         cards.sort(key=lambda c: (c['precio_desde'] is None, c['precio_desde'] or 0))
+    elif orden == 'vendidos':
+        #unidades vendidas por lanzamiento en pedidos PAGADOS
+        ids = [c['id'] for c in cards]
+        ventas = {}
+        if ids:
+            filas = (db.session.query(Producto.k_lanzamiento, db.func.sum(Item.cant_item))
+                     .join(Item, Item.k_producto == Producto.id)
+                     .join(Invoice, Invoice.id == Item.k_factura)
+                     .filter(Invoice.estado == 'PAGADO', Producto.k_lanzamiento.in_(ids))
+                     .group_by(Producto.k_lanzamiento).all())
+            ventas = dict(filas)
+        cards.sort(key=lambda c: ventas.get(c['id'], 0), reverse=True)
     return cards
 
 def get_generos():
@@ -1179,10 +1195,18 @@ def get_products_cards(limit=None, k_lanzamiento=None, categoria=None, orden='re
         query = query.order_by(Producto.n_producto.asc())
     else:
         query = query.order_by(db.desc(Producto.f_producto))
+    productos = query.all()
+    if orden == 'vendidos':
+        #unidades vendidas por producto en pedidos PAGADOS (limite se aplica después de ordenar)
+        filas = (db.session.query(Item.k_producto, db.func.sum(Item.cant_item))
+                 .join(Invoice, Invoice.id == Item.k_factura)
+                 .filter(Invoice.estado == 'PAGADO').group_by(Item.k_producto).all())
+        ventas = dict(filas)
+        productos.sort(key=lambda p: ventas.get(p.id, 0), reverse=True)
     if limit:
-        query = query.limit(limit)
+        productos = productos[:limit]
     cards = []
-    for p in query.all():
+    for p in productos:
         cards.append({
             "id": p.id,
             "nombre": p.n_producto,

@@ -11,7 +11,8 @@
         <div class="badges">
             {% if r.nuevo %}<span class="mb-chip mb-badge-new">Nuevo</span>{% endif %}
             {% if r.preorden %}<span class="mb-chip mb-badge-new"><i class="bi bi-fire text-danger me-1"></i>Preorden</span>
-            {% elif r.agotado %}<span class="mb-chip mb-badge-out">Agotado</span>{% endif %}
+            {% elif r.agotado %}<span class="mb-chip mb-badge-out">Agotado</span>
+            {% elif r.pronto %}<span class="mb-chip mb-badge-new"><i class="bi bi-calendar3 me-1"></i>Próximamente</span>{% endif %}
         </div>
         {% if r.original %}<div class="mb-original-corner">{{ badge_original('Original') }}</div>{% endif %}
     </a>

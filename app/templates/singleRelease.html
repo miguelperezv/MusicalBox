@@ -61,6 +61,24 @@
 </section>
 
 <div class="container mt-4">
+{% if lanzamiento.preorden %}
+    <div class="alert alert-warning border-0 rounded-3 d-flex align-items-center gap-3 mb-4">
+        <i class="bi bi-hourglass-split fs-4 text-warning flex-shrink-0"></i>
+        <div class="small">
+            <strong class="d-block">Este lanzamiento está en preorden</strong>
+            La tirada aún no llega: pagas hoy y tu pedido sale cuando llegue. <a href="{{ url_for('home.ayuda_envios') }}">¿Cómo funciona?</a>
+        </div>
+    </div>
+    {% elif fecha_pronta %}
+    <div class="alert alert-info border-0 rounded-3 d-flex align-items-center gap-3 mb-4">
+        <i class="bi bi-calendar3 fs-4 text-primary flex-shrink-0"></i>
+        <div class="small">
+            <strong class="d-block">Lanzamiento previsto: {{ fecha_pronta }}</strong>
+            Aún no está disponible en tienda, pero puedes <a href="{{ url_for('solicitud.nueva') }}">pedirlo por encargo</a> y te lo conseguimos.
+        </div>
+    </div>
+    {% endif %}
+
     {% if packs %}
     <section class="mb-5">
         <div class="mb-section-title"><div><span class="mb-eyebrow">Lleva todo junto</span><h2>Packs</h2></div></div>
