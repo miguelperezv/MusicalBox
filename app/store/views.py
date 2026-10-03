@@ -80,7 +80,7 @@ def validate_admin():
 
 @home.route("/")
 def index():
-    return render_template("home.html", releases = get_releases_cards(limit=10), productos = get_products_cards(limit=8),
+    return render_template("home.html", releases = get_releases_cards(limit=12), productos = get_products_cards(limit=10),
                             redes = seleccion_para_inicio())
 
 @home.route("/ayuda/envios")

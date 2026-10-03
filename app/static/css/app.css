@@ -441,3 +441,15 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 .mb-ac-opt.mb-ac-remoto img { width: 42px; height: 42px; object-fit: cover; border-radius: .45rem; flex-shrink: 0; box-shadow: 0 1px 3px rgba(15, 42, 49, .18); }
 .mb-ac-opt.mb-ac-remoto .n { font-size: .85rem; font-weight: 600; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; }
 .mb-ac-opt.mb-ac-remoto .a { font-size: .72rem; color: var(--mb-muted); overflow: hidden; text-overflow: ellipsis; }
+
+/* tira horizontal deslizable (lanzamientos del inicio) */
+.mb-strip { display: flex; gap: 1rem; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: .25rem; }
+.mb-strip > div { flex: 0 0 calc((100% - 3rem) / 4); scroll-snap-align: start; min-width: 0; }
+.mb-strip > div:last-child { margin-right: 0; }
+.mb-strip > div:only-child { flex-basis: 100%; }
+.mb-strip::-webkit-scrollbar { height: 6px; }
+.mb-strip::-webkit-scrollbar-track { background: transparent; }
+.mb-strip::-webkit-scrollbar-thumb { background: rgba(15, 42, 49, .25); border-radius: 3px; }
+@media (max-width: 991.98px) {
+    .mb-strip > div { flex-basis: calc((100% - 1rem) / 2); }
+}

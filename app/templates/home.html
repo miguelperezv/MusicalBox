@@ -38,7 +38,7 @@
             <div><span class="mb-eyebrow">Tienda</span><h2>Productos</h2></div>
             <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('products.home_products') }}">Ver todos <i class="bi bi-arrow-right"></i></a>
         </div>
-        <div class="row row-cols-2 row-cols-sm-3 row-cols-lg-4 g-3 g-lg-4">
+        <div class="row row-cols-2 row-cols-sm-3 row-cols-lg-4 row-cols-xl-5 g-3 g-lg-4">
             {% for p in productos %}
             <div class="col">{{ product_card(p) }}</div>
             {% endfor %}
@@ -52,9 +52,13 @@
                 <span class="mb-eyebrow">Recién llegados</span>
                 <h2>Últimos lanzamientos</h2>
             </div>
-            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('releases.home_releases') }}">Ver todos <i class="bi bi-arrow-right"></i></a>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm strip-nav" data-dir="-1" data-target="strip-lanzamientos" aria-label="Lanzamientos anteriores"><i class="bi bi-chevron-left"></i></button>
+                <button type="button" class="btn btn-outline-secondary btn-sm strip-nav" data-dir="1" data-target="strip-lanzamientos" aria-label="Siguientes lanzamientos"><i class="bi bi-chevron-right"></i></button>
+                <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('releases.home_releases') }}">Ver todos <i class="bi bi-arrow-right"></i></a>
+            </div>
         </div>
-        <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-xl-5 g-3">
+        <div class="mb-strip" id="strip-lanzamientos">
             {% for r in releases %}
             <div class="col">{{ release_card(r) }}</div>
             {% else %}
@@ -140,6 +144,14 @@
 {% endif %}
 
 <script>
+    // flechas de la tira de lanzamientos (scroll horizontal con snap)
+    document.querySelectorAll('.strip-nav').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var tira = document.getElementById(btn.dataset.target);
+            if (tira) tira.scrollBy({ left: btn.dataset.dir * tira.clientWidth * 0.8, behavior: 'smooth' });
+        });
+    });
+
     // Inicializar tooltips de Bootstrap
     document.addEventListener('DOMContentLoaded', function() {
         var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
