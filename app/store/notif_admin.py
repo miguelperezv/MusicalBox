@@ -99,6 +99,8 @@ def aviso_solicitud(s):
         f"<b>ESTADO</b>\n{s.estado} · {_fecha(s.f_solicitud)}",
         "<b>ACCIONES</b>\nCotiza y escribe al cliente por WhatsApp.",
     ]
+    url = url_for('solicitud.lista', _external=True)
+    bloques.append(f"Cotizar en el panel: <a href=\"{url}\">{url}</a>")
     enviar_admin("\n\n".join(bloques))
 
 
