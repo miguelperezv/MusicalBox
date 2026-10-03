@@ -150,6 +150,14 @@ class CheckoutForm(FlaskForm):
     barrio = StringField('Barrio', validators=[Length(max=30)], filters=[_limpiar])
 
 
+class SuscriptorForm(FlaskForm):
+    #aviso de drops/prevantas del footer (issue #4): correo + consentimiento
+    email = EmailField('Correo', validators=[DataRequired(message="Escribe tu correo"), Length(max=100),
+                                             Regexp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", message="Revisa el correo")], filters=[_limpiar])
+    consentir = BooleanField('Quiero recibir avisos de drops, prevantas y restocks',
+                             validators=[DataRequired(message="Necesitamos tu permiso para avisarte")])
+
+
 class ActivarCuentaForm(FlaskForm):
     pwd = PasswordField('Contraseña', validators=[DataRequired(message="Escribe una contraseña"), Length(min=8, message="Usa al menos 8 caracteres")])
     confirmar = PasswordField('Repite la contraseña', validators=[DataRequired(message="Repite la contraseña"), EqualTo('pwd', message="Las contraseñas no coinciden")])
