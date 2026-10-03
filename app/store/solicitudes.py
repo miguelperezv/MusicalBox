@@ -10,7 +10,7 @@ from .models import (create_solicitud, get_all_solicitudes, update_estado_solici
                      buscar_o_crear_lanzamiento_spotify,
                      ESTADOS_SOLICITUD, Solicitud, SolicitudItem, Lanzamiento)
 from .musicapi import buscar_albumes_spotify
-from .envio import costo_envio, lineas_desde_cats
+from .envio import costo_envio, lineas_desde_cats, aviso_envio_gratis
 from ..db import db
 from .views import before_request, admin_required
 from .notif_admin import aviso_solicitud, aviso_pedido_creado
@@ -301,6 +301,8 @@ def confirmar(token):
     for it in items:
         cat = (it.producto.k_categoria if it.producto else "OTRO") or "OTRO"
         cats[cat] = cats.get(cat, 0) + int(it.cantidad or 1)
+    envio_aviso = aviso_envio_gratis([(l["producto"], l["variante"], int(l["cantidad"] or 0)) for l in lineas_vista], total)
     return render_template("checkout.html", form=form, lineas=lineas_vista, total=total,
                            accion=url_for('solicitud.confirmar', token=token), previos=previos, solicitud=s,
-                           cats="|".join(f"{k}:{v}" for k, v in sorted(cats.items())))
+                           cats="|".join(f"{k}:{v}" for k, v in sorted(cats.items())),
+                           envio_aviso=envio_aviso)

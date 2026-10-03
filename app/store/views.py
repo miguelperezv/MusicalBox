@@ -312,8 +312,10 @@ LOCALIDADES_BOGOTA = ["Usaquén", "Chapinero", "Santa Fe", "San Cristóbal", "Us
 
 @home.route("/politica-envios")
 def politica_envios():
-    #informacion publica de envios: costos, tiempos y promociones de envio gratis
-    return render_template("politica_envios.html")
+    #informacion publica de envios: costos, tiempos y promociones de envio gratis (reglas activas en vivo)
+    from .models import ReglaEnvio
+    reglas = ReglaEnvio.query.filter_by(activo=True).order_by(ReglaEnvio.orden, ReglaEnvio.id).all()
+    return render_template("politica_envios.html", reglas_activas=reglas)
 
 
 @home.route("/colombia", methods=["GET"])
@@ -940,8 +942,11 @@ def summary():
     for l in lineas:
         cat = l["producto"].k_categoria or "OTRO"
         cats[cat] = cats.get(cat, 0) + int(l["cantidad"])
+    from .envio import aviso_envio_gratis
+    envio_aviso = aviso_envio_gratis([(l["producto"], l["variante"], int(l["cantidad"])) for l in lineas], total)
     return render_template("purchase.html", lineas=lineas, total=total, errores=errores,
-                           cats="|".join(f"{k}:{v}" for k, v in sorted(cats.items())))
+                           cats="|".join(f"{k}:{v}" for k, v in sorted(cats.items())),
+                           envio_aviso=envio_aviso)
 
 
 @purchase.route("/addtocart" ,methods=["POST"])

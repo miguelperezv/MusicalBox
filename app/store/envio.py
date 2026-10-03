@@ -147,6 +147,33 @@ def regla_envio_aplicada(lineas, total):
     return None
 
 
+def umbral_envio_gratis():
+    """Menor total mínimo (reglas TOTAL_MIN activas) que da envío gratis: 0 si siempre es gratis,
+    None si no hay umbral configurado. Las preórdenes cuentan en el total, como cualquier ítem."""
+    umbral = None
+    for regla in ReglaEnvio.query.filter_by(activo=True).all():
+        if regla.tipo == 'SIEMPRE':
+            return 0
+        if regla.tipo == 'TOTAL_MIN':
+            t = int(regla.total_min or 0)
+            umbral = t if umbral is None else min(umbral, t)
+    return umbral
+
+
+def aviso_envio_gratis(lineas, total):
+    """Banner de envío gratis para carrito/checkout: si este pedido ya lo tiene y, si no,
+    cuánto falta para el umbral activo. Devuelve None si el envío está apagado o no hay
+    reglas que apliquen al carrito (el aviso "faltan $X" solo existe con umbral TOTAL_MIN)."""
+    if get_config('envio.habilitado') != '1':
+        return None
+    umbral = umbral_envio_gratis()
+    if regla_envio_aplicada(lineas, total):
+        return {"gratis": True, "umbral": umbral, "falta": 0}
+    if umbral is None:
+        return None
+    return {"gratis": False, "umbral": umbral, "falta": umbral - int(total or 0)}
+
+
 def _caja():
     #dimensiones de la caja por defecto "largoxanchoxalto" en cm (config editable en el panel)
     try:

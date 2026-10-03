@@ -19,10 +19,20 @@
     <div class="mb-panel p-4 p-lg-4 mb-4" style="max-width: 820px">
         <h2 class="h5 mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>¿Cuándo el envío es <a href="#gratis" class="text-success text-decoration-underline">gratis</a>?</h2>
         <p class="mb-2">Hay promociones fijas de envío gratis por reglas de negocio. Las vigentes hoy:</p>
+        {% if reglas_activas %}
         <ul class="mb-0" id="gratis">
-            <li class="mb-2"><i class="bi bi-vinyl text-primary me-1"></i>Pedidos de <strong>vinilos</strong> (solo vinilos): envío gratis.</li>
-            <li class="mb-0"><i class="bi bi-disc me-1"></i><strong>4 o más CDs</strong> en el mismo pedido: envío gratis.</li>
+            {% for r in reglas_activas %}
+            <li class="mb-2">
+                {% if r.tipo == 'SIEMPRE' %}<i class="bi bi-truck me-1"></i>Todos los pedidos: envío gratis.
+                {% elif r.tipo == 'TOTAL_MIN' %}<i class="bi bi-truck me-1"></i>Pedidos de <strong>{{ (r.total_min or 0)|cop }} o más</strong>: envío gratis.
+                {% elif r.tipo == 'SOLO_CATEGORIA' %}<i class="bi bi-vinyl text-primary me-1"></i>Pedidos de <strong>{{ r.k_categoria|lower }}</strong> (solo {{ r.k_categoria|lower }}): envío gratis.
+                {% else %}<i class="bi bi-disc me-1"></i><strong>{{ r.cantidad or 1 }} o más de {{ r.k_categoria|lower }}</strong> en el mismo pedido: envío gratis.{% endif %}
+            </li>
+            {% endfor %}
         </ul>
+        {% else %}
+        <p class="mb-0" id="gratis">Hoy no hay promociones de envío gratis vigentes: cada pedido cotiza su envío.</p>
+        {% endif %}
         <p class="small text-body-secondary mt-3 mb-0">Las promociones pueden cambiar; si en tu pedido se aplicó el envío gratis lo verás marcado en tu orden y en el correo de confirmación.</p>
     </div>
 

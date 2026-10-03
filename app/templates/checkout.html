@@ -88,6 +88,15 @@
                 <div class="d-flex justify-content-between align-items-baseline mb-1">
                     <span class="text-body-secondary">Envío</span><span id="total-envio" class="text-body-secondary small">Se estima al escribir tu municipio</span>
                 </div>
+                {% if envio_aviso %}
+                <div class="alert {% if envio_aviso.gratis %}alert-success{% else %}alert-info{% endif %} small py-2 mb-2">
+                    {% if envio_aviso.gratis %}
+                    <i class="bi bi-check-circle-fill me-1"></i><strong>Envío gratis</strong> en este pedido
+                    {% else %}
+                    <i class="bi bi-truck me-1"></i>Te faltan <strong>{{ envio_aviso.falta|cop }}</strong> para el envío gratis ({{ envio_aviso.umbral|cop }} o más)
+                    {% endif %}
+                </div>
+                {% endif %}
                 <div class="d-flex justify-content-between align-items-baseline">
                     <span class="fw-bold">Total</span><span class="fs-4 fw-bold" id="total-pedido">{{ total|cop }}</span>
                 </div>
