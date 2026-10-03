@@ -23,7 +23,7 @@
         <div>
             <span class="mb-eyebrow">Tienda</span>
             <h1 class="mt-1">Productos</h1>
-            <p class="text-body-secondary mb-md-0">Todas las ediciones disponibles para comprar hoy · {{ total }} en total</p>
+            <p class="text-body-secondary mb-md-0">Todas las ediciones disponibles para comprar hoy · {{ total }} en total · <a href="{{ url_for('home.politica_envios') }}">envíos: Bogotá {{ envio_cfg.bogota }} · hasta {{ envio_cfg.resto }}</a></p>
         </div>
     </header>
 
@@ -43,6 +43,7 @@
                 <option value="precio_asc" {{ 'selected' if orden == 'precio_asc' else '' }}>Precio (menor primero)</option>
                 <option value="precio_desc" {{ 'selected' if orden == 'precio_desc' else '' }}>Precio (mayor primero)</option>
                 <option value="nombre" {{ 'selected' if orden == 'nombre' else '' }}>Nombre (A–Z)</option>
+                <option value="vendidos" {{ 'selected' if orden == 'vendidos' else '' }}>Más vendidos</option>
             </select>
         </form>
     </div>
@@ -51,7 +52,7 @@
         {% for p in productos %}
         <div class="col">{{ product_card(p) }}</div>
         {% else %}
-        <div class="col-12 mb-empty"><i class="bi bi-bag"></i>No hay productos{% if categoria %} en “{{ categoria }}”{% endif %} todavía.</div>
+        <div class="col-12 mb-empty"><i class="bi bi-bag"></i>No hay productos{% if categoria %} en “{{ categoria }}”{% endif %} todavía.<br><a class="btn btn-primary mt-3" href="{{ url_for('solicitud.nueva') }}">¿Lo buscas? Pídelo a la medida</a></div>
         {% endfor %}
     </div>
 

@@ -47,7 +47,12 @@ DEFAULTS = {'redes.activa': '0',
             'envio.habilitado': '1',
             'envio.criterio': 'COORDINADORA',  #paquetería preferida; también 'MENOR_COSTO' u 'MENOR_TIEMPO'
             'envio.zona_bogota': '12000', 'envio.zona_nacional': '20000',  #tarifa de respaldo si no se puede cotizar
-            'envio.caja': '31x30x5'}
+            'envio.caja': '31x30x5',
+            #textos de envío visibles en tienda (clave-valor; si no hay fila en Configuracion vale el default)
+            'envio.proceso': '1–2 días hábiles',
+            'envio.bogota': '24–72 h',
+            'envio.ciudades': '2–5 días',
+            'envio.resto': '3–7 días'}
 _PATRONES = {
     'tiktok': re.compile(r"^https?://(www\.|m\.)?tiktok\.com/@[\w.\-]+/(video|photo)/(\d{8,25})"),
     'instagram': re.compile(r"^https?://(www\.)?instagram\.com/(p|reel|tv)/([\w\-]{5,40})"),
@@ -66,6 +71,12 @@ def set_config(valores):
         c.valor = str(valor)
         db.session.add(c)
     db.session.commit()
+
+
+def envio():
+    """Textos de envío para la tienda (zonas y procesado); editables por Configuracion, con default."""
+    return {"proceso": get_config('envio.proceso'), "bogota": get_config('envio.bogota'),
+            "ciudades": get_config('envio.ciudades'), "resto": get_config('envio.resto')}
 
 
 def config_redes():

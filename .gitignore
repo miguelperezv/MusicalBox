@@ -133,3 +133,7 @@ dmypy.json
 
 # miniaturas de producto (app/store/imagenes.py)
 instance/cache_img/
+
+# configuracion local de opencode
+opencode.json
+opencode.jsonc

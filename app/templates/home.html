@@ -32,6 +32,20 @@
 </section>
 
 <div class="container">
+    {% if productos %}
+    <section class="mb-5">
+        <div class="mb-section-title">
+            <div><span class="mb-eyebrow">Tienda</span><h2>Productos</h2></div>
+            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('products.home_products') }}">Ver todos <i class="bi bi-arrow-right"></i></a>
+        </div>
+        <div class="row row-cols-2 row-cols-sm-3 row-cols-lg-4 row-cols-xl-5 g-3 g-lg-4">
+            {% for p in productos %}
+            <div class="col">{{ product_card(p) }}</div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
     <section class="mb-5">
         <div class="mb-section-title">
             <div>
@@ -40,31 +54,19 @@
             </div>
             <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('releases.home_releases') }}">Ver todos <i class="bi bi-arrow-right"></i></a>
         </div>
-        <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-xl-5 g-3">
+        {% if releases %}
+        <div class="mb-strip mb-strip-auto" id="strip-lanzamientos" tabindex="0" aria-label="Últimos lanzamientos, tira deslizable">
             {% for r in releases %}
             <div class="col">{{ release_card(r) }}</div>
-            {% else %}
-            <div class="col-12 mb-empty"><i class="bi bi-vinyl"></i>Muy pronto tendremos lanzamientos.</div>
+            {% endfor %}
+            {% for r in releases %}
+            <div class="col" aria-hidden="true">{{ release_card(r) }}</div>
             {% endfor %}
         </div>
+        {% else %}
+        <div class="mb-empty"><i class="bi bi-vinyl"></i>Muy pronto tendremos lanzamientos.</div>
+        {% endif %}
     </section>
-
-    {% if productos %}
-    <section class="mb-5">
-        <div class="mb-section-title">
-            <div>
-                <span class="mb-eyebrow">Tienda</span>
-                <h2>Productos destacados</h2>
-            </div>
-            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('products.home_products') }}">Ver todos <i class="bi bi-arrow-right"></i></a>
-        </div>
-        <div class="row row-cols-2 row-cols-lg-4 g-3 g-lg-4">
-            {% for p in productos %}
-            <div class="col">{{ product_card(p) }}</div>
-            {% endfor %}
-        </div>
-    </section>
-    {% endif %}
 
     {% if redes %}
     <section class="mb-5" id="redes">
@@ -110,9 +112,9 @@
     </section>
 
     <section class="row row-cols-1 row-cols-md-3 g-4 mt-2 text-center text-md-start">
-        <div class="col"><i class="bi bi-truck fs-3 text-primary"></i><h3 class="h6 mt-2 mb-1">Envíos a todo el país</h3><p class="text-body-secondary small mb-0">Desde Bogotá a cualquier municipio de Colombia.</p></div>
-        <div class="col"><i class="bi bi-shield-check fs-3 text-primary"></i><h3 class="h6 mt-2 mb-1">Pago seguro</h3><p class="text-body-secondary small mb-0">Pagos procesados con MercadoPago.</p></div>
-        <div class="col"><i class="bi bi-vinyl fs-3 text-primary"></i><h3 class="h6 mt-2 mb-1">Ediciones especiales</h3><p class="text-body-secondary small mb-0">Vinilos de colores, box sets y exclusivos.</p></div>
+        <div class="col"><i class="bi bi-truck fs-3 text-primary"></i><h3 class="h6 mt-2 mb-1">Envíos a todo el país</h3><p class="text-body-secondary small mb-1">Bogotá {{ envio_cfg.bogota }} · hasta {{ envio_cfg.resto }} al resto de Colombia.</p><a class="small" href="{{ url_for('home.politica_envios') }}">Tiempos y detalles</a></div>
+        <div class="col"><i class="bi bi-shield-check fs-3 text-primary"></i><h3 class="h6 mt-2 mb-1">Pago seguro</h3><p class="text-body-secondary small mb-0">Pagos procesados con MercadoPago, sin crear cuenta.</p></div>
+        <div class="col"><i class="bi bi-vinyl fs-3 text-primary"></i><h3 class="h6 mt-2 mb-1">Y lo que no esté, lo conseguimos</h3><p class="text-body-secondary small mb-0">Pedidos a la medida: pídelo y te lo cotizamos.</p></div>
     </section>
 </div>
 {% endblock %}
@@ -143,6 +145,37 @@
 {% endif %}
 
 <script>
+    // tira de lanzamientos: se mueve sola en bucle; se pausa al pasar el mouse o al deslizarla
+    (function () {
+        var tira = document.getElementById('strip-lanzamientos');
+        if (!tira) return;
+        var media = function () { return tira.scrollWidth / 2; }; // la mitad es una vuelta completa (contenidos duplicados)
+        var x = 0, auto = true, tRes;
+        function sincronizar() { x = tira.scrollLeft % media(); }
+        function pausa(milis) {
+            auto = false;
+            clearTimeout(tRes);
+            if (milis != null) tRes = setTimeout(function () { sincronizar(); auto = true; }, milis);
+        }
+        function paso() {
+            if (auto) {
+                x += 0.5;
+                if (x >= media()) x -= media(); // bucle: el segundo set de cards es idéntico, el salto no se nota
+                tira.scrollLeft = x;
+            }
+            requestAnimationFrame(paso);
+        }
+        tira.addEventListener('mouseenter', function () { pausa(null); });
+        tira.addEventListener('mouseleave', function () { clearTimeout(tRes); sincronizar(); auto = true; });
+        tira.addEventListener('wheel', function (e) {
+            e.preventDefault();
+            tira.scrollBy({ left: e.deltaY });
+            pausa(3000);
+        }, { passive: false });
+        tira.addEventListener('touchstart', function () { pausa(4000); }, { passive: true });
+        requestAnimationFrame(paso);
+    })();
+
     // Inicializar tooltips de Bootstrap
     document.addEventListener('DOMContentLoaded', function() {
         var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))

@@ -22,13 +22,24 @@
         {% else %}
         <span class="mb-eyebrow">Catálogo</span>
         <h1 class="mt-1">Lanzamientos</h1>
-        <p class="text-body-secondary mb-0">Lo más reciente en vinilo, CD y cassette.</p>
+        <p class="text-body-secondary mb-0">Lo más reciente en vinilo, CD y cassette · Envíos a todo el país: <a href="{{ url_for('home.politica_envios') }}">Bogotá {{ envio_cfg.bogota }} · hasta {{ envio_cfg.resto }}</a></p>
         {% endif %}
     </header>
 
     {% if not artista %}
+    {% macro semanaurl(on) -%}
+      {%- set f = request.args.to_dict() -%}
+      {%- if on -%}{%- set _ = f.update({'semana': '1'}) -%}{%- else -%}{%- set _ = f.pop('semana', none) -%}{%- endif -%}
+      {{ url_for('releases.home_releases', **f) }}
+    {%- endmacro %}
+
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <a class="btn btn-sm {{ 'btn-primary' if semana else 'btn-outline-primary' }}" href="{{ semanaurl(not semana) }}"><i class="bi bi-lightning-charge me-1"></i>Esta semana</a>
+        <span class="small text-body-secondary">Lanzamientos de los últimos 7 días</span>
+    </div>
+
     <form method="get" action="{{ url_for('releases.home_releases') }}" class="d-flex flex-wrap gap-2 align-items-center mb-4" aria-label="Filtros de catálogo">
-        <input type="hidden" name="q" value="{{ q }}">
+        <input type="search" class="form-control form-control-sm" style="max-width: 15rem" name="q" value="{{ q }}" placeholder="Buscar disco o artista" aria-label="Buscar disco o artista">
         <select class="form-select form-select-sm w-auto" name="genero" aria-label="Género" onchange="this.form.submit()">
             <option value="">Todos los géneros</option>
             {% for g in generos %}
@@ -46,6 +57,7 @@
             <option value="antiguos" {{ 'selected' if orden == 'antiguos' else '' }}>Más antiguos</option>
             <option value="nombre" {{ 'selected' if orden == 'nombre' else '' }}>Nombre (A–Z)</option>
             <option value="precio" {{ 'selected' if orden == 'precio' else '' }}>Precio (menor primero)</option>
+            <option value="vendidos" {{ 'selected' if orden == 'vendidos' else '' }}>Más vendidos</option>
         </select>
     </form>
     {% endif %}
