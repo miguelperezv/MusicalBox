@@ -1,0 +1,100 @@
+{% extends "adminDashboard.html" %}
+
+{% block content %}
+<h1 class="h3 mb-4">Envíos</h1>
+
+<form class="mb-panel mb-4" style="max-width: 760px" method="POST" action="{{ url_for('dashboard.envios_config') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <h2 class="h6 mb-3">Configuración</h2>
+    <div class="form-check form-switch mb-3">
+        <input class="form-check-input" type="checkbox" role="switch" id="habilitado" name="habilitado" value="1" {{ 'checked' if habilitado }}>
+        <label class="form-check-label" for="habilitado">Cobrar el costo de envío (si está apagado, los pedidos no cargan envío)</label>
+    </div>
+    <div class="row g-2 align-items-end mb-3">
+        <div class="col-sm-4">
+            <label class="form-label small">Cómo elegir la paquetería</label>
+            <select class="form-select form-select-sm" name="criterio">
+                {% for valor, texto in criterios %}<option value="{{ valor }}" {{ 'selected' if valor == criterio }}>{{ texto }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="col-6 col-sm-3">
+            <label class="form-label small">Tarifa Bogotá (respaldo, $)</label>
+            <input class="form-control form-control-sm" type="number" name="zona_bogota" min="0" value="{{ zona_bogota }}">
+        </div>
+        <div class="col-6 col-sm-3">
+            <label class="form-label small">Tarifa resto del país (respaldo, $)</label>
+            <input class="form-control form-control-sm" type="number" name="zona_nacional" min="0" value="{{ zona_nacional }}">
+        </div>
+    </div>
+    <div class="row g-2 align-items-end mb-2">
+        <div class="col-sm-3">
+            <label class="form-label small">Caja por defecto (largo x ancho x alto, cm)</label>
+            <input class="form-control form-control-sm" type="text" name="caja" value="{{ caja }}">
+        </div>
+    </div>
+    <button class="btn btn-primary">Guardar configuración</button>
+    <p class="small text-body-secondary mt-2 mb-0">El costo se cotiza con EnvíoClick según el municipio del cliente (mínimo 1 kg; el peso se estima por lo que se compra: vinilo ~200 g, CD ~25 g…). Las tarifas de respaldo solo se usan si el municipio no se resuelve o la API no responde.</p>
+</form>
+
+<div class="mb-panel" style="max-width: 980px">
+    <h2 class="h6 mb-3">Reglas de envío gratis</h2>
+    <form class="row g-2 align-items-end mb-3" method="POST" action="{{ url_for('dashboard.regla_nueva') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="col-12 col-sm-4">
+            <select class="form-select form-select-sm" name="tipo" required>
+                {% for clave, texto in tipos.items() %}<option value="{{ clave }}">{{ texto }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="col-6 col-sm-2">
+            <select class="form-select form-select-sm" name="categoria">
+                <option value="">Categoría…</option>
+                {% for c in categorias %}<option value="{{ c.n_categoria }}">{{ c.n_categoria }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="col-4 col-sm-2">
+            <input class="form-control form-control-sm" type="number" name="cantidad" min="1" placeholder="Cantidad (ej. 4)">
+        </div>
+        <div class="col-4 col-sm-2">
+            <input class="form-control form-control-sm" type="number" name="total_min" min="0" placeholder="Total mínimo ($)">
+        </div>
+        <div class="col-4 col-sm-1">
+            <input class="form-control form-control-sm" type="number" name="orden" min="0" value="0" title="Orden de evaluación (la primera que aplique gana)">
+        </div>
+        <div class="col-8 col-sm-1 d-flex align-items-center gap-1">
+            <input class="form-check-input" type="checkbox" name="activo" value="1" id="regla_activa" checked>
+            <label class="form-check-label small" for="regla_activa" title="Activa"></label>
+        </div>
+        <div class="col-4 col-sm-2 text-end"><button class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Agregar</button></div>
+    </form>
+    {% if reglas %}
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead><tr><th style="width:34px">Ord</th><th>Regla</th><th>Categoría</th><th>Umbral</th><th>Estado</th><th class="text-end">Acciones</th></tr></thead>
+            <tbody>
+            {% for r in reglas %}
+            <tr>
+                <td class="text-body-secondary">{{ r.orden or 0 }}</td>
+                <td>{{ tipos[r.tipo] }}</td>
+                <td>{{ r.k_categoria or '—' }}</td>
+                <td>{% if r.tipo == 'CANTIDAD_CATEGORIA' %}{{ r.cantidad or '—' }}+ unidades{% elif r.tipo == 'TOTAL_MIN' %}{{ r.total_min|cop if r.total_min else '—' }}{% else %}—{% endif %}</td>
+                <td>{% if r.activo %}<span class="badge text-bg-success">Activa</span>{% else %}<span class="badge text-bg-secondary">Desactivada</span>{% endif %}</td>
+                <td class="text-end">
+                    <form class="d-inline" method="POST" action="{{ url_for('dashboard.regla_activo', k=r.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn btn-sm btn-outline-secondary">{{ 'Activar' if not r.activo else 'Desactivar' }}</button>
+                    </form>
+                    <form class="d-inline" method="POST" action="{{ url_for('dashboard.regla_eliminar', k=r.id) }}" onsubmit="return confirm('¿Eliminar esta regla?')">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="small text-body-secondary mb-0">Aún no hay reglas: cada pedido cotiza su envío.</p>
+    {% endif %}
+</div>
+{% endblock %}

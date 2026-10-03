@@ -10,6 +10,7 @@ from .models import (create_solicitud, get_all_solicitudes, update_estado_solici
                      buscar_o_crear_lanzamiento_spotify,
                      ESTADOS_SOLICITUD, METODOS_PAGO, Solicitud, SolicitudItem, Lanzamiento)
 from .musicapi import buscar_albumes_spotify
+from .envio import costo_envio, lineas_desde_cats
 from ..db import db
 from .views import before_request, admin_required
 from .notif_admin import aviso_solicitud, aviso_pedido_creado
@@ -60,7 +61,8 @@ def nueva():
             email = (form.email.data or '').strip().lower() or None
             #se asocia a una cuenta si ya existe; si no, el comprador se crea al confirmar la compra
             usuario = get_usuario_por_email(g.user["email_usuario"]) if g.user else (get_usuario_por_email(email) if email else None)
-            s, err = create_solicitud(usuario.id if usuario else None, items, form.celular.data.strip(), email)
+            s, err = create_solicitud(usuario.id if usuario else None, items, form.celular.data.strip(), email,
+                                      lugar=form.ciudad.data)
             if s:
                 aviso_solicitud(s)
                 flash("¡Recibimos tu solicitud #" + str(s.id) + "! Te escribiremos por WhatsApp con precio y tiempos.", "success")
@@ -142,6 +144,16 @@ def _respuesta_cotizar(s, token):
                 preview = l.i_lanzamiento
     total = sum(int(it.precio_unit or 0) * int(it.cantidad or 1) for it in items)
     partes = ["¡Hola! Tu pedido a la medida en Musical Box quedó así:", "", *lineas, "", f"Total: {_precio_cop(total)}"]
+    #si el cliente dejó su municipio, se le estima el envío para que vea el total real
+    if s.lugar_solicitud:
+        cats = "|".join(f"{(it.producto.k_categoria if it.producto else it.categoria) or 'OTRO'}:{int(it.cantidad or 1)}"
+                        for it in items)
+        env = costo_envio(lineas_desde_cats(cats), total, s.lugar_solicitud)
+        if env:
+            if env["p_envio"] == 0:
+                partes.append(f"¡Y el envío a {s.lugar_solicitud} es gratis!")
+            else:
+                partes.append(f"Envío estimado a {s.lugar_solicitud}: {_precio_cop(env['p_envio'])} · total {_precio_cop(total + env['p_envio'])}")
     if s.d_cotizacion:
         partes.append(s.d_cotizacion)
     #el preview de WhatsApp sale de la página de confirmar (portada del disco o logo de Musical Box)
@@ -240,6 +252,9 @@ def confirmar(token):
         for campo, valor in (previos or {"email": s.email_contacto, "telefono": s.cel_contacto}).items():
             if valor and campo in form:
                 form[campo].data = valor
+        #si no había datos previos, se sugiere el municipio que dejó en la solicitud
+        if not form.ciudad.data and s.lugar_solicitud:
+            form.ciudad.data = s.lugar_solicitud
 
     if form.validate_on_submit():
         datos = {campo: form[campo].data for campo in ["nombre", "email", "telefono", "ciudad", "direccion", "barrio", "metodo_pago"]}
@@ -279,8 +294,14 @@ def confirmar(token):
         retirado = i in retiros
         total += 0 if retirado else precio * cantidad
         lineas_vista.append({"producto": it.producto, "variante": None, "cantidad": 0 if retirado else cantidad, "precio": precio,
-                             "lanzamiento": it.lanzamiento or (it.producto.lanzamiento if it.producto else None),
-                             "n_item": None if it.producto else it.nombre, "subtotal": 0 if retirado else precio * cantidad,
-                             "idx": i, "retirado": retirado})
+                              "lanzamiento": it.lanzamiento or (it.producto.lanzamiento if it.producto else None),
+                              "n_item": None if it.producto else it.nombre, "subtotal": 0 if retirado else precio * cantidad,
+                              "idx": i, "retirado": retirado,
+                               })
+    cats = {}
+    for it in items:
+        cat = (it.producto.k_categoria if it.producto else "OTRO") or "OTRO"
+        cats[cat] = cats.get(cat, 0) + int(it.cantidad or 1)
     return render_template("checkout.html", form=form, lineas=lineas_vista, total=total,
-                           accion=url_for('solicitud.confirmar', token=token), previos=previos, solicitud=s)
+                           accion=url_for('solicitud.confirmar', token=token), previos=previos, solicitud=s,
+                           cats="|".join(f"{k}:{v}" for k, v in sorted(cats.items())))
