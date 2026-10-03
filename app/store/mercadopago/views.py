@@ -27,6 +27,10 @@ def hash_token(token):
 def get_mp_sdk():
     return mercadopago.SDK(current_app.config["MERCADOPAGO_ACCESS_TOKEN"])
 
+def monto_pedido(inv):
+    #lo que se cobra en la pasarela: el total de la orden + el costo de envío calculado al crearla
+    return float((inv.total or 0) + (inv.p_envio or 0))
+
 @mercadopago_bp.route("/create_preference/<token>", methods=["POST"])
 def create_preference(token):
     """
@@ -58,11 +62,11 @@ def create_preference(token):
         current_app.logger.warning(f"[MP] Pedido {inv.id} no está en estado PENDIENTE: {inv.estado}")
         return jsonify({"error": "El pedido no está en estado PENDIENTE"}), 409
     
-    current_app.logger.info(f"[MP] Devolviendo contexto para pedido {inv.id}: amount={float(inv.total)}, email={inv.email_envio}")
+    current_app.logger.info(f"[MP] Devolviendo contexto para pedido {inv.id}: amount={monto_pedido(inv)}, email={inv.email_envio}")
     
     return jsonify({
         "token_hash": inv.token_hash,
-        "amount": float(inv.total),
+        "amount": monto_pedido(inv),
         "payer_email": inv.email_envio,
     }), 200
 
@@ -146,7 +150,7 @@ def process_payment():
             return jsonify({"error": "Falta payer.identification.type/number para PSE"}), 400
             
         payment_data = {
-            "transaction_amount": float(inv.total),  # Usar siempre el monto de la BD por seguridad
+            "transaction_amount": monto_pedido(inv),  # Usar siempre el monto de la BD por seguridad
             "payment_method_id": "pse",
             "payer": {
                 "email": payer_email,  # Email desde Invoice.email_envio
@@ -193,7 +197,7 @@ def process_payment():
             
         payment_data = {
             "token": token,
-            "transaction_amount": float(inv.total),  # Usar siempre el monto de la BD por seguridad
+            "transaction_amount": monto_pedido(inv),  # Usar siempre el monto de la BD por seguridad
             "installments": installments,
             "payment_method_id": payment_method_id,
             "payer": {"email": payer_email},
@@ -210,7 +214,7 @@ def process_payment():
         current_app.logger.info("[MP] Procesando pago con otro medio, payload: %s", payload)
         # Usar los campos que vienen en el payload, pero asegurar los mínimos requeridos
         payment_data = {
-            "transaction_amount": float(inv.total),  # Usar siempre el monto de la BD por seguridad
+            "transaction_amount": monto_pedido(inv),  # Usar siempre el monto de la BD por seguridad
             "payer": {"email": payer_email},
             "external_reference": inv.token_hash,
             "description": f"Musical Box - Pedido {inv.token_hash}",
