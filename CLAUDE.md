@@ -16,11 +16,11 @@ Repo: `github.com/miguelperezv/MusicalBox` (rama `main`). El remoto `upstream` e
 - Antes de cambios de **esquema** en funcionalidades grandes suele pedir primero un análisis en texto
   (qué existe, qué es aditivo y qué rompe) y esperar su confirmación.
 - Le gustan los datos de prueba en la BD local: **no borrarlos** sin confirmar.
-- **Trabajo paralelo con worktrees**: la carpeta principal vive en `main` (estable; es el único punto que
-  integra a `main`). Una tarea = un worktree: `git worktree add ..\MusicalBox-<nombre> -b feature/<nombre>`.
-  Cada worktree tiene su `instance/` (BD aislada) y reusa el `.venv` principal (`..\MusicalBox\.venv\Scripts\python`).
-  Una rama solo puede estar en un worktree a la vez (git lo impide). Merge a `main`, push y
-  `git worktree remove` se hacen desde la terminal principal cuando la tarea termina y pasó su verificación.
+- **Una rama por feature, en el mismo repo** (pedido del dueño 2026-10; ya sin worktrees): `git checkout -b feature/<nombre>`
+  desde `main` en `C:\Users\luisy\Documents\MusicalBox`. El server de desarrollo corre en **:5010** sobre ese
+  checkout; el reloader de Flask carga el código de la rama activa solo, así que las pruebas van ahí.
+  Cuando el dueño dice "estamos": commit + push a la rama (`origin/feature/<nombre>`), y entonces se le **sugiere**
+  el merge a `main` (fast-forward si es posible); el merge y el push de `main` solo con su ok.
 
 ## Stack
 
