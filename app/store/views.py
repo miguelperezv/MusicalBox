@@ -7,6 +7,7 @@ from flask import Blueprint, Response, current_app, flash, session, request, g, 
 from .models import create_new_user, get_all_artists, get_user_by_email, create_new_artist, get_k_artist_by_name, obtener_artista, create_new_release, get_release_by_name, get_releases_with_artists, get_categories, create_new_product, get_k_release_by_name_artista, create_new_category, create_new_genre, create_release_genre, new_admin, get_all_releases, get_artist_by_release, get_categories_by_release, get_release_by_id, get_genres_by_release, get_products_by_release, get_product_by_id, get_artist_by_release, update_release, get_products_with_info, edit_product, create_new_image, get_rawimage_by_product, edit_image, get_items_by_id_factura, Imagen, Producto
 from .models import actualizar_lanzamiento_spotify, buscar_o_crear_lanzamiento
 from .models import producto_card, lanzamiento_tiene_original, ESTADOS_ENVIO, ESTADOS_CON_ROTULO, Invoice,opciones_componentes, stock_disponible, get_usuario_por_email, get_artist_by_id, get_releases_cards, get_products_cards, get_generos, get_categorias, get_admin_stats, edit_user_by_email, get_purchases_by_user, get_all_invoices, get_solicitudes_by_user, validar_carrito, crear_pedido, get_images_by_product, get_first_image_by_product, crear_variante, agregar_componente, normalizar_url_imagen, validar_url_imagen, Lanzamiento
+from .models import MESES
 import csv
 import io
 import json
@@ -857,9 +858,6 @@ def home_releases():
                            q=q, genero=genero, formato=formato, orden=orden, semana=semana,
                            page=page, pages=pages, total=total,
                            generos=get_generos(), categorias=get_categorias())
-
-MESES = {1: 'enero', 2: 'febrero', 3: 'marzo', 4: 'abril', 5: 'mayo', 6: 'junio',
-         7: 'julio', 8: 'agosto', 9: 'septiembre', 10: 'octubre', 11: 'noviembre', 12: 'diciembre'}
 
 
 def fecha_lanzamiento_pronta(lanzamiento):
