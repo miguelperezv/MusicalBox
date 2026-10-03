@@ -42,7 +42,12 @@ MODOS = {'ultimas_n': 'Últimas N', 'random_n_de_m': 'N al azar de las últimas 
 #cada plataforma se configura aparte: Instagram en cuadrícula (últimas 9 = 3x3) y TikTok 1 al azar
 DEFAULTS = {'redes.activa': '0',
             'redes.instagram.modo': 'ultimas_n', 'redes.instagram.n': '9', 'redes.instagram.m': '9',
-            'redes.tiktok.modo': 'random_n_de_m', 'redes.tiktok.n': '1', 'redes.tiktok.m': '10'}
+            'redes.tiktok.modo': 'random_n_de_m', 'redes.tiktok.n': '1', 'redes.tiktok.m': '10',
+            #envío (ver app/store/envio.py y la sección "Envíos" del panel)
+            'envio.habilitado': '1',
+            'envio.criterio': 'COORDINADORA',  #paquetería preferida; también 'MENOR_COSTO' u 'MENOR_TIEMPO'
+            'envio.zona_bogota': '12000', 'envio.zona_nacional': '20000',  #tarifa de respaldo si no se puede cotizar
+            'envio.caja': '31x30x5'}
 _PATRONES = {
     'tiktok': re.compile(r"^https?://(www\.|m\.)?tiktok\.com/@[\w.\-]+/(video|photo)/(\d{8,25})"),
     'instagram': re.compile(r"^https?://(www\.)?instagram\.com/(p|reel|tv)/([\w\-]{5,40})"),
