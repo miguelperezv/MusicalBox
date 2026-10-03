@@ -295,7 +295,7 @@ def process_payment():
     elif mp_body.get("status") == "rejected":
         current_app.logger.info(f"[MP] Pago rechazado para pedido {inv.id}: {mp_body.get('status_detail')}")
         rechazar_pago(inv, str(mp_body.get("id") or ""))
-        aviso_pago_rechazado(inv)
+        aviso_pago_rechazado(inv, payload.get("token_hash"))
     elif mp_http_status == 424:
         # Error específico de BankTransfers Api fail
         current_app.logger.error(f"[MP] Error 424 - BankTransfers Api fail para pedido {inv.id}")

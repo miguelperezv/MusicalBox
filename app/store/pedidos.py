@@ -107,7 +107,7 @@ def simular(token):
         flash("Pago simulado: aprobado", "success")
     else:
         rechazar_pago(p, "SIMULADO")
-        aviso_pago_rechazado(p)
+        aviso_pago_rechazado(p, token)
         flash("Pago simulado: rechazado", "error")
     return redirect(url_for('pedido.ver', token=token))
 
