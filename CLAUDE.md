@@ -63,7 +63,7 @@ app/correo.py              enviar(): backend consola (.eml en instance/correos/)
 app/store/models.py        TODOS los modelos principales + la mayoría de la lógica de negocio
 app/store/musicapi.py      cliente de la API de Spotify (client credentials): búsqueda de álbumes y
                            metadatos para sincronizar lanzamientos (SPOTIFY_CLIENT_ID/SECRET)
-app/store/views.py         blueprints home, dashboard (admin), releases, artists, purchase, products
+app/store/views.py        blueprints home, dashboard (admin), releases, artists, purchase, products
 app/store/pedidos.py       /pedido/<token> (seguimiento, actualizar envío), simulación (dev)
 app/store/mercadopago/     payment brick: create_preference, process_payment, webhook (MP)
 app/store/solicitudes.py   pedidos a la medida: formulario, lista admin, cotizar, /solicitud/confirmar/<token>
@@ -72,6 +72,7 @@ app/store/catalogo_admin.py rutas extra del panel: tallas, packs, estado de env�
 app/store/notificaciones.py correos (pedido pagado, activar cuenta) y token de activación (itsdangerous)
 app/store/redes.py         modelos Configuracion y PublicacionSocial + selección para el inicio
 app/store/imagenes.py      imágenes de producto redimensionadas a WebP con caché (instance/cache_img/)
+app/store/suscriptores.py  suscriptores de drops: modelo, formulario del footer y lista del panel (issue #4)
 app/templates/             base.html, _macros.html (field, product_cover, producto_imagen, badge_original),
                            _cards.html (release_card, product_card), _producto_detalle.html (página y modal)
 app/static/css/app.css     sistema de diseño (prefijo mb-); js/app.js (autocompletado, panel, vista rápida)
@@ -109,11 +110,14 @@ docs/                      DEPLOY_PYTHONANYWHERE.md, MER_manager.excalidraw.json
   Estados: ACTIVO, EN PROCESO, COTIZADA, COMPRADA, CANCELADO (ENVIADO/ENTREGADO solo como historial antiguo).
 - `configuracion`: clave-valor para ajustes del sitio (hoy `redes.*`). Reutilizarla para nuevos ajustes.
 - `publicacion_social`: posts de IG/TikTok para el inicio (url, id_externo, orden, activo, error_embed).
+- `suscriptor`: emails de usuarios interesados en drops/prevantas (issue #4).
 
 Migraciones (en orden): `5b10cf662d03` línea base → `a36be8d1f63e` checkout sin cuenta →
 `3c91f0d79d11` variantes/bundles y reconstrucción de `item` (**solo SQLite**) → `a8429ab90db1` contacto/cotización/envío →
 `f8c18145ced0` redes/configuración → `67bf9fe64495` original_mb y url_social → `34fd6248975a` url_imagen en producto →
-`5215e71ba6b8` spotify external en lanzamiento.
+`5215e71ba6b8` spotify external en lanzamiento → `b96fe4bbc4b7` preorden en producto → `a747858d7b7a` preorden en lanzamiento →
+`0e611090a42f` nota interna en orden → `20d924a3b851` items de solicitud → `b0db9297d9fc` costo de envio →
+`da4b7317856e` tabla suscriptor (avisos de drops).
 
 ## Flujos clave
 

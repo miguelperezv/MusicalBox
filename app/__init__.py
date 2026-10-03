@@ -11,6 +11,7 @@ from .store.pedidos import pedido
 from .store.mercadopago import views as mercadopago_views
 from .store import catalogo_admin  # noqa: F401 (rutas de tallas y packs en el panel)
 from .store import envios_admin  # noqa: F401 (sección "Envíos" del panel y costo por orden)
+from .store import suscriptores  # noqa: F401 (suscriptores de drops: form del footer y lista del panel)
 
 ACTIVE_ENDPOINTS = [('/',home), ('/dashboard', dashboard), ('/releases', releases), ('/artists', artists), ('/purchase', purchase), ("/products", products), ("/solicitud", solicitud), ("/pedido", pedido), ("/mercadopago", mercadopago_views.mercadopago_bp) ]
 
@@ -74,6 +75,12 @@ def create_app(config=None):
     def usuario_y_carrito():
         #disponibles en todas las plantillas (navbar)
         return {"user": g.get("user"), "purchase_cart": g.get("purchase")}
+
+    @app.context_processor
+    def form_suscriptor():
+        #formulario del footer (avisos de drops); el panel sobreescribe el bloque footer
+        from .store.forms import SuscriptorForm
+        return {"suscriptor_form": SuscriptorForm()}
 
     @app.context_processor
     def textos_envio():

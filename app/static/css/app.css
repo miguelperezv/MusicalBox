@@ -236,6 +236,10 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 .mb-footer .brand { color: var(--mb-yellow); font-size: 1.2rem; }
 .mb-footer .social a { font-size: 1rem; margin-right: .7rem; }
 .mb-footer h6 { color: #fff; font-weight: 700; margin-bottom: .7rem; font-size: 0.9rem; }
+/* aviso de drops: franja con el formulario de suscripción */
+.mb-footer-drops { background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .14); border-radius: .75rem; }
+.mb-footer-drops h6 { color: var(--mb-yellow); margin-bottom: .3rem; }
+.mb-footer-drops .form-check-input { cursor: pointer; }
 
 /* ---------- alertas ---------- */
 .mb-toasts { position: fixed; bottom: 1rem; right: 1rem; z-index: 1090; display: grid; gap: .4rem; max-width: min(320px, calc(100vw - 2rem)); }
