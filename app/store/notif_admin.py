@@ -6,6 +6,7 @@ from datetime import datetime
 from flask import url_for
 
 from ..telegram import enviar_admin
+from .models import Item
 
 
 def _cop(total):
@@ -25,13 +26,26 @@ def _donde(p):
     return ", ".join(partes) if partes else "sin dirección"
 
 
+def _label_item(item):
+    if item.producto:
+        lanz = item.producto.lanzamiento
+        return " - ".join(x for x in [lanz.n_lanzamiento.title() if lanz else "", item.producto.n_producto or ""] if x)
+    return item.n_item or "a la medida"
+
+
+def _items_pedido(p):
+    partes = [f"{int(item.cant_item or 1)} x {_label_item(item)}" for item in Item.query.filter_by(k_factura=p.id).all()]
+    return "; ".join(partes) if partes else "sin ítems"
+
+
 def _cuerpo(p, token=None, enlace=None, estado_texto=None):
-    #valores sin etiquetas: monto/método, cliente y teléfono, dirección, fecha y estado
+    #contexto completo en orden: qué pidió, cuánto, cliente, envío, fecha y estado
     estado = estado_texto or p.estado
     lineas = [
+        _esc(_items_pedido(p)),
         f"<b>{_esc(_cop(p.total))}</b> · {_esc(p.metodo_pago or 'método por definir')}",
-        f"{_esc(p.n_envio)} · {_esc(p.tel_envio)}",
-        f"{_esc(_donde(p))}",
+        f"Cliente: {_esc(p.n_envio)} · {_esc(p.tel_envio)}",
+        f"Envío a: {_esc(_donde(p))}",
         f"{_fecha(p.f_compra)} · {_esc(estado)}",
     ]
     if token and enlace:
@@ -46,7 +60,7 @@ def aviso_solicitud(s):
     enviar_admin(
         f"<b>NUEVA SOLICITUD #{s.id}</b> · a la medida\n"
         f"{_esc(items)}\n"
-        f"{_esc(s.cel_contacto)}{extra}\n"
+        f"Contacto: {_esc(s.cel_contacto)}{extra}\n"
         f"{_fecha(s.f_solicitud)} · {s.estado}")
 
 
