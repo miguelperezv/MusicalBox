@@ -26,13 +26,13 @@ def _donde(p):
 
 
 def _cuerpo(p, token=None, enlace=None, estado_texto=None):
+    #valores sin etiquetas: monto/método, cliente y teléfono, dirección, fecha y estado
     estado = estado_texto or p.estado
     lineas = [
-        f"<b>Total:</b> {_esc(_cop(p.total))} · {_esc(p.metodo_pago or 'método por definir')}",
-        f"<b>Quién:</b> {_esc(p.n_envio)} · {_esc(p.tel_envio)}",
-        f"<b>Dónde:</b> {_esc(_donde(p))}",
-        f"<b>Cuándo:</b> {_fecha(p.f_compra)}",
-        f"<b>Estado:</b> {_esc(estado)}",
+        f"<b>{_esc(_cop(p.total))}</b> · {_esc(p.metodo_pago or 'método por definir')}",
+        f"{_esc(p.n_envio)} · {_esc(p.tel_envio)}",
+        f"{_esc(_donde(p))}",
+        f"{_fecha(p.f_compra)} · {_esc(estado)}",
     ]
     if token and enlace:
         url = url_for('pedido.ver', token=token, _external=True)
@@ -44,11 +44,10 @@ def aviso_solicitud(s):
     items = "; ".join(f"{it.cantidad or 1} x {it.nombre}" for it in s.items)
     extra = f" · {_esc(s.email_contacto)}" if s.email_contacto else ""
     enviar_admin(
-        f"<b>NUEVA SOLICITUD #{s.id}</b> — pedido a la medida\n"
-        f"<b>Qué:</b> {_esc(items)}\n"
-        f"<b>Quién:</b> {_esc(s.cel_contacto)}{extra}\n"
-        f"<b>Cuándo:</b> {_fecha(s.f_solicitud)}\n"
-        f"<b>Estado:</b> {s.estado}")
+        f"<b>NUEVA SOLICITUD #{s.id}</b> · a la medida\n"
+        f"{_esc(items)}\n"
+        f"{_esc(s.cel_contacto)}{extra}\n"
+        f"{_fecha(s.f_solicitud)} · {s.estado}")
 
 
 def aviso_pedido_creado(p, token=None):
