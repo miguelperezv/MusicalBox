@@ -103,6 +103,17 @@ def aviso_solicitud(s):
     url = url_for('solicitud.lista', _external=True)
     bloques.append(f"Cotizar en el panel: <a href=\"{url}\">{url}</a>")
     enviar_admin("\n\n".join(bloques))
+    #también va a WhatsApp: es el momento en que el admin debe cotizar y escribirle al cliente
+    lineas_wa = []
+    for it in s.items:
+        desc = f" · “{it.descripcion}”" if it.descripcion else ""
+        lineas_wa.append(f"{it.cantidad or 1} × {it.nombre}{desc}")
+    texto_wa = (f"🎵 Nueva solicitud #{s.id} · a la medida\n"
+                f"Cliente: {s.cel_contacto or 'sin contacto'}"
+                + (f" · {s.email_contacto}" if s.email_contacto else "") + "\n"
+                + "\n".join(lineas_wa or ["sin ítems"]) + "\n"
+                + f"Ver: {url}")
+    enviar_admin_wa(texto_wa)
 
 
 def _lineas_cotizacion(s):

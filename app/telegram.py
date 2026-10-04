@@ -12,11 +12,18 @@ app/store/notif_admin.py escapando los valores dinámicos.
 Nunca lanza excepciones: si un aviso falla, se registra y la operación que lo pidió sigue adelante.
 """
 import os
+import sys
 from datetime import datetime
 
 import requests
 
 from flask import current_app
+
+#la consola de Windows no soporta emoji en stdout; se fuerza UTF-8 para no perder el aviso
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
 
 
 def enviar_admin(mensaje):

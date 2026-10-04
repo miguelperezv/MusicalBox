@@ -13,10 +13,17 @@
 #Acciones por webhook (/whatsapp/webhook): solo los números de WA_ADMIN_PHONE_NUMBER pueden
 #dispararlas; se validan contra esa lista antes de tocar negocio.
 import os
+import sys
 from datetime import datetime
 
 import requests
 from flask import Blueprint, current_app, jsonify, request
+
+#la consola de Windows no soporta emoji en stdout; se fuerza UTF-8 para no perder el aviso
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
 
 whatsapp_bp = Blueprint('whatsapp', __name__)
 
