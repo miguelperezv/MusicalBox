@@ -13,7 +13,7 @@ from .musicapi import buscar_albumes_spotify
 from .envio import costo_envio, lineas_desde_cats
 from ..db import db
 from .views import before_request, admin_required
-from .notif_admin import aviso_solicitud, aviso_pedido_creado
+from .notif_admin import aviso_solicitud, aviso_cotizacion, aviso_pedido_creado
 
 
 solicitud = Blueprint('solicitud', __name__, url_prefix='/solicitud')
@@ -193,6 +193,7 @@ def nueva_admin():
                                           "cantidad": it.cantidad, "precio": form.precio.data}])
         if cerr:
             return jsonify({"error": cerr, "id": s.id, "estado": s.estado}), 400
+        aviso_cotizacion(s, token)
         return jsonify(_respuesta_cotizar(s, token))
     return jsonify({"id": s.id, "estado": s.estado})
 
@@ -229,6 +230,7 @@ def cotizar(id):
     token, err = cotizar_solicitud(id, lineas, request.form.get("d_cotizacion"))
     if err:
         return jsonify({"error": err}), 400
+    aviso_cotizacion(s, token)
     return jsonify(_respuesta_cotizar(s, token))
 
 

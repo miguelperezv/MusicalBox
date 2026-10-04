@@ -1,13 +1,14 @@
-#avises al admin por Telegram: un mensaje por evento con contexto completo.
+#avises al admin por Telegram y WhatsApp: un mensaje por evento con contexto completo.
 #bloques separados en blanco: productos (lanzamiento arriba, producto y precio debajo),
 #totales (subtotal, envío, total compra), comprador, estado, acciones y enlace.
-#HTML: se escapa todo dato dinámico; enviar_admin nunca rompe el flujo.
+#HTML: se escapa todo dato dinámico; enviar_admin/enviar_admin_wa nunca rompen el flujo.
 import html
 
 from datetime import datetime
 from flask import url_for
 
 from ..telegram import enviar_admin
+from ..whatsapp import enviar_admin_wa
 from .models import Item
 
 
@@ -104,16 +105,84 @@ def aviso_solicitud(s):
     enviar_admin("\n\n".join(bloques))
 
 
+def _lineas_cotizacion(s):
+    #ítems cotizados en texto plano: "1 × Nombre (talla) · $150.000"
+    lineas = []
+    for it in (s.items or []):
+        if not it.precio_unit:
+            continue
+        n = int(it.cantidad or 1)
+        nombre = it.nombre or (it.producto.n_producto if it.producto else "producto")
+        desc = f" ({it.descripcion})" if it.descripcion else ""
+        lineas.append(f"{n} × {str(nombre)}{desc} · {_cop(it.precio_unit * n)}")
+    return lineas
+
+
+def aviso_cotizacion(s, token=None):
+    #nueva cotización del admin: va a los dos canales; en WhatsApp, enlace al panel
+    total = int(s.total_cotizado or 0)
+    contacto = s.cel_contacto or "sin contacto"
+    bloques = [
+        f"<b>NUEVA COTIZACIÓN #{s.id}</b> · pedido a la medida",
+        f"<b>ÍTEMS</b>\n" + "\n".join(f"· {_esc(x)}" for x in _lineas_cotizacion(s)) or "sin ítems",
+        f"<b>CONTACTO</b>\n{_esc(contacto)}",
+        f"<b>TOTAL</b>\n{_cop(total)}" + (f" · {_esc(s.d_cotizacion)}" if s.d_cotizacion else ""),
+        "<b>ACCIONES</b>\nRevisa y marca la cotización.",
+    ]
+    url = url_for('solicitud.lista', _external=True)
+    bloques.append(f"Ver en el panel: <a href=\"{url}\">{url}</a>")
+    enviar_admin("\n\n".join(bloques))
+    linea_wa = "\n".join(_lineas_cotizacion(s)) or "sin ítems"
+    texto_wa = (f"🎵 Nueva cotización #{s.id}\n"
+                f"Cliente: {contacto}\n"
+                f"{linea_wa}\n"
+                f"Total: {_cop(total)}\n"
+                f"Ver: {url}")
+    enviar_admin_wa(texto_wa)
+
+
 def aviso_pedido_creado(p, token=None):
     enviar_admin(f"<b>NUEVO PEDIDO #{p.id}</b> · orden de compra\n\n"
                  + _cuerpo(p, "PENDIENTE DE PAGO", "El cliente aún no paga; el stock queda reservado 30 min.",
                            token, "Pago"))
 
 
+def _total_compra(p):
+    #subsan + envío, en entero, para reutilizar en el aviso de WhatsApp
+    items = Item.query.filter_by(k_factura=p.id).all()
+    subtotal = sum(int((i.p_item or 0) * int(i.cant_item or 1)) for i in items)
+    return subtotal + int(p.p_envio or 0)
+
+
+def _lineas_producto(p):
+    #ítems en texto plano (sin HTML) para el canal de WhatsApp
+    items = Item.query.filter_by(k_factura=p.id).all()
+    lineas = []
+    for item in items:
+        n = int(item.cant_item or 1)
+        if item.producto:
+            prod = item.producto.n_producto or "producto"
+            if item.variante:
+                vt = " ".join(x for x in [item.variante.talla, item.variante.color] if x)
+                if vt:
+                    prod += f" ({vt})"
+        else:
+            prod = item.n_item or "a la medida"
+        lineas.append(f"{n} × {prod} · {_cop(int((item.p_item or 0) * n))}")
+    return lineas or ["sin ítems"]
+
+
 def aviso_pago_aprobado(p, token=None):
     estado = "PAGADO" + (f" · envío {p.estado_envio.lower()}" if p.estado_envio else "")
     enviar_admin(f"<b>PAGO APROBADO · PEDIDO #{p.id}</b>\n\n"
                  + _cuerpo(p, estado, "Prepara el pedido.", token, "Seguimiento"))
+    url = url_for('dashboard.invoices', busca=p.id, _external=True)
+    texto_wa = (f"✅ Pago aprobado · Pedido #{p.id}\n"
+                + "\n".join(_lineas_producto(p)) + "\n"
+                + f"Total: {_cop(_total_compra(p))}\n"
+                + f"Cliente: {p.n_envio or 'sin nombre'} · {p.tel_envio or 'sin teléfono'}\n"
+                + f"Ver: {url}")
+    enviar_admin_wa(texto_wa)
 
 
 def aviso_pago_rechazado(p, token=None):

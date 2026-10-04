@@ -337,7 +337,8 @@ class SolicitudItem(db.Model):
     lanzamiento = db.relationship("Lanzamiento")
 
 #ENVIADO/ENTREGADO quedan solo como historial de las solicitudes antiguas (el envío ahora es de la orden)
-ESTADOS_SOLICITUD = ['ACTIVO', 'EN PROCESO', 'COTIZADA', 'COMPRADA', 'CANCELADO']
+#REVISADA: el admin ya revisó la cotización (se marca desde el aviso de WhatsApp/panel)
+ESTADOS_SOLICITUD = ['ACTIVO', 'EN PROCESO', 'COTIZADA', 'REVISADA', 'COMPRADA', 'CANCELADO']
 
 class Categoria(db.Model):
     k_categoria = db.Column(db.String(30), primary_key=True)

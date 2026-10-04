@@ -42,6 +42,14 @@ class Config(object):
     TG_BACKEND = os.getenv("TG_BACKEND", "real")
     TG_BOT_TOKEN = os.getenv("TG_BOT_TOKEN", "")
     TG_ADMIN_CHAT_ID = os.getenv("TG_ADMIN_CHAT_ID", "")
+    #avisos al admin por WhatsApp (Meta Cloud API, ver app/whatsapp.py): sin credenciales cae a consola
+    #WA_ADMIN_PHONE_NUMBER: número(s) del admin, uno o varios separados por coma (prefijo de país, sin +)
+    WA_BACKEND = os.getenv("WA_BACKEND", "real")
+    WA_ACCESS_TOKEN = os.getenv("WA_ACCESS_TOKEN", "")
+    WA_PHONE_NUMBER_ID = os.getenv("WA_PHONE_NUMBER_ID", "")
+    WA_API_VERSION = os.getenv("WA_API_VERSION", "v21.0")
+    WA_ADMIN_PHONE_NUMBER = os.getenv("WA_ADMIN_PHONE_NUMBER", "")
+    WA_WEBHOOK_VERIFY_TOKEN = os.getenv("WA_WEBHOOK_VERIFY_TOKEN", "")
 
 
 
