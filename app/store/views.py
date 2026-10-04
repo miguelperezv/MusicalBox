@@ -302,10 +302,16 @@ def account():
 
     return render_template("account.html",  user=g.user, purchase_cart = g.purchase, form = edit_usuario, compras = compras, solicitudes = solicitudes, get_product_by_id = get_product_by_id, get_release_by_id = get_release_by_id )
 
+PERIODOS_DASHBOARD = [30, 90, 365]
+
 @home.route("/dashboard", methods=["GET", "POST"])
 @admin_required
 def admin():
-    return render_template("adminDashboard.html", stats = get_admin_stats())
+    #resumen del panel; el período (días) filtra top de productos y ventas por categoría
+    dias = request.args.get("periodo", 30, type=int)
+    if dias not in PERIODOS_DASHBOARD:
+        dias = 30
+    return render_template("adminDashboard.html", stats=get_admin_stats(dias), periodo=dias)
 
 LOCALIDADES_BOGOTA = ["Usaquén", "Chapinero", "Santa Fe", "San Cristóbal", "Usme", "Tunjuelito", "Bosa", "Kennedy",
     "Fontibón", "Engativá", "Suba", "Barrios Unidos", "Teusaquillo", "Los Mártires", "Antonio Nariño", "Puente Aranda",
@@ -328,6 +334,43 @@ def colombia():
 
 
 #routes del panel de administración
+
+@dashboard.route("/export/ventas")
+def export_ventas():
+    #reporte CSV: ventas por mes, top de productos, categorías y KPIs (mismo período del filtro)
+    dias = request.args.get("periodo", 30, type=int)
+    if dias not in PERIODOS_DASHBOARD:
+        dias = 30
+    stats = get_admin_stats(dias)
+    buf = io.StringIO()
+    w = csv.writer(buf, delimiter=";")
+    w.writerow(["Musical Box · Reporte de ventas"])
+    w.writerow(["Período", "últimos %d días" % dias, datetime.datetime.now().strftime("%d/%m/%Y")])
+    w.writerow([])
+    w.writerow(["VENTAS POR MES (últimos 6)"])
+    w.writerow(["Período", "Ventas", "Órdenes"])
+    for m in stats["ventas_por_mes"]:
+        w.writerow([m["periodo"], "%.2f" % m["ventas"], m["ordenes"]])
+    w.writerow([])
+    w.writerow(["TOP PRODUCTOS (últimos %d días)" % dias])
+    w.writerow(["Producto", "Lanzamiento", "Unidades", "Ventas"])
+    for p in stats["productos_mas_vendidos"]:
+        w.writerow([p["nombre"], p["lanzamiento"], p["u"], "%.2f" % p["total_ventas"]])
+    w.writerow([])
+    w.writerow(["VENTAS POR CATEGORÍA (últimos %d días)" % dias])
+    total_cat = sum(c["ventas"] for c in stats["ventas_por_categoria"]) or 1
+    w.writerow(["Categoría", "Ventas", "Porcentaje"])
+    for c in stats["ventas_por_categoria"]:
+        w.writerow([c["categoria"], "%.2f" % c["ventas"], "%.1f%%" % (c["ventas"] / total_cat * 100)])
+    w.writerow([])
+    w.writerow(["KPIs"])
+    w.writerow(["Ticket promedio", "%.2f" % stats["estadisticas_clientes"]["ticket_promedio"]])
+    w.writerow(["Crecimiento de ventas (mes)", "%.1f%%" % stats["crecimiento_ventas"]["crecimiento"]])
+    w.writerow(["Productos agotados", stats["estadisticas_inventario"]["productos_agotados"]])
+    w.writerow(["Clientes totales", stats["estadisticas_clientes"]["total_clientes"]])
+    resp = Response(buf.getvalue().encode("utf-8-sig"), mimetype="text/csv")
+    resp.headers["Content-Disposition"] = "attachment; filename=ventas_musicalbox_%s.csv" % datetime.datetime.now().strftime("%Y%m%d")
+    return resp
 
 @dashboard.route( "/newrelease" ,methods=["GET", "POST"])
 def newrelease():

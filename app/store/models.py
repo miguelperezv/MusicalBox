@@ -1330,17 +1330,22 @@ def get_ventas_por_mes(meses=12):
         else:
             fin_mes = datetime(anio, mes + 1, 1) - timedelta(days=1)
         
-        # Ventas del mes
+        # Ventas y órdenes del mes
         ventas_mes = (db.session.query(db.func.sum(Invoice.total))
                      .filter(Invoice.estado == 'PAGADO',
                             Invoice.f_compra >= inicio_mes,
                             Invoice.f_compra <= fin_mes).scalar() or 0)
+        ordenes_mes = (db.session.query(db.func.count(Invoice.id))
+                      .filter(Invoice.estado == 'PAGADO',
+                             Invoice.f_compra >= inicio_mes,
+                             Invoice.f_compra <= fin_mes).scalar() or 0)
         
         resultados.append({
             "mes": mes,
             "anio": anio,
             "nombre": MESES[mes],
             "ventas": float(ventas_mes),
+            "ordenes": int(ordenes_mes),
             "periodo": f"{MESES[mes][:3]}. {anio}"
         })
     
@@ -1464,7 +1469,7 @@ def get_crecimiento_ventas(meses=3):
     }
 
 
-def get_admin_stats():
+def get_admin_stats(dias=30):
     #el resumen responde "¿qué hago hoy?": ventas del mes, lo que va saliendo, stock crítico y pendientes
     ahora = datetime.now()
     inicio_mes = datetime(ahora.year, ahora.month, 1)
@@ -1523,7 +1528,7 @@ def get_admin_stats():
     crecimiento_ventas = get_crecimiento_ventas(1)  # Último mes
     
     # Ventas por categoría
-    ventas_por_categoria = get_ventas_por_categoria(30)  # Últimos 30 días
+    ventas_por_categoria = get_ventas_por_categoria(dias)
     
     # Estadísticas de clientes
     estadisticas_clientes = get_estadisticas_clientes()
@@ -1555,7 +1560,8 @@ def get_admin_stats():
         "estados_pedido": estados_pedido,
         "estados_envio": estados_envio,
         "ventas_por_mes": get_ventas_por_mes(6),  # Últimos 6 meses
-        "productos_mas_vendidos": get_productos_mas_vendidos(10, 30),  # Top 10 últimos 30 días
+        "productos_mas_vendidos": get_productos_mas_vendidos(10, dias),
+        "dias": dias,
         "crecimiento_ventas": crecimiento_ventas,
         "ventas_por_categoria": ventas_por_categoria,
         "estadisticas_clientes": estadisticas_clientes,
