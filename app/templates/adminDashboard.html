@@ -15,7 +15,7 @@
                 <a class="nav-link {{ 'active' if request.endpoint == 'home.admin' }}" href="{{ url_for('home.admin') }}"><i class="bi bi-speedometer2"></i>Resumen</a>
 
                 <div class="section">Ventas</div>
-                <a class="nav-link" href="#" data-load="{{ url_for('solicitud.lista') }}"><i class="bi bi-send"></i>Pedidos a la medida</a>
+                <a class="nav-link" href="#" data-load="{{ url_for('solicitud.lista', sol=sol) if sol else url_for('solicitud.lista') }}"><i class="bi bi-send"></i>Pedidos a la medida</a>
                 <a class="nav-link" href="#" data-load="{{ url_for('dashboard.invoices') }}"><i class="bi bi-receipt"></i>Órdenes de compra</a>
 
                 <div class="section">Catálogo</div>
@@ -332,4 +332,15 @@
         </div>
     </div>
 </div>
+{% endblock %}
+{% block scripts %}
+{% if sol %}
+<script>
+//deep-link /dashboard?sol=N: abre la sección de pedidos a la medida en esa solicitud
+document.addEventListener('DOMContentLoaded', function () {
+    var l = document.querySelector('.mb-sidebar a.nav-link[data-load*="/solicitudes"]');
+    if (l) l.click();
+});
+</script>
+{% endif %}
 {% endblock %}

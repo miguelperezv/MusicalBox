@@ -100,7 +100,7 @@ def aviso_solicitud(s):
         "Elige cómo continuar:",
     ]
     enviar_admin("\n\n".join(bloques), botones=[
-        {"texto": "💻 Cotizar en web", "url": url_for('solicitud.lista', _external=True)},
+        {"texto": "💻 Cotizar en web", "url": url_for('home.admin', sol=s.id, _external=True)},
         {"texto": f"📩 Ver y cotizar en el chat", "callback": f"mtx:{s.id}"},
     ])
 

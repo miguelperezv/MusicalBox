@@ -164,7 +164,7 @@ def _cmd_detalle(chat_id, k):
     correo = f" · {s.email_contacto}" if s.email_contacto else ""
     from flask import url_for
     botones = [
-        {"texto": "💻 Cotizar en web", "url": url_for('solicitud.lista', _external=True)},
+        {"texto": "💻 Cotizar en web", "url": url_for('home.admin', sol=s.id, _external=True)},
         {"texto": "🔎 Buscar el disco", "callback": f"busk:{s.id}"},
     ]
     remitir(chat_id, (f"Solicitud #{s.id} · {s.estado}\n"

@@ -311,7 +311,8 @@ def admin():
     dias = request.args.get("periodo", 30, type=int)
     if dias not in PERIODOS_DASHBOARD:
         dias = 30
-    return render_template("adminDashboard.html", stats=get_admin_stats(dias), periodo=dias)
+    sol = request.args.get("sol", type=int)  #deep-link /dashboard?sol=N (bot TG): abre esa solicitud
+    return render_template("adminDashboard.html", stats=get_admin_stats(dias), periodo=dias, sol=sol)
 
 LOCALIDADES_BOGOTA = ["Usaquén", "Chapinero", "Santa Fe", "San Cristóbal", "Usme", "Tunjuelito", "Bosa", "Kennedy",
     "Fontibón", "Engativá", "Suba", "Barrios Unidos", "Teusaquillo", "Los Mártires", "Antonio Nariño", "Puente Aranda",

@@ -307,6 +307,14 @@
         b.addEventListener('click', function () { abrirCotizar(b); });
     });
 
+    //deep-link ?sol=N (desde el bot / dashboard): abre el cotizar de esa solicitud
+    {% if request.args.get('sol') %}
+    (function () {
+        var b = document.querySelector('.btn-cotizar[data-id="' + {{ request.args.get('sol')|tojson }} + '"]');
+        if (b) setTimeout(function () { abrirCotizar(b); }, 300);
+    })();
+    {% endif %}
+
     document.getElementById('cotizar-guardar').addEventListener('click', function () {
         var btn = this, cuerpo = document.getElementById('cotizar-cuerpo'), err = cuerpo.querySelector('#cotizar-error');
         var data = {};
