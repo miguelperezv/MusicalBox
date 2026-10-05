@@ -413,12 +413,14 @@ def _responder_callback(cb):
 
 @telegram_bp.route("/webhook", methods=["POST"])
 def webhook():
+    #probe a WARNING: en el error log de PA se ve cada entrada aunque el INFO no salga
+    datos = request.get_json(silent=True) or {}
+    log.warning(f"probe webhook: ct={request.content_type!r} keys={list(datos.keys())} args={dict(request.args)}")
     #Solo el chat del admin; el secret_token (si se configura) actúa como segundo candado
     esperado = (current_app.config.get("TG_WEBHOOK_SECRET") or "").strip()
     if esperado and request.args.get("secret_token") != esperado:
         log.warning(f"403: secreto inválido (UA: {request.headers.get('User-Agent')})")
         return jsonify({"ok": False}), 403
-    datos = request.get_json(silent=True) or {}
     cb = datos.get("callback_query")
     if cb:
         remitente = (cb.get("from") or {}).get("id")
