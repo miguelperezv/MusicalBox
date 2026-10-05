@@ -717,6 +717,10 @@ def _responder_callback(cb):
 @telegram_bp.route("/webhook", methods=["POST"])
 def webhook():
     datos = request.get_json(silent=True) or {}
+    #LOG TEMPORAL PARA VER CHAT_ID DE NUEVOS USUARIOS:
+    import logging
+    logging.info(f"Webhook recibido: {datos}")
+    #FIN LOG TEMPORAL
     #Solo el chat del admin; el secret_token (si se configura) actúa como segundo candado
     esperado = (current_app.config.get("TG_WEBHOOK_SECRET") or "").strip()
     if esperado and request.args.get("secret_token") != esperado:
