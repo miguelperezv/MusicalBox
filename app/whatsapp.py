@@ -116,9 +116,12 @@ def webhook():
             if intento["from"]:
                 intentos.append(intento)
     for intento in intentos:
+        current_app.logger.info(f"[WA-WEBHOOK] Recibido de {intento['from']}: {intento.get('payload') or intento.get('texto')}")
         resultado = procesar_mensaje_admin(intento["from"], intento.get("payload") or intento.get("texto"))
         if resultado is not None:
             enviar_admin_wa(resultado)
+    if not intentos:
+        current_app.logger.info(f"[WA-WEBHOOK] Payload sin mensaje accionable: {str(payload)[:300]}")
     return jsonify({"status": "ok"}), 200
 
 
