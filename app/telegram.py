@@ -17,7 +17,8 @@ responde por el propio canal (sin parse_mode):
   buscar <id> <texto>        -> top 5 lanzamientos encontrados
   buscar <id> <texto> <opcion> <precio> -> cotizar asociando el lanzamiento elegido
 La respuesta de cotización incluye botón "Copiar" (copy_text) con el mensaje listo para el cliente.
-Solo responde al chat TG_ADMIN_CHAT_ID y exige secret_token en el webhook.
+Solo responde al chat TG_ADMIN_CHAT_ID; si se configura TG_WEBHOOK_SECRET, exige ese
+secret_token en el webhook (segundo candado).
 
 Nunca lanza excepciones: si un aviso falla, se registra y la operación que lo pidió sigue adelante.
 """
@@ -233,8 +234,10 @@ def procesar_mensaje_tg(chat_id, texto):
 
 @telegram_bp.route("/webhook", methods=["POST"])
 def webhook():
-    #Meta no: Telegram. Solo el chat del admin y con secret_token válido
-    if request.args.get("secret_token") != (current_app.config.get("TG_WEBHOOK_SECRET") or ""):
+    #Solo el chat del admin; el secret_token (si se configura) actúa como segundo candado
+    esperado = (current_app.config.get("TG_WEBHOOK_SECRET") or "").strip()
+    if esperado and request.args.get("secret_token") != esperado:
+        current_app.logger.warning(f"[TG-BOT] 403: secreto inválido (UA: {request.headers.get('User-Agent')})")
         return jsonify({"ok": False}), 403
     datos = request.get_json(silent=True) or {}
     mensaje = datos.get("message") or {}
@@ -259,9 +262,9 @@ def configure():
     if not token:
         return jsonify({"error": "falta TG_BOT_TOKEN"}), 400
     url = request.args.get("url") or (request.url_root.rstrip("/") + "/telegram-bot/webhook")
-    r = requests.post(f"https://api.telegram.org/bot{token}/setWebhook",
-                      json={"url": url,
-                            "secret_token": current_app.config.get("TG_WEBHOOK_SECRET"),
-                            "allowed_updates": ["message"]},
-                      timeout=10)
+    datos = {"url": url, "allowed_updates": ["message"]}
+    secreto = (current_app.config.get("TG_WEBHOOK_SECRET") or "").strip()
+    if secreto:
+        datos["secret_token"] = secreto
+    r = requests.post(f"https://api.telegram.org/bot{token}/setWebhook", json=datos, timeout=10)
     return jsonify({"url": url, "respuesta": r.json()})
