@@ -110,10 +110,11 @@ def remitir(chat_id, texto, copiar=None, botones=None, foto=None):
     if not token:
         log.warning(f"remitir sin TG_BOT_TOKEN: {texto[:60]!r}")
         return False
-    payload = {"chat_id": chat_id, "text": texto, "disable_web_page_preview": True}
-    if foto and str(foto).startswith("http"):
-        payload["photo"] = foto
-        payload["caption"] = payload.pop("text")
+    es_foto = bool(foto and str(foto).startswith("http"))
+    if es_foto:  #con foto va por sendPhoto (caption + botones); sin foto, texto plano
+        payload = {"chat_id": chat_id, "photo": str(foto), "caption": texto}
+    else:
+        payload = {"chat_id": chat_id, "text": texto, "disable_web_page_preview": True}
     filas = []
     if copiar:
         filas.append([{"type": "copy_text", "text": "📋 Copiar", "copy_text": {"text": copiar}}])
@@ -123,7 +124,7 @@ def remitir(chat_id, texto, copiar=None, botones=None, foto=None):
     if filas:
         payload["reply_markup"] = {"inline_keyboard": filas}
     log.info(f"bot responde a {chat_id} · {texto[:50]!r} · copiar={bool(copiar)} · botones={len(botones or [])} · foto={bool(foto)}")
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    url = f"https://api.telegram.org/bot{token}/{'sendPhoto' if es_foto else 'sendMessage'}"
     for intento in (1, 2):  #el proxy saliente de PA fallan con 503 de vez en cuando; reintentar suele pasar
         try:
             r = requests.post(url, json=payload, timeout=10)
