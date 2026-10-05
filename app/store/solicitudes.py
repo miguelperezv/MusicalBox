@@ -85,8 +85,15 @@ def lista():
     portadas = {}
     for l in Lanzamiento.query.filter(Lanzamiento.i_lanzamiento.isnot(None)).all():
         portadas[str(l.id)] = l.i_lanzamiento
+    #cats por solicitud ("CAT:qty|CAT:qty") para el costo de envío estimado del modal
+    solicitudes = []
+    for s in get_all_solicitudes():
+        items = items_efectivos(s)
+        cats = "|".join(((((it.producto.k_categoria if it.producto else it.categoria) or "OTRO") + ":" + str(int(it.cantidad or 1)))
+                         for it in items))
+        solicitudes.append((s, items, cats))
     return render_template('solicitudes.html',
-                           solicitudes=[(s, items_efectivos(s)) for s in get_all_solicitudes()],
+                           solicitudes=solicitudes,
                            estados=ESTADOS_SOLICITUD, portadas=portadas)
 
 
@@ -167,7 +174,7 @@ def _respuesta_cotizar(s, token):
     cel = "".join(c for c in (s.cel_contacto or "") if c.isdigit())
     return {"id": s.id, "enlace": enlace, "preview": preview, "mensaje": mensaje,
             "whatsapp": f"https://wa.me/{'57' + cel if len(cel) == 10 else cel}?text={quote(mensaje)}",
-            "estado": s.estado}
+            "estado": s.estado, "sol_url": url_for('home.admin', sol=s.id)}
 
 
 @solicitud.route("/nueva_admin", methods=["POST"])
@@ -197,9 +204,10 @@ def nueva_admin():
                                           "k_lanzamiento": it.producto.k_lanzamiento if it.producto else None,
                                           "cantidad": it.cantidad, "precio": form.precio.data}])
         if cerr:
-            return jsonify({"error": cerr, "id": s.id, "estado": s.estado}), 400
+            return jsonify({"error": cerr, "id": s.id, "estado": s.estado,
+                            "sol_url": url_for('home.admin', sol=s.id)}), 400
         return jsonify(_respuesta_cotizar(s, token))
-    return jsonify({"id": s.id, "estado": s.estado})
+    return jsonify({"id": s.id, "estado": s.estado, "sol_url": url_for('home.admin', sol=s.id)})
 
 
 @solicitud.route("/<int:id>/cotizar", methods=["POST"])

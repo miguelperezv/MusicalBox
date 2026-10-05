@@ -20,7 +20,8 @@ Flujo guiado por botones (estado en memoria, un proceso):
   detalle -> [💻 web] [💲 precio] [🔎 disco] [🛒 producto] [📝 nota] + [✖ retirar ítem]
   disco -> top 5 (opt:<k>:<ext>) · producto -> top 5 del catálogo (opro:<k>:<id>)
   -> precio por ítem -> precio de envío (número; 0 gratis; "ok" = estimado) -> cotiza.
-  El mensaje del cliente va con foto (portada chica), envío y botón "Copiar" (copy_text).
+  El mensaje del cliente va con envío y botón "Copiar" (copy_text); sin foto por ahora
+  (el lanzamiento sí queda guardado y asociado al ítem).
 
 Solo responde al chat TG_ADMIN_CHAT_ID; si se configura TG_WEBHOOK_SECRET, exige ese
 secret_token en el webhook (segundo candado).
@@ -304,9 +305,9 @@ def _buscar_disco(chat_id, k, texto):
     lineas = [f"{i+1}. {a['nombre']} — {a['artista']}" for i, a in enumerate(items)]
     botones = [{"texto": f"{i+1}. {a['nombre'][:34]}", "callback": f"opt:{k}:{a['id']}"}
               for i, a in enumerate(items)]
+    #sin foto por ahora: lo importante es que al cotizar quede guardado/asociado el lanzamiento
     return remitir(chat_id, f"Discos para “{texto}”:\n" + "\n".join(lineas) +
-                       "\n\nToca la opción que sea (y luego el precio).",
-                   botones=botones, foto=_portada_http(items[0].get("portada_chica") or items[0].get("portada")))
+                       "\n\nToca la opción que sea (y luego el precio).", botones=botones)
 
 
 def _cotizar_con(chat_id, k, precios, ext=None, prod=None, nota=None, envio=None):
@@ -328,7 +329,7 @@ def _cotizar_con(chat_id, k, precios, ext=None, prod=None, nota=None, envio=None
         precios = []
     if len(precios) != len(items) or any(p <= 0 for p in precios):
         return remitir(chat_id, f"La solicitud #{k} tiene {len(items)} ítem(s): necesito {len(items)} precio(s).")
-    lanza_id, portada, disco = None, None, ""
+    lanza_id, disco = None, ""
     if ext:
         a = _albumes.get(ext)
         if not a:
@@ -339,7 +340,6 @@ def _cotizar_con(chat_id, k, precios, ext=None, prod=None, nota=None, envio=None
         if not l:
             return remitir(chat_id, "No se pudo asociar el disco.")
         lanza_id, disco = l.id, a.get("nombre", "")
-        portada = a.get("portada_chica") or a.get("portada")
     producto = db.session.get(Producto, int(prod)) if prod else None
     if prod and not producto:
         return remitir(chat_id, "Ese producto no existe: usa otra vez '🛒 Buscar producto'.")
@@ -349,12 +349,12 @@ def _cotizar_con(chat_id, k, precios, ext=None, prod=None, nota=None, envio=None
     token, err = cotizar_solicitud(k, lineas, nota, p_envio=envio)
     if err:
         return remitir(chat_id, f"No se pudo cotizar la #{k}: {err}")
-    if not portada:
+    #sin foto por ahora; si no se eligió disco, el nombre se toma del lanzamiento del ítem (solo para mostrar)
+    if not disco:
         for it in items:
             lz = it.lanzamiento or (it.producto.lanzamiento if it.producto else None)
-            if lz and _portada_http(lz.i_lanzamiento):
-                portada = lz.i_lanzamiento
-                disco = disco or lz.n_lanzamiento
+            if lz:
+                disco = lz.n_lanzamiento
                 break
     from flask import url_for
     total = sum(p * int(it.cantidad or 1) for it, p in zip(items, precios))
@@ -385,7 +385,7 @@ def _cotizar_con(chat_id, k, precios, ext=None, prod=None, nota=None, envio=None
                + (f" · nota: {s.d_cotizacion[:50]}" if s.d_cotizacion else "")
                + f"\nPanel: {url_for('solicitud.lista', _external=True)}")
     remitir(chat_id, resumen)
-    remitir(chat_id, "Mensaje listo para el cliente 📩", copiar="\n".join(bloques), foto=portada)
+    remitir(chat_id, "Mensaje listo para el cliente 📩", copiar="\n".join(bloques))
 
 def _prompt_precio(chat_id, k):
     from .store.models import Solicitud, items_efectivos

@@ -31,7 +31,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for s, items in solicitudes %}
+                {% for s, items, cats_cot in solicitudes %}
                 <tr data-est="{{ s.estado }}">
                     <td class="ps-3 text-body-secondary">{{ s.id }}</td>
                     <td class="text-nowrap">{{ s.f_solicitud.strftime('%d/%m/%Y') if s.f_solicitud }}</td>
@@ -71,7 +71,6 @@
                         <button type="button" class="btn btn-sm {{ 'btn-primary' if not s.total_cotizado else 'btn-outline-primary' }} btn-cotizar" data-id="{{ s.id }}" data-contacto="{{ (s.usuario.n_usuario if s.usuario else s.cel_contacto) or '' }}">
                             <i class="bi {{ 'bi-cash-stack' if not s.total_cotizado else 'bi-link-45deg' }} me-1"></i>{{ 'Cotizar' if not s.total_cotizado else 'Nuevo enlace' }}
                         </button>
-                        {% set cats_cot = "|".join(((it.producto.k_categoria if it.producto else it.categoria) or "OTRO") ~ ":" ~ (int(it.cantidad or 1)|string) for it in items) %}
                         <template id="tpl-cot-{{ s.id }}">
                             <div class="cotizar-items" data-url="{{ url_for('solicitud.cotizar', id=s.id) }}"
                                  data-lugar="{{ s.lugar_solicitud or '' }}" data-cats="{{ cats_cot }}">
@@ -248,13 +247,11 @@
                     salida.innerHTML = preview + '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Pedido #' + r.id + ' cotizado</span>' +
                         '<a class="btn btn-sm btn-success" target="_blank" rel="noopener" href="' + esc(r.whatsapp) + '"><i class="bi bi-whatsapp me-1"></i>Enviar por WhatsApp</a>' +
                         '<button type="button" class="btn btn-sm btn-outline-secondary mini-copiar">Copiar enlace</button>' +
-                        '<button type="button" class="btn btn-sm btn-link mini-refrescar">Ver lista</button>';
+                        '<a class="btn btn-sm btn-link" href="' + esc(r.sol_url) + '">Ver cotización</a>';
                     salida.querySelector('.mini-copiar').onclick = function () { navigator.clipboard.writeText(r.enlace); this.textContent = 'Copiado'; };
-                    salida.querySelector('.mini-refrescar').onclick = function () { bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-nuevo-medida')).hide(); refrescarLista(); };
                 } else {
                     salida.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Pedido #' + r.id + ' registrado</span>' +
-                        '<button type="button" class="btn btn-sm btn-link mini-refrescar">Ver lista para ponerle precio</button>';
-                    salida.querySelector('.mini-refrescar').onclick = function () { bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-nuevo-medida')).hide(); refrescarLista(); };
+                        '<a class="btn btn-sm btn-link" href="' + esc(r.sol_url) + '">Ponerle precio ahora</a>';
                 }
             })
             .fail(function (x) {
