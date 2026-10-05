@@ -16,10 +16,11 @@ responde por el propio canal (sin parse_mode):
   <id> <precio>...           -> cotizar (1 precio: para todos; N precios: por ítem, en orden)
   buscar <id> <texto>        -> top 5 lanzamientos encontrados
   buscar <id> <texto> <opcion> <precio> -> cotizar asociando el lanzamiento elegido
-La respuesta de cotización incluye botón "Copiar" (copy_text) con el mensaje listo para el cliente.
-Los avisos y el detalle llevan botones inline: "Cotizar en web" (url del panel) y "Buscar el
-disco" (callback que responde el uso de `buscar`); el aviso de solicitud nueva además ofrece
-"Ver y cotizar en el chat" (callback mtx:<id> -> detalle).
+Flujo guiado por botones (estado en memoria, un proceso):
+  detalle (mtx:<id> o <id>) -> [💻 Cotizar en web] [💲 Poner precio (prc:<id>)] [🔎 Buscar el disco (busk:<id>)]
+  prc -> pide el precio -> cotiza;  busk -> pide el nombre -> top 5 con botones (opt:<k>:<ext_id>)
+  -> pide el precio -> cotiza asociando el lanzamiento. El mensaje del cliente va con foto
+  (portada http) y botón "Copiar" (copy_text). Los comandos de texto siguen funcionando.
 Solo responde al chat TG_ADMIN_CHAT_ID; si se configura TG_WEBHOOK_SECRET, exige ese
 secret_token en el webhook (segundo candado).
 
@@ -37,6 +38,17 @@ telegram_bp = Blueprint('telegram_bot', __name__)
 
 #los logs van por logging (en produccion solo se ve el error log, no el stdout de print)
 log = logging.getLogger("mb.tgbot")
+
+#estado guiado del bot en memoria (dev y PA corren un solo proceso):
+# chat_id (str) -> {"espera": "disco"|"precio", "k": id de solicitud, "ext": id de spotify (opcional)}
+_guiado = {}
+#albumes de la busqueda mas reciente: external_id -> item (para los botones opt:<k>:<ext>)
+_albumes = {}
+
+
+def _ck(chat_id):
+    #llave de estado: Telegram manda int y la config trae str; se normaliza a str
+    return str(chat_id)
 
 
 def _markup(botones):
@@ -91,13 +103,16 @@ def enviar_admin(mensaje, botones=None):
         return False
 
 
-def remitir(chat_id, texto, copiar=None, botones=None):
-    #envío directo del bot (sin HTML); si hay `copiar`, va con botón inline de copiar
+def remitir(chat_id, texto, copiar=None, botones=None, foto=None):
+    #envío directo del bot (sin HTML); `copiar` añade botón de copiar y `foto` (url) va con el texto
     token = (current_app.config.get("TG_BOT_TOKEN") or "").strip()
     if not token:
         log.warning(f"remitir sin TG_BOT_TOKEN: {texto[:60]!r}")
         return False
     payload = {"chat_id": chat_id, "text": texto, "disable_web_page_preview": True}
+    if foto and str(foto).startswith("http"):
+        payload["photo"] = foto
+        payload["caption"] = payload.pop("text")
     filas = []
     if copiar:
         filas.append([{"type": "copy_text", "text": "📋 Copiar", "copy_text": {"text": copiar}}])
@@ -106,7 +121,7 @@ def remitir(chat_id, texto, copiar=None, botones=None):
         filas.extend(markup["inline_keyboard"])
     if filas:
         payload["reply_markup"] = {"inline_keyboard": filas}
-    log.info(f"bot responde a {chat_id} · {texto[:50]!r} · copiar={bool(copiar)} · botones={len(botones or [])}")
+    log.info(f"bot responde a {chat_id} · {texto[:50]!r} · copiar={bool(copiar)} · botones={len(botones or [])} · foto={bool(foto)}")
     try:
         r = requests.post(f"https://api.telegram.org/bot{token}/sendMessage", json=payload, timeout=10)
         if r.status_code != 200:
@@ -122,12 +137,12 @@ def _cop_bot(total):
 
 
 def _uso():
-    return ("Comandos:\n"
+    return ("Todo se hace con los botones de cada solicitud:\n"
+            "💻 Cotizar en web · 💲 Poner precio · 🔎 Buscar el disco\n"
+            "Y los comandos, si los prefieres:\n"
             "· lista — solicitudes pendientes\n"
-            "· <id> — detalle de la solicitud\n"
-            "· <id> <precio>… — cotizar (1 precio: para todos; N: por ítem, en orden)\n"
-            "· buscar <id> <texto> — buscar el disco (top 5)\n"
-            "· buscar <id> <texto> <opcion> <precio> — cotizar con el disco elegido")
+            "· <id> — detalle · <id> <precio> — cotizar\n"
+            "· buscar <id> <texto> [opcion precio] — buscar disco y cotizar")
 
 
 def _lineas_items(s):
@@ -165,6 +180,7 @@ def _cmd_detalle(chat_id, k):
     from flask import url_for
     botones = [
         {"texto": "💻 Cotizar en web", "url": url_for('home.admin', sol=s.id, _external=True)},
+        {"texto": "💲 Poner precio", "callback": f"prc:{s.id}"},
         {"texto": "🔎 Buscar el disco", "callback": f"busk:{s.id}"},
     ]
     remitir(chat_id, (f"Solicitud #{s.id} · {s.estado}\n"
@@ -256,10 +272,91 @@ def _cmd_buscar(chat_id, rest):
     remitir(chat_id, "Mensaje listo para el cliente 👇", copiar="\n".join(bloques))
 
 
+def _portada_http(valor):
+    return valor if isinstance(valor, str) and valor.startswith("http") else None
+
+
+def _buscar_disco(chat_id, k, texto):
+    from .store.musicapi import buscar_albumes_spotify
+    res = buscar_albumes_spotify(texto)
+    if res.get("error"):
+        return remitir(chat_id, f"Búsqueda: {res['error']}")
+    items = res.get("items", [])[:5]
+    if not items:
+        return remitir(chat_id, f"No encontré discos para “{texto}”. Prueba con otro nombre.")
+    for a in items:
+        _albumes[a["id"]] = a
+    lineas = [f"{i+1}. {a['nombre']} — {a['artista']}" for i, a in enumerate(items)]
+    botones = [{"texto": f"{i+1}. {a['nombre'][:34]}", "callback": f"opt:{k}:{a['id']}"}
+              for i, a in enumerate(items)]
+    return remitir(chat_id, f"Discos para “{texto}”:\n" + "\n".join(lineas) +
+                       "\n\nToca la opción que sea (y luego el precio).",
+                   botones=botones, foto=_portada_http(items[0].get("portada")))
+
+
+def _cotizar_con(chat_id, k, precio, ext=None):
+    from .store.models import Solicitud, cotizar_solicitud, buscar_o_crear_lanzamiento_spotify
+    s = Solicitud.query.get(k)
+    if not s:
+        return remitir(chat_id, f"No existe la solicitud #{k}.")
+    items = list(s.items)
+    lanza_id, portada, disco = None, None, ""
+    if ext:
+        a = _albumes.get(ext)
+        if not a:
+            return remitir(chat_id, "Esos resultados expiraron: usa otra vez '🔎 Buscar el disco'.")
+        l, _ = buscar_o_crear_lanzamiento_spotify({
+            "external_id": a["id"], "n_lanzamiento": a.get("nombre"), "artista": a.get("artista"),
+            "i_lanzamiento": a.get("portada"), "f_lanzamiento": a.get("fecha"), "external_url": a.get("url")})
+        if not l:
+            return remitir(chat_id, "No se pudo asociar el disco.")
+        lanza_id, portada, disco = l.id, a.get("portada"), a.get("nombre", "")
+    lineas = [{"k_producto": it.k_producto, "k_lanzamiento": lanza_id or it.k_lanzamiento,
+               "cantidad": it.cantidad, "precio": precio} for it in items]
+    token, err = cotizar_solicitud(k, lineas, None)
+    if err:
+        return remitir(chat_id, f"No se pudo cotizar la #{k}: {err}")
+    if not portada:
+        for it in items:
+            lz = it.lanzamiento or (it.producto.lanzamiento if it.producto else None)
+            if lz and _portada_http(lz.i_lanzamiento):
+                portada = lz.i_lanzamiento
+                disco = lz.n_lanzamiento
+                break
+    from flask import url_for
+    total = sum(precio * int(it.cantidad or 1) for it in items)
+    link = url_for('solicitud.confirmar', token=token, _external=True)
+    bloques = [f"🎵 ¡Ya tienes precio, solicitud #{k}!", ""]
+    if disco:
+        bloques.append(f"Disco: {disco}")
+    bloques += ["\n".join(f"{int(it.cantidad or 1)} × {it.nombre or 'pedido'} · {_cop_bot(precio * int(it.cantidad or 1))}"
+                          for it in items),
+                f"Total: {_cop_bot(total)}", "", f"Paga y enviarlo: {link}"]
+    remitir(chat_id, f"✅ Solicitud #{k} cotizada ({_cop_bot(total)}).\nPanel: {url_for('solicitud.lista', _external=True)}")
+    remitir(chat_id, "Mensaje listo para el cliente 👇", copiar="\n".join(bloques), foto=_portada_http(portada))
+
+
+def _esperando_precio(chat_id, t, estado):
+    k = int(estado.get("k") or 0)
+    if t.lower() in ("cancelar", "no", "salir", "x"):
+        del _guiado[_ck(chat_id)]
+        return remitir(chat_id, "Listo, se canceló. (usa 'lista' u otro comando)")
+    if t.isdigit() and int(t) > 0:
+        del _guiado[_ck(chat_id)]
+        return _cotizar_con(chat_id, k, int(t), ext=estado.get("ext"))
+    return remitir(chat_id, "El precio va solo en números (pesos), ej. 180000 — o escribe 'cancelar'.")
+
+
 def procesar_mensaje_tg(chat_id, texto):
     t = (texto or "").strip()
     if not t:
         return
+    estado = _guiado.get(_ck(chat_id))
+    if estado:
+        if estado.get("espera") == "precio":
+            return _esperando_precio(chat_id, t, estado)
+        del _guiado[_ck(chat_id)]
+        return _buscar_disco(chat_id, int(estado.get("k") or 0), t)
     if t.lower() in ("lista", "listar", "menu", "ayuda", "help", "?"):
         return _cmd_lista(chat_id)
     palabras = t.split()
@@ -289,15 +386,29 @@ def _responder_callback(cb):
     if not data:
         return
     prefijo, _, resto = data.partition(":")
+    if prefijo == "opt":
+        #opt:<k>:<external_id>
+        partes = resto.split(":", 1)
+        if len(partes) != 2 or not partes[0].isdigit():
+            return
+        k, ext = int(partes[0]), partes[1]
+        album = _albumes.get(ext)
+        if not album:
+            return remitir(chat_id, "Esos resultados expiraron: usa otra vez '🔎 Buscar el disco'.")
+        _guiado[_ck(chat_id)] = {"espera": "precio", "k": k, "ext": ext}
+        return remitir(chat_id, f"“{album.get('nombre', '')}” — ¿Cuánto vale?\nEscribe el precio en pesos o 'cancelar'.")
     if not resto.isdigit():
         return
     k = int(resto)
     if prefijo == "mtx":
         return _cmd_detalle(chat_id, k)
+    if prefijo == "prc":
+        _guiado[_ck(chat_id)] = {"espera": "precio", "k": k}
+        return remitir(chat_id, f"¿Cuánto vale la solicitud #{k}?\n"
+                          f"Escribe el precio en pesos (uno solo: se aplica a todos los ítems) o 'cancelar'.")
     if prefijo == "busk":
-        return remitir(chat_id, f"Para buscar el disco de la solicitud #{k}, escribe:\n"
-                          f"buscar {k} <nombre del disco>\n"
-                          f"Y al elegir: buscar {k} <nombre> <opcion> <precio>")
+        _guiado[_ck(chat_id)] = {"espera": "disco", "k": k}
+        return remitir(chat_id, f"¿Cuál disco, para la solicitud #{k}?\nEscribe el nombre y te muestro los resultados.")
 
 
 @telegram_bp.route("/webhook", methods=["POST"])
