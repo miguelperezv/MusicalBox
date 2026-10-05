@@ -276,6 +276,8 @@ def _es_admin(remitente):
 
 def _responder_callback(cb):
     #apretón de botón inline; answerCallbackQuery quita la carita de "procesando"
+    #el chat llega en cb["chat"] (no hay chat_id directo en el callback)
+    chat_id = (cb.get("chat") or {}).get("id") or cb.get("chat_id")
     data = cb.get("data") or ""
     try:
         token = (current_app.config.get("TG_BOT_TOKEN") or "").strip()
@@ -291,11 +293,11 @@ def _responder_callback(cb):
         return
     k = int(resto)
     if prefijo == "mtx":
-        return _cmd_detalle(cb.get("chat_id"), k)
+        return _cmd_detalle(chat_id, k)
     if prefijo == "busk":
-        return remitir(cb.get("chat_id"), f"Para buscar el disco de la solicitud #{k}, escribe:\n"
-                           f"buscar {k} <nombre del disco>\n"
-                           f"Y al elegir: buscar {k} <nombre> <opcion> <precio>")
+        return remitir(chat_id, f"Para buscar el disco de la solicitud #{k}, escribe:\n"
+                          f"buscar {k} <nombre del disco>\n"
+                          f"Y al elegir: buscar {k} <nombre> <opcion> <precio>")
 
 
 @telegram_bp.route("/webhook", methods=["POST"])
