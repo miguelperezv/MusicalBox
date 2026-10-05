@@ -69,10 +69,14 @@ def _markup(botones):
 def enviar_admin(mensaje, botones=None):
     cfg = current_app.config
     token = (cfg.get("TG_BOT_TOKEN") or "").strip()
-    chat = (cfg.get("TG_ADMIN_CHAT_ID") or "").strip()
+    admins_str = (cfg.get("TG_ADMIN_CHAT_ID") or "").strip()
     backend = (cfg.get("TG_BACKEND") or "real").lower()
-    if not token or not chat:
+    
+    # Obtener todos los chat_id de administradores
+    admins = [a.strip() for a in admins_str.split(",") if a.strip()]
+    if not token or not admins:
         backend = "consola"
+    
     try:
         if backend == "off":
             return True
@@ -80,21 +84,25 @@ def enviar_admin(mensaje, botones=None):
             current_app.extensions.setdefault("telegram_enviados", []).append(mensaje)
             return True
         if backend == "real":
-            cuerpo = {"chat_id": chat, "text": mensaje, "parse_mode": "HTML",
-                     "disable_web_page_preview": True}
-            markup = _markup(botones)
-            if markup:
-                cuerpo["reply_markup"] = markup
-            r = requests.post(
-                f"https://api.telegram.org/bot{token}/sendMessage",
-                json=cuerpo,
-                timeout=10,
-            )
-            if r.status_code != 200:
-                log.warning(f"aviso falló: HTTP {r.status_code} {r.text[:200]}")
-                return False
-            log.info(f"aviso enviado (real) · {len(mensaje)} chars · {len(botones or [])} botones")
-            return True
+            log.info(f"Enviando aviso a {len(admins)} administradores: {admins}")
+            enviado_a = []
+            for chat_id in admins:
+                cuerpo = {"chat_id": chat_id, "text": mensaje, "parse_mode": "HTML",
+                         "disable_web_page_preview": True}
+                markup = _markup(botones)
+                if markup:
+                    cuerpo["reply_markup"] = markup
+                r = requests.post(
+                    f"https://api.telegram.org/bot{token}/sendMessage",
+                    json=cuerpo,
+                    timeout=10,
+                )
+                if r.status_code == 200:
+                    enviado_a.append(chat_id)
+                else:
+                    log.warning(f"aviso falló para admin {chat_id}: HTTP {r.status_code} {r.text[:200]}")
+            log.info(f"aviso enviado (real) a {len(enviado_a)}/{len(admins)} admins · {len(mensaje)} chars · {len(botones or [])} botones")
+            return len(enviado_a) > 0
         carpeta = os.path.join(current_app.instance_path, "telegram")
         os.makedirs(carpeta, exist_ok=True)
         nombre = datetime.now().strftime("%Y%m%d-%H%M%S-%f") + ".txt"
@@ -643,8 +651,9 @@ def procesar_mensaje_tg(chat_id, texto):
     remitir(chat_id, "No entendí.\n\n" + _uso())
 
 def _es_admin(remitente):
-    admins = str(current_app.config.get("TG_ADMIN_CHAT_ID") or "").split(",")
-    return str(remitente) in [a.strip() for a in admins if a.strip()]
+    admins_str = str(current_app.config.get("TG_ADMIN_CHAT_ID") or "").strip()
+    admins = [a.strip() for a in admins_str.split(",") if a.strip()]
+    return str(remitente) in admins
 
 
 def _responder_callback(cb):
