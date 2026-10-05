@@ -12,8 +12,9 @@ from .store.mercadopago import views as mercadopago_views
 from .store import catalogo_admin  # noqa: F401 (rutas de tallas y packs en el panel)
 from .store import envios_admin  # noqa: F401 (sección "Envíos" del panel y costo por orden)
 from .store import suscriptores  # noqa: F401 (suscriptores de drops: form del footer y lista del panel)
+from .telegram import telegram_bp
 
-ACTIVE_ENDPOINTS = [('/',home), ('/dashboard', dashboard), ('/releases', releases), ('/artists', artists), ('/purchase', purchase), ("/products", products), ("/solicitud", solicitud), ("/pedido", pedido), ("/mercadopago", mercadopago_views.mercadopago_bp) ]
+ACTIVE_ENDPOINTS = [('/',home), ('/dashboard', dashboard), ('/releases', releases), ('/artists', artists), ('/purchase', purchase), ("/products", products), ("/solicitud", solicitud), ("/pedido", pedido), ("/mercadopago", mercadopago_views.mercadopago_bp), ("/telegram-bot", telegram_bp) ]
 
 def create_app(config=None):
     app = Flask(__name__)
@@ -40,8 +41,9 @@ def create_app(config=None):
     for url, blueprint in ACTIVE_ENDPOINTS:
         app.register_blueprint(blueprint, url_prefix=url)
 
-    # Eximir solo el webhook de MercadoPago (peticiones externas, sin navegador)
+    # Eximir solo los webhooks de MercadoPago y del bot de Telegram (peticiones externas, sin navegador)
     csrf.exempt(mercadopago_views.mercadopago_bp)
+    csrf.exempt(telegram_bp)
     # el resto del panel usa tokens CSRF: {{ form.csrf_token }} / hidden input / header X-CSRFToken
 
     @app.cli.command("crear-admin")

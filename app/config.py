@@ -42,6 +42,8 @@ class Config(object):
     TG_BACKEND = os.getenv("TG_BACKEND", "real")
     TG_BOT_TOKEN = os.getenv("TG_BOT_TOKEN", "")
     TG_ADMIN_CHAT_ID = os.getenv("TG_ADMIN_CHAT_ID", "")
+    #bot de cotización: secreto del webhook entrante (ver app/telegram.py)
+    TG_WEBHOOK_SECRET = os.getenv("TG_WEBHOOK_SECRET", "mb-tg-webhook-dev")
 
 
 
