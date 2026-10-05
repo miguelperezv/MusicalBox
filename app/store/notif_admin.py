@@ -97,11 +97,12 @@ def aviso_solicitud(s):
         f"<b>ÍTEMS SOLICITADOS</b>\n" + "\n".join(items),
         f"<b>CONTACTO</b>\n{_esc(s.cel_contacto)}{extra}",
         f"<b>ESTADO</b>\n{s.estado} · {_fecha(s.f_solicitud)}",
-        "<b>ACCIONES</b>\nCotiza y escribe al cliente por WhatsApp.",
+        "Elige cómo continuar:",
     ]
-    url = url_for('solicitud.lista', _external=True)
-    bloques.append(f"Cotizar en el panel: <a href=\"{url}\">{url}</a>")
-    enviar_admin("\n\n".join(bloques))
+    enviar_admin("\n\n".join(bloques), botones=[
+        {"texto": "💻 Cotizar en web", "url": url_for('solicitud.lista', _external=True)},
+        {"texto": f"📩 Ver y cotizar en el chat", "callback": f"mtx:{s.id}"},
+    ])
 
 
 def aviso_pedido_creado(p, token=None):

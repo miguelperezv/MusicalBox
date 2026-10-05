@@ -17,11 +17,15 @@ responde por el propio canal (sin parse_mode):
   buscar <id> <texto>        -> top 5 lanzamientos encontrados
   buscar <id> <texto> <opcion> <precio> -> cotizar asociando el lanzamiento elegido
 La respuesta de cotización incluye botón "Copiar" (copy_text) con el mensaje listo para el cliente.
+Los avisos y el detalle llevan botones inline: "Cotizar en web" (url del panel) y "Buscar el
+disco" (callback que responde el uso de `buscar`); el aviso de solicitud nueva además ofrece
+"Ver y cotizar en el chat" (callback mtx:<id> -> detalle).
 Solo responde al chat TG_ADMIN_CHAT_ID; si se configura TG_WEBHOOK_SECRET, exige ese
 secret_token en el webhook (segundo candado).
 
 Nunca lanza excepciones: si un aviso falla, se registra y la operación que lo pidió sigue adelante.
 """
+import logging
 import os
 from datetime import datetime
 
@@ -31,7 +35,22 @@ from flask import Blueprint, current_app, jsonify, request
 telegram_bp = Blueprint('telegram_bot', __name__)
 
 
-def enviar_admin(mensaje):
+#los logs van por logging (en produccion solo se ve el error log, no el stdout de print)
+log = logging.getLogger("mb.tgbot")
+
+
+def _markup(botones):
+    #cada botón en su propia fila; url -> enlace, callback -> respuesta del bot
+    filas = []
+    for b in botones or []:
+        if b.get("url"):
+            filas.append([{"text": b["texto"], "url": b["url"]}])
+        else:
+            filas.append([{"text": b["texto"], "callback_data": b["callback"]}])
+    return {"inline_keyboard": filas} if filas else None
+
+
+def enviar_admin(mensaje, botones=None):
     cfg = current_app.config
     token = (cfg.get("TG_BOT_TOKEN") or "").strip()
     chat = (cfg.get("TG_ADMIN_CHAT_ID") or "").strip()
@@ -45,15 +64,20 @@ def enviar_admin(mensaje):
             current_app.extensions.setdefault("telegram_enviados", []).append(mensaje)
             return True
         if backend == "real":
+            cuerpo = {"chat_id": chat, "text": mensaje, "parse_mode": "HTML",
+                     "disable_web_page_preview": True}
+            markup = _markup(botones)
+            if markup:
+                cuerpo["reply_markup"] = markup
             r = requests.post(
                 f"https://api.telegram.org/bot{token}/sendMessage",
-                json={"chat_id": chat, "text": mensaje, "parse_mode": "HTML",
-                      "disable_web_page_preview": True},
+                json=cuerpo,
                 timeout=10,
             )
             if r.status_code != 200:
-                print(f"ERROR Telegram {r.status_code}: {r.text[:200]}")
+                log.warning(f"aviso falló: HTTP {r.status_code} {r.text[:200]}")
                 return False
+            log.info(f"aviso enviado (real) · {len(mensaje)} chars · {len(botones or 0)} botones")
             return True
         carpeta = os.path.join(current_app.instance_path, "telegram")
         os.makedirs(carpeta, exist_ok=True)
@@ -63,24 +87,33 @@ def enviar_admin(mensaje):
         print(f"\n===== TELEGRAM (consola) al admin: {mensaje}\n===== guardado en instance/telegram/{nombre}\n")
         return True
     except Exception as e:
-        print(f"ERROR enviando aviso de Telegram: {e}")
+        log.warning(f"aviso falló: {e}")
         return False
 
 
-def remitir(chat_id, texto, copiar=None):
+def remitir(chat_id, texto, copiar=None, botones=None):
     #envío directo del bot (sin HTML); si hay `copiar`, va con botón inline de copiar
     token = (current_app.config.get("TG_BOT_TOKEN") or "").strip()
     if not token:
+        log.warning(f"remitir sin TG_BOT_TOKEN: {texto[:60]!r}")
         return False
     payload = {"chat_id": chat_id, "text": texto, "disable_web_page_preview": True}
+    filas = []
     if copiar:
-        payload["reply_markup"] = {"inline_keyboard": [[{"type": "copy_text", "text": "📋 Copiar",
-                                                        "copy_text": {"text": copiar}}]]}
+        filas.append([{"type": "copy_text", "text": "📋 Copiar", "copy_text": {"text": copiar}}])
+    markup = _markup(botones)
+    if markup:
+        filas.extend(markup["inline_keyboard"])
+    if filas:
+        payload["reply_markup"] = {"inline_keyboard": filas}
+    log.info(f"bot responde a {chat_id} · {texto[:50]!r} · copiar={bool(copiar)} · botones={len(botones or [])}")
     try:
         r = requests.post(f"https://api.telegram.org/bot{token}/sendMessage", json=payload, timeout=10)
+        if r.status_code != 200:
+            log.warning(f"bot falló: HTTP {r.status_code} {r.text[:150]}")
         return r.status_code == 200
     except Exception as e:
-        print(f"ERROR bot Telegram: {e}")
+        log.warning(f"bot falló: {e}")
         return False
 
 
@@ -129,10 +162,15 @@ def _cmd_detalle(chat_id, k):
         return remitir(chat_id, f"No existe la solicitud #{k}. (usa 'lista')")
     lineas = _lineas_items(s)
     correo = f" · {s.email_contacto}" if s.email_contacto else ""
+    from flask import url_for
+    botones = [
+        {"texto": "💻 Cotizar en web", "url": url_for('solicitud.lista', _external=True)},
+        {"texto": "🔎 Buscar el disco", "callback": f"busk:{s.id}"},
+    ]
     remitir(chat_id, (f"Solicitud #{s.id} · {s.estado}\n"
                       f"Cliente: {s.cel_contacto or 'sin contacto'}{correo}\n"
                       + "\n".join(lineas) + "\n\n"
-                      f"Para cotizar: {s.id} <precio>… (o mira 'lista')"))
+                      f"Para cotizar: {s.id} <precio>… (o mira 'lista')"), botones=botones)
 
 
 def _cmd_cotizar(chat_id, k, rest):
@@ -232,23 +270,61 @@ def procesar_mensaje_tg(chat_id, texto):
     remitir(chat_id, "No entendí.\n\n" + _uso())
 
 
+def _es_admin(remitente):
+    return str(remitente) == str(current_app.config.get("TG_ADMIN_CHAT_ID") or "")
+
+
+def _responder_callback(cb):
+    #apretón de botón inline; answerCallbackQuery quita la carita de "procesando"
+    data = cb.get("data") or ""
+    try:
+        token = (current_app.config.get("TG_BOT_TOKEN") or "").strip()
+        if token:
+            requests.post(f"https://api.telegram.org/bot{token}/answerCallbackQuery",
+                          json={"callback_query_id": cb.get("id")}, timeout=5)
+    except Exception:
+        pass
+    if not data:
+        return
+    prefijo, _, resto = data.partition(":")
+    if not resto.isdigit():
+        return
+    k = int(resto)
+    if prefijo == "mtx":
+        return _cmd_detalle(cb.get("chat_id"), k)
+    if prefijo == "busk":
+        return remitir(cb.get("chat_id"), f"Para buscar el disco de la solicitud #{k}, escribe:\n"
+                           f"buscar {k} <nombre del disco>\n"
+                           f"Y al elegir: buscar {k} <nombre> <opcion> <precio>")
+
+
 @telegram_bp.route("/webhook", methods=["POST"])
 def webhook():
     #Solo el chat del admin; el secret_token (si se configura) actúa como segundo candado
     esperado = (current_app.config.get("TG_WEBHOOK_SECRET") or "").strip()
     if esperado and request.args.get("secret_token") != esperado:
-        current_app.logger.warning(f"[TG-BOT] 403: secreto inválido (UA: {request.headers.get('User-Agent')})")
+        log.warning(f"403: secreto inválido (UA: {request.headers.get('User-Agent')})")
         return jsonify({"ok": False}), 403
     datos = request.get_json(silent=True) or {}
+    cb = datos.get("callback_query")
+    if cb:
+        remitente = (cb.get("from") or {}).get("id")
+        if not _es_admin(remitente):
+            log.warning(f"origen no autorizado (botón): {remitente}")
+            return jsonify({"ok": True}), 200
+        log.info(f"webhook botón de {remitente}: {(cb.get('data') or '')!r}")
+        _responder_callback(cb)
+        return jsonify({"ok": True}), 200
     mensaje = datos.get("message") or {}
     chat_id = mensaje.get("chat_id")
     remitente = (mensaje.get("from") or {}).get("id")
     texto = mensaje.get("text")
     if chat_id is None or not texto:
         return jsonify({"ok": True}), 200
-    if str(remitente) != str(current_app.config.get("TG_ADMIN_CHAT_ID") or ""):
-        current_app.logger.warning(f"[TG-BOT] Origen no autorizado: {remitente}")
+    if not _es_admin(remitente):
+        log.warning(f"origen no autorizado: {remitente}")
         return jsonify({"ok": True}), 200
+    log.info(f"webhook mensaje de {remitente}: {texto[:60]!r}")
     procesar_mensaje_tg(chat_id, texto)
     return jsonify({"ok": True}), 200
 
@@ -262,7 +338,7 @@ def configure():
     if not token:
         return jsonify({"error": "falta TG_BOT_TOKEN"}), 400
     url = request.args.get("url") or (request.url_root.rstrip("/") + "/telegram-bot/webhook")
-    datos = {"url": url, "allowed_updates": ["message"]}
+    datos = {"url": url, "allowed_updates": ["message", "callback_query"]}
     secreto = (current_app.config.get("TG_WEBHOOK_SECRET") or "").strip()
     if secreto:
         datos["secret_token"] = secreto
