@@ -144,8 +144,13 @@ def _respuesta_cotizar(s, token):
                 preview = l.i_lanzamiento
     total = sum(int(it.precio_unit or 0) * int(it.cantidad or 1) for it in items)
     partes = ["¡Hola! Tu pedido a la medida en Musical Box quedó así:", "", *lineas, "", f"Total: {_precio_cop(total)}"]
-    #si el cliente dejó su municipio, se le estima el envío para que vea el total real
-    if s.lugar_solicitud:
+    #envío: si el admin lo fijó al cotizar, ese es; si no, se estima por el municipio de la solicitud
+    if s.p_envio_cotizado is not None:
+        if s.p_envio_cotizado == 0:
+            partes.append("¡Y el envío es gratis!")
+        else:
+            partes.append(f"Envío: {_precio_cop(s.p_envio_cotizado)} · total {_precio_cop(total + s.p_envio_cotizado)}")
+    elif s.lugar_solicitud:
         cats = "|".join(f"{(it.producto.k_categoria if it.producto else it.categoria) or 'OTRO'}:{int(it.cantidad or 1)}"
                         for it in items)
         env = costo_envio(lineas_desde_cats(cats), total, s.lugar_solicitud)
@@ -226,7 +231,10 @@ def cotizar(id):
                        "k_lanzamiento": k_lanzamiento,
                        "cantidad": request.form.get(f"item_{i}_cantidad", type=int),
                        "precio": request.form.get(f"item_{i}_precio", type=int)})
-    token, err = cotizar_solicitud(id, lineas, request.form.get("d_cotizacion"))
+    #envío: vacío = se sigue calculando en el checkout; número = se fija (0 = gratis)
+    envio_txt = (request.form.get("p_envio") or "").strip()
+    p_envio = int(envio_txt) if envio_txt.isdigit() else None
+    token, err = cotizar_solicitud(id, lineas, request.form.get("d_cotizacion"), p_envio=p_envio)
     if err:
         return jsonify({"error": err}), 400
     return jsonify(_respuesta_cotizar(s, token))
@@ -271,7 +279,8 @@ def confirmar(token):
         if not lineas:
             flash("Tienes que dejar al menos un ítem: desmarca el que ya no quieres", "warning")
         else:
-            pedido, token_pedido, errores = crear_pedido(None, datos, k_usuario=g.user["id"] if g.user else None, cotizacion=lineas)
+            pedido, token_pedido, errores = crear_pedido(None, datos, k_usuario=g.user["id"] if g.user else None, cotizacion=lineas,
+                                                         p_envio_fijado=s.p_envio_cotizado)
             if errores:
                 for e in errores:
                     flash(e, "warning")

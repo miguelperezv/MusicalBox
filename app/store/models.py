@@ -294,6 +294,8 @@ class Solicitud(db.Model):
     cantidad = db.Column(db.Integer, nullable=False, default=1, server_default='1')
     #nota del admin sobre la cotización (tiempos, edición, acuerdos); va en el mensaje de WhatsApp
     d_cotizacion = db.Column(db.String(300))
+    #precio de envío fijado por el admin al cotizar (0 = gratis); None = lo calcula el checkout
+    p_envio_cotizado = db.Column(db.Integer)
     #municipio del cliente (opcional en el formulario): para prellenar el checkout y cotizarle el envío
     lugar_solicitud = db.Column(db.String(80))
     estado = db.Column(db.String(20), nullable=False, default='ACTIVO')
@@ -1726,11 +1728,12 @@ def validar_carrito(cart):
         errores.append("Tu carrito está vacío")
     return lineas, total, errores
 
-def crear_pedido(cart, datos, k_usuario=None, cotizacion=None):
+def crear_pedido(cart, datos, k_usuario=None, cotizacion=None, p_envio_fijado=None):
     """Crea el pedido PENDIENTE con sus líneas. Devuelve (pedido, token, errores).
     El token se entrega una sola vez (enlace de seguimiento); en la BD queda su hash.
     cotizacion: lista de líneas de un pedido a la medida ya acordado, cada una
-    {producto, cantidad, precio, k_lanzamiento, n_item}; no revisa stock (se consigue por encargo)."""
+    {producto, cantidad, precio, k_lanzamiento, n_item}; no revisa stock (se consigue por encargo).
+    p_envio_fijado: precio de envío que el admin fijó al cotizar (0 = gratis); si es None se calcula."""
     if cotizacion:
         lineas, total, errores = [], 0, []
         for l in cotizacion:
@@ -1750,9 +1753,15 @@ def crear_pedido(cart, datos, k_usuario=None, cotizacion=None):
     if errores:
         return None, None, errores
 
-    #costo de envío (regla de gratis, cotización real o tarifa por zona); None si la función está apagada
+    #costo de envío: gana el precio que el admin fijó al cotizar; si no, se calcula (regla de gratis, cotización real o tarifa por zona)
     from .envio import costo_envio
-    envio = costo_envio(lineas, total, datos["ciudad"])
+    envio = None
+    if p_envio_fijado is not None:
+        p = int(p_envio_fijado)
+        envio = {"p_envio": p, "detalle": "Envío gratis (fijado por la tienda)" if p == 0 else "Envío fijado por la tienda",
+                 "carrier": None, "id_rate": None}
+    else:
+        envio = costo_envio(lineas, total, datos["ciudad"])
 
     # Validar que los datos de envío no estén vacíos
     nombre_envio = datos["nombre"].strip()
@@ -2039,7 +2048,7 @@ def eliminar_componente(k_componente):
 
 
 #pedidos a la medida: cotización -> enlace "confirmar compra" -> pedido normal
-def cotizar_solicitud(k_solicitud, lineas, d_cotizacion=None):
+def cotizar_solicitud(k_solicitud, lineas, d_cotizacion=None, p_envio=None):
     #lineas: [{k_producto, k_lanzamiento, cantidad, precio}, ...] alineadas con los ítems de la solicitud
     s = db.session.get(Solicitud, k_solicitud)
     if not s or s.estado == 'COMPRADA':
@@ -2068,6 +2077,12 @@ def cotizar_solicitud(k_solicitud, lineas, d_cotizacion=None):
         it.k_lanzamiento = db.session.get(Lanzamiento, k_lanzamiento).id if k_lanzamiento else None
     token = secrets.token_urlsafe(32)
     s.d_cotizacion = (d_cotizacion or '').strip()[:300] or None
+    #p_envio: None = no tocar el valor anterior; 0 = gratis; >0 = fijo (se suma al total en el checkout)
+    if p_envio is not None:
+        try:
+            s.p_envio_cotizado = max(0, int(p_envio))
+        except (TypeError, ValueError):
+            pass
     s.token_hash, s.estado = hash_token(token), 'COTIZADA'
     db.session.commit()
     return token, None

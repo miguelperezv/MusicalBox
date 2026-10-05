@@ -71,8 +71,10 @@
                         <button type="button" class="btn btn-sm {{ 'btn-primary' if not s.total_cotizado else 'btn-outline-primary' }} btn-cotizar" data-id="{{ s.id }}" data-contacto="{{ (s.usuario.n_usuario if s.usuario else s.cel_contacto) or '' }}">
                             <i class="bi {{ 'bi-cash-stack' if not s.total_cotizado else 'bi-link-45deg' }} me-1"></i>{{ 'Cotizar' if not s.total_cotizado else 'Nuevo enlace' }}
                         </button>
+                        {% set cats_cot = "|".join(((it.producto.k_categoria if it.producto else it.categoria) or "OTRO") ~ ":" ~ (int(it.cantidad or 1)|string) for it in items) %}
                         <template id="tpl-cot-{{ s.id }}">
-                            <div class="cotizar-items" data-url="{{ url_for('solicitud.cotizar', id=s.id) }}">
+                            <div class="cotizar-items" data-url="{{ url_for('solicitud.cotizar', id=s.id) }}"
+                                 data-lugar="{{ s.lugar_solicitud or '' }}" data-cats="{{ cats_cot }}">
                                 {% for it in items %}
                                 {% set portada = it.lanzamiento.i_lanzamiento if it.lanzamiento else ((it.producto.lanzamiento.i_lanzamiento) if it.producto and it.producto.lanzamiento else '') %}
                                 <div class="cot-item{{ ' mb-3' if not loop.last }}">
@@ -118,11 +120,17 @@
                                 </div>
                                 {% endfor %}
                                 <div class="row g-2 cot-pie mt-3">
-                                    <div class="col-12 col-lg-8">
+                                    <div class="col-12 col-lg-5">
                                         <label class="form-label small mb-0">Nota para el cliente</label>
                                         <input class="form-control form-control-sm" type="text" name="d_cotizacion" placeholder="Tiempos, edición... (viaja en el mensaje de WhatsApp)" value="{{ s.d_cotizacion or '' }}">
                                     </div>
-                                    <div class="col-12 col-lg-4 text-lg-end">
+                                    <div class="col-6 col-lg-3">
+                                        <label class="form-label small mb-0">Envío (COP)</label>
+                                        <input class="form-control form-control-sm" type="number" name="p_envio" min="0" placeholder="Se calcula al pagar"
+                                               value="{{ s.p_envio_cotizado if s.p_envio_cotizado is not none }}">
+                                        <div class="small text-body-secondary cot-envio-est"></div>
+                                    </div>
+                                    <div class="col-6 col-lg-4 text-lg-end">
                                         <div class="small text-body-secondary mb-1">Total: <span class="cot-total fw-semibold">{{ s.total_cotizado|cop if s.total_cotizado else '$0' }}</span></div>
                                     </div>
                                 </div>
@@ -264,12 +272,33 @@
             var c = parseInt(fila.querySelector('[name$="_cantidad"]').value, 10) || 1;
             total += p * c;
         });
+        var env = parseInt(cuerpo.querySelector('[name="p_envio"]').value, 10) || 0;
         var el = cuerpo.querySelector('.cot-total');
-        if (el) el.textContent = '$' + total.toLocaleString('es-CO');
+        if (el) el.textContent = '$' + (total + env).toLocaleString('es-CO') + (env ? ' (incluye envío)' : '');
+        return total + env;
     }
     $cuerpo.addEventListener('input', function (e) {
-        if (e.target.matches && e.target.matches('[name$="_precio"], [name$="_cantidad"]')) recalcTotales($cuerpo);
+        if (e.target.matches && e.target.matches('[name$="_precio"], [name$="_cantidad"], [name="p_envio"]')) recalcTotales($cuerpo);
     });
+
+    //estimado del envío si la solicitud dejó municipio: se muestra como pista y precarga el campo "envío"
+    function pintarEnvioEstimado(cuerpo) {
+        var inv = cuerpo.querySelector('.cotizar-items');
+        var est = cuerpo.querySelector('.cot-envio-est');
+        if (!inv || !est || !inv.dataset.lugar) return;
+        est.textContent = 'Calculando el estimado…';
+        var q = new URLSearchParams({ciudad: inv.dataset.lugar, total: String(recalcTotales(cuerpo)), cats: inv.dataset.cats || ''});
+        fetch('{{ url_for("purchase.costo_envio_vista") }}?' + q.toString())
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (d.p_envio == null) { est.textContent = ''; return; }
+                var inp = cuerpo.querySelector('[name="p_envio"]');
+                est.textContent = d.p_envio === 0 ? 'Estimado: gratis a ' + inv.dataset.lugar
+                                                  : 'Estimado a ' + inv.dataset.lugar + ': $' + Number(d.p_envio).toLocaleString('es-CO');
+                if (!inp.value) inp.value = d.p_envio;
+            })
+            .catch(function () { est.textContent = ''; });
+    }
 
     //portada del item segun el lanzamiento elegido (catalogo o disco en linea guardado al vuelo)
     //la portada remota queda en `extra`: si no, el change que el navegador dispara al perder el
@@ -311,6 +340,7 @@
         mbAutocomplete($cuerpo);
         recalcTotales($cuerpo);
         wireLanzamiento($cuerpo);
+        pintarEnvioEstimado($cuerpo);
         guardado = false;
         bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-cotizar')).show();
     }

@@ -17,10 +17,11 @@ responde por el propio canal (sin parse_mode):
   buscar <id> <texto>        -> top 5 lanzamientos encontrados
   buscar <id> <texto> <opcion> <precio> -> cotizar asociando el lanzamiento elegido
 Flujo guiado por botones (estado en memoria, un proceso):
-  detalle (mtx:<id> o <id>) -> [💻 Cotizar en web] [💲 Poner precio (prc:<id>)] [🔎 Buscar el disco (busk:<id>)]
-  prc -> pide el precio -> cotiza;  busk -> pide el nombre -> top 5 con botones (opt:<k>:<ext_id>)
-  -> pide el precio -> cotiza asociando el lanzamiento. El mensaje del cliente va con foto
-  (portada http) y botón "Copiar" (copy_text). Los comandos de texto siguen funcionando.
+  detalle -> [💻 web] [💲 precio] [🔎 disco] [🛒 producto] [📝 nota] + [✖ retirar ítem]
+  disco -> top 5 (opt:<k>:<ext>) · producto -> top 5 del catálogo (opro:<k>:<id>)
+  -> precio por ítem -> precio de envío (número; 0 gratis; "ok" = estimado) -> cotiza.
+  El mensaje del cliente va con foto (portada chica), envío y botón "Copiar" (copy_text).
+
 Solo responde al chat TG_ADMIN_CHAT_ID; si se configura TG_WEBHOOK_SECRET, exige ese
 secret_token en el webhook (segundo candado).
 
@@ -43,6 +44,7 @@ log = logging.getLogger("mb.tgbot")
 #estado guiado del bot en memoria (dev y PA corren un solo proceso):
 # chat_id (str) -> {"espera": "disco"|"precio", "k": id de solicitud, "ext": id de spotify (opcional)}
 _guiado = {}
+_ctx = {}  #contexto guiado por chat: {"k", "ext" (spotify), "prod" (producto), "nota"}
 #albumes de la busqueda mas reciente: external_id -> item (para los botones opt:<k>:<ext>)
 _albumes = {}
 
@@ -144,12 +146,14 @@ def _cop_bot(total):
 
 def _uso():
     return ("Todo se hace con los botones de cada solicitud:\n"
-            "💻 Cotizar en web · 💲 Poner precio · 🔎 Buscar el disco\n"
-            "Y los comandos, si los prefieres:\n"
-            "· lista — solicitudes pendientes\n"
-            "· <id> — detalle · <id> <precio> — cotizar\n"
-            "· buscar <id> <texto> [opcion precio] — buscar disco y cotizar")
-
+            "💲 Poner precio (uno por ítem si hay varios)\n"
+            "🔎 Buscar el disco (Spotify) · 🛒 Buscar producto del catálogo\n"
+            "📝 Nota para el cliente · ✖ Retirar un ítem\n"
+            "Al final: precio de envío (fíjalo o deja que lo calcule el sistema)\n\n"
+            "Y por texto, si lo prefieres:\n"
+            "• lista - solicitudes pendientes\n"
+            "• <id> - detalle · <id> <precio> - cotizar rápido\n"
+            "• buscar <id> <texto> [opcion precio] - buscar disco y cotizar")
 
 def _lineas_items(s):
     from .store.models import items_efectivos
@@ -177,10 +181,11 @@ def _cmd_lista(chat_id):
 
 
 def _cmd_detalle(chat_id, k):
-    from .store.models import Solicitud, items_efectivos
+    from .store.models import Solicitud, SolicitudItem, items_efectivos
     s = Solicitud.query.get(k)
     if not s:
         return remitir(chat_id, f"No existe la solicitud #{k}. (usa 'lista')")
+    items = items_efectivos(s)
     lineas = _lineas_items(s)
     correo = f" · {s.email_contacto}" if s.email_contacto else ""
     from flask import url_for
@@ -188,12 +193,16 @@ def _cmd_detalle(chat_id, k):
         {"texto": "💻 Cotizar en web", "url": url_for('home.admin', sol=s.id, _external=True)},
         {"texto": "💲 Poner precio", "callback": f"prc:{s.id}"},
         {"texto": "🔎 Buscar el disco", "callback": f"busk:{s.id}"},
+        {"texto": "🛒 Buscar producto", "callback": f"prod:{s.id}"},
+        {"texto": "📝 Nota para el cliente", "callback": f"nota:{s.id}"},
     ]
+    for i, it in enumerate(items):
+        if isinstance(it, SolicitudItem):
+            botones.append({"texto": f"✖ {i+1}. {(it.nombre or 'ítem')[:30]}", "callback": f"rit:{s.id}:{i}"})
     remitir(chat_id, (f"Solicitud #{s.id} · {s.estado}\n"
                       f"Cliente: {s.cel_contacto or 'sin contacto'}{correo}\n"
                       + "\n".join(lineas) + "\n\n"
-                      f"Para cotizar: {s.id} <precio>… (o mira 'lista')"), botones=botones)
-
+                      f"Para cotizar: {s.id} <precio>. (o los botones de arriba)"), botones=botones)
 
 def _cmd_cotizar(chat_id, k, rest):
     from .store.models import Solicitud, cotizar_solicitud
@@ -297,15 +306,28 @@ def _buscar_disco(chat_id, k, texto):
               for i, a in enumerate(items)]
     return remitir(chat_id, f"Discos para “{texto}”:\n" + "\n".join(lineas) +
                        "\n\nToca la opción que sea (y luego el precio).",
-                   botones=botones, foto=_portada_http(items[0].get("portada")))
+                   botones=botones, foto=_portada_http(items[0].get("portada_chica") or items[0].get("portada")))
 
 
-def _cotizar_con(chat_id, k, precio, ext=None):
-    from .store.models import Solicitud, cotizar_solicitud, buscar_o_crear_lanzamiento_spotify
+def _cotizar_con(chat_id, k, precios, ext=None, prod=None, nota=None, envio=None):
+    from .db import db
+    from .store.models import (Solicitud, Producto, cotizar_solicitud, buscar_o_crear_lanzamiento_spotify,
+                               items_efectivos)
+    from .store.envio import costo_envio, lineas_desde_cats
+    _guiado.pop(_ck(chat_id), None)
+    _ctx.pop(_ck(chat_id), None)
     s = Solicitud.query.get(k)
     if not s:
         return remitir(chat_id, f"No existe la solicitud #{k}.")
-    items = list(s.items)
+    items = items_efectivos(s)
+    if isinstance(precios, int):
+        precios = [precios] * len(items)
+    try:
+        precios = [int(p) for p in (precios or [])]
+    except (TypeError, ValueError):
+        precios = []
+    if len(precios) != len(items) or any(p <= 0 for p in precios):
+        return remitir(chat_id, f"La solicitud #{k} tiene {len(items)} ítem(s): necesito {len(items)} precio(s).")
     lanza_id, portada, disco = None, None, ""
     if ext:
         a = _albumes.get(ext)
@@ -316,10 +338,15 @@ def _cotizar_con(chat_id, k, precio, ext=None):
             "i_lanzamiento": a.get("portada"), "f_lanzamiento": a.get("fecha"), "external_url": a.get("url")})
         if not l:
             return remitir(chat_id, "No se pudo asociar el disco.")
-        lanza_id, portada, disco = l.id, a.get("portada"), a.get("nombre", "")
-    lineas = [{"k_producto": it.k_producto, "k_lanzamiento": lanza_id or it.k_lanzamiento,
-               "cantidad": it.cantidad, "precio": precio} for it in items]
-    token, err = cotizar_solicitud(k, lineas, None)
+        lanza_id, disco = l.id, a.get("nombre", "")
+        portada = a.get("portada_chica") or a.get("portada")
+    producto = db.session.get(Producto, int(prod)) if prod else None
+    if prod and not producto:
+        return remitir(chat_id, "Ese producto no existe: usa otra vez '🛒 Buscar producto'.")
+    lineas = [{"k_producto": producto.id if producto else it.k_producto,
+               "k_lanzamiento": lanza_id or it.k_lanzamiento,
+               "cantidad": it.cantidad, "precio": p} for it, p in zip(items, precios)]
+    token, err = cotizar_solicitud(k, lineas, nota, p_envio=envio)
     if err:
         return remitir(chat_id, f"No se pudo cotizar la #{k}: {err}")
     if not portada:
@@ -327,31 +354,168 @@ def _cotizar_con(chat_id, k, precio, ext=None):
             lz = it.lanzamiento or (it.producto.lanzamiento if it.producto else None)
             if lz and _portada_http(lz.i_lanzamiento):
                 portada = lz.i_lanzamiento
-                disco = lz.n_lanzamiento
+                disco = disco or lz.n_lanzamiento
                 break
     from flask import url_for
-    total = sum(precio * int(it.cantidad or 1) for it in items)
-    link = url_for('solicitud.confirmar', token=token, _external=True)
-    bloques = [f"🎵 ¡Ya tienes precio, solicitud #{k}!", ""]
+    total = sum(p * int(it.cantidad or 1) for it, p in zip(items, precios))
+    bloques = [f"👋 ¡Ya tienes precio, solicitud #{k}!", ""]
     if disco:
         bloques.append(f"Disco: {disco}")
-    bloques += ["\n".join(f"{int(it.cantidad or 1)} × {it.nombre or 'pedido'} · {_cop_bot(precio * int(it.cantidad or 1))}"
-                          for it in items),
-                f"Total: {_cop_bot(total)}", "", f"Paga y enviarlo: {link}"]
-    remitir(chat_id, f"✅ Solicitud #{k} cotizada ({_cop_bot(total)}).\nPanel: {url_for('solicitud.lista', _external=True)}")
-    remitir(chat_id, "Mensaje listo para el cliente 👇", copiar="\n".join(bloques), foto=_portada_http(portada))
+    bloques += ["\n".join(f"{int(it.cantidad or 1)} × {it.nombre or 'pedido'} · {_cop_bot(p * int(it.cantidad or 1))}"
+                          for it, p in zip(items, precios)),
+                f"Total: {_cop_bot(total)}"]
+    if s.p_envio_cotizado is not None:
+        bloques.append("¡Y el envío es gratis!" if s.p_envio_cotizado == 0
+                       else f"Envío: {_cop_bot(s.p_envio_cotizado)} · total {_cop_bot(total + s.p_envio_cotizado)}")
+    elif s.lugar_solicitud:
+        cats = "|".join(f"{(it.producto.k_categoria if it.producto else it.categoria) or 'OTRO'}:{int(it.cantidad or 1)}"
+                        for it in items)
+        env = costo_envio(lineas_desde_cats(cats), total, s.lugar_solicitud)
+        if env:
+            if env["p_envio"] == 0:
+                bloques.append(f"¡Y el envío a {s.lugar_solicitud} es gratis!")
+            else:
+                bloques.append(f"Envío estimado a {s.lugar_solicitud}: {_cop_bot(env['p_envio'])} · total {_cop_bot(total + env['p_envio'])}")
+    if s.d_cotizacion:
+        bloques.append(s.d_cotizacion)
+    bloques += ["", f"Paga y enviarlo: {url_for('solicitud.confirmar', token=token, _external=True)}"]
+    resumen = (f"✅ Solicitud #{k} cotizada ({_cop_bot(total)})"
+               + (f" · disco: {disco}" if disco else "")
+               + (f" · producto: {(producto.n_producto or '')[:30]}" if producto else "")
+               + (f" · nota: {s.d_cotizacion[:50]}" if s.d_cotizacion else "")
+               + f"\nPanel: {url_for('solicitud.lista', _external=True)}")
+    remitir(chat_id, resumen)
+    remitir(chat_id, "Mensaje listo para el cliente 📩", copiar="\n".join(bloques), foto=portada)
+
+def _prompt_precio(chat_id, k):
+    from .store.models import Solicitud, items_efectivos
+    s = Solicitud.query.get(k)
+    if not s:
+        _guiado.pop(_ck(chat_id), None)
+        return remitir(chat_id, f"No existe la solicitud #{k}.")
+    items = items_efectivos(s)
+    if len(items) == 1:
+        return remitir(chat_id, f"Ítem: {items[0].nombre or 'pedido'}\n¿Cuánto vale?\nEscribe el precio en pesos o 'cancelar'.")
+    return remitir(chat_id, (f"La solicitud #{k} tiene {len(items)} ítems: pido el precio de cada uno.\n\n"
+                             f"1/{len(items)}: {items[0].nombre or 'ítem'}\n¿Precio en pesos? (o 'cancelar')"))
 
 
 def _esperando_precio(chat_id, t, estado):
     k = int(estado.get("k") or 0)
-    if t.lower() in ("cancelar", "no", "salir", "x"):
-        del _guiado[_ck(chat_id)]
-        return remitir(chat_id, "Listo, se canceló. (usa 'lista' u otro comando)")
     if t.isdigit() and int(t) > 0:
-        del _guiado[_ck(chat_id)]
-        return _cotizar_con(chat_id, k, int(t), ext=estado.get("ext"))
-    return remitir(chat_id, "El precio va solo en números (pesos), ej. 180000 — o escribe 'cancelar'.")
+        from .store.models import Solicitud, items_efectivos
+        s = Solicitud.query.get(k)
+        if not s:
+            _guiado.pop(_ck(chat_id), None)
+            return remitir(chat_id, f"No existe la solicitud #{k}.")
+        items = items_efectivos(s)
+        precios = list(estado.get("precios") or [])
+        if len(precios) >= len(items):
+            _guiado.pop(_ck(chat_id), None)
+            return remitir(chat_id, "Ya estaban todos los precios: 'cancelar' y vuelve a intentarlo.")
+        precios.append(int(t))
+        estado["precios"] = precios
+        if len(precios) == len(items):
+            _guiado[_ck(chat_id)] = estado
+            return _prompt_envio(chat_id, k, estado)
+        _guiado[_ck(chat_id)] = estado
+        nombre = items[len(precios)].nombre or 'ítem'
+        return remitir(chat_id, f"{len(precios)+1}/{len(items)}: {nombre}\n¿Precio en pesos? (o 'cancelar')")
+    return remitir(chat_id, "El precio va solo en números (pesos), ej. 180000 - o escribe 'cancelar'.")
 
+
+def _prompt_envio(chat_id, k, estado):
+    from .store.models import Solicitud, items_efectivos
+    from .store.envio import costo_envio, lineas_desde_cats
+    s = Solicitud.query.get(k)
+    if not s:
+        _guiado.pop(_ck(chat_id), None)
+        return remitir(chat_id, f"No existe la solicitud #{k}.")
+    items = items_efectivos(s)
+    total = sum(int(p) * int(it.cantidad or 1) for it, p in zip(items, estado.get("precios") or []))
+    est = None
+    if s.lugar_solicitud:
+        cats = "|".join(f"{(it.producto.k_categoria if it.producto else it.categoria) or 'OTRO'}:{int(it.cantidad or 1)}"
+                        for it in items)
+        res = costo_envio(lineas_desde_cats(cats), total, s.lugar_solicitud)
+        est = int(res["p_envio"]) if res and res.get("p_envio") is not None else None
+    estado["espera"] = "envio"
+    estado["envio_est"] = est
+    _guiado[_ck(chat_id)] = estado
+    if est is None:
+        return remitir(chat_id, (f"Precios listos. ¿Precio de envío para la solicitud #{k}?\n"
+                                 f"Número en pesos (0 = gratis), 'ok' = lo calcula el sistema al pagar, 'cancelar' = volver."))
+    return remitir(chat_id, (f"Envío estimado a {s.lugar_solicitud}: {_cop_bot(est)}.\n"
+                             f"¿Qué precio de envío meto? Número (0 = gratis), 'ok' = usar el estimado, 'cancelar' = volver."))
+
+
+def _esperando_envio(chat_id, t, estado):
+    k = int(estado.get("k") or 0)
+    base = _ctx.get(_ck(chat_id)) or {}
+    if t.lower() in ("cancelar", "no", "salir", "x"):
+        _guiado.pop(_ck(chat_id), None)
+        _ctx.pop(_ck(chat_id), None)
+        return remitir(chat_id, "Listo, se canceló. (usa 'lista' u otro comando)")
+    kwargs = dict(ext=base.get("ext"), prod=base.get("prod"), nota=base.get("nota"))
+    if t.isdigit():
+        _guiado.pop(_ck(chat_id), None)
+        _ctx.pop(_ck(chat_id), None)
+        return _cotizar_con(chat_id, k, estado.get("precios") or [], envio=int(t), **kwargs)
+    if t.lower() in ("ok", "s", "si", "envio", "est"):
+        #ok: usa el estimado si lo hubo; si no, que lo calcule el checkout con la dirección final
+        _guiado.pop(_ck(chat_id), None)
+        _ctx.pop(_ck(chat_id), None)
+        return _cotizar_con(chat_id, k, estado.get("precios") or [], envio=estado.get("envio_est"), **kwargs)
+    return remitir(chat_id, "Un número en pesos (0 = gratis), 'ok' para el estimado, o 'cancelar'.")
+
+
+def _ctx_de(chat_id, k):
+    #contexto guiado de este chat (solo cuenta si es de la misma solicitud)
+    base = _ctx.get(_ck(chat_id))
+    return base if (base and int(base.get("k") or 0) == k) else {"k": k}
+
+
+def _guardar_nota(chat_id, t, estado):
+    k = int(estado.get("k") or 0)
+    base = _ctx.get(_ck(chat_id)) or {"k": k}
+    _ctx[_ck(chat_id)] = dict(base, k=k, nota=t[:300])
+    _guiado.pop(_ck(chat_id), None)
+    remitir(chat_id, f"📝 Nota guardada para la solicitud #{k}: va en el mensaje de la cotización.")
+    return _cmd_detalle(chat_id, k)
+
+
+def _buscar_producto(chat_id, k, texto):
+    from .store.models import get_catalogo_solicitud
+    q = (texto or '').strip().lower()
+    if len(q) < 2:
+        return remitir(chat_id, "Escribe al menos 2 letras del nombre del producto (o 'cancelar').")
+    matches = [p for p in get_catalogo_solicitud() if q in p["nombre"].lower()][:5]
+    if not matches:
+        return remitir(chat_id, f"No encontré “{texto}” en el catálogo.\nPrueba con otra palabra, o 'cancelar'.")
+    lineas = [f"{i+1}. {p['nombre']}" for i, p in enumerate(matches)]
+    botones = [{"texto": f"{i+1}. {p['nombre'][:40]}", "callback": f"opro:{k}:{p['id']}"} for i, p in enumerate(matches)]
+    return remitir(chat_id, "Productos del catálogo:\n" + "\n".join(lineas) + "\n\nToca el que sea.", botones=botones)
+
+
+def _retirar_item(chat_id, k, i):
+    from .db import db
+    from .store.models import Solicitud, SolicitudItem, items_efectivos
+    s = Solicitud.query.get(k)
+    if not s:
+        return remitir(chat_id, f"No existe la solicitud #{k}.")
+    items = items_efectivos(s)
+    if i >= len(items):
+        return remitir(chat_id, "Ese ítem ya no está en la lista.")
+    if not isinstance(items[i], SolicitudItem):
+        return remitir(chat_id, "Ese ítem no se puede retirar (solicitud antigua): cotízala tal cual, o cancela la solicitud.")
+    if len(items) <= 1:
+        return remitir(chat_id, "Queda al menos un ítem: si el pedido ya no le interesa, márcala como cancelada.")
+    db.session.delete(items[i])
+    db.session.commit()
+    _guiado.pop(_ck(chat_id), None)
+    _ctx.pop(_ck(chat_id), None)
+    remitir(chat_id, f"✖ Se retiró el ítem {i+1} de la solicitud #{k}.")
+    return _cmd_detalle(chat_id, k)
 
 def procesar_mensaje_tg(chat_id, texto):
     t = (texto or "").strip()
@@ -359,9 +523,20 @@ def procesar_mensaje_tg(chat_id, texto):
         return
     estado = _guiado.get(_ck(chat_id))
     if estado:
-        if estado.get("espera") == "precio":
+        if t.lower() in ("cancelar", "no", "salir", "x"):
+            _guiado.pop(_ck(chat_id), None)
+            _ctx.pop(_ck(chat_id), None)
+            return remitir(chat_id, "Listo, se canceló. (usa 'lista' u otro comando)")
+        espera = (estado or {}).get("espera")
+        if espera == "precio":
             return _esperando_precio(chat_id, t, estado)
-        del _guiado[_ck(chat_id)]
+        if espera == "envio":
+            return _esperando_envio(chat_id, t, estado)
+        if espera == "nota":
+            return _guardar_nota(chat_id, t, estado)
+        if espera == "producto":
+            return _buscar_producto(chat_id, int(estado.get("k") or 0), t)
+        _guiado.pop(_ck(chat_id), None)
         return _buscar_disco(chat_id, int(estado.get("k") or 0), t)
     if t.lower() in ("lista", "listar", "menu", "ayuda", "help", "?"):
         return _cmd_lista(chat_id)
@@ -371,7 +546,6 @@ def procesar_mensaje_tg(chat_id, texto):
     if palabras[0].isdigit():
         return _cmd_cotizar(chat_id, int(palabras[0]), palabras[1:])
     remitir(chat_id, "No entendí.\n\n" + _uso())
-
 
 def _es_admin(remitente):
     return str(remitente) == str(current_app.config.get("TG_ADMIN_CHAT_ID") or "")
@@ -392,36 +566,59 @@ def _responder_callback(cb):
     if not data:
         return
     prefijo, _, resto = data.partition(":")
-    if prefijo == "opt":
-        #opt:<k>:<external_id>
+    if prefijo in ("opt", "opro", "rit"):
+        #opt:<k>:<ext_spotify> · opro:<k>:<producto> · rit:<k>:<ítem>
         partes = resto.split(":", 1)
         if len(partes) != 2 or not partes[0].isdigit():
             return
-        k, ext = int(partes[0]), partes[1]
-        album = _albumes.get(ext)
-        if not album:
-            return remitir(chat_id, "Esos resultados expiraron: usa otra vez '🔎 Buscar el disco'.")
-        _guiado[_ck(chat_id)] = {"espera": "precio", "k": k, "ext": ext}
-        return remitir(chat_id, f"“{album.get('nombre', '')}” — ¿Cuánto vale?\nEscribe el precio en pesos o 'cancelar'.")
+        k, extra = int(partes[0]), partes[1]
+        if prefijo == "rit":
+            if not extra.isdigit():
+                return
+            return _retirar_item(chat_id, k, int(extra))
+        base = _ctx_de(chat_id, k)
+        if prefijo == "opt":
+            album = _albumes.get(extra)
+            if not album:
+                return remitir(chat_id, "Esos resultados expiraron: usa otra vez '🔎 Buscar el disco'.")
+            _ctx[_ck(chat_id)] = dict(base, k=k, ext=extra)
+            _guiado[_ck(chat_id)] = {"espera": "precio", "k": k}
+            return _prompt_precio(chat_id, k)
+        if not extra.isdigit():
+            return
+        from .store.models import Producto
+        from .db import db
+        if not db.session.get(Producto, int(extra)):
+            return remitir(chat_id, "Ese producto no existe: usa otra vez '🛒 Buscar producto'.")
+        _ctx[_ck(chat_id)] = dict(base, k=k, prod=int(extra))
+        _guiado[_ck(chat_id)] = {"espera": "precio", "k": k}
+        return _prompt_precio(chat_id, k)
     if not resto.isdigit():
         return
     k = int(resto)
     if prefijo == "mtx":
         return _cmd_detalle(chat_id, k)
+    base = _ctx_de(chat_id, k)
     if prefijo == "prc":
+        _ctx[_ck(chat_id)] = dict(base, k=k)
         _guiado[_ck(chat_id)] = {"espera": "precio", "k": k}
-        return remitir(chat_id, f"¿Cuánto vale la solicitud #{k}?\n"
-                          f"Escribe el precio en pesos (uno solo: se aplica a todos los ítems) o 'cancelar'.")
+        return _prompt_precio(chat_id, k)
     if prefijo == "busk":
+        _ctx[_ck(chat_id)] = dict(base, k=k)
         _guiado[_ck(chat_id)] = {"espera": "disco", "k": k}
         return remitir(chat_id, f"¿Cuál disco, para la solicitud #{k}?\nEscribe el nombre y te muestro los resultados.")
-
+    if prefijo == "prod":
+        _ctx[_ck(chat_id)] = dict(base, k=k)
+        _guiado[_ck(chat_id)] = {"espera": "producto", "k": k}
+        return remitir(chat_id, f"¿Qué producto del catálogo, para la solicitud #{k}?\nEscribe el nombre y te muestro los más parecidos.")
+    if prefijo == "nota":
+        _ctx[_ck(chat_id)] = dict(base, k=k)
+        _guiado[_ck(chat_id)] = {"espera": "nota", "k": k}
+        return remitir(chat_id, f"Escribe la nota para el cliente de la solicitud #{k} (tiempos, edición...).\nMáx. 300; va en el mensaje de la cotización.")
 
 @telegram_bp.route("/webhook", methods=["POST"])
 def webhook():
-    #probe a WARNING: en el error log de PA se ve cada entrada aunque el INFO no salga
     datos = request.get_json(silent=True) or {}
-    log.warning(f"probe webhook: ct={request.content_type!r} keys={list(datos.keys())} args={dict(request.args)}")
     #Solo el chat del admin; el secret_token (si se configura) actúa como segundo candado
     esperado = (current_app.config.get("TG_WEBHOOK_SECRET") or "").strip()
     if esperado and request.args.get("secret_token") != esperado:

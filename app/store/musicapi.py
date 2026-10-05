@@ -33,14 +33,18 @@ def _headers():
     return {"Authorization": "Bearer " + t} if t else None
 
 def _error_config():
-    return {"error": "El buscador de discos no está configurado"}
+    #distingue "sin llaves" de "llaves pero sin red" para no dar un mensaje falso
+    cid, _ = _llaves()
+    if not cid:
+        return {"error": "El buscador de discos no está configurado"}
+    return {"error": "No se pudo conectar con el buscador de discos"}
 
 def buscar_albumes_spotify(consulta):
     #busca albums por texto; devuelve {"items":[...]} o {"error": "..."}
-    h = _headers()
-    if not h:
-        return _error_config()
     try:
+        h = _headers()
+        if not h:
+            return _error_config()
         r = requests.get(BASE + "/search", params={"q": (consulta or '').strip(), "type": "album", "limit": 8},
                          headers=h, timeout=10)
         if r.status_code == 429:
@@ -55,6 +59,8 @@ def buscar_albumes_spotify(consulta):
                 "artista": ((a.get("artists") or [{}])[0].get("name") or ""),
                 "fecha": a.get("release_date") or "",
                 "portada": (imagenes[0].get("url") or "") if imagenes else "",
+                #la más pequeña: para el bot (se ve más chica y descarga menos)
+                "portada_chica": (imagenes[-1].get("url") or "") if imagenes else "",
                 "url": (a.get("external_urls") or {}).get("spotify", ""),
             })
         return {"items": items}
