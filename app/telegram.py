@@ -120,6 +120,10 @@ def remitir(chat_id, texto, copiar=None, botones=None, foto=None):
         payload = {"chat_id": chat_id, "text": texto, "disable_web_page_preview": True}
     filas = []
     if copiar:
+        #copy_text solo permite 256 caracteres; si el mensaje es más largo, se copia la cola
+        #(queda el enlace de pago y el total; el texto completo sigue visible arriba)
+        if len(copiar) > 256:
+            copiar = copiar[-256:]
         filas.append([{"type": "copy_text", "text": "📋 Copiar", "copy_text": {"text": copiar}}])
     markup = _markup(botones)
     if markup:
@@ -273,8 +277,10 @@ def _cmd_cotizar(chat_id, k, rest):
                "\n".join(f"{int(it.cantidad or 1)} × {it.nombre or 'pedido'} · {_cop_bot(p * int(it.cantidad or 1))}"
                           for it, p in zip(items, precios)),
                f"Total: {_cop_bot(total)}", "", f"Paga y enviarlo: {link}"]
-    remitir(chat_id, f"✅ Solicitud #{k} cotizada ({_cop_bot(total)}).\nPanel: {url_for('solicitud.lista', _external=True)}")
-    remitir(chat_id, "Mensaje listo para el cliente 👇", copiar="\n".join(bloques))
+    remitir(chat_id, f"✅ Solicitud #{k} cotizada (subtotal {_cop_bot(total)}, envío según dirección al pagar).",
+            botones=[{"texto": "💻 Ver la solicitud", "url": url_for('home.admin', sol=k, _external=True)}])
+    remitir(chat_id, "Mensaje listo para el cliente 📩", copiar="\n".join(bloques),
+            botones=[{"texto": "💻 Ver la solicitud", "url": url_for('home.admin', sol=k, _external=True)}])
 
 
 def _cmd_buscar(chat_id, rest):
@@ -432,9 +438,9 @@ def _cotizar_con(chat_id, k, precios, ext=None, prod=None, nota=None, envio=None
     resumen = (f"✅ Solicitud #{k} cotizada (subtotal {_cop_bot(total)}{envio_txt})"
                + (f" · disco: {disco}" if disco else "")
                + (f" · producto: {(producto.n_producto or '')[:30]}" if producto else "")
-               + (f" · nota: {s.d_cotizacion[:50]}" if s.d_cotizacion else "")
-               + f"\nPanel: {url_for('solicitud.lista', _external=True)}")
-    remitir(chat_id, resumen)
+               + (f" · nota: {s.d_cotizacion[:50]}" if s.d_cotizacion else ""))
+    remitir(chat_id, resumen, botones=[{"texto": "💻 Ver la solicitud",
+                                       "url": url_for('home.admin', sol=k, _external=True)}])
     remitir(chat_id, "Mensaje listo para el cliente 📩", copiar="\n".join(bloques),
             botones=[{"texto": "💻 Ver la solicitud", "url": url_for('home.admin', sol=k, _external=True)}])
 
