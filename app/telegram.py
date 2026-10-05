@@ -28,6 +28,7 @@ Nunca lanza excepciones: si un aviso falla, se registra y la operación que lo p
 """
 import logging
 import os
+import time
 from datetime import datetime
 
 import requests
@@ -122,14 +123,18 @@ def remitir(chat_id, texto, copiar=None, botones=None, foto=None):
     if filas:
         payload["reply_markup"] = {"inline_keyboard": filas}
     log.info(f"bot responde a {chat_id} · {texto[:50]!r} · copiar={bool(copiar)} · botones={len(botones or [])} · foto={bool(foto)}")
-    try:
-        r = requests.post(f"https://api.telegram.org/bot{token}/sendMessage", json=payload, timeout=10)
-        if r.status_code != 200:
-            log.warning(f"bot falló: HTTP {r.status_code} {r.text[:150]}")
-        return r.status_code == 200
-    except Exception as e:
-        log.warning(f"bot falló: {e}")
-        return False
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    for intento in (1, 2):  #el proxy saliente de PA fallan con 503 de vez en cuando; reintentar suele pasar
+        try:
+            r = requests.post(url, json=payload, timeout=10)
+            if r.status_code == 200:
+                return True
+            log.warning(f"bot falló (intento {intento}): HTTP {r.status_code} {r.text[:150]}")
+        except Exception as e:
+            log.warning(f"bot falló (intento {intento}): {e}")
+        if intento == 1:
+            time.sleep(1.5)
+    return False
 
 
 def _cop_bot(total):
@@ -431,7 +436,7 @@ def webhook():
         _responder_callback(cb)
         return jsonify({"ok": True}), 200
     mensaje = datos.get("message") or {}
-    chat_id = mensaje.get("chat_id")
+    chat_id = mensaje.get("chat_id") or (mensaje.get("chat") or {}).get("id")  #Telegram trae chat.id
     remitente = (mensaje.get("from") or {}).get("id")
     texto = mensaje.get("text")
     if chat_id is None or not texto:
