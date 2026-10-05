@@ -130,7 +130,7 @@ def _lineas_cotizacion(s):
 
 
 def aviso_cotizacion(s, token=None):
-    #nueva cotización del admin: va a los dos canales; en WhatsApp, enlace al panel
+    #nueva cotización del admin: solo Telegram; a WhatsApp solo van solicitud y pago
     total = int(s.total_cotizado or 0)
     contacto = s.cel_contacto or "sin contacto"
     bloques = [
@@ -143,13 +143,6 @@ def aviso_cotizacion(s, token=None):
     url = url_for('solicitud.lista', _external=True)
     bloques.append(f"Ver en el panel: <a href=\"{url}\">{url}</a>")
     enviar_admin("\n\n".join(bloques))
-    linea_wa = "\n".join(_lineas_cotizacion(s)) or "sin ítems"
-    texto_wa = (f"🎵 Nueva cotización #{s.id}\n"
-                f"Cliente: {contacto}\n"
-                f"{linea_wa}\n"
-                f"Total: {_cop(total)}\n"
-                f"Ver: {url}")
-    enviar_admin_wa(texto_wa)
 
 
 def aviso_pedido_creado(p, token=None):

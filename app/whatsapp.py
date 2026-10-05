@@ -65,6 +65,7 @@ def enviar_admin_wa(mensaje, botones=None):
                 if r.status_code != 200:
                     current_app.logger.error(f"[WA] Error {r.status_code} al escribir a {destino}: {r.text[:200]}")
                     return False
+                current_app.logger.info(f"[WA] Enviado a {destino}: {r.json().get('messages', [{}])[0].get('id', 's/id')}")
             return True
         carpeta = os.path.join(current_app.instance_path, "whatsapp")
         os.makedirs(carpeta, exist_ok=True)
