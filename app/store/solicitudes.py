@@ -194,7 +194,8 @@ def nueva_admin():
     usuario = get_usuario_por_email(email) if email else None
     s, err = create_solicitud(usuario.id if usuario else None,
                               [{"nombre": nombre_limpio, "cantidad": form.cantidad.data or 1, "k_producto": k_producto}],
-                              form.celular.data.strip(), email)
+                              form.celular.data.strip(), email,
+                              lugar=(form.lugar.data or '').strip() or None)
     if not s:
         return jsonify({"error": err or "No se pudo registrar"}), 400
     if form.precio.data:
@@ -206,7 +207,10 @@ def nueva_admin():
         if cerr:
             return jsonify({"error": cerr, "id": s.id, "estado": s.estado,
                             "sol_url": url_for('home.admin', sol=s.id)}), 400
-        return jsonify(_respuesta_cotizar(s, token))
+        resp = _respuesta_cotizar(s, token)
+        s.d_mensaje_cliente = resp["mensaje"]
+        db.session.commit()
+        return jsonify(resp)
     return jsonify({"id": s.id, "estado": s.estado, "sol_url": url_for('home.admin', sol=s.id)})
 
 
@@ -245,7 +249,11 @@ def cotizar(id):
     token, err = cotizar_solicitud(id, lineas, request.form.get("d_cotizacion"), p_envio=p_envio)
     if err:
         return jsonify({"error": err}), 400
-    return jsonify(_respuesta_cotizar(s, token))
+    resp = _respuesta_cotizar(s, token)
+    #se guarda el mensaje (con su enlace) para copiarlo después desde el panel o el bot
+    s.d_mensaje_cliente = resp["mensaje"]
+    db.session.commit()
+    return jsonify(resp)
 
 
 @solicitud.route("/confirmar/<token>", methods=["GET", "POST"])

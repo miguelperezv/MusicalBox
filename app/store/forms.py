@@ -115,6 +115,7 @@ class CotizacionRapidaForm(FlaskForm):
                           render_kw={"placeholder": "Opcional: con precio, se cotiza ya"})
     cantidad = IntegerField("Cantidad", default=1, widget=h5widgets.NumberInput(min=1, max=99, step=1),
                             validators=[Optional(), NumberRange(min=1, max=99)])
+    lugar = StringField("Lugar / ciudad", render_kw={"placeholder": "Opcional: para estimar el envío"})
 
 
 class editReleaseForm(FlaskForm):

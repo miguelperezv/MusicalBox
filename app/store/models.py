@@ -298,6 +298,8 @@ class Solicitud(db.Model):
     p_envio_cotizado = db.Column(db.Integer)
     #municipio del cliente (opcional en el formulario): para prellenar el checkout y cotizarle el envío
     lugar_solicitud = db.Column(db.String(80))
+    #mensaje para el cliente con el enlace de pago, tal como se generó al cotizar (se copia desde panel o bot)
+    d_mensaje_cliente = db.Column(db.Text)
     estado = db.Column(db.String(20), nullable=False, default='ACTIVO')
     f_solicitud = db.Column(db.DateTime, default=datetime.now)
     f_actualizacion = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)

@@ -92,13 +92,21 @@ def aviso_solicitud(s):
         desc = f" · “{it.descripcion}”" if it.descripcion else ""
         items.append(f"{it.cantidad or 1} × {_esc(it.nombre)}{extra}{desc}")
     extra = f" · {_esc(s.email_contacto)}" if s.email_contacto else ""
+    lugar = f" · {_esc(s.lugar_solicitud)}" if s.lugar_solicitud else ""
     bloques = [
         f"<b>NUEVA SOLICITUD #{s.id}</b> · pedido a la medida",
         f"<b>ÍTEMS SOLICITADOS</b>\n" + "\n".join(items),
-        f"<b>CONTACTO</b>\n{_esc(s.cel_contacto)}{extra}",
+        f"<b>CONTACTO</b>\n{_esc(s.cel_contacto)}{extra}{lugar}",
         f"<b>ESTADO</b>\n{s.estado} · {_fecha(s.f_solicitud)}",
-        "Elige cómo continuar:",
     ]
+    #estimación del pedido (solo el envío, que aún no hay precios)
+    if s.lugar_solicitud:
+        from .envio import costo_envio, lineas_desde_cats
+        cats = "|".join(f"{(it.categoria or 'OTRO')}:{int(it.cantidad or 1)}" for it in s.items)
+        env = costo_envio(lineas_desde_cats(cats), 0, s.lugar_solicitud)
+        if env:
+            bloques.insert(3, f"<b>ESTIMACIÓN DEL PEDIDO</b>\nEnvío a {_esc(s.lugar_solicitud)}: {_cop(env['p_envio']) if env['p_envio'] else 'gratis'}")
+    bloques += ["Elige cómo continuar:"]
     enviar_admin("\n\n".join(bloques), botones=[
         {"texto": "💻 Cotizar en web", "url": url_for('home.admin', sol=s.id, _external=True)},
         {"texto": f"📩 Ver y cotizar en el chat", "callback": f"mtx:{s.id}"},

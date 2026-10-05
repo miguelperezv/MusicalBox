@@ -181,6 +181,18 @@ def _cmd_lista(chat_id):
             "\n\n" + _uso())
 
 
+def _est_envio(s, total):
+    #estimación por el municipio de la solicitud; None si no dejó lugar o el envío está apagado
+    from .store.envio import costo_envio, lineas_desde_cats
+    from .store.models import items_efectivos
+    if not s.lugar_solicitud:
+        return None
+    cats = "|".join(f"{(it.producto.k_categoria if it.producto else it.categoria) or 'OTRO'}:{int(it.cantidad or 1)}"
+                    for it in items_efectivos(s))
+    env = costo_envio(lineas_desde_cats(cats), total, s.lugar_solicitud)
+    return int(env["p_envio"]) if env else None
+
+
 def _cmd_detalle(chat_id, k):
     from .store.models import Solicitud, SolicitudItem, items_efectivos
     s = Solicitud.query.get(k)
@@ -189,9 +201,12 @@ def _cmd_detalle(chat_id, k):
     items = items_efectivos(s)
     lineas = _lineas_items(s)
     correo = f" · {s.email_contacto}" if s.email_contacto else ""
+    lugar = f" · {s.lugar_solicitud}" if s.lugar_solicitud else ""
     from flask import url_for
+    cotizada = s.estado == "COTIZADA"
     botones = [
-        {"texto": "💻 Cotizar en web", "url": url_for('home.admin', sol=s.id, _external=True)},
+        {"texto": "💻 Ver en el panel" if cotizada else "💻 Cotizar en web",
+         "url": url_for('home.admin', sol=s.id, _external=True)},
         {"texto": "💲 Poner precio", "callback": f"prc:{s.id}"},
         {"texto": "🔎 Buscar el disco", "callback": f"busk:{s.id}"},
         {"texto": "🛒 Buscar producto", "callback": f"prod:{s.id}"},
@@ -200,10 +215,34 @@ def _cmd_detalle(chat_id, k):
     for i, it in enumerate(items):
         if isinstance(it, SolicitudItem):
             botones.append({"texto": f"✖ {i+1}. {(it.nombre or 'ítem')[:30]}", "callback": f"rit:{s.id}:{i}"})
-    remitir(chat_id, (f"Solicitud #{s.id} · {s.estado}\n"
-                      f"Cliente: {s.cel_contacto or 'sin contacto'}{correo}\n"
-                      + "\n".join(lineas) + "\n\n"
-                      f"Para cotizar: {s.id} <precio>. (o los botones de arriba)"), botones=botones)
+    texto = (f"Solicitud #{s.id} · {s.estado}\n"
+             f"Cliente: {s.cel_contacto or 'sin contacto'}{correo}{lugar}\n"
+             + "\n".join(lineas) + "\n")
+    copiar = None
+    if cotizada:
+        subtotal = s.total_cotizado
+        texto += f"Subtotal: {_cop_bot(subtotal)}\n"
+        if s.p_envio_cotizado is not None:
+            if s.p_envio_cotizado == 0:
+                texto += "Envío: gratis (fijado por la tienda)\n"
+            else:
+                texto += (f"Envío: {_cop_bot(s.p_envio_cotizado)} (fijado por la tienda)\n"
+                          f"Total: {_cop_bot(subtotal + s.p_envio_cotizado)}\n")
+        else:
+            est = _est_envio(s, subtotal)
+            if est is not None:
+                texto += (f"Envío estimado a {s.lugar_solicitud}: {_cop_bot(est)} (se confirma al pagar)\n"
+                          f"Total estimado: {_cop_bot(subtotal + est)}\n")
+            else:
+                texto += "Envío: se calcula al pagar\n"
+        copiar = s.d_mensaje_cliente  #botón "Copiar" con el mensaje para el cliente
+        texto += "\nRe-cotiza con '💲 Poner precio' o copia el mensaje para el cliente."
+    else:
+        est = _est_envio(s, 0)
+        if est is not None:
+            texto += f"Envío estimado a {s.lugar_solicitud}: {_cop_bot(est)} (aprox., sin cotizar)\n"
+        texto += f"\nPara cotizar: {s.id} <precio>. (o los botones de arriba)"
+    remitir(chat_id, texto, copiar=copiar, botones=botones)
 
 def _cmd_cotizar(chat_id, k, rest):
     from .store.models import Solicitud, cotizar_solicitud
@@ -379,13 +418,23 @@ def _cotizar_con(chat_id, k, precios, ext=None, prod=None, nota=None, envio=None
     if s.d_cotizacion:
         bloques.append(s.d_cotizacion)
     bloques += ["", f"Paga y enviarlo: {url_for('solicitud.confirmar', token=token, _external=True)}"]
-    resumen = (f"✅ Solicitud #{k} cotizada ({_cop_bot(total)})"
+    #se guarda el mensaje (con su enlace) para copiarlo después desde el detalle o el panel
+    s.d_mensaje_cliente = "\n".join(bloques)
+    db.session.commit()
+    if s.p_envio_cotizado:
+        envio_txt = f" + envío {_cop_bot(s.p_envio_cotizado)} = {_cop_bot(total + s.p_envio_cotizado)}"
+    elif s.p_envio_cotizado == 0:
+        envio_txt = " · envío gratis"
+    else:
+        envio_txt = ", envío según dirección al pagar"
+    resumen = (f"✅ Solicitud #{k} cotizada (subtotal {_cop_bot(total)}{envio_txt})"
                + (f" · disco: {disco}" if disco else "")
                + (f" · producto: {(producto.n_producto or '')[:30]}" if producto else "")
                + (f" · nota: {s.d_cotizacion[:50]}" if s.d_cotizacion else "")
                + f"\nPanel: {url_for('solicitud.lista', _external=True)}")
     remitir(chat_id, resumen)
-    remitir(chat_id, "Mensaje listo para el cliente 📩", copiar="\n".join(bloques))
+    remitir(chat_id, "Mensaje listo para el cliente 📩", copiar="\n".join(bloques),
+            botones=[{"texto": "💻 Ver la solicitud", "url": url_for('home.admin', sol=k, _external=True)}])
 
 def _prompt_precio(chat_id, k):
     from .store.models import Solicitud, items_efectivos
