@@ -2073,6 +2073,10 @@ def cotizar_solicitud(k_solicitud, lineas, d_cotizacion=None, p_envio=None):
             return None, "Indica el precio de cada ítem"
         it.precio_unit = precio
         it.cantidad = max(1, min(99, int(linea.get("cantidad") or it.cantidad or 1)))
+        #renombrar el ítem (el nombre viaja al pedido si no hay producto del catálogo)
+        nombre = (linea.get("nombre") or "").strip()
+        if nombre:
+            it.nombre = nombre[:150]
         k_producto = linea.get("k_producto")
         it.k_producto = db.session.get(Producto, k_producto).id if k_producto else None
         k_lanzamiento = linea.get("k_lanzamiento")

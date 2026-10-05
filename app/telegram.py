@@ -17,7 +17,7 @@ responde por el propio canal (sin parse_mode):
   buscar <id> <texto>        -> top 5 lanzamientos encontrados
   buscar <id> <texto> <opcion> <precio> -> cotizar asociando el lanzamiento elegido
 Flujo guiado por botones (estado en memoria, un proceso):
-  detalle -> [💻 web] [💲 precio] [🔎 disco] [🛒 producto] [📝 nota] + [✖ retirar ítem]
+  detalle -> [💻 web] [💲 precio] [🔎 disco] [🛒 producto] [📝 nota] + [✏️ renombrar] [✖ retirar]
   disco -> top 5 (opt:<k>:<ext>) · producto -> top 5 del catálogo (opro:<k>:<id>)
   -> precio por ítem -> precio de envío (número; 0 gratis; "ok" = estimado) -> cotiza.
   El mensaje del cliente va con envío y botón "Copiar" (copy_text); sin foto por ahora
@@ -128,7 +128,7 @@ def remitir(chat_id, texto, copiar=None, botones=None, foto=None):
         payload["reply_markup"] = {"inline_keyboard": filas}
     log.info(f"bot responde a {chat_id} · {texto[:50]!r} · copiar={bool(copiar)} · botones={len(botones or [])} · foto={bool(foto)}")
     url = f"https://api.telegram.org/bot{token}/{'sendPhoto' if es_foto else 'sendMessage'}"
-    for intento in (1, 2):  #el proxy saliente de PA fallan con 503 de vez en cuando; reintentar suele pasar
+    for intento in (1, 2, 3):  #el proxy saliente de PA falla con 503 de vez en cuando; reintentar suele pasar
         try:
             r = requests.post(url, json=payload, timeout=10)
             if r.status_code == 200:
@@ -136,8 +136,9 @@ def remitir(chat_id, texto, copiar=None, botones=None, foto=None):
             log.warning(f"bot falló (intento {intento}): HTTP {r.status_code} {r.text[:150]}")
         except Exception as e:
             log.warning(f"bot falló (intento {intento}): {e}")
-        if intento == 1:
+        if intento < 3:
             time.sleep(1.5)
+    log.warning(f"bot: se descartó el mensaje tras 3 intentos: {texto[:60]!r}")
     return False
 
 
@@ -149,7 +150,7 @@ def _uso():
     return ("Todo se hace con los botones de cada solicitud:\n"
             "💲 Poner precio (uno por ítem si hay varios)\n"
             "🔎 Buscar el disco (Spotify) · 🛒 Buscar producto del catálogo\n"
-            "📝 Nota para el cliente · ✖ Retirar un ítem\n"
+            "📝 Nota para el cliente · ✏️ Renombrar ítem · ✖ Retirar ítem\n"
             "Al final: precio de envío (fíjalo o deja que lo calcule el sistema)\n\n"
             "Y por texto, si lo prefieres:\n"
             "• lista - solicitudes pendientes\n"
@@ -214,7 +215,8 @@ def _cmd_detalle(chat_id, k):
     ]
     for i, it in enumerate(items):
         if isinstance(it, SolicitudItem):
-            botones.append({"texto": f"✖ {i+1}. {(it.nombre or 'ítem')[:30]}", "callback": f"rit:{s.id}:{i}"})
+            botones.append({"texto": f"✏️ {i+1}. {(it.nombre or 'ítem')[:30]}", "callback": f"ren:{s.id}:{i}"})
+            botones.append({"texto": f"✖ {i+1}. Retirar", "callback": f"rit:{s.id}:{i}"})
     texto = (f"Solicitud #{s.id} · {s.estado}\n"
              f"Cliente: {s.cel_contacto or 'sin contacto'}{correo}{lugar}\n"
              + "\n".join(lineas) + "\n")
@@ -546,6 +548,42 @@ def _buscar_producto(chat_id, k, texto):
     return remitir(chat_id, "Productos del catálogo:\n" + "\n".join(lineas) + "\n\nToca el que sea.", botones=botones)
 
 
+def _prompt_renombre(chat_id, k, i):
+    from .store.models import Solicitud, items_efectivos
+    s = Solicitud.query.get(k)
+    if not s:
+        _guiado.pop(_ck(chat_id), None)
+        return remitir(chat_id, f"No existe la solicitud #{k}.")
+    items = items_efectivos(s)
+    if i >= len(items):
+        return remitir(chat_id, "Ese ítem ya no está en la solicitud: abre su detalle de nuevo.")
+    _guiado[_ck(chat_id)] = {"espera": "renombre", "k": k, "i": i}
+    return remitir(chat_id, (f"Ítem {i + 1} (actual: “{items[i].nombre or 'sin nombre'}”).\n"
+                             "Escribe el nuevo nombre — va en la cotización y, si no hay producto del catálogo, en el pedido, el rótulo y el seguimiento. "
+                             "(o 'cancelar')"))
+
+
+def _renombrar(chat_id, t, estado):
+    from .store.models import Solicitud, SolicitudItem, items_efectivos
+    from .db import db
+    t = (t or "").strip()
+    if not 2 <= len(t) <= 150:
+        return remitir(chat_id, "El nombre debe tener entre 2 y 150 caracteres — o escribe 'cancelar'.")
+    k, i = int(estado.get("k") or 0), int(estado.get("i") or 0)
+    s = Solicitud.query.get(k)
+    if not s:
+        _guiado.pop(_ck(chat_id), None)
+        return remitir(chat_id, f"No existe la solicitud #{k}.")
+    items = items_efectivos(s)
+    if i >= len(items) or not isinstance(items[i], SolicitudItem):
+        _guiado.pop(_ck(chat_id), None)
+        return remitir(chat_id, "Ese ítem ya no está en la solicitud.")
+    items[i].nombre = t[:150]
+    db.session.commit()
+    _guiado.pop(_ck(chat_id), None)
+    return _cmd_detalle(chat_id, k)
+
+
 def _retirar_item(chat_id, k, i):
     from .db import db
     from .store.models import Solicitud, SolicitudItem, items_efectivos
@@ -585,6 +623,8 @@ def procesar_mensaje_tg(chat_id, texto):
             return _guardar_nota(chat_id, t, estado)
         if espera == "producto":
             return _buscar_producto(chat_id, int(estado.get("k") or 0), t)
+        if espera == "renombre":
+            return _renombrar(chat_id, t, estado)
         _guiado.pop(_ck(chat_id), None)
         return _buscar_disco(chat_id, int(estado.get("k") or 0), t)
     if t.lower() in ("lista", "listar", "menu", "ayuda", "help", "?"):
@@ -615,16 +655,18 @@ def _responder_callback(cb):
     if not data:
         return
     prefijo, _, resto = data.partition(":")
-    if prefijo in ("opt", "opro", "rit"):
-        #opt:<k>:<ext_spotify> · opro:<k>:<producto> · rit:<k>:<ítem>
+    if prefijo in ("opt", "opro", "rit", "ren"):
+        #opt:<k>:<ext_spotify> · opro:<k>:<producto> · rit:<k>:<ítem> · ren:<k>:<ítem>
         partes = resto.split(":", 1)
         if len(partes) != 2 or not partes[0].isdigit():
             return
         k, extra = int(partes[0]), partes[1]
-        if prefijo == "rit":
+        if prefijo in ("rit", "ren"):
             if not extra.isdigit():
                 return
-            return _retirar_item(chat_id, k, int(extra))
+            if prefijo == "rit":
+                return _retirar_item(chat_id, k, int(extra))
+            return _prompt_renombre(chat_id, k, int(extra))
         base = _ctx_de(chat_id, k)
         if prefijo == "opt":
             album = _albumes.get(extra)

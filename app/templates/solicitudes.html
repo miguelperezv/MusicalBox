@@ -80,16 +80,18 @@
                                     <div class="d-flex align-items-start gap-2">
                                         {% if portada %}<img class="cot-portada rounded flex-shrink-0" width="48" height="48" alt="" src="{{ portada }}">{% else %}<img class="cot-portada rounded flex-shrink-0 d-none" width="48" height="48" alt="" src="">{% endif %}
                                         <div class="w-100">
-                                            <div class="d-flex align-items-center justify-content-between gap-2">
-                                                <div class="small">
-                                                    <span class="fw-semibold">{{ it.nombre }}</span>
-                                                    {% if it.descripcion %}<span class="text-body-secondary"> — {{ it.descripcion }}</span>{% endif %}
-                                                    {% if it.categoria %}<span class="mb-chip small ms-1">{{ it.categoria }}</span>{% endif %}
+                                                <div class="d-flex align-items-center justify-content-between gap-2">
+                                                    <div class="d-flex align-items-center gap-2 small flex-nowrap">
+                                                        <input class="form-control form-control-sm" type="text" name="item_{{ loop.index0 }}_nombre"
+                                                               value="{{ it.nombre }}" maxlength="150" style="max-width: 250px"
+                                                               title="Si el ítem no tiene producto del catálogo, este nombre va en el pedido, el rótulo y el seguimiento">
+                                                        {% if it.descripcion %}<span class="text-body-secondary">— {{ it.descripcion }}</span>{% endif %}
+                                                        {% if it.categoria %}<span class="mb-chip small">{{ it.categoria }}</span>{% endif %}
+                                                    </div>
+                                                    <label class="form-check small text-body-secondary mb-0 flex-shrink-0" title="Se quita de la solicitud y no va en el mensaje de la cotización">
+                                                        <input class="form-check-input" type="checkbox" name="item_{{ loop.index0 }}_retirar"> Retirar
+                                                    </label>
                                                 </div>
-                                                <label class="form-check small text-body-secondary mb-0 flex-shrink-0" title="Se quita de la solicitud y no va en el mensaje de la cotización">
-                                                    <input class="form-check-input" type="checkbox" name="item_{{ loop.index0 }}_retirar"> Retirar
-                                                </label>
-                                            </div>
                                             <div class="row g-2 mt-1">
                                                 <div class="col-4 col-sm-2">
                                                     <label class="form-label small mb-0">Cantidad</label>

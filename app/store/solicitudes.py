@@ -242,7 +242,8 @@ def cotizar(id):
         lineas.append({"k_producto": int(k_producto) if k_producto.isdigit() else None,
                        "k_lanzamiento": k_lanzamiento,
                        "cantidad": request.form.get(f"item_{i}_cantidad", type=int),
-                       "precio": request.form.get(f"item_{i}_precio", type=int)})
+                       "precio": request.form.get(f"item_{i}_precio", type=int),
+                       "nombre": (request.form.get(f"item_{i}_nombre") or "").strip()})
     #envío: vacío = se sigue calculando en el checkout; número = se fija (0 = gratis)
     envio_txt = (request.form.get("p_envio") or "").strip()
     p_envio = int(envio_txt) if envio_txt.isdigit() else None
