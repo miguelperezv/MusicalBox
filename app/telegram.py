@@ -77,7 +77,7 @@ def enviar_admin(mensaje, botones=None):
             if r.status_code != 200:
                 log.warning(f"aviso falló: HTTP {r.status_code} {r.text[:200]}")
                 return False
-            log.info(f"aviso enviado (real) · {len(mensaje)} chars · {len(botones or 0)} botones")
+            log.info(f"aviso enviado (real) · {len(mensaje)} chars · {len(botones or [])} botones")
             return True
         carpeta = os.path.join(current_app.instance_path, "telegram")
         os.makedirs(carpeta, exist_ok=True)
@@ -276,8 +276,8 @@ def _es_admin(remitente):
 
 def _responder_callback(cb):
     #apretón de botón inline; answerCallbackQuery quita la carita de "procesando"
-    #el chat llega en cb["chat"] (no hay chat_id directo en el callback)
-    chat_id = (cb.get("chat") or {}).get("id") or cb.get("chat_id")
+    #el webhook ya validó que es el admin y el chat es privado: el chat de destino es el propio admin
+    chat_id = current_app.config.get("TG_ADMIN_CHAT_ID")
     data = cb.get("data") or ""
     try:
         token = (current_app.config.get("TG_BOT_TOKEN") or "").strip()

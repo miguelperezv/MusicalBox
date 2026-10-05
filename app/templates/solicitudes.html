@@ -272,19 +272,30 @@
     });
 
     //portada del item segun el lanzamiento elegido (catalogo o disco en linea guardado al vuelo)
+    //la portada remota queda en `extra`: si no, el change que el navegador dispara al perder el
+    //foco (p. ej. al pasar al precio) la ocultaria porque el id nuevo no esta en PORTADAS
     function wireLanzamiento(cuerpo) {
         cuerpo.querySelectorAll('.cot-item').forEach(function (fila) {
             var input = fila.querySelector('input[name$="_lanzamiento"]');
-            input.addEventListener('change', function () {
+            var img = fila.querySelector('.cot-portada');
+            var extra = '', visto = input.value;
+            function pintar() {
                 var tok = (input.value || '').split('.')[0].trim();
-                var img = fila.querySelector('.cot-portada');
-                var src = PORTADAS[tok] || '';
+                var src = PORTADAS[tok] || (tok ? extra : '');
                 if (src) { img.src = src; img.classList.remove('d-none'); }
-                else img.classList.add('d-none');
+                else { img.classList.add('d-none'); extra = ''; }
+            }
+            input.addEventListener('change', function () {
+                if (input.value === visto) return; //el change del blur tras elegir: ya procesado
+                visto = input.value;
+                pintar();
             });
             input.addEventListener('mbac-select', function (ev) {
-                var img = fila.querySelector('.cot-portada');
-                if (ev.detail && ev.detail.portada) { img.src = ev.detail.portada; img.classList.remove('d-none'); }
+                if (ev.detail && ev.detail.portada) {
+                    extra = ev.detail.portada;
+                    img.src = extra;
+                    img.classList.remove('d-none');
+                }
             });
         });
     }
