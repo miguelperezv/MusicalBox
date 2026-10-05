@@ -643,7 +643,8 @@ def procesar_mensaje_tg(chat_id, texto):
     remitir(chat_id, "No entendí.\n\n" + _uso())
 
 def _es_admin(remitente):
-    return str(remitente) == str(current_app.config.get("TG_ADMIN_CHAT_ID") or "")
+    admins = str(current_app.config.get("TG_ADMIN_CHAT_ID") or "").split(",")
+    return str(remitente) in [a.strip() for a in admins if a.strip()]
 
 
 def _responder_callback(cb):
