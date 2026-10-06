@@ -25,6 +25,16 @@ def hash_token(token):
     """Calcula el hash SHA-256 del token, igual que en models.py"""
     return hashlib.sha256(token.encode()).hexdigest()
 
+
+def _build_callback_url(token_plano):
+    """Construye la URL de callback para PSE.
+    Usa PUBLIC_BASE_URL si está configurado (tunnel), si no usa url_for normal."""
+    base = current_app.config.get("PUBLIC_BASE_URL", "").rstrip("/")
+    if base:
+        return f"{base}/pedido/{token_plano}"
+    return url_for('pedido.ver', token=token_plano, _external=True)
+
+
 def get_mp_sdk():
     return mercadopago.SDK(current_app.config["MERCADOPAGO_ACCESS_TOKEN"])
 
@@ -170,7 +180,7 @@ def process_payment():
         #tras la confirmación del banco, el comprador vuelve a la página de su pedido
         token_plano = payload.get("token_hash")
         if token_plano:
-            payment_data["callback_url"] = url_for('pedido.ver', token=token_plano, _external=True)
+            payment_data["callback_url"] = _build_callback_url(token_plano)
         
         # Agregar otros campos que puedan venir en el payload de PSE
         for key, value in payload.items():

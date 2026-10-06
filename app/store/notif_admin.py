@@ -120,10 +120,15 @@ def aviso_pedido_creado(p, token=None):
         return
     from flask import url_for
     url_admin = url_for('home.admin', pedido=p.id, _external=True)
-    msg_cliente = (f"🛒 Nuevo pedido #{p.id} creado.\n"
-                   f"Total: ${p.total + (p.p_envio or 0):,.0f}\n"
-                   f"Paga tu pedido aquí:\n"
-                   f"{url_for('pedido.ver', token=token, _external=True)}").replace(",", ".")
+    url_pedido = url_for('pedido.ver', token=token, _external=True)
+    url_envios = url_for('home.politica_envios', _external=True)
+    msg_cliente = (
+        "🎵 ¡Hola! Recibimos tu pedido #{p_id} en Musical Box.\n\n"
+        "Estamos preparando todo y te iremos actualizando con notificaciones sobre el estado de tu pedido.\n\n"
+        "📦 Consulta tu pedido: {url_pedido}\n"
+        "🚚 Política de envíos: {url_envios}\n\n"
+        "¡Gracias por tu compra!\n— Musical Box"
+    ).format(p_id=p.id, url_pedido=url_pedido, url_envios=url_envios)
     enviar_admin(f"<b>NUEVO PEDIDO #{p.id}</b> · orden de compra\n\n"
                  + _cuerpo(p, "PENDIENTE DE PAGO", "El cliente aún no paga; el stock queda reservado 30 min.",
                            token, "Pago"),
@@ -137,10 +142,18 @@ def aviso_pago_aprobado(p, token=None):
     estado = "PAGADO" + (f" · envío {p.estado_envio.lower()}" if p.estado_envio else "")
     from flask import url_for
     url_admin = url_for('home.admin', pedido=p.id, _external=True)
-    msg_cliente = (f"✅ Tu pago fue aprobado. Pedido #{p.id}\n"
-                   f"Total: ${p.total + (p.p_envio or 0):,.0f}\n"
-                   f"Estado: {estado}\n"
-                   f"Ver tu pedido: {url_for('pedido.ver', token=token, _external=True)}").replace(",", ".")
+    url_pedido = url_for('pedido.ver', token=token, _external=True)
+    url_envios = url_for('home.politica_envios', _external=True)
+    total = p.total + (p.p_envio or 0)
+    msg_cliente = (
+        "✅ ¡Hola! Tu pago fue aprobado. Pedido #{p_id}\n\n"
+        "Total: ${total:,.0f}\n"
+        "Estado: {estado}\n\n"
+        "Te iremos actualizando con notificaciones sobre el envío.\n\n"
+        "📦 Consulta tu pedido: {url_pedido}\n"
+        "🚚 Política de envíos: {url_envios}\n\n"
+        "¡Gracias por tu compra!\n— Musical Box"
+    ).format(p_id=p.id, total=total, estado=estado, url_pedido=url_pedido, url_envios=url_envios).replace(",", ".")
     enviar_admin(f"<b>PAGO APROBADO · PEDIDO #{p.id}</b>\n\n"
                  + _cuerpo(p, estado, "Prepara el pedido.", token, "Seguimiento"),
                  botones=[
@@ -156,9 +169,13 @@ def aviso_pago_rechazado(p, token=None):
         return
     from flask import url_for
     url_admin = url_for('home.admin', pedido=p.id, _external=True)
-    msg_cliente = (f"❌ Tu pago fue rechazado. Pedido #{p.id}\n"
-                   f"Puedes reintentar el pago aquí:\n"
-                   f"{url_for('pedido.ver', token=token, _external=True)}").replace(",", ".")
+    url_pedido = url_for('pedido.ver', token=token, _external=True)
+    msg_cliente = (
+        "❌ ¡Hola! Tu pago fue rechazado. Pedido #{p_id}\n\n"
+        "Puedes reintentar el pago aquí:\n{url_pedido}\n\n"
+        "Si el problema persiste, escríbenos y te ayudamos.\n\n"
+        "— Musical Box"
+    ).format(p_id=p.id, url_pedido=url_pedido)
     enviar_admin(f"<b>PAGO RECHAZADO · PEDIDO #{p.id}</b>\n\n"
                  + _cuerpo(p, "RECHAZADO", "El cliente puede reintentar el pago.", token, "Reintento"),
                  botones=[

@@ -44,6 +44,8 @@ class Config(object):
     TG_ADMIN_CHAT_ID = os.getenv("TG_ADMIN_CHAT_ID", "")
     #bot de cotización: secreto del webhook entrante (ver app/telegram.py)
     TG_WEBHOOK_SECRET = os.getenv("TG_WEBHOOK_SECRET", "")  #opcional: candado extra del webhook del bot
+    #URL base pública para callbacks de pagos (PSE, etc.); en local usa tunnel (ngrok, cloudflared)
+    PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "")
 
 
 
