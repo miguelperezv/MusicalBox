@@ -15,6 +15,15 @@
 
 {% block contenido %}
 <div class="container">
+    <!-- Barra de confianza fija -->
+    <div class="mb-trust-bar d-none d-lg-flex">
+        <div class="trust-item"><i class="bi bi-shield-lock-fill"></i><span>Pago seguro</span></div>
+        <div class="trust-item"><i class="bi bi-credit-card-2-front-fill"></i><span>MercadoPago <small>PCI DSS</small></span></div>
+        <div class="trust-item"><i class="bi bi-truck"></i><span>Envío gratis desde <strong>${{ (envio_gratis_desde or 0)|int|cop }}</strong></span></div>
+        <div class="trust-item"><i class="bi bi-arrow-return-left"></i><span>30 días para cambios</span></div>
+        <div class="trust-item"><i class="bi bi-whatsapp"></i><span>WhatsApp: <a href="https://wa.me/573000000000" class="text-decoration-none fw-semibold">300 000 0000</a></span></div>
+    </div>
+
     <header class="mb-page-header">
         <span class="mb-eyebrow">{{ 'Confirma tu pedido a la medida' if solicitud else 'Paso 2 de 3' }}</span>
         <h1 class="mt-1">¿A dónde enviamos tu pedido?</h1>
@@ -43,9 +52,10 @@
                     {{ field(form.barrio, col='col-sm-4 mb-3') }}
                 </div>
 
-                <p class="small text-body-secondary mt-3"><i class="bi bi-shield-lock me-1"></i>Al confirmar, elegirá su medio de pago (tarjetas, PSE y más) en la ventana segura de MercadoPago.</p>
+<p class="small text-body-secondary mt-3"><i class="bi bi-shield-lock me-1"></i>Al confirmar, elegirá su medio de pago (tarjetas, PSE y más) en la ventana segura de MercadoPago.</p>
+<p class="small text-body-secondary mt-2"><i class="bi bi-info-circle me-1"></i>Tus datos de tarjeta los procesa <strong>MercadoPago (certificado PCI DSS Nivel 1)</strong>. MusicalBox nunca ve tu número de tarjeta.</p>
 
-                <button type="submit" class="btn btn-primary btn-lg w-100 mt-2">Confirmar y pagar <i class="bi bi-lock ms-1"></i></button>
+<button type="submit" class="btn btn-primary btn-lg w-100 mt-2">Confirmar y pagar <i class="bi bi-lock ms-1"></i></button>
             </form>
         </div>
 
@@ -80,6 +90,18 @@
                             {% else %}<span class="text-body-secondary">{{ l.cantidad }}</span>{% endif %}
                             <span class="text-body-secondary">{{ l.precio|cop }} {{ 'c/u' if l.cantidad|default(1) > 1 or solicitud else '' }}</span>
                         </div>
+                        {# Stock visible + reserva #}
+                        {% if l.producto and not solicitud %}
+                        <div class="mt-1 d-flex align-items-center gap-2">
+                            {% set stock = l.producto.stock|default(0) %}
+                            {% if stock > 0 %}
+                                <span class="badge bg-success-subtle text-success-emphasis small"><i class="bi bi-check-circle me-1"></i>Quedan {{ stock }}</span>
+                                <span class="badge bg-info-subtle text-info-emphasis small"><i class="bi bi-shield-lock me-1"></i>Reserva tuya 15 min</span>
+                            {% else %}
+                                <span class="badge bg-danger-subtle text-danger-emphasis small"><i class="bi bi-x-circle me-1"></i>Agotado</span>
+                            {% endif %}
+                        </div>
+                        {% endif %}
                     </div>
                     <div class="fw-semibold linea-subtotal" data-precio="{{ l.precio|int }}" data-cant="{{ l.cantidad }}">{{ (l.subtotal|default(l.precio * l.cantidad))|cop }}</div>
                 </div>
