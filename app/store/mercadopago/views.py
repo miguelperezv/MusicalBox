@@ -387,8 +387,14 @@ def process_payment():
         current_app.logger.info(f"[MP-PSE] Esperando confirmación del banco")
         # Devolver URL de redirección al banco si existe
         external_url = mp_body.get("transaction_details", {}).get("external_resource_url")
+        current_app.logger.info(f"[MP-PSE] transaction_details: {mp_body.get('transaction_details')}")
+        current_app.logger.info(f"[MP-PSE] external_resource_url: {external_url}")
         if external_url:
             current_app.logger.info(f"[MP-PSE] URL de redirección al banco: {external_url}")
+    else:
+        # Log para ver qué estado devuelve MP si no es in_process
+        if payment_method_id == "pse":
+            current_app.logger.info(f"[MP-PSE] Estado NO in_process: status={mp_body.get('status')}, transaction_details={mp_body.get('transaction_details')}")
     
     current_app.logger.info(f"[MP] === FIN PROCESS_PAYMENT ===")
     current_app.logger.info(f"[MP] Devolviendo respuesta final: status={mp_http_status}")
@@ -401,6 +407,7 @@ def process_payment():
         external_url = mp_body.get("transaction_details", {}).get("external_resource_url")
         if external_url:
             resp["redirect_url"] = external_url
+    current_app.logger.info(f"[MP] Response to frontend: {resp}")
     return jsonify(resp), mp_http_status
 
 
