@@ -118,9 +118,10 @@ def aviso_pedido_creado(p, token=None):
     from .redes import Configuracion
     if (Configuracion.query.get('avisos.pedido_creado') or '0') != '1':
         return
-    from flask import url_for
+    from flask import url_for, current_app
     url_admin = url_for('home.admin', pedido=p.id, _external=True)
-    url_pedido = url_for('pedido.ver', token=token, _external=True)
+    base = current_app.config.get("PUBLIC_BASE_URL", "").rstrip("/")
+    url_pedido = f"{base}/pedido/{token}" if base else url_for('pedido.ver', token=token, _external=True)
     msg_cliente = (
         "Musical Box: recibimos tu pedido #{p_id}. "
         "Paga aquí: {url_pedido}. ¡Gracias!"
@@ -136,9 +137,11 @@ def aviso_pedido_creado(p, token=None):
 
 def aviso_pago_aprobado(p, token=None):
     estado = "PAGADO" + (f" · envío {p.estado_envio.lower()}" if p.estado_envio else "")
-    from flask import url_for
+    from flask import url_for, current_app
     url_admin = url_for('home.admin', pedido=p.id, _external=True)
-    url_pedido = url_for('pedido.ver', token=token, _external=True)
+    # Links de cliente: usan PUBLIC_BASE_URL (dominio real), no host actual
+    base = current_app.config.get("PUBLIC_BASE_URL", "").rstrip("/")
+    url_pedido = f"{base}/pedido/{token}" if base else url_for('pedido.ver', token=token, _external=True)
     total = p.total + (p.p_envio or 0)
     msg_cliente = (
         "Musical Box: pago aprobado ✅ Pedido #{p_id}. "
@@ -157,9 +160,10 @@ def aviso_pago_rechazado(p, token=None):
     from .redes import Configuracion
     if (Configuracion.query.get('avisos.pago_rechazado') or '0') != '1':
         return
-    from flask import url_for
+    from flask import url_for, current_app
     url_admin = url_for('home.admin', pedido=p.id, _external=True)
-    url_pedido = url_for('pedido.ver', token=token, _external=True)
+    base = current_app.config.get("PUBLIC_BASE_URL", "").rstrip("/")
+    url_pedido = f"{base}/pedido/{token}" if base else url_for('pedido.ver', token=token, _external=True)
     msg_cliente = (
         "Musical Box: pago rechazado ❌ Pedido #{p_id}. "
         "Reintenta: {url_pedido}. ¿Dudas? Escríbenos."
