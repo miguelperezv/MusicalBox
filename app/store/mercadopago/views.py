@@ -292,6 +292,9 @@ def process_payment():
     # Idempotencia para evitar duplicados si el usuario reintenta
     request_options = mp_config.RequestOptions()
     request_options.custom_headers = {"X-Idempotency-Key": str(uuid.uuid4())}
+    # PSE en sandbox requiere x-test-token
+    if payment_method_id == "pse" and current_app.config.get("SIMULACION_PAGO"):
+        request_options.custom_headers["x-test-token"] = "true"
     current_app.logger.info("[MP] Creando SDK de MercadoPago")
     
     sdk = get_mp_sdk()
