@@ -137,7 +137,7 @@ def process_payment():
     
     # Detectar si es PSE
     if payment_method_id == "pse":
-        current_app.logger.info("[MP] Procesando pago PSE")
+        current_app.logger.info("[MP] Procesando pago PSE (Avanza)")
         # Flujo PSE: no requiere token, pero necesita IP, entity_type e identification
         ip = get_client_ip()
         current_app.logger.info(f"[MP] IP del cliente detectada: {ip}")
@@ -146,7 +146,7 @@ def process_payment():
             current_app.logger.error("[MP] No se pudo detectar la IP del comprador para PSE")
             return jsonify({"error": "No se pudo detectar la IP del comprador"}), 400
             
-        # Obtener datos del pagador del payload
+        # Obtener datos del pagador del payload (nueva estructura PSE Avanza)
         pse_payer = payload.get("payer") or {}
         current_app.logger.info(f"[MP] Datos del pagador PSE: {pse_payer}")
         
@@ -154,6 +154,10 @@ def process_payment():
         id_type = ident.get("type")
         id_number = ident.get("number")
         current_app.logger.info(f"[MP] Identificación PSE: type={id_type}, number={id_number}")
+        
+        # NUEVO: financial_institution (banco seleccionado en el Brick)
+        financial_institution = payload.get("financial_institution") or pse_payer.get("financial_institution")
+        current_app.logger.info(f"[MP] Institución financiera PSE: {financial_institution}")
         
         # Para PSE, estos datos son obligatorios
         if not id_type or not id_number:
@@ -177,6 +181,10 @@ def process_payment():
                 "ip_address": ip
             },
         }
+        # NUEVO: financial_institution para PSE Avanza
+        if financial_institution:
+            payment_data["financial_institution"] = financial_institution
+            
         #tras la confirmación del banco, el comprador vuelve a la página de su pedido
         token_plano = payload.get("token_hash")
         if token_plano:
@@ -184,7 +192,7 @@ def process_payment():
         
         # Agregar otros campos que puedan venir en el payload de PSE
         for key, value in payload.items():
-            if key not in ["token_hash", "payment_method_id", "transaction_amount", "payer", "external_reference", "description", "additional_info", "callback_url"] and value is not None:
+            if key not in ["token_hash", "payment_method_id", "transaction_amount", "payer", "external_reference", "description", "additional_info", "callback_url", "financial_institution"] and value is not None:
                 # Si es un diccionario, navegar adentro; si no, asignar directo
                 if not isinstance(value, dict):
                     payment_data[key] = value
