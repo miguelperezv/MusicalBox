@@ -115,7 +115,7 @@ def aviso_solicitud(s):
 
 def aviso_pedido_creado(p, token=None):
     # Configurable: avisos.pedido_creado (default 0 = desactivado)
-    from .models import Configuracion
+    from .redes import Configuracion
     if (Configuracion.query.get('avisos.pedido_creado') or '0') != '1':
         return
     from flask import url_for
@@ -151,7 +151,7 @@ def aviso_pago_aprobado(p, token=None):
 
 def aviso_pago_rechazado(p, token=None):
     # Configurable: avisos.pago_rechazado (default 0 = desactivado)
-    from .models import Configuracion
+    from .redes import Configuracion
     if (Configuracion.query.get('avisos.pago_rechazado') or '0') != '1':
         return
     from flask import url_for
