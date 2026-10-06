@@ -384,10 +384,10 @@ def process_payment():
             "mp_response": mp_body,
             "retryable": True
         }), 500
-    elif payment_method_id == "pse" and mp_body.get("status") == "in_process":
+    elif payment_method_id == "pse" and mp_body.get("status") in ("in_process", "pending"):
         current_app.logger.info(f"[MP-PSE] Pago PSE en proceso para pedido {inv.id}")
-        # Para PSE, el estado puede quedar en "in_process" temporalmente
-        current_app.logger.info(f"[MP-PSE] Esperando confirmación del banco")
+        # Para PSE, el estado puede quedar en "in_process" o "pending" temporalmente
+        current_app.logger.info(f"[MP-PSE] Esperando confirmación del banco (status: {mp_body.get('status')})")
         # Devolver URL de redirección al banco si existe
         external_url = mp_body.get("transaction_details", {}).get("external_resource_url")
         current_app.logger.info(f"[MP-PSE] transaction_details: {mp_body.get('transaction_details')}")
@@ -395,9 +395,9 @@ def process_payment():
         if external_url:
             current_app.logger.info(f"[MP-PSE] URL de redirección al banco: {external_url}")
     else:
-        # Log para ver qué estado devuelve MP si no es in_process
+        # Log para ver qué estado devuelve MP si no es in_process/pending
         if payment_method_id == "pse":
-            current_app.logger.info(f"[MP-PSE] Estado NO in_process: status={mp_body.get('status')}, transaction_details={mp_body.get('transaction_details')}")
+            current_app.logger.info(f"[MP-PSE] Estado NO in_process/pending: status={mp_body.get('status')}, transaction_details={mp_body.get('transaction_details')}")
     
     current_app.logger.info(f"[MP] === FIN PROCESS_PAYMENT ===")
     current_app.logger.info(f"[MP] Devolviendo respuesta final: status={mp_http_status}")
@@ -405,8 +405,8 @@ def process_payment():
         "mp_status": mp_http_status,
         "mp_response": mp_body,
     }
-    # Para PSE in_process, incluir URL de redirección al banco
-    if payment_method_id == "pse" and mp_body.get("status") == "in_process":
+    # Para PSE in_process/pending, incluir URL de redirección al banco
+    if payment_method_id == "pse" and mp_body.get("status") in ("in_process", "pending"):
         external_url = mp_body.get("transaction_details", {}).get("external_resource_url")
         if external_url:
             resp["redirect_url"] = external_url
