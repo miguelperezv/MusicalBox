@@ -163,16 +163,54 @@ def process_payment():
         if not id_type or not id_number:
             current_app.logger.error("[MP] Faltan payer.identification.type/number para PSE")
             return jsonify({"error": "Falta payer.identification.type/number para PSE"}), 400
-            
+        
+        # Extraer nombre completo para first_name / last_name
+        nombre_completo = inv.n_envio or pse_payer.get("first_name", "") + " " + pse_payer.get("last_name", "")
+        partes_nombre = nombre_completo.strip().split(" ", 1)
+        first_name = partes_nombre[0] if partes_nombre else "Cliente"
+        last_name = partes_nombre[1] if len(partes_nombre) > 1 else "MusicalBox"
+        
+        # Dirección para payer.address (requerida por PSE Avanza)
+        street_name = inv.dir_envio or "Calle desconocida"
+        street_number = "S/N"
+        neighborhood = inv.barrio_envio or "Sin barrio"
+        city = inv.lugar_envio or "Bogotá"
+        postal_code = "110111"  # Default Bogotá
+        
+        # Teléfono para payer.phone
+        phone_str = inv.tel_envio or pse_payer.get("phone", {}).get("number", "3000000000")
+        # Extraer código de área (primeros 2-3 dígitos) y número
+        if len(phone_str) >= 10:
+            area_code = phone_str[:3]
+            number = phone_str[3:]
+        else:
+            area_code = "300"
+            number = "0000000"
+        
         payment_data = {
-            "transaction_amount": monto_pedido(inv),  # Usar siempre el monto de la BD por seguridad
+            "transaction_amount": monto_pedido(inv),
             "payment_method_id": "pse",
             "payer": {
-                "email": payer_email,  # Email desde Invoice.email_envio
-                "entity_type": "individual",  # Requerido para PSE
+                "email": payer_email,
+                "entity_type": "individual",
+                "first_name": first_name,
+                "last_name": last_name,
                 "identification": {
                     "type": id_type,
                     "number": str(id_number)
+                },
+                "address": {
+                    "street_name": street_name,
+                    "street_number": street_number,
+                    "neighborhood": neighborhood,
+                    "city": city,
+                    "postal_code": postal_code,
+                    "federal_unit": "DC",  # Bogotá
+                    "country": "CO"
+                },
+                "phone": {
+                    "area_code": area_code,
+                    "number": number
                 }
             },
             "external_reference": inv.token_hash,
@@ -185,15 +223,21 @@ def process_payment():
         if financial_institution:
             payment_data["financial_institution"] = financial_institution
             
-        #tras la confirmación del banco, el comprador vuelve a la página de su pedido
+        # URLs de callback y notificación
         token_plano = payload.get("token_hash")
         if token_plano:
             payment_data["callback_url"] = _build_callback_url(token_plano)
         
+        # notification_url para webhook de MP
+        base = current_app.config.get("PUBLIC_BASE_URL", "").rstrip("/")
+        if base:
+            payment_data["notification_url"] = f"{base}/mercadopago/webhook"
+        else:
+            payment_data["notification_url"] = url_for('mercadopago.webhook', _external=True)
+        
         # Agregar otros campos que puedan venir en el payload de PSE
         for key, value in payload.items():
-            if key not in ["token_hash", "payment_method_id", "transaction_amount", "payer", "external_reference", "description", "additional_info", "callback_url", "financial_institution"] and value is not None:
-                # Si es un diccionario, navegar adentro; si no, asignar directo
+            if key not in ["token_hash", "payment_method_id", "transaction_amount", "payer", "external_reference", "description", "additional_info", "callback_url", "financial_institution", "notification_url"] and value is not None:
                 if not isinstance(value, dict):
                     payment_data[key] = value
                 elif key not in payment_data:
