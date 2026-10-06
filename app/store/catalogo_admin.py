@@ -170,6 +170,55 @@ def redes_verificar(k):
     return _volver_redes(pub.error_embed, "El post se ve bien")
 
 
+# Notificaciones admin
+from .redes import Configuracion
+
+NOTIF_OPCIONES = {
+    'avisos.pago_aprobado': ('Pago aprobado', 'Siempre activo: avisa cuando el pago se aprueba (webhook o process_payment)', True),
+    'avisos.pago_rechazado': ('Pago rechazado', 'Avisar cuando el pago es rechazado', False),
+    'avisos.pedido_creado': ('Nuevo pedido (antes de pagar)', 'Avisar al crear el pedido, aunque aún no ha pagado', False),
+}
+
+
+def _volver_notif(err=None, ok=None):
+    flash(err or ok, "warning" if err else "success")
+    return redirect(url_for('dashboard.notificaciones_admin'))
+
+
+@dashboard.route("/notificaciones")
+def notificaciones_admin():
+    cfg = {}
+    for clave, (label, help_text, always_on) in NOTIF_OPCIONES.items():
+        row = db.session.get(Configuracion, clave)
+        cfg[clave] = {
+            'label': label,
+            'help': help_text,
+            'always_on': always_on,
+            'valor': (row.valor if row else '0') == '1',
+        }
+    return render_template("notificaciones_admin.html", cfg=cfg)
+
+
+@dashboard.route("/notificaciones/guardar", methods=["POST"])
+def notificaciones_guardar():
+    for clave, (_, _, always_on) in NOTIF_OPCIONES.items():
+        if always_on:
+            continue  # no se toca, siempre activo
+        activado = request.form.get(clave) == "1"
+        row = db.session.get(Configuracion, clave)
+        if activado:
+            if not row:
+                row = Configuracion(clave=clave, valor='1')
+                db.session.add(row)
+            else:
+                row.valor = '1'
+        else:
+            if row:
+                row.valor = '0'
+    db.session.commit()
+    return _volver_notif(ok="Configuración de notificaciones guardada")
+
+
 #listados del catálogo: ver todo y entrar a editar con un clic (en vez de buscar escribiendo)
 from .models import Producto, Lanzamiento, get_artist_by_release, stock_disponible, es_original, es_preorden
 

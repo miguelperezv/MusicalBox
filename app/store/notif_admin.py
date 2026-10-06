@@ -114,17 +114,54 @@ def aviso_solicitud(s):
 
 
 def aviso_pedido_creado(p, token=None):
+    # Configurable: avisos.pedido_creado (default 0 = desactivado)
+    from .models import Configuracion
+    if (Configuracion.query.get('avisos.pedido_creado') or '0') != '1':
+        return
+    from flask import url_for
+    url_admin = url_for('home.admin', pedido=p.id, _external=True)
+    msg_cliente = (f"🛒 Nuevo pedido #{p.id} creado.\n"
+                   f"Total: ${p.total + (p.p_envio or 0):,.0f}\n"
+                   f"Paga tu pedido aquí:\n"
+                   f"{url_for('pedido.ver', token=token, _external=True)}").replace(",", ".")
     enviar_admin(f"<b>NUEVO PEDIDO #{p.id}</b> · orden de compra\n\n"
                  + _cuerpo(p, "PENDIENTE DE PAGO", "El cliente aún no paga; el stock queda reservado 30 min.",
-                           token, "Pago"))
+                           token, "Pago"),
+                 botones=[
+                     {"texto": "🔗 Ir al pedido", "url": url_admin},
+                     {"texto": "📋 Copiar mensaje para el cliente", "copy_text": {"text": msg_cliente}},
+                 ])
 
 
 def aviso_pago_aprobado(p, token=None):
     estado = "PAGADO" + (f" · envío {p.estado_envio.lower()}" if p.estado_envio else "")
+    from flask import url_for
+    url_admin = url_for('home.admin', pedido=p.id, _external=True)
+    msg_cliente = (f"✅ Tu pago fue aprobado. Pedido #{p.id}\n"
+                   f"Total: ${p.total + (p.p_envio or 0):,.0f}\n"
+                   f"Estado: {estado}\n"
+                   f"Ver tu pedido: {url_for('pedido.ver', token=token, _external=True)}").replace(",", ".")
     enviar_admin(f"<b>PAGO APROBADO · PEDIDO #{p.id}</b>\n\n"
-                 + _cuerpo(p, estado, "Prepara el pedido.", token, "Seguimiento"))
+                 + _cuerpo(p, estado, "Prepara el pedido.", token, "Seguimiento"),
+                 botones=[
+                     {"texto": "🔗 Ir al pedido", "url": url_admin},
+                     {"texto": "📋 Copiar mensaje para el cliente", "copy_text": {"text": msg_cliente}},
+                 ])
 
 
 def aviso_pago_rechazado(p, token=None):
+    # Configurable: avisos.pago_rechazado (default 0 = desactivado)
+    from .models import Configuracion
+    if (Configuracion.query.get('avisos.pago_rechazado') or '0') != '1':
+        return
+    from flask import url_for
+    url_admin = url_for('home.admin', pedido=p.id, _external=True)
+    msg_cliente = (f"❌ Tu pago fue rechazado. Pedido #{p.id}\n"
+                   f"Puedes reintentar el pago aquí:\n"
+                   f"{url_for('pedido.ver', token=token, _external=True)}").replace(",", ".")
     enviar_admin(f"<b>PAGO RECHAZADO · PEDIDO #{p.id}</b>\n\n"
-                 + _cuerpo(p, "RECHAZADO", "El cliente puede reintentar el pago.", token, "Reintento"))
+                 + _cuerpo(p, "RECHAZADO", "El cliente puede reintentar el pago.", token, "Reintento"),
+                 botones=[
+                     {"texto": "🔗 Ir al pedido", "url": url_admin},
+                     {"texto": "📋 Copiar mensaje para el cliente", "copy_text": {"text": msg_cliente}},
+                 ])

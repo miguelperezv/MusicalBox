@@ -1,0 +1,39 @@
+{% extends "adminDashboard.html" %}
+
+{% block content %}
+<h1 class="h3 mb-4">Notificaciones por Telegram</h1>
+
+<form class="mb-panel mb-4" style="max-width: 760px" method="POST" action="{{ url_for('dashboard.notificaciones_guardar') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <h2 class="h6 mb-3">¿Qué eventos avisan al admin?</h2>
+    <p class="small text-body-secondary mb-4">Requiere <code>TG_BOT_TOKEN</code> y <code>TG_ADMIN_CHAT_ID</code> en el entorno.</p>
+    
+    {% for clave, data in cfg.items() %}
+    <div class="form-check form-switch mb-3">
+        <input class="form-check-input" type="checkbox" role="switch" 
+               id="{{ clave }}" name="{{ clave }}" value="1" 
+               {{ 'checked' if data.valor }} {{ 'disabled' if data.always_on }}>
+        <label class="form-check-label {{ 'text-body-secondary' if data.always_on }}" for="{{ clave }}">
+            <strong>{{ data.label }}</strong>
+            {% if data.always_on %}
+                <span class="badge bg-secondary ms-2">Siempre activo</span>
+            {% else %}
+                <span class="text-body-secondary ms-2">{{ data.help }}</span>
+            {% endif %}
+        </label>
+    </div>
+    {% endfor %}
+    
+    <button class="btn btn-primary">Guardar configuración</button>
+</form>
+
+<div class="mb-panel" style="max-width: 760px">
+    <h2 class="h6 mb-3">Detalle de botones por evento</h2>
+    <ul class="small text-body-secondary mb-0">
+        <li><strong>Pago aprobado</strong> — botones: "Ir al pedido" y "Copiar mensaje para el cliente"</li>
+        <li><strong>Pago rechazado</strong> — botones: "Ir al pedido" y "Copiar mensaje para el cliente"</li>
+        <li><strong>Nuevo pedido (antes de pagar)</strong> — botones: "Ir al pedido" y "Copiar mensaje para el cliente"</li>
+        <li><strong>Nueva solicitud a la medida</strong> — botones: "Cotizar en web" y "Ver y cotizar en el chat"</li>
+    </ul>
+</div>
+{% endblock %}
