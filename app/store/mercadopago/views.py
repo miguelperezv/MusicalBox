@@ -171,7 +171,7 @@ def process_payment():
         last_name = partes_nombre[1] if len(partes_nombre) > 1 else "MusicalBox"
         
         # Dirección para payer.address (requerida por PSE Avanza)
-        # Campo correcto según API MP: zip_code (no postal_code), state (no federal_unit)
+        # Campo correcto según API MP: zip_code; state no requerido para CO
         street_name = inv.dir_envio or "Calle desconocida"
         street_number = "S/N"
         neighborhood = inv.barrio_envio or "Sin barrio"
@@ -206,7 +206,6 @@ def process_payment():
                     "neighborhood": neighborhood,
                     "city": city,
                     "zip_code": zip_code,
-                    "state": "DC",  # Bogotá
                 },
                 "phone": {
                     "area_code": area_code,
