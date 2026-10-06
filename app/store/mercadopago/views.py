@@ -509,7 +509,7 @@ def process_payment_notification(data):
                     correo_pedido_pagado(p, p.token_hash)
                 except Exception as e:
                     current_app.logger.exception(f"[MP-WEBHOOK] Fallo envío de email para pedido {inv.id}: {e}")
-                aviso_pago_aprobado(p)
+                aviso_pago_aprobado(p, p.token_hash)
                 current_app.logger.info(f"[MP-WEBHOOK] Pedido {inv.id} confirmado exitosamente")
             return jsonify({"status": "processed"}), 200
 
@@ -519,7 +519,7 @@ def process_payment_notification(data):
             if inv.estado == "PENDIENTE":
                 inv.mp_payment_id = str(payment.get("id", ""))
                 rechazar_pago(inv, inv.mp_payment_id)
-                aviso_pago_rechazado(inv)
+                aviso_pago_rechazado(inv, inv.token_hash)
                 current_app.logger.info(f"[MP-WEBHOOK] Pedido {inv.id} marcado como rechazado")
                 return jsonify({"status": "processed"}), 200
             else:
