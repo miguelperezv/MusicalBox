@@ -1,134 +1,275 @@
 <h1 class="h3 mb-4">Órdenes de compra</h1>
-<div class="d-flex flex-wrap gap-2 mb-3" data-grupo-ordenes data-filtro-actual="todas" role="group" aria-label="Filtrar órdenes">
+
+<!-- Filtros chips reorganizados: prioridad a lo que requiere acción -->
+<div class="d-flex flex-wrap gap-2 mb-3" data-grupo-ordenes data-filtro-actual="prioridad" role="group" aria-label="Filtrar órdenes">
     <input class="form-control form-control-sm" style="max-width: 220px" type="search" id="buscador-ordenes" value="{{ busca }}"
            placeholder="Buscar por número, comprador, teléfono...">
-    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary active" data-filtra="ordenes" data-filtro="todas">Todas <span class="badge text-bg-secondary">{{ invoices|length }}</span></button>
-    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="ordenes" data-filtro="pendientes">Pendientes de pago <span class="badge text-bg-warning">{{ conteos['PENDIENTE'] }}</span></button>
-    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="ordenes" data-filtro="POR PREPARAR">Por preparar <span class="badge text-bg-secondary">{{ conteos['POR PREPARAR'] }}</span></button>
-    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="ordenes" data-filtro="EN PREPARACION">En preparación <span class="badge text-bg-secondary">{{ conteos['EN PREPARACION'] }}</span></button>
-    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="ordenes" data-filtro="ENVIADO">Enviado <span class="badge text-bg-secondary">{{ conteos['ENVIADO'] }}</span></button>
-    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="ordenes" data-filtro="ENTREGADO">Entregado <span class="badge text-bg-secondary">{{ conteos['ENTREGADO'] }}</span></button>
+    <button type="button" class="chip-filtro btn btn-sm btn-success active" data-filtra="ordenes" data-filtro="prioridad">✅ Requieren envío <span class="badge text-bg-light text-dark">{{ conteos.prioridad or 0 }}</span></button>
+    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="ordenes" data-filtro="pendientes">Pendientes <span class="badge text-bg-warning">{{ conteos['PENDIENTE'] }}</span></button>
+    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="ordenes" data-filtro="rechazadas">Rechazadas <span class="badge text-bg-danger">{{ conteos['RECHAZADO'] or 0 }}</span></button>
+    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="ordenes" data-filtro="todas">Todas <span class="badge text-bg-secondary">{{ invoices|length }}</span></button>
 </div>
-<div class="mb-panel p-0">
+
+<!-- PRIORIDAD 1: PAGADO - Requieren envío (POR PREPARAR, EN PREPARACION, ENVIADO) -->
+<div class="mb-panel p-0 mb-3" id="seccion-prioridad">
+    <div class="mb-panel-header bg-success-subtle border-bottom">
+        <h2 class="h5 mb-0 p-3"><i class="bi bi-truck text-success me-2"></i>✅ Requieren envío <span class="badge text-bg-success text-dark">{{ conteos.prioridad or 0 }}</span> — Preparar y enviar</h2>
+    </div>
     <div class="table-responsive">
-        <table class="table table-hover mb-0" id="tabla-ordenes">
-            <thead>
+        <table class="table table-hover mb-0" id="tabla-prioridad">
+            <thead class="table-light">
                 <tr>
                     <th class="ps-3">#</th>
                     <th>Fecha</th>
-                    <th>Estado</th>
+                    <th>Estado envío</th>
                     <th>Comprador y envío</th>
                     <th>Productos</th>
                     <th class="text-end">Total</th>
                     <th style="min-width: 150px">Envío</th>
-                    <th class="pe-3">Nota</th>
+                    <th class="pe-3">Acciones</th>
                 </tr>
             </thead>
-            <tbody>
-                {% for i in invoices %}
-                <tr data-estado="{{ i.estado }}" data-envio="{{ i.estado_envio or '' }}">
-                    <td class="ps-3 text-body-secondary">
-                        {{ i.id }}
-                        {% if i.mp_payment_id %}<br><small class="text-body-secondary" title="ID de pago de MercadoPago">MP: {{ i.mp_payment_id }}</small>{% endif %}
-                    </td>
-                    <td class="text-nowrap">{{ i.f_compra|fecha_co('%d/%m/%Y %H:%M') if i.f_compra }}</td>
-                    <td><span class="mb-estado mb-estado-{{ i.estado }}">{{ i.estado }}</span>{% if i.metodo_pago %}<br><small class="text-body-secondary">{{ i.metodo_pago }}</small>{% endif %}</td>
-                    <td>
-                        <div class="d-flex align-items-start gap-1 flex-wrap">
-                            <div>
-                                {{ i.n_envio or ((i.usuario.n_usuario ~ ' ' ~ i.usuario.ape_usuario) if i.usuario) }}
-                                {% if i.usuario and i.usuario.k_rol == 'CLIENTE' %}<span class="mb-chip" title="Compró sin crear cuenta">invitado</span>{% endif %}
-                                <br><small class="text-body-secondary">
-                                    {% set correo = i.email_envio or (i.usuario.email_usuario if i.usuario) %}
-                                    {% if correo %}<a href="mailto:{{ correo }}" title="Escribir al comprador"><i class="bi bi-envelope"></i></a> · {% endif %}
-                                    {% set tel = i.tel_envio or (i.usuario.cel_usuario if i.usuario) %}
-                                    {% if tel %}<a href="https://wa.me/57{{ tel|replace(' ', '') }}" target="_blank" rel="noopener" title="WhatsApp al comprador"><i class="bi bi-whatsapp text-success"></i></a> · {% endif %}
-                                    {{ tel or correo }}
-                                </small>
-                                {% if i.dir_envio %}<br><small class="text-body-secondary">{{ i.dir_envio }}{% if i.barrio_envio %}, {{ i.barrio_envio }}{% endif %} · {{ i.lugar_envio }}</small>{% endif %}
-                            </div>
-                        </div>
-                    </td>
-                    <td class="small">
-                        {% for item in get_items_by_id_factura(i.id) %}
-                        {{ item.cant_item|int }} × {{ (item.producto.lanzamiento.n_lanzamiento.title() if item.producto and item.producto.lanzamiento) or (item.lanzamiento.n_lanzamiento.title() if item.lanzamiento) }} <span class="text-body-secondary">{{ item.producto.n_producto if item.producto else item.n_item }}{% if item.variante %} ({{ item.variante.nombre }}){% endif %}</span><br>
-                        {% endfor %}
-                    </td>
-                    <td class="text-end text-nowrap">
-                        <span class="total-pago fw-semibold">{{ ((i.total or 0) + (i.p_envio or 0))|cop }}</span>
-                        {% if i.p_envio and i.p_envio > 0 %}<br><small class="text-body-secondary">envío +{{ i.p_envio|cop }}{% if i.envio_manual %} <i class="bi bi-pencil" title="Ajustado manualmente"></i>{% endif %}</small>{% endif %}
-                    </td>
-                    <td>
-                        {% if i.estado == 'PAGADO' %}
-                        <select class="form-select form-select-sm estado-envio" data-url="{{ url_for('dashboard.pedido_envio', k_invoice=i.id) }}" aria-label="Estado de envío del pedido {{ i.id }}">
-                            {% for e in estados_envio %}<option value="{{ e }}" {{ 'selected' if e == i.estado_envio }}>{{ e }}</option>{% endfor %}
-                        </select>
-                        <a class="btn btn-sm btn-outline-secondary mt-1 rotulo {{ '' if i.estado_envio in con_rotulo else 'd-none' }}" target="_blank"
-                           href="{{ url_for('dashboard.pedido_rotulo', k_invoice=i.id) }}"><i class="bi bi-printer me-1"></i>Rótulo</a>
-                        {% else %}
-                        <span class="text-body-secondary small">—</span>
-                        {% if i.estado == 'PENDIENTE' %}
-                        <button type="button" class="btn btn-sm btn-outline-danger mt-1" data-rechazar data-id="{{ i.id }}"
-                            data-url="{{ url_for('dashboard.pedido_rechazar', k_invoice=i.id) }}"><i class="bi bi-x-lg me-1"></i>Rechazar</button>
-                        <button type="button" class="btn btn-sm btn-outline-danger mt-1 ms-1" data-eliminar data-id="{{ i.id }}"
-                            data-url="{{ url_for('dashboard.invoice_eliminar', id=i.id) }}" title="Eliminar pedido pendiente"><i class="bi bi-trash me-1"></i>Eliminar</button>
-                        {% endif %}
-                        {% endif %}
-                        {% if i.estado in ('PENDIENTE', 'PAGADO') and i.estado_envio not in ('ENVIADO', 'ENTREGADO') %}
-                        <form class="envio-override mt-1" data-url="{{ url_for('dashboard.pedido_costo_envio', k_invoice=i.id) }}">
-                            <div class="d-flex gap-1">
-                                <input class="form-control form-control-sm" type="number" name="p_envio" min="0" value="{{ i.p_envio|int if i.p_envio else 0 }}"
-                                       style="width: 84px" aria-label="Costo de envío del pedido {{ i.id }}" title="Costo de envío (se ajusta hasta que el pedido quede ENVIADO)">
-                                <button class="btn btn-sm btn-outline-secondary" title="Actualizar el costo de envío"><i class="bi bi-pencil"></i></button>
-                            </div>
-                        </form>
-                        {% endif %}
-                    </td>
-                    <td class="pe-3 text-nowrap">
-                        <button type="button" class="btn btn-sm {{ 'btn-outline-warning text-warning' if i.nota else 'btn-outline-secondary' }}"
-                                data-nota data-id="{{ i.id }}" data-url="{{ url_for('dashboard.pedido_nota', k_invoice=i.id) }}" data-nota="{{ i.nota or '' }}"
-                                title="{{ i.nota or 'Agregar nota interna' }}">{% if i.nota %}<i class="bi bi-sticky-fill"></i> Ver nota{% else %}<i class="bi bi-sticky"></i> Nota{% endif %}</button>
-                    </td>
-                </tr>
+            <tbody id="tbody-prioridad">
+                {% for i in invoices if i.estado == 'PAGADO' and i.estado_envio in ['POR PREPARAR', 'EN PREPARACION', 'ENVIADO'] %}
+                {% include 'invoices/_fila_invoice.html' %}
                 {% else %}
-                <tr><td colspan="8" class="mb-empty">No hay órdenes de compra</td></tr>
+                <tr><td colspan="8" class="mb-empty text-center py-4"><i class="bi bi-check-circle-fill text-success fs-1"></i><br>¡Todo enviado! No hay pedidos pendientes de envío.</td></tr>
                 {% endfor %}
-                <tr class="fila-sin-resultado d-none"><td colspan="8" class="mb-empty">No hay órdenes con este filtro</td></tr>
             </tbody>
         </table>
     </div>
 </div>
 
+<!-- PRIORIDAD 2: PAGADO ENTREGADO - Historial -->
+<div class="mb-panel p-0 mb-3" id="seccion-entregados">
+    <div class="mb-panel-header bg-light border-bottom">
+        <button class="btn btn-link text-decoration-none d-flex align-items-center justify-content-between p-3 w-100" type="button" data-bs-toggle="collapse" data-bs-target="#acordeon-entregados" aria-expanded="false" aria-controls="acordeon-entregados">
+            <span class="fw-semibold"><i class="bi bi-check-circle me-2"></i>Entregados <span class="badge text-bg-secondary">{{ conteos['ENTREGADO'] or 0 }}</span></span>
+            <i class="bi bi-chevron-down fs-5"></i>
+        </button>
+    </div>
+    <div class="collapse" id="acordeon-entregados">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="tabla-entregados">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">#</th>
+                        <th>Fecha</th>
+                        <th>Estado envío</th>
+                        <th>Comprador y envío</th>
+                        <th>Productos</th>
+                        <th class="text-end">Total</th>
+                        <th style="min-width: 150px">Envío</th>
+                        <th class="pe-3">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for i in invoices if i.estado == 'PAGADO' and i.estado_envio == 'ENTREGADO' %}
+                    {% include 'invoices/_fila_invoice.html' %}
+                    {% else %}
+                    <tr><td colspan="8" class="mb-empty text-center py-4">Sin pedidos entregados.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- PRIORIDAD 3: Pendientes de pago + Rechazados - Acordeón colapsado -->
+<div class="mb-panel p-0" id="seccion-pendientes">
+    <div class="mb-panel-header bg-light border-bottom">
+        <button class="btn btn-link text-decoration-none d-flex align-items-center justify-content-between p-3 w-100" type="button" data-bs-toggle="collapse" data-bs-target="#acordeon-pendientes" aria-expanded="false" aria-controls="acordeon-pendientes">
+            <span class="fw-semibold"><i class="bi bi-hourglass-split me-2"></i>Pendientes <span class="badge text-bg-warning">{{ conteos['PENDIENTE'] }}</span> · Rechazados <span class="badge text-bg-danger">{{ conteos['RECHAZADO'] or 0 }}</span></span>
+            <i class="bi bi-chevron-down fs-5"></i>
+        </button>
+    </div>
+    <div class="collapse" id="acordeon-pendientes">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="tabla-pendientes">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3">#</th>
+                        <th>Fecha</th>
+                        <th>Estado</th>
+                        <th>Comprador y envío</th>
+                        <th>Productos</th>
+                        <th class="text-end">Total</th>
+                        <th style="min-width: 150px">Envío</th>
+                        <th class="pe-3">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for i in invoices if i.estado in ['PENDIENTE', 'RECHAZADO'] %}
+                    {% include 'invoices/_fila_invoice.html' %}
+                    {% else %}
+                    <tr><td colspan="8" class="mb-empty text-center py-4">Sin pedidos pendientes o rechazados.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{# Macro para fila de invoice (para include en los tbody) #}
+{% macro fila_invoice(i, get_items_by_id_factura, estados_envio, con_rotulo) %}
+<tr data-estado="{{ i.estado }}" data-envio="{{ i.estado_envio or '' }}">
+    <td class="ps-3 text-body-secondary">
+        {{ i.id }}
+        {% if i.mp_payment_id %}<br><small class="text-body-secondary" title="ID de pago de MercadoPago">MP: {{ i.mp_payment_id }}</small>{% endif %}
+    </td>
+    <td class="text-nowrap">{{ i.f_compra|fecha_co('%d/%m/%Y %H:%M') if i.f_compra }}</td>
+    <td>
+        {% if i.estado == 'PAGADO' %}
+        <span class="mb-estado mb-estado-PAGADO">PAGADO</span>
+        {% elif i.estado == 'PENDIENTE' %}
+        <span class="mb-estado mb-estado-PENDIENTE">PENDIENTE</span>
+        {% else %}
+        <span class="mb-estado mb-estado-RECHAZADO">RECHAZADO</span>
+        {% endif %}
+        {% if i.metodo_pago %}<br><small class="text-body-secondary">{{ i.metodo_pago }}</small>{% endif %}
+    </td>
+    <td>
+        <div class="d-flex align-items-start gap-1 flex-wrap">
+            <div>
+                {{ i.n_envio or ((i.usuario.n_usuario ~ ' ' ~ i.usuario.ape_usuario) if i.usuario) }}
+                {% if i.usuario and i.usuario.k_rol == 'CLIENTE' %}<span class="mb-chip" title="Compró sin crear cuenta">invitado</span>{% endif %}
+                <br><small class="text-body-secondary">
+                    {% set correo = i.email_envio or (i.usuario.email_usuario if i.usuario) %}
+                    {% if correo %}<a href="mailto:{{ correo }}" title="Escribir al comprador"><i class="bi bi-envelope"></i></a> · {% endif %}
+                    {% set tel = i.tel_envio or (i.usuario.cel_usuario if i.usuario) %}
+                    {% if tel %}<a href="https://wa.me/57{{ tel|replace(' ', '') }}" target="_blank" rel="noopener" title="WhatsApp al comprador"><i class="bi bi-whatsapp text-success"></i></a> · {% endif %}
+                    {{ tel or correo }}
+                </small>
+                {% if i.dir_envio %}<br><small class="text-body-secondary">{{ i.dir_envio }}{% if i.barrio_envio %}, {{ i.barrio_envio }}{% endif %} · {{ i.lugar_envio }}</small>{% endif %}
+            </div>
+        </div>
+    </td>
+    <td class="small">
+        {% for item in get_items_by_id_factura(i.id) %}
+        {{ item.cant_item|int }} × {{ (item.producto.lanzamiento.n_lanzamiento.title() if item.producto and item.producto.lanzamiento) or (item.lanzamiento.n_lanzamiento.title() if item.lanzamiento) }} <span class="text-body-secondary">{{ item.producto.n_producto if item.producto else item.n_item }}{% if item.variante %} ({{ item.variante.nombre }}){% endif %}</span><br>
+        {% endfor %}
+    </td>
+    <td class="text-end text-nowrap">
+        <span class="total-pago fw-semibold">{{ ((i.total or 0) + (i.p_envio or 0))|cop }}</span>
+        {% if i.p_envio and i.p_envio > 0 %}<br><small class="text-body-secondary">envío +{{ i.p_envio|cop }}{% if i.envio_manual %} <i class="bi bi-pencil" title="Ajustado manualmente"></i>{% endif %}</small>{% endif %}
+    </td>
+    <td>
+        {% if i.estado == 'PAGADO' %}
+        <select class="form-select form-select-sm estado-envio" data-url="{{ url_for('dashboard.pedido_envio', k_invoice=i.id) }}" aria-label="Estado de envío del pedido {{ i.id }}">
+            {% for e in estados_envio %}<option value="{{ e }}" {{ 'selected' if e == i.estado_envio }}>{{ e }}</option>{% endfor %}
+        </select>
+        <a class="btn btn-sm btn-outline-secondary mt-1 rotulo {{ '' if i.estado_envio in con_rotulo else 'd-none' }}" target="_blank"
+           href="{{ url_for('dashboard.pedido_rotulo', k_invoice=i.id) }}"><i class="bi bi-printer me-1"></i>Rótulo</a>
+        {% else %}
+        <span class="text-body-secondary small">—</span>
+        {% if i.estado == 'PENDIENTE' %}
+        <button type="button" class="btn btn-sm btn-outline-danger mt-1" data-rechazar data-id="{{ i.id }}"
+            data-url="{{ url_for('dashboard.pedido_rechazar', k_invoice=i.id) }}"><i class="bi bi-x-lg me-1"></i>Rechazar</button>
+        <button type="button" class="btn btn-sm btn-outline-danger mt-1 ms-1" data-eliminar data-id="{{ i.id }}"
+            data-url="{{ url_for('dashboard.invoice_eliminar', id=i.id) }}" title="Eliminar pedido pendiente"><i class="bi bi-trash me-1"></i>Eliminar</button>
+        {% endif %}
+        {% endif %}
+        {% if i.estado in ('PENDIENTE', 'PAGADO') and i.estado_envio not in ('ENVIADO', 'ENTREGADO') %}
+        <form class="envio-override mt-1" data-url="{{ url_for('dashboard.pedido_costo_envio', k_invoice=i.id) }}">
+            <div class="d-flex gap-1">
+                <input class="form-control form-control-sm" type="number" name="p_envio" min="0" value="{{ i.p_envio|int if i.p_envio else 0 }}"
+                       style="width: 84px" aria-label="Costo de envío del pedido {{ i.id }}" title="Costo de envío (se ajusta hasta que el pedido quede ENVIADO)">
+                <button class="btn btn-sm btn-outline-secondary" title="Actualizar el costo de envío"><i class="bi bi-pencil"></i></button>
+            </div>
+        </form>
+        {% endif %}
+    </td>
+    <td class="pe-3 text-nowrap">
+        <button type="button" class="btn btn-sm {{ 'btn-outline-warning text-warning' if i.nota else 'btn-outline-secondary' }}"
+                data-nota data-id="{{ i.id }}" data-url="{{ url_for('dashboard.pedido_nota', k_invoice=i.id) }}" data-nota="{{ i.nota or '' }}"
+                title="{{ i.nota or 'Agregar nota interna' }}">{% if i.nota %}<i class="bi bi-sticky-fill"></i> Ver nota{% else %}<i class="bi bi-sticky"></i> Nota{% endif %}</button>
+    </td>
+</tr>
+{% endmacro %}
+
 <script>
-    $('.estado-envio').on('change', function () {
-        var select = $(this);
-        $.post(select.data('url'), {estado_envio: select.val()})
-            .done(function (r) {
-                select.siblings('.rotulo').toggleClass('d-none', !r.rotulo);
-                var fila = select.closest('tr');
-                fila.dataset.envio = r.estado_envio;
-                if (window.aplicarFiltroOrdenes) aplicarFiltroOrdenes(fila);
-            })
-            .fail(function () { select.addClass('is-invalid'); });
+// Filtro de chips para órdenes
+(function () {
+    var grupo = document.querySelector('[data-grupo-ordenes]');
+    if (!grupo) return;
+    var chips = grupo.querySelectorAll('.chip-filtro');
+    var filas = document.querySelectorAll('#tabla-prioridad tbody tr, #tabla-entregados tbody tr, #tabla-pendientes tbody tr');
+    var secciones = {
+        'prioridad': document.getElementById('seccion-prioridad'),
+        'entregados': document.getElementById('seccion-entregados'),
+        'pendientes': document.getElementById('seccion-pendientes'),
+    };
+    var tbodyMap = {
+        'prioridad': document.getElementById('tbody-prioridad'),
+        'entregados': document.getElementById('tbody-entregados'),
+        'pendientes': document.getElementById('tbody-pendientes'),
+    };
+    var emptyRows = {
+        'prioridad': document.querySelector('#tabla-prioridad tbody tr:only-child td[colspan]'),
+        'entregados': document.querySelector('#tabla-entregados tbody tr:only-child td[colspan]'),
+        'pendientes': document.querySelector('#tabla-pendientes tbody tr:only-child td[colspan]'),
+    };
+
+    function aplicarFiltro(filtro) {
+        // Actualizar chips activos
+        document.querySelectorAll('[data-grupo-ordenes] .chip-filtro').forEach(function (b) {
+            var activo = b.dataset.filtro === filtro;
+            b.classList.toggle('active', activo);
+            b.classList.toggle('btn-success', activo && filtro === 'prioridad');
+            b.classList.toggle('btn-outline-secondary', !activo || filtro !== 'prioridad');
+        });
+        grupo.dataset.filtroActual = filtro;
+
+        // Mostrar/ocultar secciones
+        Object.keys(secciones).forEach(function (key) {
+            var sec = secciones[key];
+            if (!sec) return;
+            var mostrar = (filtro === 'todas') || (filtro === 'prioridad' && key === 'prioridad') ||
+                          (filtro === 'entregados' && key === 'entregados') ||
+                          (filtro === 'pendientes' && key === 'pendientes') ||
+                          (filtro === 'pendientes' && key === 'entregados'); // pendientes muestra todo lo no-prioridad
+            if (mostrar) {
+                sec.style.display = '';
+            } else {
+                sec.style.display = 'none';
+            }
+        });
+
+        // Buscador de texto
+        var q = document.getElementById('buscador-ordenes')?.value?.trim().toLowerCase() || '';
+        if (q) {
+            document.querySelectorAll('#tabla-ordenes tbody tr, #tabla-prioridad tbody tr, #tabla-entregados tbody tr, #tabla-pendientes tbody tr').forEach(function (tr) {
+                if (tr.querySelector('td[colspan]')) return; // saltar filas vacías
+                var ok = tr.textContent.toLowerCase().indexOf(q) !== -1;
+                tr.classList.toggle('d-none', !ok);
+            });
+        }
+    }
+
+    chips.forEach(function (chip) {
+        chip.addEventListener('click', function () {
+            aplicarFiltro(chip.dataset.filtro);
+        });
     });
 
-    //ajustar el costo de envío de una orden (hasta que quede ENVIADO)
-    $('.envio-override').on('submit', function (e) {
-        e.preventDefault();
-        var f = $(this);
-        $.post(f.data('url'), {p_envio: f.find('input[name=p_envio]').val()})
-            .done(function (r) {
-                f.closest('tr').find('.total-pago').text('$' + Number(r.total_pago).toLocaleString('es-CO'));
-            })
-            .fail(function (x) { alert((x.responseJSON || {}).error || 'No se pudo actualizar el costo de envío'); });
-    });
+    // Buscador de texto
+    var buscador = document.getElementById('buscador-ordenes');
+    if (buscador) {
+        buscador.addEventListener('input', function () {
+            aplicarFiltro(grupo.dataset.filtroActual || 'prioridad');
+        });
+    }
 
-    // Eliminar pedido pendiente
-    $(document).on('click', '[data-eliminar]', function () {
-        var btn = $(this);
-        if (!confirm('¿Eliminar este pedido PENDIENTE? Se liberará el stock reservado.')) return;
-        $.post(btn.data('url'))
-            .done(function () { btn.closest('tr').fadeOut(); })
-            .fail(function (x) { alert((x.responseJSON || {}).error || 'No se pudo eliminar'); });
-    });
+    // Inicializar con 'prioridad'
+    aplicarFiltro('prioridad');
+})();
+
+// Eliminar pedido pendiente
+$(document).on('click', '[data-eliminar]', function () {
+    var btn = $(this);
+    if (!confirm('¿Eliminar este pedido PENDIENTE? Se liberará el stock reservado.')) return;
+    $.post(btn.data('url'))
+        .done(function () { btn.closest('tr').fadeOut(); })
+        .fail(function (x) { alert((x.responseJSON || {}).error || 'No se pudo eliminar'); });
+});
 </script>

@@ -87,14 +87,21 @@ def lista():
         portadas[str(l.id)] = l.i_lanzamiento
     #cats por solicitud ("CAT:qty|CAT:qty") para el costo de envío estimado del modal
     solicitudes = []
+    por_cotizar = 0
+    otras = 0
     for s in get_all_solicitudes():
         items = items_efectivos(s)
         cats = "|".join(((((it.producto.k_categoria if it.producto else it.categoria) or "OTRO") + ":" + str(int(it.cantidad or 1)))
                          for it in items))
         solicitudes.append((s, items, cats))
+        if s.estado in ['ACTIVO', 'EN PROCESO']:
+            por_cotizar += 1
+        else:
+            otras += 1
     return render_template('solicitudes.html',
                            solicitudes=solicitudes,
-                           estados=ESTADOS_SOLICITUD, portadas=portadas)
+                           estados=ESTADOS_SOLICITUD, portadas=portadas,
+                           conteos={'por_cotizar': por_cotizar, 'otras': otras})
 
 
 @solicitud.route("/lanzamiento_spotify", methods=["GET", "POST"])

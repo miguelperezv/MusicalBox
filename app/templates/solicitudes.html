@@ -8,19 +8,24 @@
         <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-nuevo-medida"><i class="bi bi-plus-lg me-1"></i>Nuevo pedido a la medida</button>
     </div>
 </div>
+
+<!-- Filtros chips -->
 <div class="d-flex flex-wrap gap-2 mb-3" data-grupo-solicitudes>
-    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary active" data-filtra="solicitudes" data-filtro="todas">Todas</button>
-    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="solicitudes" data-filtro="ACTIVO">Activos</button>
-    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="solicitudes" data-filtro="EN PROCESO">En proceso</button>
-    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="solicitudes" data-filtro="COTIZADA">Cotizadas</button>
-    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="solicitudes" data-filtro="COMPRADA">Compradas</button>
-    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="solicitudes" data-filtro="CANCELADO">Canceladas</button>
+    <button type="button" class="chip-filtro btn btn-sm btn-primary active" data-filtra="solicitudes" data-filtro="por_cotizar">🔥 Por cotizar <span class="badge text-bg-light text-dark">{{ conteos.por_cotizar or 0 }}</span></button>
+    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="solicitudes" data-filtro="otras">Otras <span class="badge text-bg-secondary">{{ conteos.otras or 0 }}</span></button>
+    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="solicitudes" data-filtro="todas">Todas <span class="badge text-bg-secondary">{{ solicitudes|length }}</span></button>
 </div>
+
 <p class="small text-body-secondary">El precio es obligatorio; el producto del catálogo y el lanzamiento son opcionales (el lanzamiento da la portada en el mensaje y en la orden). Puedes escribir el disco a mano o buscarlo: si no existe, se crea.</p>
-<div class="mb-panel p-0">
+
+<!-- PRIORIDAD 1: Por cotizar (ACTIVO, EN PROCESO) -->
+<div class="mb-panel p-0 mb-3" id="seccion-por-cotizar">
+    <div class="mb-panel-header bg-warning-subtle border-bottom">
+        <h2 class="h5 mb-0 p-3"><i class="bi bi-fire text-warning me-2"></i>🔥 Por cotizar <span class="badge text-bg-warning text-dark">{{ conteos.por_cotizar or 0 }}</span> — Requieren tu acción</h2>
+    </div>
     <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0" id="tabla-solicitudes">
-            <thead>
+        <table class="table table-hover align-middle mb-0" id="tabla-por-cotizar">
+            <thead class="table-light">
                 <tr>
                     <th class="ps-3" style="width: 44px">#</th>
                     <th style="width: 96px">Fecha</th>
@@ -30,400 +35,245 @@
                     <th class="pe-3" style="min-width: 190px">Cotización</th>
                 </tr>
             </thead>
-            <tbody>
-                {% for s, items, cats_cot in solicitudes %}
-                <tr data-est="{{ s.estado }}">
-                    <td class="ps-3 text-body-secondary">{{ s.id }}</td>
-                    <td class="text-nowrap">{{ s.f_solicitud|fecha_co('%d/%m/%Y') if s.f_solicitud }}</td>
-                    <td>
-                        <div class="fw-semibold text-truncate" style="max-width: 260px">{{ items[0].nombre }}</div>
-                        <div class="d-flex gap-1 flex-wrap mt-1">
-                            {% if items|length > 1 %}<span class="mb-chip small">+{{ items|length - 1 }} ítem{{ 's' if items|length > 2 }}</span>{% endif %}
-                            {% for it in items %}{% if it.categoria and loop.index0 < 3 %}<span class="mb-chip small">{{ it.categoria }}</span>{% endif %}{% endfor %}
-                        </div>
-                        {% if items[0].descripcion %}<div class="small text-body-secondary text-truncate" style="max-width: 260px">{{ items[0].descripcion }}</div>{% endif %}
-                    </td>
-                    <td class="small">
-                        {% set cel = s.cel_contacto or (s.usuario.cel_usuario if s.usuario) %}
-                        {% if s.usuario %}<div class="fw-semibold">{{ s.usuario.n_usuario }} {{ s.usuario.ape_usuario }}</div>{% endif %}
-                        {% if s.lugar_solicitud %}<i class="bi bi-geo-alt me-1 text-body-secondary"></i>{{ s.lugar_solicitud }}<br>{% endif %}
-                        {% if cel %}<a href="https://wa.me/57{{ cel|replace(' ', '') }}" target="_blank" rel="noopener"><i class="bi bi-whatsapp me-1 text-success"></i>{{ cel }}</a><br>{% endif %}
-                        {% set correo = s.email_contacto or (s.usuario.email_usuario if s.usuario) %}
-                        {% if correo %}<a href="mailto:{{ correo }}">{{ correo }}</a>{% endif %}
-                    </td>
-                    <td>
-                        {% if s.estado == 'COMPRADA' %}
-                        <span class="mb-estado mb-estado-PAGADO">COMPRADA</span>
-                        {% else %}
-                        <select class="form-select form-select-sm estado-solicitud" data-id="{{ s.id }}" aria-label="Estado de la solicitud {{ s.id }}">
-                            {% for e in (estados if s.estado in estados else estados + [s.estado]) %}
-                            <option value="{{ e }}" {% if e == s.estado %}selected{% endif %}>{{ e }}</option>
-                            {% endfor %}
-                        </select>
-                        {% if s.estado != 'COMPRADA' %}
-                        <button type="button" class="btn btn-sm btn-outline-danger mt-1" data-eliminar-sol data-id="{{ s.id }}"
-                            data-url="{{ url_for('solicitud.eliminar', id=s.id) }}" title="Eliminar solicitud"><i class="bi bi-trash me-1"></i>Eliminar</button>
-                        {% endif %}
-                        {% endif %}
-                    </td>
-                    <td class="pe-3">
-                        {% if s.pedido %}
-                        <a href="#" class="text-decoration-none" data-load="{{ url_for('dashboard.invoices', busca=s.pedido.id) }}" title="Ver la orden"><i class="bi bi-box me-1"></i>Orden #{{ s.pedido.id }}</a>
-                        <div class="small mt-1"><span class="mb-estado mb-estado-{{ s.pedido.estado }}">{{ s.pedido.estado }}</span> · {{ s.pedido.total|cop }}</div>
-                        {% elif s.estado in ['ACTIVO', 'EN PROCESO', 'COTIZADA'] %}
-                        {% if s.total_cotizado %}<div class="small mb-1">Total <strong>{{ s.total_cotizado|cop }}</strong>{% if s.d_cotizacion %} · <span class="text-body-secondary">{{ s.d_cotizacion }}</span>{% endif %}</div>{% endif %}
-                        <button type="button" class="btn btn-sm {{ 'btn-primary' if not s.total_cotizado else 'btn-outline-primary' }} btn-cotizar" data-id="{{ s.id }}" data-contacto="{{ (s.usuario.n_usuario if s.usuario else s.cel_contacto) or '' }}">
-                            <i class="bi {{ 'bi-cash-stack' if not s.total_cotizado else 'bi-link-45deg' }} me-1"></i>{{ 'Cotizar' if not s.total_cotizado else 'Nuevo enlace' }}
-                        </button>
-                        <template id="tpl-cot-{{ s.id }}">
-                            <div class="cotizar-items" data-url="{{ url_for('solicitud.cotizar', id=s.id) }}"
-                                 data-lugar="{{ s.lugar_solicitud or '' }}" data-cats="{{ cats_cot }}">
-                                {% for it in items %}
-                                {% set portada = it.lanzamiento.i_lanzamiento if it.lanzamiento else ((it.producto.lanzamiento.i_lanzamiento) if it.producto and it.producto.lanzamiento else '') %}
-                                <div class="cot-item{{ ' mb-3' if not loop.last }}">
-                                    <div class="d-flex align-items-start gap-2">
-                                        {% if portada %}<img class="cot-portada rounded flex-shrink-0" width="48" height="48" alt="" src="{{ portada }}">{% else %}<img class="cot-portada rounded flex-shrink-0 d-none" width="48" height="48" alt="" src="">{% endif %}
-                                        <div class="w-100">
-                                                <div class="d-flex align-items-center justify-content-between gap-2">
-                                                    <div class="d-flex align-items-center gap-2 small flex-nowrap">
-                                                        <input class="form-control form-control-sm" type="text" name="item_{{ loop.index0 }}_nombre"
-                                                               value="{{ it.nombre }}" maxlength="150" style="max-width: 250px"
-                                                               title="Si el ítem no tiene producto del catálogo, este nombre va en el pedido, el rótulo y el seguimiento">
-                                                        {% if it.descripcion %}<span class="text-body-secondary">— {{ it.descripcion }}</span>{% endif %}
-                                                        {% if it.categoria %}<span class="mb-chip small">{{ it.categoria }}</span>{% endif %}
-                                                    </div>
-                                                    <label class="form-check small text-body-secondary mb-0 flex-shrink-0" title="Se quita de la solicitud y no va en el mensaje de la cotización">
-                                                        <input class="form-check-input" type="checkbox" name="item_{{ loop.index0 }}_retirar"> Retirar
-                                                    </label>
-                                                </div>
-                                            <div class="row g-2 mt-1">
-                                                <div class="col-4 col-sm-2">
-                                                    <label class="form-label small mb-0">Cantidad</label>
-                                                    <input class="form-control form-control-sm" type="number" name="item_{{ loop.index0 }}_cantidad" min="1" max="99" value="{{ it.cantidad or 1 }}">
-                                                </div>
-                                                <div class="col-8 col-sm-4">
-                                                    <label class="form-label small mb-0">Producto del catálogo</label>
-                                                    <input class="form-control form-control-sm" type="text" name="item_{{ loop.index0 }}_producto" placeholder="Opcional"
-                                                           data-autocomplete="{{ url_for('dashboard.editproduct_productList') }}"
-                                                           value="{{ (it.producto.id ~ '. ' ~ (it.producto.n_producto or '')) if it.producto }}">
-                                                </div>
-                                                <div class="col-12 col-sm-4">
-                                                    <label class="form-label small mb-0">Lanzamiento</label>
-                                                    <input class="form-control form-control-sm" type="text" name="item_{{ loop.index0 }}_lanzamiento" placeholder="Portada, opcional"
-                                                           data-autocomplete="{{ url_for('dashboard.newproduct_releases') }}"
-                                                           data-remote="{{ url_for('solicitud.lanzamiento_spotify') }}"
-                                                           value="{{ (it.lanzamiento.id ~ '. ' ~ it.lanzamiento.n_lanzamiento) if it.lanzamiento }}">
-                                                </div>
-                                                <div class="col-12 col-sm-2">
-                                                    <label class="form-label small mb-0">Precio (COP)</label>
-                                                    <input class="form-control form-control-sm" type="number" name="item_{{ loop.index0 }}_precio" min="1" placeholder="0"
-                                                           value="{{ it.precio_unit|int if it.precio_unit }}">
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                                <div class="row g-2 cot-pie mt-3">
-                                    <div class="col-12 col-lg-5">
-                                        <label class="form-label small mb-0">Nota para el cliente</label>
-                                        <input class="form-control form-control-sm" type="text" name="d_cotizacion" placeholder="Tiempos, edición... (viaja en el mensaje de WhatsApp)" value="{{ s.d_cotizacion or '' }}">
-                                    </div>
-                                    <div class="col-6 col-lg-3">
-                                        <label class="form-label small mb-0">Envío (COP)</label>
-                                        <input class="form-control form-control-sm" type="number" name="p_envio" min="0" placeholder="Se calcula al pagar"
-                                               value="{{ s.p_envio_cotizado if s.p_envio_cotizado is not none }}">
-                                        <div class="small text-body-secondary cot-envio-est"></div>
-                                    </div>
-                                    <div class="col-6 col-lg-4 text-lg-end">
-                                        <div class="small text-body-secondary mb-1">Total: <span class="cot-total fw-semibold">{{ s.total_cotizado|cop if s.total_cotizado else '$0' }}</span></div>
-                                    </div>
-                                </div>
-                                <div id="cotizar-error" class="text-danger small mt-2"></div>
-                            </div>
-                        </template>
-                        {% else %}
-                        <span class="text-body-secondary">—</span>
-                        {% endif %}
-                    </td>
-                </tr>
+            <tbody id="tbody-por-cotizar">
+                {% for s, items, cats_cot in solicitudes if s.estado in ['ACTIVO', 'EN PROCESO'] %}
+                {% include 'solicitudes/_fila_solicitud.html' %}
                 {% else %}
-                <tr><td colspan="6" class="mb-empty">No hay solicitudes todavía</td></tr>
+                <tr><td colspan="6" class="mb-empty text-center py-4"><i class="bi bi-check-circle-fill text-success fs-1"></i><br>¡Todo cotizado! No hay solicitudes pendientes de precio.</td></tr>
                 {% endfor %}
-                {% if solicitudes %}
-                <tr class="fila-sin-resultado-sol d-none"><td colspan="6" class="mb-empty">No hay solicitudes con este estado</td></tr>
-                {% endif %}
             </tbody>
         </table>
     </div>
 </div>
 
-<div class="modal fade" id="modal-nuevo-medida" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header py-2">
-                <h5 class="modal-title h6"><i class="bi bi-plus-circle me-2 text-primary"></i>Nuevo pedido a la medida</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-            </div>
-            <div class="modal-body">
-                <p class="small text-body-secondary mb-3">Para el que te escribió por el sitio, Instagram o WhatsApp: con producto y precio sale ya con su enlace; solo con producto queda para que le pongas precio.</p>
-                <form id="form-mini-pedido" class="row g-2">
-                    <div class="col-md-4 col-lg-3">
-                        <label class="form-label small mb-1">WhatsApp *</label>
-                        <input class="form-control form-control-sm" name="celular" type="tel" required placeholder="300 000 0000">
-                    </div>
-                    <div class="col-md-4 col-lg-3">
-                        <label class="form-label small mb-1">Nombre</label>
-                        <input class="form-control form-control-sm" name="nombre" placeholder="Opcional">
-                    </div>
-                    <div class="col-md-4 col-lg-3">
-                        <label class="form-label small mb-1">Correo</label>
-                        <input class="form-control form-control-sm" name="email" type="email" placeholder="Opcional">
-                    </div>
-                    <div class="col-md-6 col-lg-3">
-                        <label class="form-label small mb-1">Producto *</label>
-                        <input class="form-control form-control-sm" name="producto" required placeholder="Catálogo o sus palabras"
-                               data-autocomplete="{{ url_for('dashboard.editproduct_productList') }}">
-                    </div>
-                    <div class="col-md-3 col-lg-2">
-                        <label class="form-label small mb-1">Precio</label>
-                        <input class="form-control form-control-sm" name="precio" type="number" min="0" placeholder="COP">
-                    </div>
-                    <div class="col-md-3 col-lg-1">
-                        <label class="form-label small mb-1">Cant.</label>
-                        <input class="form-control form-control-sm" name="cantidad" type="number" min="1" max="99" value="1" title="Unidades (preórdenes por encargo)">
-                    </div>
-                    <div class="col-md-6 col-lg-3">
-                        <label class="form-label small mb-1">Lugar / ciudad</label>
-                        <input class="form-control form-control-sm" name="lugar" placeholder="Opcional: para estimar el envío">
-                    </div>
-                    <div class="col-12">
-                        <div id="mini-pedido-respuesta" class="d-flex align-items-center gap-2 flex-wrap small"></div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer py-2">
-                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
-                <button type="submit" form="form-mini-pedido" class="btn btn-primary btn-sm"><i class="bi bi-send me-1"></i>Registrar</button>
-            </div>
+<!-- PRIORIDAD 2: Otras (COTIZADA, COMPRADA, CANCELADA) - Acordeón colapsado -->
+<div class="mb-panel p-0" id="seccion-otras">
+    <div class="mb-panel-header bg-light border-bottom">
+        <button class="btn btn-link text-decoration-none d-flex align-items-center justify-content-between p-3 w-100" type="button" data-bs-toggle="collapse" data-bs-target="#acordeon-otras" aria-expanded="false" aria-controls="acordeon-otras">
+            <span class="fw-semibold"><i class="bi bi-archive me-2"></i>Otras <span class="badge text-bg-secondary">{{ conteos.otras or 0 }}</span></span>
+            <i class="bi bi-chevron-down fs-5"></i>
+        </button>
+    </div>
+    <div class="collapse" id="acordeon-otras">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="tabla-otras">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3" style="width: 44px">#</th>
+                        <th style="width: 96px">Fecha</th>
+                        <th style="min-width: 210px">Pedido</th>
+                        <th style="min-width: 160px">Contacto</th>
+                        <th style="width: 140px">Estado</th>
+                        <th class="pe-3" style="min-width: 190px">Cotización</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-otras">
+                    {% for s, items, cats_cot in solicitudes if s.estado not in ['ACTIVO', 'EN PROCESO'] %}
+                    {% include 'solicitudes/_fila_solicitud.html' %}
+                    {% else %}
+                    <tr><td colspan="6" class="mb-empty text-center py-4">Sin solicitudes en esta sección.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
 
-<div class="modal fade" id="modal-cotizar" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header py-2">
-                <h5 class="modal-title h6"><i class="bi bi-cash-stack me-2 text-primary"></i><span id="cotizar-titulo">Cotizar</span></h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-            </div>
-            <div class="modal-body" id="cotizar-cuerpo"></div>
-            <div class="modal-footer py-2">
-                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
-                <button type="button" class="btn btn-primary btn-sm" id="cotizar-guardar"><i class="bi bi-send me-1"></i>Cotizar y generar enlace</button>
-            </div>
+<p class="small text-body-secondary">El precio es obligatorio; el producto del catálogo y el lanzamiento son opcionales (el lanzamiento da la portada en el mensaje y en la orden). Puedes escribir el disco a mano o buscarlo: si no existe, se crea.</p>
+
+<!-- Fila parcial para include -->
+{# Esta parte se usa via {% include %} en los dos tbody #}
+{# Se define aquí como template block para que el include funcione #}
+{% macro fila_solicitud(s, items, cats_cot) %}
+<tr data-est="{{ s.estado }}">
+    <td class="ps-3 text-body-secondary">{{ s.id }}</td>
+    <td class="text-nowrap">{{ s.f_solicitud|fecha_co('%d/%m/%Y') if s.f_solicitud }}</td>
+    <td>
+        <div class="fw-semibold text-truncate" style="max-width: 260px">{{ items[0].nombre }}</div>
+        <div class="d-flex gap-1 flex-wrap mt-1">
+            {% if items|length > 1 %}<span class="mb-chip small">+{{ items|length - 1 }} ítem{{ 's' if items|length > 2 }}</span>{% endif %}
+            {% for it in items %}{% if it.categoria and loop.index0 < 3 %}<span class="mb-chip small">{{ it.categoria }}</span>{% endif %}{% endfor %}
         </div>
-    </div>
-</div>
+        {% if items[0].descripcion %}<div class="small text-body-secondary text-truncate" style="max-width: 260px">{{ items[0].descripcion }}</div>{% endif %}
+    </td>
+    <td class="small">
+        {% set cel = s.cel_contacto or (s.usuario.cel_usuario if s.usuario) %}
+        {% if s.usuario %}<div class="fw-semibold">{{ s.usuario.n_usuario }} {{ s.usuario.ape_usuario }}</div>{% endif %}
+        {% if s.lugar_solicitud %}<i class="bi bi-geo-alt me-1 text-body-secondary"></i>{{ s.lugar_solicitud }}<br>{% endif %}
+        {% if cel %}<a href="https://wa.me/57{{ cel|replace(' ', '') }}" target="_blank" rel="noopener"><i class="bi bi-whatsapp me-1 text-success"></i>{{ cel }}</a><br>{% endif %}
+        {% set correo = s.email_contacto or (s.usuario.email_usuario if s.usuario) %}
+        {% if correo %}<a href="mailto:{{ correo }}">{{ correo }}</a>{% endif %}
+    </td>
+    <td>
+        {% if s.estado == 'COMPRADA' %}
+        <span class="mb-estado mb-estado-PAGADO">COMPRADA</span>
+        {% else %}
+        <select class="form-select form-select-sm estado-solicitud" data-id="{{ s.id }}" aria-label="Estado de la solicitud {{ s.id }}">
+            {% for e in (estados if s.estado in estados else estados + [s.estado]) %}
+            <option value="{{ e }}" {% if e == s.estado %}selected{% endif %}>{{ e }}</option>
+            {% endfor %}
+        </select>
+        {% if s.estado != 'COMPRADA' %}
+        <button type="button" class="btn btn-sm btn-outline-danger mt-1" data-eliminar-sol data-id="{{ s.id }}"
+            data-url="{{ url_for('solicitud.eliminar', id=s.id) }}" title="Eliminar solicitud"><i class="bi bi-trash me-1"></i>Eliminar</button>
+        {% endif %}
+        {% endif %}
+    </td>
+    <td class="pe-3">
+        {% if s.pedido %}
+        <a href="#" class="text-decoration-none" data-load="{{ url_for('dashboard.invoices', busca=s.pedido.id) }}" title="Ver la orden"><i class="bi bi-box me-1"></i>Orden #{{ s.pedido.id }}</a>
+        <div class="small mt-1"><span class="mb-estado mb-estado-{{ s.pedido.estado }}">{{ s.pedido.estado }}</span> · {{ s.pedido.total|cop }}</div>
+        {% elif s.estado in ['ACTIVO', 'EN PROCESO', 'COTIZADA'] %}
+        {% if s.total_cotizado %}<div class="small mb-1">Total <strong>{{ s.total_cotizado|cop }}</strong>{% if s.d_cotizacion %} · <span class="text-body-secondary">{{ s.d_cotizacion }}</span>{% endif %}</div>{% endif %}
+        <button type="button" class="btn btn-sm {{ 'btn-primary' if not s.total_cotizado else 'btn-outline-primary' }} btn-cotizar" data-id="{{ s.id }}" data-contacto="{{ (s.usuario.n_usuario if s.usuario else s.cel_contacto) or '' }}">
+            <i class="bi {{ 'bi-cash-stack' if not s.total_cotizado else 'bi-link-45deg' }} me-1"></i>{{ 'Cotizar' if not s.total_cotizado else 'Nuevo enlace' }}
+        </button>
+        <template id="tpl-cot-{{ s.id }}">
+            <div class="cotizar-items" data-url="{{ url_for('solicitud.cotizar', id=s.id) }}"
+                 data-lugar="{{ s.lugar_solicitud or '' }}" data-cats="{{ cats_cot }}">
+                {% for it in items %}
+                {% set portada = it.lanzamiento.i_lanzamiento if it.lanzamiento else ((it.producto.lanzamiento.i_lanzamiento) if it.producto and it.producto.lanzamiento else '') %}
+                <div class="cot-item{{ ' mb-3' if not loop.last }}">
+                    <div class="d-flex align-items-start gap-2">
+                        {% if portada %}<img class="cot-portada rounded flex-shrink-0" width="48" height="48" alt="" src="{{ portada }}">{% else %}<img class="cot-portada rounded flex-shrink-0 d-none" width="48" height="48" alt="" src="">{% endif %}
+                        <div class="w-100">
+                            <div class="d-flex align-items-center justify-content-between gap-2">
+                                <div class="d-flex align-items-center gap-2 small flex-nowrap">
+                                    <input class="form-control form-control-sm" type="text" name="item_{{ loop.index0 }}_nombre"
+                                           value="{{ it.nombre }}" maxlength="150" style="max-width: 250px"
+                                           title="Si el ítem no tiene producto del catálogo, este nombre va en el pedido, el rótulo y el seguimiento">
+                                    {% if it.descripcion %}<span class="text-body-secondary">— {{ it.descripcion }}</span>{% endif %}
+                                    {% if it.categoria %}<span class="mb-chip small">{{ it.categoria }}</span>{% endif %}
+                                </div>
+                                <label class="form-check small text-body-secondary mb-0 flex-shrink-0" title="Se quita de la solicitud y no va en el mensaje de la cotización">
+                                    <input class="form-check-input" type="checkbox" name="item_{{ loop.index0 }}_retirar"> Retirar
+                                </label>
+                            </div>
+                        <div class="row g-2 mt-1">
+                            <div class="col-4 col-sm-2">
+                                <label class="form-label small mb-0">Cantidad</label>
+                                <input class="form-control form-control-sm" type="number" name="item_{{ loop.index0 }}_cantidad" min="1" max="99" value="{{ it.cantidad or 1 }}">
+                            </div>
+                            <div class="col-8 col-sm-4">
+                                <label class="form-label small mb-0">Producto del catálogo</label>
+                                <input class="form-control form-control-sm" type="text" name="item_{{ loop.index0 }}_producto" placeholder="Opcional"
+                                       data-autocomplete="{{ url_for('dashboard.editproduct_productList') }}"
+                                       value="{{ (it.producto.id ~ '. ' ~ (it.producto.n_producto or '')) if it.producto }}">
+                            </div>
+                            <div class="col-12 col-sm-4">
+                                <label class="form-label small mb-0">Lanzamiento</label>
+                                <input class="form-control form-control-sm" type="text" name="item_{{ loop.index0 }}_lanzamiento" placeholder="Portada, opcional"
+                                       data-autocomplete="{{ url_for('dashboard.newproduct_releases') }}"
+                                       data-remote="{{ url_for('solicitud.lanzamiento_spotify') }}"
+                                       value="{{ (it.lanzamiento.id ~ '. ' ~ it.lanzamiento.n_lanzamiento) if it.lanzamiento }}">
+                            </div>
+                            <div class="col-12 col-sm-2">
+                                <label class="form-label small mb-0">Precio (COP)</label>
+                                <input class="form-control form-control-sm" type="number" name="item_{{ loop.index0 }}_precio" min="1" placeholder="0"
+                                       value="{{ it.precio_unit|int if it.precio_unit }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                <div class="row g-2 cot-pie mt-3">
+                    <div class="col-12 col-lg-5">
+                        <label class="form-label small mb-0">Nota para el cliente</label>
+                        <input class="form-control form-control-sm" type="text" name="d_cotizacion" placeholder="Tiempos, edición... (viaja en el mensaje de WhatsApp)" value="{{ s.d_cotizacion or '' }}">
+                    </div>
+                    <div class="col-6 col-lg-3">
+                        <label class="form-label small mb-0">Envío (COP)</label>
+                        <input class="form-control form-control-sm" type="number" name="p_envio" min="0" placeholder="Se calcula al pagar"
+                               value="{{ s.p_envio_cotizado if s.p_envio_cotizado is not none }}">
+                        <div class="small text-body-secondary cot-envio-est"></div>
+                    </div>
+                    <div class="col-6 col-lg-4 text-lg-end">
+                        <div class="small text-body-secondary mb-1">Total: <span class="cot-total fw-semibold">{{ s.total_cotizado|cop if s.total_cotizado else '$0' }}</span></div>
+                    </div>
+                </div>
+                <div id="cotizar-error" class="text-danger small mt-2"></div>
+            </div>
+        </template>
+        {% else %}
+        <span class="text-body-secondary">—</span>
+        {% endif %}
+    </td>
+</tr>
+{% endmacro %}
 
 <script>
+// Filtro de chips para solicitudes
 (function () {
-    var PORTADAS = {{ portadas|tojson }};
-    var $cuerpo = document.getElementById('cotizar-cuerpo');
+    var grupo = document.querySelector('[data-grupo-solicitudes]');
+    if (!grupo) return;
+    var chips = grupo.querySelectorAll('.chip-filtro');
+    var secciones = {
+        'por_cotizar': document.getElementById('seccion-por-cotizar'),
+        'otras': document.getElementById('seccion-otras'),
+    };
+    var tbodyMap = {
+        'por_cotizar': document.getElementById('tbody-por-cotizar'),
+        'otras': document.getElementById('tbody-otras'),
+    };
 
-    function esc(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
-    function refrescarLista() {
-        $('#admin-content').load('{{ url_for("solicitud.lista") }}', function () { mbAutocomplete($('#admin-content')); });
-    }
-
-    mbAutocomplete(document.getElementById('admin-content'));
-
-    $('.estado-solicitud').on('change', function () {
-        var select = $(this);
-        $.post("{{ url_for('solicitud.estado', id=0) }}".replace('/0/', '/' + select.data('id') + '/'), {estado: select.val()})
-            .done(function () { select.addClass('is-valid'); setTimeout(function () { select.removeClass('is-valid'); }, 1500); })
-            .fail(function () { select.addClass('is-invalid'); });
-    });
-
-    //mini-form "nuevo pedido a la medida" (modal): registra y, si hay precio, deja el whatsapp listo para enviar
-    $('#form-mini-pedido').on('submit', function (e) {
-        e.preventDefault();
-        var form = this, salida = document.getElementById('mini-pedido-respuesta');
-        salida.innerHTML = '<span class="text-body-secondary">Guardando…</span>';
-        $.post("{{ url_for('solicitud.nueva_admin') }}", $(form).serialize())
-            .done(function (r) {
-                if (r.whatsapp) {
-                    var preview = r.preview ? '<img src="' + esc(r.preview) + '" alt="Portada" width="44" height="44" class="rounded object-fit-cover flex-shrink-0 me-2">' : '';
-                    salida.innerHTML = preview + '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Pedido #' + r.id + ' cotizado</span>' +
-                        '<a class="btn btn-sm btn-success" target="_blank" rel="noopener" href="' + esc(r.whatsapp) + '"><i class="bi bi-whatsapp me-1"></i>Enviar por WhatsApp</a>' +
-                        '<button type="button" class="btn btn-sm btn-outline-secondary mini-copiar">Copiar enlace</button>' +
-                        '<a class="btn btn-sm btn-link" href="' + esc(r.sol_url) + '">Ver cotización</a>';
-                    salida.querySelector('.mini-copiar').onclick = function () { navigator.clipboard.writeText(r.enlace); this.textContent = 'Copiado'; };
-                } else {
-                    salida.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>Pedido #' + r.id + ' registrado</span>' +
-                        '<a class="btn btn-sm btn-link" href="' + esc(r.sol_url) + '">Ponerle precio ahora</a>';
-                }
-            })
-            .fail(function (x) {
-                salida.innerHTML = '<span class="text-danger">' + esc((x.responseJSON || {}).error || 'No se pudo registrar') + '</span>';
-            });
-    });
-    {% if request.args.get('nuevo') %}new bootstrap.Modal(document.getElementById('modal-nuevo-medida')).show();{% endif %}
-
-    //modal de cotización: se llena desde el template de la fila (ítems con cantidad, producto, lanzamiento y precio)
-    var guardado = false;
-    function recalcTotales(cuerpo) {
-        var total = 0;
-        cuerpo.querySelectorAll('.cot-item').forEach(function (fila) {
-            var p = parseInt(fila.querySelector('[name$="_precio"]').value, 10) || 0;
-            var c = parseInt(fila.querySelector('[name$="_cantidad"]').value, 10) || 1;
-            total += p * c;
+    function aplicarFiltro(filtro) {
+        // Actualizar chips activos
+        document.querySelectorAll('[data-grupo-solicitudes] .chip-filtro').forEach(function (b) {
+            var activo = b.dataset.filtro === filtro;
+            b.classList.toggle('active', activo);
+            b.classList.toggle('btn-primary', activo && filtro === 'por_cotizar');
+            b.classList.toggle('btn-outline-secondary', !activo || filtro !== 'por_cotizar');
         });
-        var env = parseInt(cuerpo.querySelector('[name="p_envio"]').value, 10) || 0;
-        var el = cuerpo.querySelector('.cot-total');
-        if (el) el.textContent = '$' + (total + env).toLocaleString('es-CO') + (env ? ' (incluye envío)' : '');
-        return total + env;
-    }
-    $cuerpo.addEventListener('input', function (e) {
-        if (e.target.matches && e.target.matches('[name$="_precio"], [name$="_cantidad"], [name="p_envio"]')) recalcTotales($cuerpo);
-    });
 
-    //estimado del envío si la solicitud dejó municipio: se muestra como pista y precarga el campo "envío"
-    function pintarEnvioEstimado(cuerpo) {
-        var inv = cuerpo.querySelector('.cotizar-items');
-        var est = cuerpo.querySelector('.cot-envio-est');
-        if (!inv || !est || !inv.dataset.lugar) return;
-        est.textContent = 'Calculando el estimado…';
-        var q = new URLSearchParams({ciudad: inv.dataset.lugar, total: String(recalcTotales(cuerpo)), cats: inv.dataset.cats || ''});
-        fetch('{{ url_for("purchase.costo_envio_vista") }}?' + q.toString())
-            .then(function (r) { return r.json(); })
-            .then(function (d) {
-                if (d.p_envio == null) { est.textContent = ''; return; }
-                var inp = cuerpo.querySelector('[name="p_envio"]');
-                est.textContent = d.p_envio === 0 ? 'Estimado: gratis a ' + inv.dataset.lugar
-                                                  : 'Estimado a ' + inv.dataset.lugar + ': $' + Number(d.p_envio).toLocaleString('es-CO');
-                if (!inp.value) inp.value = d.p_envio;
-            })
-            .catch(function () { est.textContent = ''; });
-    }
-
-    //portada del item segun el lanzamiento elegido (catalogo o disco en linea guardado al vuelo)
-    //la portada remota queda en `extra`: si no, el change que el navegador dispara al perder el
-    //foco (p. ej. al pasar al precio) la ocultaria porque el id nuevo no esta en PORTADAS
-    function wireLanzamiento(cuerpo) {
-        cuerpo.querySelectorAll('.cot-item').forEach(function (fila) {
-            var input = fila.querySelector('input[name$="_lanzamiento"]');
-            var img = fila.querySelector('.cot-portada');
-            var extra = '', visto = input.value;
-            function pintar() {
-                var tok = (input.value || '').split('.')[0].trim();
-                var src = PORTADAS[tok] || (tok ? extra : '');
-                if (src) { img.src = src; img.classList.remove('d-none'); }
-                else { img.classList.add('d-none'); extra = ''; }
+        // Mostrar/ocultar secciones
+        Object.keys({por_cotizar:1, otras:1}).forEach(function (key) {
+            var sec = document.getElementById('seccion-' + (key === 'por_cotizar' ? 'por-cotizar' : key));
+            if (!sec) return;
+            var mostrar = (filtro === 'todas') || (filtro === key);
+            if (mostrar) {
+                sec.style.display = '';
+            } else {
+                sec.style.display = 'none';
             }
-            input.addEventListener('change', function () {
-                if (input.value === visto) return; //el change del blur tras elegir: ya procesado
-                visto = input.value;
-                pintar();
-            });
-            input.addEventListener('mbac-select', function (ev) {
-                if (ev.detail && ev.detail.portada) {
-                    extra = ev.detail.portada;
-                    img.src = extra;
-                    img.classList.remove('d-none');
-                }
-            });
         });
     }
 
-    function abrirCotizar(btn) {
-        var tpl = document.getElementById('tpl-cot-' + btn.dataset.id);
-        if (!tpl) return;
-        $cuerpo.innerHTML = '';
-        $cuerpo.appendChild(tpl.content.cloneNode(true));
-        document.getElementById('cotizar-titulo').textContent = 'Solicitud #' + btn.dataset.id + (btn.dataset.contacto ? ' · ' + btn.dataset.contacto : '');
-        document.getElementById('cotizar-error').textContent = '';
-        document.getElementById('cotizar-guardar').classList.remove('d-none');
-        mbAutocomplete($cuerpo);
-        recalcTotales($cuerpo);
-        wireLanzamiento($cuerpo);
-        pintarEnvioEstimado($cuerpo);
-        guardado = false;
-        bootstrap.Modal.getOrCreateInstance(document.getElementById('modal-cotizar')).show();
-    }
-    document.querySelectorAll('.btn-cotizar').forEach(function (b) {
-        b.addEventListener('click', function () { abrirCotizar(b); });
-    });
-
-    //deep-link ?sol=N (desde el bot / dashboard): abre el cotizar de esa solicitud
-    {% if request.args.get('sol') %}
-    (function () {
-        var b = document.querySelector('.btn-cotizar[data-id="' + {{ request.args.get('sol')|tojson }} + '"]');
-        if (b) setTimeout(function () { abrirCotizar(b); }, 300);
-    })();
-    {% endif %}
-
-    document.getElementById('cotizar-guardar').addEventListener('click', function () {
-        var btn = this, cuerpo = document.getElementById('cotizar-cuerpo'), err = cuerpo.querySelector('#cotizar-error');
-        var data = {};
-        cuerpo.querySelectorAll('input[name]').forEach(function (i) {
-            if (i.type === 'checkbox') { if (i.checked) data[i.name] = 'on'; }
-            else data[i.name] = i.value;
-        });
-        var faltan = [];
-        cuerpo.querySelectorAll('input[name$="_precio"]').forEach(function (i, n) {
-            if (!(parseInt(i.value, 10) > 0)) { i.classList.add('is-invalid'); faltan.push(n + 1); }
-        });
-        if (faltan.length) { err.textContent = 'Indica el precio (COP) del ítem ' + faltan.join(', '); return; }
-        err.textContent = '';
-        btn.disabled = true;
-        $.post(cuerpo.querySelector('.cotizar-items').dataset.url, data)
-            .done(function (r) {
-                guardado = true;
-                var preview = r.preview ? '<img src="' + esc(r.preview) + '" alt="Portada" width="56" height="56" class="rounded object-fit-cover flex-shrink-0 me-2">' : '';
-                cuerpo.innerHTML =
-                    '<div class="d-flex align-items-start">' + preview +
-                    '<div class="w-100"><div class="fw-semibold mb-1">¡Cotización lista!</div>' +
-                    '<div class="small text-body-secondary mb-2">Mensaje para el cliente:</div>' +
-                    '<pre class="cot-mensaje">' + esc(r.mensaje) + '</pre></div></div>' +
-                    '<div class="d-flex flex-wrap gap-2 mt-3">' +
-                    '<a class="btn btn-success" target="_blank" rel="noopener" href="' + esc(r.whatsapp) + '"><i class="bi bi-whatsapp me-1"></i>Enviar por WhatsApp</a>' +
-                    '<button type="button" class="btn btn-outline-secondary cot-copiar-msg"><i class="bi bi-chat-left-text me-1"></i>Copiar mensaje</button>' +
-                    '<button type="button" class="btn btn-outline-secondary cot-copiar"><i class="bi bi-clipboard me-1"></i>Copiar enlace</button>' +
-                    '<a class="btn btn-link btn-sm" href="' + esc(r.sol_url) + '">Ver solicitud</a></div>';
-                btn.classList.add('d-none');
-                cuerpo.querySelector('.cot-copiar').addEventListener('click', function () {
-                    navigator.clipboard.writeText(r.enlace);
-                    this.innerHTML = '<i class="bi bi-check-lg me-1"></i>Copiado';
-                });
-                cuerpo.querySelector('.cot-copiar-msg').addEventListener('click', function () {
-                    navigator.clipboard.writeText(r.mensaje);
-                    this.innerHTML = '<i class="bi bi-check-lg me-1"></i>Copiado';
-                });
-            })
-            .fail(function (x) {
-                err.textContent = (x.responseJSON || {}).error || 'No se pudo cotizar';
-                btn.disabled = false;
+    document.querySelectorAll('[data-grupo-solicitudes] .chip-filtro').forEach(function (chip) {
+        chip.addEventListener('click', function () {
+            grupo.querySelectorAll('.chip-filtro').forEach(function (b) {
+                b.classList.remove('active', 'btn-primary');
+                b.classList.add('btn-outline-secondary');
             });
+            this.classList.add('active');
+            if (this.dataset.filtro === 'por_cotizar') this.classList.add('btn-primary');
+            this.classList.remove('btn-outline-secondary');
+            aplicarFiltro(this.dataset.filtro);
+        });
     });
 
-    document.getElementById('modal-cotizar').addEventListener('hidden.bs.modal', function () {
-        var btn = document.getElementById('cotizar-guardar');
-        btn.disabled = false;
-        btn.classList.remove('d-none');
-        if (guardado) { guardado = false; refrescarLista(); }
-        $cuerpo.innerHTML = '';
+    // Buscador de texto
+    var buscador = document.getElementById('filtro-solicitudes');
+    if (buscador) {
+        buscador.addEventListener('input', function () {
+            var q = this.value.trim().toLowerCase();
+            document.querySelectorAll('#tbody-por-cotizar tr, #tbody-otras tr').forEach(function (tr) {
+                if (tr.querySelector('td[colspan]')) return;
+                var ok = tr.textContent.toLowerCase().indexOf(q) !== -1;
+                tr.classList.toggle('d-none', !ok);
+            });
+        });
     });
+})();
 
-    // Eliminar solicitud
-    document.addEventListener('click', function (e) {
-        var btn = e.target.closest('[data-eliminar-sol]');
-        if (!btn) return;
-        if (!confirm('¿Eliminar esta solicitud? No se puede deshacer.')) return;
-        fetch(btn.dataset.url, { method: 'POST' })
-            .then(function (r) { if (r.ok) btn.closest('tr').remove(); else return r.json().then(function (e) { throw new Error(e.error || 'Error'); }); })
-            .catch(function (e) { alert(e.message); });
-    });
+// Eliminar solicitud
+document.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-eliminar-sol]');
+    if (!btn) return;
+    if (!confirm('¿Eliminar esta solicitud? No se puede deshacer.')) return;
+    fetch(btn.dataset.url, { method: 'POST' })
+        .then(function (r) { if (r.ok) btn.closest('tr').remove(); else return r.json().then(function (e) { throw new Error(e.error || 'Error'); }); })
+        .catch(function (e) { alert(e.message); });
+});
 
 })();
 </script>

@@ -536,8 +536,17 @@ def newadmin():
 
 @dashboard.route("/invoices", methods=["GET", "POST"])
 def invoices():
-    #conteos para los chips de filtro: pendientes de pago y uno por estado de envío
-    conteos = {"PENDIENTE": Invoice.query.filter_by(estado='PENDIENTE').count()}
+    #conteos para los chips de filtro: prioridad (pagados que requieren envío), pendientes, rechazadas, entregadas
+    prioridad = Invoice.query.filter(Invoice.estado == 'PAGADO', Invoice.estado_envio.in_(['POR PREPARAR', 'EN PREPARACION', 'ENVIADO'])).count()
+    pendientes = Invoice.query.filter_by(estado='PENDIENTE').count()
+    rechazadas = Invoice.query.filter_by(estado='RECHAZADO').count()
+    entregadas = Invoice.query.filter(Invoice.estado == 'PAGADO', Invoice.estado_envio == 'ENTREGADO').count()
+    conteos = {
+        'prioridad': prioridad,
+        'PENDIENTE': pendientes,
+        'RECHAZADO': rechazadas,
+        'ENTREGADO': entregadas,
+    }
     for e in ESTADOS_ENVIO:
         conteos[e] = Invoice.query.filter(Invoice.estado == 'PAGADO', Invoice.estado_envio == e).count()
     return render_template("invoices.html", invoices=get_all_invoices(), get_items_by_id_factura=get_items_by_id_factura,
