@@ -232,13 +232,38 @@
             });
             const data = await r.json();
             console.log("[MP] process_payment status:", r.status, "body:", data);
-            if (r.ok && data.mp_response?.status === "approved") {
+            
+            const mpStatus = data.mp_response?.status;
+            const paymentMethod = formData.payment_method_id;
+            
+            if (r.ok && mpStatus === "approved") {
               // Pago aprobado: cerrar modal y redirigir a página de confirmación
               closeMpModal();
               window.location.href = `/pedido/${TOKEN_HASH}`;
               return;
             }
-            alert("Pago no aprobado. Estado: " + (data.mp_response?.status || "sin status"));
+            
+            // PSE queda en "in_process" / "pending" hasta que el banco confirme
+            if (paymentMethod === "pse" && (mpStatus === "in_process" || mpStatus === "pending")) {
+              closeMpModal();
+              // Mostrar mensaje y NO redirigir; el webhook confirmará después
+              Swal.fire({
+                title: "¡Pago en proceso!",
+                html: `
+                  <p>Tu pago PSE se está procesando.</p>
+                  <p class="small text-body-secondary">Completa la autorización en tu banco. Te notificaremos por correo y Telegram cuando se confirme.</p>
+                `,
+                icon: "info",
+                confirmButtonText: "Entendido",
+                allowOutsideClick: false
+              }).then(() => {
+                // Recargar la página para ver estado actualizado
+                window.location.reload();
+              });
+              return;
+            }
+            
+            alert("Pago no aprobado. Estado: " + (mpStatus || "sin status"));
           },
           onError: (e) => {
             // Callback llamado para todos los casos de error de Brick
