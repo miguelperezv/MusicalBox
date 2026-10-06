@@ -243,10 +243,17 @@
               return;
             }
             
-            // PSE queda en "in_process" / "pending" hasta que el banco confirme
+            // PSE: redirigir al banco si hay redirect_url
+            if (paymentMethod === "pse" && data.redirect_url) {
+              closeMpModal();
+              // Redirigir al portal del banco para autorizar
+              window.location.href = data.redirect_url;
+              return;
+            }
+            
+            // PSE queda en "in_process" / "pending" sin URL de redirección (raro)
             if (paymentMethod === "pse" && (mpStatus === "in_process" || mpStatus === "pending")) {
               closeMpModal();
-              // Mostrar mensaje y NO redirigir; el webhook confirmará después
               Swal.fire({
                 title: "¡Pago en proceso!",
                 html: `
@@ -257,7 +264,6 @@
                 confirmButtonText: "Entendido",
                 allowOutsideClick: false
               }).then(() => {
-                // Recargar la página para ver estado actualizado
                 window.location.reload();
               });
               return;

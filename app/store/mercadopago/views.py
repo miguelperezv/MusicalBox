@@ -374,13 +374,23 @@ def process_payment():
         current_app.logger.info(f"[MP-PSE] Pago PSE en proceso para pedido {inv.id}")
         # Para PSE, el estado puede quedar en "in_process" temporalmente
         current_app.logger.info(f"[MP-PSE] Esperando confirmación del banco")
+        # Devolver URL de redirección al banco si existe
+        external_url = mp_body.get("transaction_details", {}).get("external_resource_url")
+        if external_url:
+            current_app.logger.info(f"[MP-PSE] URL de redirección al banco: {external_url}")
     
     current_app.logger.info(f"[MP] === FIN PROCESS_PAYMENT ===")
     current_app.logger.info(f"[MP] Devolviendo respuesta final: status={mp_http_status}")
-    return jsonify({
+    resp = {
         "mp_status": mp_http_status,
         "mp_response": mp_body,
-    }), mp_http_status
+    }
+    # Para PSE in_process, incluir URL de redirección al banco
+    if payment_method_id == "pse" and mp_body.get("status") == "in_process":
+        external_url = mp_body.get("transaction_details", {}).get("external_resource_url")
+        if external_url:
+            resp["redirect_url"] = external_url
+    return jsonify(resp), mp_http_status
 
 
 @mercadopago_bp.route("/webhook", methods=["POST"])
