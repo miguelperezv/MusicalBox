@@ -34,7 +34,7 @@
                 {% for s, items, cats_cot in solicitudes %}
                 <tr data-est="{{ s.estado }}">
                     <td class="ps-3 text-body-secondary">{{ s.id }}</td>
-                    <td class="text-nowrap">{{ s.f_solicitud.strftime('%d/%m/%Y') if s.f_solicitud }}</td>
+                    <td class="text-nowrap">{{ s.f_solicitud|fecha_co('%d/%m/%Y') if s.f_solicitud }}</td>
                     <td>
                         <div class="fw-semibold text-truncate" style="max-width: 260px">{{ items[0].nombre }}</div>
                         <div class="d-flex gap-1 flex-wrap mt-1">
@@ -60,6 +60,10 @@
                             <option value="{{ e }}" {% if e == s.estado %}selected{% endif %}>{{ e }}</option>
                             {% endfor %}
                         </select>
+                        {% if s.estado != 'COMPRADA' %}
+                        <button type="button" class="btn btn-sm btn-outline-danger mt-1" data-eliminar-sol data-id="{{ s.id }}"
+                            data-url="{{ url_for('solicitud.eliminar', id=s.id) }}" title="Eliminar solicitud"><i class="bi bi-trash me-1"></i>Eliminar</button>
+                        {% endif %}
                         {% endif %}
                     </td>
                     <td class="pe-3">
@@ -410,5 +414,16 @@
         if (guardado) { guardado = false; refrescarLista(); }
         $cuerpo.innerHTML = '';
     });
+
+    // Eliminar solicitud
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-eliminar-sol]');
+        if (!btn) return;
+        if (!confirm('¿Eliminar esta solicitud? No se puede deshacer.')) return;
+        fetch(btn.dataset.url, { method: 'POST' })
+            .then(function (r) { if (r.ok) btn.closest('tr').remove(); else return r.json().then(function (e) { throw new Error(e.error || 'Error'); }); })
+            .catch(function (e) { alert(e.message); });
+    });
+
 })();
 </script>

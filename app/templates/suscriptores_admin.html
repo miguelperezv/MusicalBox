@@ -18,7 +18,7 @@
                 {% for s in filas %}
                 <tr>
                     <td class="ps-3">{{ s.email }}</td>
-                    <td class="small text-nowrap">{{ s.f_creacion.strftime('%d/%m/%Y %H:%M') if s.f_creacion }}</td>
+                    <td class="small text-nowrap">{{ s.f_creacion|fecha_co('%d/%m/%Y %H:%M') if s.f_creacion }}</td>
                     <td><span class="mb-estado {{ 'mb-estado-PAGADO' if s.activo else 'mb-estado-RECHAZADO' }}">{{ 'Activo' if s.activo else 'Pausado' }}</span></td>
                     <td class="pe-3 text-end text-nowrap">
                         <form method="post" action="{{ url_for('dashboard.suscriptor_activo', k=s.id) }}" class="d-inline">

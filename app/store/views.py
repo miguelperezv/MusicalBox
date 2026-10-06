@@ -544,6 +544,24 @@ def invoices():
                            estados_envio=ESTADOS_ENVIO, con_rotulo=ESTADOS_CON_ROTULO,
                            conteos=conteos, busca=request.args.get("busca", "").strip())
 
+
+@dashboard.route("/invoices/<int:id>/eliminar", methods=["POST"])
+@admin_required
+def invoice_eliminar(id):
+    inv = db.session.get(Invoice, id)
+    if not inv:
+        return jsonify({"error": "Pedido no encontrado"}), 404
+    # Solo permitir eliminar si está PENDIENTE (no pagado)
+    if inv.estado != 'PENDIENTE':
+        return jsonify({"error": "Solo se pueden eliminar pedidos PENDIENTES"}), 400
+    # Liberar stock reservado si existe
+    if inv.stock_reservado:
+        from .models import liberar_reserva_stock
+        liberar_reserva_stock(inv.id)
+    db.session.delete(inv)
+    db.session.commit()
+    return jsonify({"ok": True})
+
 @dashboard.route("/editrelease", methods=["GET", "POST"])
 def editrelease():
     

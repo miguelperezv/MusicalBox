@@ -72,6 +72,15 @@ def create_app(config=None):
         #precio en pesos colombianos: 150000 -> $150.000
         return "$" + f"{float(valor or 0):,.0f}".replace(",", ".")
 
+    @app.template_filter('fecha_co')
+    def fecha_co(valor, fmt='%d/%m/%Y %H:%M'):
+        #fecha en formato colombiano: 2026-10-06 15:30 -> 06/10/2026 15:30
+        if not valor:
+            return ''
+        if hasattr(valor, 'strftime'):
+            return valor.strftime(fmt)
+        return str(valor)
+
     @app.errorhandler(404)
     def no_encontrado(e):
         return render_template("404.html"), 404

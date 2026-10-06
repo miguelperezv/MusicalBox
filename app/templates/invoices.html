@@ -31,7 +31,7 @@
                         {{ i.id }}
                         {% if i.mp_payment_id %}<br><small class="text-body-secondary" title="ID de pago de MercadoPago">MP: {{ i.mp_payment_id }}</small>{% endif %}
                     </td>
-                    <td class="text-nowrap">{{ i.f_compra.strftime('%d/%m/%Y %H:%M') if i.f_compra }}</td>
+                    <td class="text-nowrap">{{ i.f_compra|fecha_co('%d/%m/%Y %H:%M') if i.f_compra }}</td>
                     <td><span class="mb-estado mb-estado-{{ i.estado }}">{{ i.estado }}</span>{% if i.metodo_pago %}<br><small class="text-body-secondary">{{ i.metodo_pago }}</small>{% endif %}</td>
                     <td>
                         <div class="d-flex align-items-start gap-1 flex-wrap">
@@ -67,8 +67,12 @@
                            href="{{ url_for('dashboard.pedido_rotulo', k_invoice=i.id) }}"><i class="bi bi-printer me-1"></i>Rótulo</a>
                         {% else %}
                         <span class="text-body-secondary small">—</span>
-                        {% if i.estado == 'PENDIENTE' %}<button type="button" class="btn btn-sm btn-outline-danger mt-1" data-rechazar data-id="{{ i.id }}"
-                            data-url="{{ url_for('dashboard.pedido_rechazar', k_invoice=i.id) }}"><i class="bi bi-x-lg me-1"></i>Rechazar</button>{% endif %}
+                        {% if i.estado == 'PENDIENTE' %}
+                        <button type="button" class="btn btn-sm btn-outline-danger mt-1" data-rechazar data-id="{{ i.id }}"
+                            data-url="{{ url_for('dashboard.pedido_rechazar', k_invoice=i.id) }}"><i class="bi bi-x-lg me-1"></i>Rechazar</button>
+                        <button type="button" class="btn btn-sm btn-outline-danger mt-1 ms-1" data-eliminar data-id="{{ i.id }}"
+                            data-url="{{ url_for('dashboard.invoice_eliminar', id=i.id) }}" title="Eliminar pedido pendiente"><i class="bi bi-trash me-1"></i>Eliminar</button>
+                        {% endif %}
                         {% endif %}
                         {% if i.estado in ('PENDIENTE', 'PAGADO') and i.estado_envio not in ('ENVIADO', 'ENTREGADO') %}
                         <form class="envio-override mt-1" data-url="{{ url_for('dashboard.pedido_costo_envio', k_invoice=i.id) }}">
@@ -117,5 +121,14 @@
                 f.closest('tr').find('.total-pago').text('$' + Number(r.total_pago).toLocaleString('es-CO'));
             })
             .fail(function (x) { alert((x.responseJSON || {}).error || 'No se pudo actualizar el costo de envío'); });
+    });
+
+    // Eliminar pedido pendiente
+    $(document).on('click', '[data-eliminar]', function () {
+        var btn = $(this);
+        if (!confirm('¿Eliminar este pedido PENDIENTE? Se liberará el stock reservado.')) return;
+        $.post(btn.data('url'))
+            .done(function () { btn.closest('tr').fadeOut(); })
+            .fail(function (x) { alert((x.responseJSON || {}).error || 'No se pudo eliminar'); });
     });
 </script>

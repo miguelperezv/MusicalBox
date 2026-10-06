@@ -21,7 +21,7 @@
                         </div>
                     </td>
                     <td class="small text-nowrap fecha-celda" data-id="{{ l.id }}" data-valor="{{ l.f_lanzamiento.isoformat() if l.f_lanzamiento else '' }}"
-                        title="Clic para cambiar la fecha">{{ l.f_lanzamiento.strftime('%d/%m/%Y') if l.f_lanzamiento else '' }}</td>
+                        title="Clic para cambiar la fecha">{{ l.f_lanzamiento|fecha_co('%d/%m/%Y') if l.f_lanzamiento else '' }}</td>
                     <td class="text-center">{{ f.productos }}</td>
                     <td class="pe-3 text-end text-nowrap">
                         <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('releases.release', k_lanzamiento=l.id) }}" target="_blank" title="Ver en la tienda"><i class="bi bi-box-arrow-up-right"></i></a>

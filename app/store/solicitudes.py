@@ -125,10 +125,6 @@ def estado(id):
     return jsonify({"error": "No se pudo actualizar la solicitud"}), 400
 
 
-def _precio_cop(valor):
-    return "${:,}".format(int(valor)).replace(",", ".")
-
-
 def _respuesta_cotizar(s, token):
     #el enlace solo se puede ver ahora (en la BD queda su hash); se envía al cliente por WhatsApp o correo
     enlace = url_for('solicitud.confirmar', token=token, _external=True)
@@ -330,3 +326,17 @@ def confirmar(token):
     return render_template("checkout.html", form=form, lineas=lineas_vista, total=total,
                            accion=url_for('solicitud.confirmar', token=token), previos=previos, solicitud=s,
                            cats="|".join(f"{k}:{v}" for k, v in sorted(cats.items())))
+
+
+@solicitud.route("/<int:id>/eliminar", methods=["POST"])
+@admin_required
+def eliminar(id):
+    s = db.session.get(Solicitud, id)
+    if not s:
+        return jsonify({"error": "Solicitud no encontrada"}), 404
+    # Solo permitir eliminar si no está comprada
+    if s.estado == 'COMPRADA':
+        return jsonify({"error": "No se puede eliminar una solicitud ya comprada"}), 400
+    db.session.delete(s)
+    db.session.commit()
+    return jsonify({"ok": True})

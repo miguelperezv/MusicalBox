@@ -21,7 +21,7 @@
     </div>
 
     <header class="mb-page-header">
-        <span class="mb-eyebrow">Pedido #{{ pedido.id }} · {{ pedido.f_compra.strftime('%d/%m/%Y %H:%M') if pedido.f_compra }}</span>
+        <span class="mb-eyebrow">Pedido #{{ pedido.id }} · {{ pedido.f_compra|fecha_co('%d/%m/%Y %H:%M') if pedido.f_compra }}</span>
         <h1 class="mt-1"><i class="bi {{ info[0] }} {{ info[1] }} me-2"></i>{{ info[2] }}</h1>
         {% if pedido.estado == 'PAGADO' %}
         <p class="text-body-secondary mb-0">Gracias por tu compra, {{ (pedido.n_envio or '').split(' ')[0] }}. Preparamos tu pedido en 1–2 días hábiles, te confirmamos la dirección y, al salir, recibes el número de seguimiento por correo a <strong>{{ pedido.email_envio }}</strong> y en este mismo enlace.</p>

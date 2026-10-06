@@ -247,7 +247,7 @@
                                     {% for i in stats.ultimas_ordenes %}
                                     <tr>
                                         <td class="text-body-secondary">#{{ i.id }}</td>
-                                        <td>{{ i.n_envio or (i.usuario.n_usuario if i.usuario) }}<br><small class="text-body-secondary">{{ i.f_compra.strftime('%d/%m/%Y') if i.f_compra }}</small></td>
+                                        <td>{{ i.n_envio or (i.usuario.n_usuario if i.usuario) }}<br><small class="text-body-secondary">{{ i.f_compra|fecha_co('%d/%m/%Y') if i.f_compra }}</small></td>
                                         <td class="text-end"><span class="fw-semibold">{{ i.total|cop }}</span><br>
                                             <span class="mb-estado mb-estado-{{ i.estado }}">{{ i.estado }}</span>
                                             {% if i.estado == 'PAGADO' %}<br><small class="text-body-secondary text-nowrap">{{ i.estado_envio }}</small>
