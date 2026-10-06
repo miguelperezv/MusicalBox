@@ -57,12 +57,16 @@ def _ck(chat_id):
 
 def _markup(botones):
     #cada botón en su propia fila; url -> enlace, callback -> respuesta del bot, copy_text -> botón copiar
+    #copy_text máx 256 chars (API Telegram)
     filas = []
     for b in botones or []:
         if b.get("url"):
             filas.append([{"text": b["texto"], "url": b["url"]}])
         elif b.get("copy_text"):
-            filas.append([{"type": "copy_text", "text": b["texto"], "copy_text": {"text": b["copy_text"]["text"]}}])
+            txt = b["copy_text"]["text"]
+            if len(txt) > 256:
+                txt = txt[-256:]  # mantener la cola (link + total)
+            filas.append([{"type": "copy_text", "text": b["texto"], "copy_text": {"text": txt}}])
         else:
             filas.append([{"text": b["texto"], "callback_data": b["callback"]}])
     return {"inline_keyboard": filas} if filas else None
