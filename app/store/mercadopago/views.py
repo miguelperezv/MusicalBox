@@ -298,7 +298,7 @@ def process_payment():
     current_app.logger.info("[MP] Enviando solicitud de pago a MercadoPago")
     current_app.logger.info(f"[MP] Datos enviados a MP: {payment_data}")
     
-    # Implementar reintentos para errores 424
+    # Implementar reintentos para errores 424 y 500
     max_retries = 3
     retry_delay = 1  # segundos
     
@@ -315,13 +315,14 @@ def process_payment():
             if mp_http_status < 500 or mp_http_status in [400, 401, 403, 404]:
                 break
                 
-            # Si es error 424 (BankTransfers Api fail), esperar y reintentar
-            if mp_http_status == 424:
-                current_app.logger.warning(f"[MP] Error 424 en intento {attempt + 1}, reintentando en {retry_delay} segundos...")
-                if attempt < max_retries - 1:  # No esperar después del último intento
+            # Si es error 424 (BankTransfers Api fail) o 500 (internal_error), esperar y reintentar
+            if mp_http_status in [424, 500]:
+                cause = mp_body.get("cause", [])
+                current_app.logger.warning(f"[MP] Error {mp_http_status} en intento {attempt + 1}, cause: {cause}")
+                if attempt < max_retries - 1:
                     import time
                     time.sleep(retry_delay)
-                    retry_delay *= 2  # Backoff exponencial
+                    retry_delay *= 2
                 continue
                 
             break  # Otros errores, no reintentar
@@ -333,7 +334,6 @@ def process_payment():
                 time.sleep(retry_delay)
                 retry_delay *= 2
             else:
-                # Último intento falló, devolver error
                 return jsonify({
                     "error": "Error de conexión con MercadoPago",
                     "details": str(e)
@@ -370,6 +370,17 @@ def process_payment():
             "mp_response": mp_body,
             "retryable": True
         }), 424
+    elif mp_http_status == 500:
+        # Error interno de MercadoPago (común en sandbox)
+        cause = mp_body.get("cause", [])
+        current_app.logger.error(f"[MP] Error 500 - internal_error para pedido {inv.id}, cause: {cause}")
+        
+        return jsonify({
+            "error": "Error temporal de MercadoPago. Por favor intenta de nuevo en unos minutos o elige otro medio de pago.",
+            "mp_status": mp_http_status,
+            "mp_response": mp_body,
+            "retryable": True
+        }), 500
     elif payment_method_id == "pse" and mp_body.get("status") == "in_process":
         current_app.logger.info(f"[MP-PSE] Pago PSE en proceso para pedido {inv.id}")
         # Para PSE, el estado puede quedar en "in_process" temporalmente
