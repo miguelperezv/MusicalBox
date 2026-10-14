@@ -149,13 +149,6 @@
                     <p class="small text-body-secondary mt-2"><i class="bi bi-info-circle me-1"></i>Tus datos de tarjeta los procesa <strong>MercadoPago (certificado PCI DSS Nivel 1)</strong>. MusicalBox nunca ve tu número de tarjeta.</p>
                 </div>
                 {% endif %}
-
-                <h2 class="h6"><i class="bi bi-link-45deg me-1"></i>Enlace de seguimiento</h2>
-                <p class="small text-body-secondary">Guárdalo: con este enlace puedes ver tu pedido en cualquier momento, sin contraseña. No lo compartas.</p>
-                <div class="input-group input-group-sm">
-                    <input class="form-control" id="enlace-pedido" value="{{ url_for('pedido.ver', token=token, _external=True) }}" readonly aria-label="Enlace del pedido">
-                    <button class="btn btn-outline-secondary" type="button" id="copiar-enlace"><i class="bi bi-clipboard"></i> Copiar</button>
-                </div>
             </div>
         </div>
     </div>
@@ -182,6 +175,7 @@
   if (typeof MercadoPago === 'undefined') {
     console.error('[MP] SDK de MercadoPago no se cargó correctamente');
     alert('Error al cargar el SDK de MercadoPago. Por favor, recargue la página.');
+    return; // Salir si MercadoPago no está definido
   }
   
   // Variables del pedido
@@ -201,7 +195,12 @@
   
   // Función para abrir el modal de MercadoPago
   async function openMpModal() {
-    document.getElementById("mpModal").style.display = "block";
+    const modal = document.getElementById("mpModal");
+    if (!modal) {
+      console.error('[MP] Elemento mpModal no encontrado');
+      return;
+    }
+    modal.style.display = "block";
     
     try {
       // Obtener contexto del pago
@@ -209,7 +208,19 @@
       
       // Inicializar MercadoPago
       const mp = new MercadoPago(MP_PUBLIC_KEY, { locale: "es-CO" });
+      if (!mp) {
+        console.error('[MP] Error al inicializar MercadoPago');
+        alert('Error al inicializar MercadoPago. Por favor, recargue la página.');
+        closeMpModal();
+        return;
+      }
       const bricksBuilder = mp.bricks();
+      if (!bricksBuilder) {
+        console.error('[MP] Error al obtener bricksBuilder');
+        alert('Error al obtener bricksBuilder. Por favor, recargue la página.');
+        closeMpModal();
+        return;
+      }
       
       // Configuración del Payment Brick
       const settings = {
@@ -301,11 +312,17 @@
       };
       
       // Crear el Payment Brick
-      brickController = await bricksBuilder.create(
-        "payment",
-        "paymentBrick_container",
-        settings
-      );
+      if (typeof bricksBuilder !== 'undefined') {
+        brickController = await bricksBuilder.create(
+          "payment",
+          "paymentBrick_container",
+          settings
+        );
+      } else {
+        console.error('[MP] bricksBuilder no está definido');
+        alert('Error al inicializar el Payment Brick. Por favor, recargue la página.');
+        closeMpModal();
+      }
     } catch (error) {
       console.error("[MP] Error al abrir el modal:", error);
       alert("Error al abrir el modal de pago: " + error.message);
@@ -316,10 +333,14 @@
 // Función para cerrar el modal
   async function closeMpModal() {
     const modal = document.getElementById("mpModal");
-    modal.style.display = "none";
-    modal.classList.remove("show");
+    if (modal) {
+      modal.style.display = "none";
+      modal.classList.remove("show");
+    }
     document.body.style.overflow = "";
-    if (brickController?.unmount) await brickController.unmount();
+    if (brickController && typeof brickController.unmount === 'function') {
+      await brickController.unmount();
+    }
     brickController = null;
   }
   
@@ -335,6 +356,11 @@
   
   // Event listeners
   document.getElementById("btnOpenMp").addEventListener("click", function() {
+    if (typeof MercadoPago === 'undefined') {
+      console.error('[MP] SDK de MercadoPago no se cargó correctamente');
+      alert('Error al cargar el SDK de MercadoPago. Por favor, recargue la página.');
+      return;
+    }
     showMpModal();
     openMpModal();
   });
