@@ -3,6 +3,14 @@ from flask_wtf.csrf import CSRFProtect
 from .db import db, ma, migrate
 import os
 
+from dotenv import load_dotenv
+
+# Cargar variables de entorno desde .env ANTES de importar config
+# Esto asegura que las variables de entorno (incluyendo MERCADOPAGO_PUBLIC_KEY) estén disponibles
+env_path = '/Users/migue/Documents/MusicalBox/.env'
+if os.path.exists(env_path):
+    load_dotenv(dotenv_path=env_path, override=True)
+
 import click
 from .config import CONFIGS, DevelopmentConfig
 from .store.views import home, dashboard, releases, artists, purchase, products
