@@ -374,10 +374,7 @@
     if (e.key === "Escape") closeMpModal();
   });
   
-  document.getElementById('copiar-enlace').addEventListener('click', function () {
-    var input = document.getElementById('enlace-pedido');
-    navigator.clipboard.writeText(input.value).then(() => { this.innerHTML = '<i class="bi bi-check2"></i> Copiado'; });
-  });
+  
 </script>
 
 <!-- Estilos del modal MP (mobile fullscreen) -->
