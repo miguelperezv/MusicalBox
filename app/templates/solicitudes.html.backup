@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+
+{% block title %}Pedidos a la medida{% endblock %}
+
+{% block contenido %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <h1 class="h3 mb-0">Pedidos a la medida</h1>
+        <div class="small text-body-secondary">Cotiza cada ítem, genera el enlace y envíaselo por WhatsApp.</div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <input class="form-control form-control-sm" style="width: 240px" type="search" id="filtro-solicitudes" placeholder="Filtrar por producto, contacto...">
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-nuevo-medida"><i class="bi bi-plus-lg me-1"></i>Nuevo pedido a la medida</button>
+    </div>
+</div>
+
+<!-- Filtros chips -->
+<div class="d-flex flex-wrap gap-2 mb-3" data-grupo-solicitudes role="group" aria-label="Filtrar solicitudes">
+    <button type="button" class="chip-filtro btn btn-sm btn-primary active" data-filtra="solicitudes" data-filtro="por_cotizar">🔥 Por cotizar <span class="badge text-bg-light text-dark">{{ conteos.por_cotizar or 0 }}</span></button>
+    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="solicitudes" data-filtro="otras">Otras <span class="badge text-bg-secondary">{{ conteos.otras or 0 }}</span></button>
+    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="solicitudes" data-filtro="todas">Todas <span class="badge text-bg-secondary">{{ solicitudes|length }}</span></button>
+</div>
+
+<p class="small text-body-secondary">El precio es obligatorio; el producto del catálogo y el lanzamiento son opcionales (el lanzamiento da la portada en el mensaje y en la orden). Puedes escribir el disco a mano o buscarlo: si no existe, se crea.</p>
+
+<!-- PRIORIDAD 1: Por cotizar (ACTIVO, EN PROCESO) -->
+<div class="mb-panel p-0 mb-3" id="seccion-por-cotizar">
+    <div class="mb-panel-header bg-warning-subtle border-bottom">
+        <h2 class="h5 mb-0 p-3"><i class="bi bi-fire text-warning me-2"></i>🔥 Por cotizar <span class="badge text-bg-warning text-dark">{{ conteos.por_cotizar or 0 }}</span> — Requieren tu acción</h2>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" id="tabla-por-cotizar">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-3" style="width: 44px">#</th>
+                    <th style="width: 96px">Fecha</th>
+                    <th style="min-width: 210px">Pedido</th>
+                    <th style="min-width: 160px">Contacto</th>
+                    <th style="width: 140px">Estado</th>
+                    <th class="pe-3" style="min-width: 190px">Cotización</th>
+                </tr>
+            </thead>
+            <tbody id="tbody-por-cotizar">
+                {% for s, items, cats_cot in solicitudes if s.estado in ['ACTIVO', 'EN PROCESO'] %}
+                {% include 'solicitudes/_fila_solicitud.html' %}
+                {% else %}
+                <tr><td colspan="6" class="mb-empty text-center py-4"><i class="bi bi-check-circle-fill text-success fs-1"></i><br>¡Todo cotizado! No hay solicitudes pendientes de precio.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- PRIORIDAD 2: Otras (COTIZADA, COMPRADA, CANCELADA) - Acordeón colapsado -->
+<div class="mb-panel p-0" id="seccion-otras">
+    <div class="mb-panel-header bg-light border-bottom">
+        <button class="btn btn-link text-decoration-none d-flex align-items-center justify-content-between p-3 w-100" type="button" data-bs-toggle="collapse" data-bs-target="#acordeon-otras" aria-expanded="false" aria-controls="acordeon-otras">
+            <span class="fw-semibold"><i class="bi bi-archive me-2"></i>Otras <span class="badge text-bg-secondary">{{ conteos.otras or 0 }}</span></span>
+            <i class="bi bi-chevron-down fs-5"></i>
+        </button>
+    </div>
+    <div class="collapse" id="acordeon-otras">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="tabla-otras">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-3" style="width: 44px">#</th>
+                        <th style="width: 96px">Fecha</th>
+                        <th style="min-width: 210px">Pedido</th>
+                        <th style="min-width: 160px">Contacto</th>
+                        <th style="width: 140px">Estado</th>
+                        <th class="pe-3" style="min-width: 190px">Cotización</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-otras">
+                    {% for s, items, cats_cot in solicitudes if s.estado not in ['ACTIVO', 'EN PROCESO'] %}
+                    {% include 'solicitudes/_fila_solicitud.html' %}
+                    {% else %}
+                    <tr><td colspan="6" class="mb-empty text-center py-4">Sin solicitudes en esta sección.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<p class="small text-body-secondary">El precio es obligatorio; el producto del catálogo y el lanzamiento son opcionales (el lanzamiento da la portada en el mensaje y en la orden). Puedes escribir el disco a mano o buscarlo: si no existe, se crea.</p>
+
+<!-- Fila parcial para include -->
+{# Esta parte se usa via {% include %} en los dos tbody #}
+{# Se define aquí como template block para que el include funcione #}
+{% macro fila_solicitud(s, items, cats_cot) %}
+<tr data-est="{{ s.estado }}">
+    <td class="ps-3 text-body-secondary">{{ s.id }}</td>
+    <td class="text-nowrap">{{ s.f_solicitud|fecha_co('%d/%m/%Y') if s.f_solicitud }}</td>
+    <td>
+        <div class="fw-semibold text-truncate" style="max-width: 260px">{{ items[0].nombre }}</div>
+        <div class="d-flex gap-1 flex-wrap mt-1">
+            {% if items|length > 1 %}<span class="mb-chip small">+{{ items|length - 1 }} ítem{{ 's' if items|length > 2 }}</span>{% endif %}
+            {% for it in items %}{% if it.categoria and loop.index0 < 3 %}<span class="mb-chip small">{{ it.categoria }}</span>{% endif %}{% endfor %}
+        </div>
+        {% if items[0].descripcion %}<div class="small text-body-secondary text-truncate" style="max-width: 260px">{{ items[0].descripcion }}</div>{% endif %}
+    </td>
+    <td class="small">
+        {% set cel = s.cel_contacto or (s.usuario.cel_usuario if s.usuario) %}
+        {% if s.usuario %}<div class="fw-semibold">{{ s.usuario.n_usuario }} {{ s.usuario.ape_usuario }}</div>{% endif %}
+        {% if s.lugar_solicitud %}<i class="bi bi-geo-alt me-1 text-body-secondary"></i>{{ s.lugar_solicitud }}<br>{% endif %}
+        {% if cel %}<a href="https://wa.me/57{{ cel|replace(' ', '') }}" target="_blank" rel="noopener"><i class="bi bi-whatsapp me-1 text-success"></i>{{ cel }}</a><br>{% endif %}
+        {% set correo = s.email_contacto or (s.usuario.email_usuario if s.usuario) %}
+        {% if correo %}<a href="mailto:{{ correo }}">{{ correo }}</a>{% endif %}
+    </td>
+    <td>
+        {% if s.estado == 'COMPRADA' %}
+        <span class="mb-estado mb-estado-PAGADO">COMPRADA</span>
+        {% else %}
+        <select class="form-select form-select-sm estado-solicitud" data-id="{{ s.id }}" aria-label="Estado de la solicitud {{ s.id }}">
+            {% for e in (estados if s.estado in estados else estados + [s.estado]) %}
+            <option value="{{ e }}" {% if e == s.estado %}selected{% endif %}>{{ e }}</option>
+            {% endfor %}
+        </select>
+        {% if s.estado != 'COMPRADA' %}
+        <button type="button" class="btn btn-sm btn-outline-danger mt-1" data-eliminar-sol data-id="{{ s.id }}"
+            data-url="{{ url_for('solicitud.eliminar', id=s.id) }}" title="Eliminar solicitud"><i class="bi bi-trash me-1"></i>Eliminar</button>
+        {% endif %}
+        {% endif %}
+    </td>
+    <td class="pe-3">
+        {% if s.pedido %}
+        <a href="#" class="text-decoration-none" data-load="{{ url_for('dashboard.invoices', busca=s.pedido.id) }}" title="Ver la orden"><i class="bi bi-box me-1"></i>Orden #{{ s.pedido.id }}</a>
+        <div class="small mt-1"><span class="mb-estado mb-estado-{{ s.pedido.estado }}">{{ s.pedido.estado }}</span> · {{ s.pedido.total|cop }}</div>
+        {% elif s.estado in ['ACTIVO', 'EN PROCESO', 'COTIZADA'] %}
+        {% if s.total_cotizado %}<div class="small mb-1">Total <strong>{{ s.total_cotizado|cop }}</strong>{% if s.d_cotizacion %} · <span class="text-body-secondary">{{ s.d_cotizacion }}</span>{% endif %}</div>{% endif %}
+        <button type="button" class="btn btn-sm {{ 'btn-primary' if not s.total_cotizado else 'btn-outline-primary' }} btn-cotizar" data-id="{{ s.id }}" data-contacto="{{ (s.usuario.n_usuario if s.usuario else s.cel_contacto) or '' }}">
+            <i class="bi {{ 'bi-cash-stack' if not s.total_cotizado else 'bi-link-45deg' }} me-1"></i>{{ 'Cotizar' if not s.total_cotizado else 'Nuevo enlace' }}
+        </button>
+        {% else %}
+        <span class="text-body-secondary">—</span>
+        {% endif %}
+    </td>
+</tr>
+{% endmacro %}
+
+<script>
+// Filtro de chips para solicitudes
+var grupo = document.querySelector('[data-grupo-solicitudes]');
+if (!grupo) return;
+var chips = grupo.querySelectorAll('.chip-filtro');
+var secciones = {
+    'por_cotizar': document.getElementById('seccion-por-cotizar'),
+    'otras': document.getElementById('seccion-otras'),
+};
+var tbodyMap = {
+    'por_cotizar': document.getElementById('tbody-por-cotizar'),
+    'otras': document.getElementById('tbody-otras'),
+};
+
+function aplicarFiltro(filtro) {
+    document.querySelectorAll('[data-grupo-solicitudes] .chip-filtro').forEach(function (b) {
+        var activo = b.dataset.filtro === filtro;
+        b.classList.toggle('active', activo);
+        b.classList.toggle('btn-primary', activo && filtro === 'por_cotizar');
+        b.classList.toggle('btn-outline-secondary', !activo || filtro !== 'por_cotizar');
+    });
+
+    Object.keys({por_cotizar:1, otras:1}).forEach(function (key) {
+        var sec = document.getElementById('seccion-' + (key === 'por_cotizar' ? 'por-cotizar' : key));
+        if (!sec) return;
+        var mostrar = (filtro === 'todas') || (filtro === key);
+        if (mostrar) sec.style.display = ''; else sec.style.display = 'none';
+    });
+}
+
+document.querySelectorAll('[data-grupo-solicitudes] .chip-filtro').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+        grupo.querySelectorAll('.chip-filtro').forEach(function (b) {
+            b.classList.remove('active', 'btn-primary');
+            b.classList.add('btn-outline-secondary');
+        });
+        this.classList.add('active');
+        if (this.dataset.filtro === 'por_cotizar') this.classList.add('btn-primary');
+        this.classList.remove('btn-outline-secondary');
+        aplicarFiltro(this.dataset.filtro);
+    });
+});
+
+var buscador = document.getElementById('filtro-solicitudes');
+if (buscador) {
+    buscador.addEventListener('input', function () {
+        var q = this.value.trim().toLowerCase();
+        document.querySelectorAll('#tbody-por-cotizar tr, #tbody-otras tr').forEach(function (tr) {
+            if (tr.querySelector('td[colspan]')) return;
+            var ok = tr.textContent.toLowerCase().indexOf(q) !== -1;
+            tr.classList.toggle('d-none', !ok);
+        });
+    });
+}
+
+// Eliminar solicitud
+document.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-eliminar-sol]');
+    if (!btn) return;
+    console.log('[solicitudes] btn-eliminar clicked', { id: btn.dataset.id, url: btn.dataset.url });
+    if (!confirm('¿Eliminar esta solicitud? No se puede deshacer.')) return;
+    fetch(btn.dataset.url, { method: 'POST' })
+        .then(function (r) { 
+            console.log('[solicitudes] delete response', { ok: r.ok, status: r.status });
+            if (r.ok) btn.closest('tr').remove(); 
+            else return r.json().then(function (e) { throw new Error(e.error || 'Error'); }); 
+        })
+        .catch(function (e) { console.error('[solicitudes] delete error', e); alert(e.message); });
+});
+</script>
+
+<!-- Modal Cotizar -->
+<div class="modal fade" id="modalCotizar" tabindex="-1" aria-labelledby="modalCotizarLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="modalCotizarLabel"><i class="bi bi-cash-stack me-2"></i>Cotizar solicitud</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body" id="modalCotizarBody"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btnGuardarCotizar">Guardar cotización</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Cotizar modal handling - loads content from server
+var modalEl = document.getElementById('modalCotizar');
+if (!modalEl) {
+    // Modal no existe en esta página
+} else {
+    var modal = new bootstrap.Modal(modalEl);
+    var body = document.getElementById('modalCotizarBody');
+    var btnGuardar = document.getElementById('btnGuardarCotizar');
+    var currentSolicitudId = null;
+
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.btn-cotizar');
+        if (!btn) return;
+        console.log('[solicitudes] btn-cotizar clicked', { id: btn.dataset.id, contacto: btn.dataset.contacto });
+        currentSolicitudId = btn.dataset.id;
+        body.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div><p class="mt-2">Cargando formulario de cotización...</p></div>';
+        modal.show();
+
+        fetch('{{ url_for("solicitud.cotizar_modal", id=0) }}'.replace('/0', '/' + currentSolicitudId) + '?_=' + Date.now())
+            .then(function (r) {
+                console.log('[solicitudes] cotizar_modal response', { status: r.status, ok: r.ok });
+                return r.text();
+            })
+            .then(function (html) {
+                console.log('[solicitudes] modal HTML loaded', { length: html.length });
+                body.innerHTML = html;
+
+                if (window.mbAutocomplete) {
+                    body.querySelectorAll('[data-autocomplete]').forEach(function (el) {
+                        window.mbAutocomplete(el);
+                    });
+                }
+
+                var lugar = body.querySelector('.cotizar-items')?.dataset.lugar;
+                var cats = body.querySelector('.cotizar-items')?.dataset.cats;
+                var totalInput = body.querySelector('.cot-total');
+                var envioInput = body.querySelector('[name="p_envio"]');
+                var envioEst = body.querySelector('.cot-envio-est');
+
+                function recalcularTotal() {
+                    var total = 0;
+                    body.querySelectorAll('.cot-item').forEach(function (item) {
+                        var precio = parseInt(item.querySelector('[name$="_precio"]').value, 10) || 0;
+                        var cant = parseInt(item.querySelector('[name$="_cantidad"]').value, 10) || 1;
+                        var retirado = item.querySelector('[name$="_retirar"]')?.checked;
+                        if (!retirado) total += precio * cant;
+                    });
+                    if (totalInput) totalInput.textContent = '$' + total.toLocaleString('es-CO');
+                    if (envioInput && lugar) {
+                        var p_envio = parseInt(envioInput.value, 10);
+                        if (!isNaN(p_envio) && p_envio > 0) {
+                            if (envioEst) envioEst.textContent = 'Envío fijado: $' + p_envio.toLocaleString('es-CO');
+                        } else if (lugar) {
+                            var q = new URLSearchParams({ ciudad: lugar, total: total, cats: cats, _: Date.now() });
+                            fetch('{{ url_for("purchase.costo_envio_vista") }}?' + q.toString())
+                                .then(function (r) { return r.json(); })
+                                .then(function (d) {
+                                    if (d.p_envio == null) {
+                                        if (envioEst) envioEst.textContent = 'Envío: se coordina al pagar';
+                                    } else if (Number(d.p_envio) === 0) {
+                                        if (envioEst) envioEst.textContent = '¡Envío gratis!';
+                                    } else {
+                                        if (envioEst) envioEst.textContent = 'Envío estimado: $' + Number(d.p_envio).toLocaleString('es-CO');
+                                    }
+                                });
+                        }
+                    }
+                }
+
+                body.querySelectorAll('[name$="_precio"], [name$="_cantidad"], [name$="_retirar"]').forEach(function (el) {
+                    el.addEventListener('input', recalcularTotal);
+                    el.addEventListener('change', recalcularTotal);
+                });
+                if (envioInput) envioInput.addEventListener('input', recalcularTotal);
+                recalcularTotal();
+            });
+    });
+
+    btnGuardar.addEventListener('click', function () {
+        if (!currentSolicitudId) return;
+        var form = body.querySelector('.cotizar-items');
+        if (!form) return;
+        var formData = new FormData(form);
+        formData.append('csrf_token', document.querySelector('meta[name="csrf-token"]')?.content || '');
+        console.log('[solicitudes] Guardar cotización', { id: currentSolicitudId });
+        btnGuardar.disabled = true;
+        btnGuardar.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+        fetch('{{ url_for("solicitud.cotizar", id=0) }}'.replace('/0', '/' + currentSolicitudId) + '?_=' + Date.now(), {
+            method: 'POST',
+            body: formData
+        })
+        .then(function (r) {
+            console.log('[solicitudes] cotizar POST response', { status: r.status, ok: r.ok });
+            return r.json();
+        })
+        .then(function (data) {
+            console.log('[solicitudes] cotizar result', data);
+            if (data.error) {
+                var errDiv = body.querySelector('#cotizar-error');
+                if (errDiv) errDiv.textContent = data.error;
+                throw new Error(data.error);
+            }
+            modal.hide();
+            location.reload();
+        })
+        .catch(function (e) {
+            console.error(e);
+        })
+        .finally(function () {
+            btnGuardar.disabled = false;
+            btnGuardar.innerHTML = 'Guardar cotización';
+        });
+    });
+}
+</script>
+{% endblock %}

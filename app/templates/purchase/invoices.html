@@ -1,0 +1,194 @@
+{% extends "dashboard/base_admin.html" %}
+
+{% block title %}Órdenes y ventas{% endblock %}
+
+{% block contenido %}
+<div class="row">
+    <div class="col-lg-3 mb-4 mb-lg-0">
+        <div class="list-group">
+            <a href="{{ url_for('dashboard.solicitudes') }}" class="list-group-item list-group-item-action">
+                <i class="bi bi-music-note-list me-2"></i>Pedidos a la medida
+            </a>
+            <a href="{{ url_for('dashboard.invoices') }}" class="list-group-item list-group-item-action active">
+                <i class="bi bi-receipt me-2"></i>Órdenes y ventas
+            </a>
+            <a href="{{ url_for('dashboard.products') }}" class="list-group-item list-group-item-action">
+                <i class="bi bi-disc me-2"></i>Productos
+            </a>
+            <a href="{{ url_for('dashboard.releases') }}" class="list-group-item list-group-item-action">
+                <i class="bi bi-calendar-event me-2"></i>Lanzamientos
+            </a>
+            <a href="{{ url_for('dashboard.users') }}" class="list-group-item list-group-item-action">
+                <i class="bi bi-people me-2"></i>Usuarios
+            </a>
+            <a href="{{ url_for('dashboard.admins') }}" class="list-group-item list-group-item-action">
+                <i class="bi bi-shield-lock me-2"></i>Administradores
+            </a>
+        </div>
+    </div>
+    
+    <div class="col-lg-9">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3 mb-0">Órdenes y ventas</h1>
+            <div class="d-flex gap-2">
+                <input type="search" class="form-control form-control-sm" style="width: 240px" id="filtro-invoices" placeholder="Filtrar por cliente, producto...">
+            </div>
+        </div>
+        
+        <!-- Sección: Requieren envío (verde) -->
+        <div class="mb-panel mb-4">
+            <div class="mb-panel-header">
+                <h2 class="h5 mb-0">Requieren envío</h2>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3" style="width: 44px">#</th>
+                            <th style="width: 96px">Fecha</th>
+                            <th style="min-width: 210px">Cliente</th>
+                            <th style="min-width: 160px">Productos</th>
+                            <th style="width: 140px">Total</th>
+                            <th class="pe-3" style="width: 140px">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-invoices">
+                        {% for o in invoices %}
+                        {% include 'invoices/_fila_invoice.html' %}
+                        {% else %}
+                        <tr><td colspan="6" class="mb-empty text-center py-4">No hay órdenes</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Sección: Entregados (acordeón colapsado) -->
+        <div class="mb-panel p-0" id="acordeon-entregados">
+            <div class="mb-panel-header bg-light border-bottom">
+                <button class="btn btn-link text-decoration-none d-flex align-items-center justify-content-between p-3 w-100" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-entregados" aria-expanded="false" aria-controls="collapse-entregados">
+                    <span class="fw-semibold"><i class="bi bi-check-circle me-2"></i>Entregados <span class="badge text-bg-secondary">{{ entregados|count }}</span></span>
+                    <i class="bi bi-chevron-down fs-5"></i>
+                </button>
+            </div>
+            <div class="collapse" id="collapse-entregados">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3" style="width: 44px">#</th>
+                                <th style="width: 96px">Fecha</th>
+                                <th style="min-width: 210px">Cliente</th>
+                                <th style="min-width: 160px">Productos</th>
+                                <th style="width: 140px">Total</th>
+                                <th class="pe-3" style="width: 140px">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for o in entregados %}
+                            {% include 'invoices/_fila_invoice.html' %}
+                            {% else %}
+                            <tr><td colspan="6" class="mb-empty text-center py-4">No hay órdenes entregadas</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sección: Pendientes + Rechazados (acordeón colapsado) -->
+        <div class="mb-panel p-0" id="acordeon-pendientes">
+            <div class="mb-panel-header bg-light border-bottom">
+                <button class="btn btn-link text-decoration-none d-flex align-items-center justify-content-between p-3 w-100" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-pendientes" aria-expanded="false" aria-controls="collapse-pendientes">
+                    <span class="fw-semibold"><i class="bi bi-clock me-2"></i>Pendientes <span class="badge text-bg-warning">{{ pendientes|count }}</span></span>
+                    <i class="bi bi-chevron-down fs-5"></i>
+                </button>
+            </div>
+            <div class="collapse" id="collapse-pendientes">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3" style="width: 44px">#</th>
+                                <th style="width: 96px">Fecha</th>
+                                <th style="min-width: 210px">Cliente</th>
+                                <th style="min-width: 160px">Productos</th>
+                                <th style="width: 140px">Total</th>
+                                <th class="pe-3" style="width: 140px">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for o in pendientes %}
+                            {% include 'invoices/_fila_invoice.html' %}
+                            {% else %}
+                            <tr><td colspan="6" class="mb-empty text-center py-4">No hay órdenes pendientes</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <p class="small text-body-secondary">Usa los filtros arriba para encontrar rápidamente lo que necesitas.</p>
+    </div>
+</div>
+
+<!-- Fila parcial para include -->
+{# Esta parte se usa via {% include %} en los tbody #}
+{# Se define aquí como template block para que el include funcione #}
+{% macro fila_invoice(o) %}
+<tr data-est="{{ o.estado }}">
+    <td class="ps-3 text-body">{{ o.id }}</td>
+    <td class="text-nowrap">{{ o.fecha_ora or o.fecha_venta or '' }}</td>
+    <td>
+        <div class="fw-semibold">{{ o.cliente_nombre or o.cliente_nombre or '' }}</div>
+        <div class="d-flex gap-1 flex-wrap mt-1">
+            {% for item in o.items %}
+            <span class="mb-chip small">{{ item.nombre }}</span>
+            {% endfor %}
+        </div>
+        {% if o.descripcion %}<div class="small text-body-secondary text-truncate" style="max-width: 260px">{{ o.descripcion }}</div>{% endif %}
+    </td>
+    <td class="small">
+        {% if o.cliente %}
+        <div class="fw-semibold">{{ o.cliente.nombres or '' }} {{ o.cliente.apellidos or '' }}</div>
+        <div class="small text-body">{{ o.cliente.tipo_doc or '' }} {{ o.cliente.doc_doc or '' }}</div>
+        <div class="small text-body">{{ o.cliente.direccion or '' }}</div>
+        {% endif %}
+    </td>
+    <td>
+        {% if o.estado == 'PAGADA' %}
+        <span class="mb-estado mb-estado-PAGADO">PAGADA</span>
+        {% else %}
+        <select class="form-select form-select-sm estado-o" data-id="{{ o.id }}" aria-label="Estado de la orden {{ o.id }}">
+            {% for e in (estados if o.estado in estados else estados + [o.estado]) %}
+            <option value="{{ e }}" {% if e == o.estado %}selected{% endif %}>{{ e }}</option>
+            {% endfor %}
+        </select>
+        {% endif %}
+    </td>
+    <td class="pe-3">
+        {% if o.total %}
+        <div class="small mb-1"><span class="mb-estado">{{ o.estado or '' }}</span> {{ o.total|cop }}</div>
+        {% endif %}
+    </td>
+</tr>
+{% endmacro %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Filtro de invoices
+    var buscador = document.getElementById('filtro-invoices');
+    if (buscador) {
+        buscador.addEventListener('input', function () {
+            var q = this.value.trim().toLowerCase();
+            document.querySelectorAll('#tbody-invoices tr').forEach(function (tr) {
+                if (tr.querySelector('td[colspan]')) return;
+                var ok = tr.textContent.toLowerCase().indexOf(q) !== -1;
+                tr.classList.toggle('d-none', !ok);
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

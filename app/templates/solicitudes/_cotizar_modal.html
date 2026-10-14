@@ -1,0 +1,65 @@
+<div class="cotizar-items" data-url="{{ url_for('solicitud.cotizar', id=s.id) }}"
+     data-lugar="{{ s.lugar_solicitud or '' }}" data-cats="{{ cats_cot }}">
+    {% for it in items %}
+    {% set portada = it.lanzamiento.i_lanzamiento if it.lanzamiento else ((it.producto.lanzamiento.i_lanzamiento) if it.producto and it.producto.lanzamiento else '') %}
+    <div class="cot-item{{ ' mb-3' if not loop.last }}">
+        <div class="d-flex align-items-start gap-2">
+            {% if portada %}<img class="cot-portada rounded flex-shrink-0" width="48" height="48" alt="" src="{{ portada }}">{% else %}<img class="cot-portada rounded flex-shrink-0 d-none" width="48" height="48" alt="" src="">{% endif %}
+            <div class="w-100">
+                <div class="d-flex align-items-center justify-content-between gap-2">
+                    <div class="d-flex align-items-center gap-2 small flex-nowrap">
+                        <input class="form-control form-control-sm" type="text" name="item_{{ loop.index0 }}_nombre"
+                               value="{{ it.nombre }}" maxlength="150" style="max-width: 250px"
+                               title="Si el ítem no tiene producto del catálogo, este nombre va en el pedido, el rótulo y el seguimiento">
+                        {% if it.descripcion %}<span class="text-body-secondary">— {{ it.descripcion }}</span>{% endif %}
+                        {% if it.categoria %}<span class="mb-chip small">{{ it.categoria }}</span>{% endif %}
+                    </div>
+                    <label class="form-check small text-body-secondary mb-0 flex-shrink-0" title="Se quita de la solicitud y no va en el mensaje de la cotización">
+                        <input class="form-check-input" type="checkbox" name="item_{{ loop.index0 }}_retirar"> Retirar
+                    </label>
+                </div>
+            <div class="row g-2 mt-1">
+                <div class="col-4 col-sm-2">
+                    <label class="form-label small mb-0">Cantidad</label>
+                    <input class="form-control form-control-sm" type="number" name="item_{{ loop.index0 }}_cantidad" min="1" max="99" value="{{ it.cantidad or 1 }}">
+                </div>
+                <div class="col-8 col-sm-4">
+                    <label class="form-label small mb-0">Producto del catálogo</label>
+                    <input class="form-control form-control-sm" type="text" name="item_{{ loop.index0 }}_producto" placeholder="Opcional"
+                           data-autocomplete="{{ url_for('dashboard.editproduct_productList') }}"
+                           value="{{ (it.producto.id ~ '. ' ~ (it.producto.n_producto or '')) if it.producto }}">
+                </div>
+                <div class="col-12 col-sm-4">
+                    <label class="form-label small mb-0">Lanzamiento</label>
+                    <input class="form-control form-control-sm" type="text" name="item_{{ loop.index0 }}_lanzamiento" placeholder="Portada, opcional"
+                           data-autocomplete="{{ url_for('dashboard.newproduct_releases') }}"
+                           data-remote="{{ url_for('solicitud.lanzamiento_spotify') }}"
+                           value="{{ (it.lanzamiento.id ~ '. ' ~ it.lanzamiento.n_lanzamiento) if it.lanzamiento }}">
+                </div>
+                <div class="col-12 col-sm-2">
+                    <label class="form-label small mb-0">Precio (COP)</label>
+                    <input class="form-control form-control-sm" type="number" name="item_{{ loop.index0 }}_precio" min="1" placeholder="0"
+                           value="{{ it.precio_unit|int if it.precio_unit }}">
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    <div class="row g-2 cot-pie mt-3">
+        <div class="col-12 col-lg-5">
+            <label class="form-label small mb-0">Nota para el cliente</label>
+            <input class="form-control form-control-sm" type="text" name="d_cotizacion" placeholder="Tiempos, edición... (viaja en el mensaje de WhatsApp)" value="{{ s.d_cotizacion or '' }}">
+        </div>
+        <div class="col-6 col-lg-3">
+            <label class="form-label small mb-0">Envío (COP)</label>
+            <input class="form-control form-control-sm" type="number" name="p_envio" min="0" placeholder="Se calcula al pagar"
+                   value="{{ s.p_envio_cotizado if s.p_envio_cotizado is not none }}">
+            <div class="small text-body-secondary cot-envio-est"></div>
+        </div>
+        <div class="col-6 col-lg-4 text-lg-end">
+            <div class="small text-body-secondary mb-1">Total: <span class="cot-total fw-semibold">{{ s.total_cotizado|cop if s.total_cotizado else '$0' }}</span></div>
+        </div>
+    </div>
+    <div id="cotizar-error" class="text-danger small mt-2"></div>
+</div>
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

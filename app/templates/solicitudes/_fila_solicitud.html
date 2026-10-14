@@ -1,0 +1,48 @@
+<tr data-est="{{ s.estado }}">
+    <td class="ps-3 text-body-secondary">{{ s.id }}</td>
+    <td class="text-nowrap">{{ s.f_solicitud|fecha_co('%d/%m/%Y') if s.f_solicitud }}</td>
+    <td>
+        <div class="fw-semibold text-truncate" style="max-width: 260px">{{ items[0].nombre }}</div>
+        <div class="d-flex gap-1 flex-wrap mt-1">
+            {% if items|length > 1 %}<span class="mb-chip small">+{{ items|length - 1 }} ítem{{ 's' if items|length > 2 }}</span>{% endif %}
+            {% for it in items %}{% if it.categoria and loop.index0 < 3 %}<span class="mb-chip small">{{ it.categoria }}</span>{% endif %}{% endfor %}
+        </div>
+        {% if items[0].descripcion %}<div class="small text-body-secondary text-truncate" style="max-width: 260px">{{ items[0].descripcion }}</div>{% endif %}
+    </td>
+    <td class="small">
+        {% set cel = s.cel_contacto or (s.usuario.cel_usuario if s.usuario) %}
+        {% if s.usuario %}<div class="fw-semibold">{{ s.usuario.n_usuario }} {{ s.usuario.ape_usuario }}</div>{% endif %}
+        {% if s.lugar_solicitud %}<i class="bi bi-geo-alt me-1 text-body-secondary"></i>{{ s.lugar_solicitud }}<br>{% endif %}
+        {% if cel %}<a href="https://wa.me/57{{ cel|replace(' ', '') }}" target="_blank" rel="noopener"><i class="bi bi-whatsapp me-1 text-success"></i>{{ cel }}</a><br>{% endif %}
+        {% set correo = s.email_contacto or (s.usuario.email_usuario if s.usuario) %}
+        {% if correo %}<a href="mailto:{{ correo }}">{{ correo }}</a>{% endif %}
+    </td>
+    <td>
+        {% if s.estado == 'COMPRADA' %}
+        <span class="mb-estado mb-estado-PAGADO">COMPRADA</span>
+        {% else %}
+        <select class="form-select form-select-sm estado-solicitud" data-id="{{ s.id }}" aria-label="Estado de la solicitud {{ s.id }}">
+            {% for e in (estados if s.estado in estados else estados + [s.estado]) %}
+            <option value="{{ e }}" {% if e == s.estado %}selected{% endif %}>{{ e }}</option>
+            {% endfor %}
+        </select>
+        {% if s.estado != 'COMPRADA' %}
+        <button type="button" class="btn btn-sm btn-outline-danger mt-1" data-eliminar-sol data-id="{{ s.id }}"
+            data-url="{{ url_for('solicitud.eliminar', id=s.id) }}" title="Eliminar solicitud"><i class="bi bi-trash me-1"></i>Eliminar</button>
+        {% endif %}
+        {% endif %}
+    </td>
+    <td class="pe-3">
+        {% if s.pedido %}
+        <a href="#" class="text-decoration-none" data-load="{{ url_for('dashboard.invoices', busca=s.pedido.id) }}" title="Ver la orden"><i class="bi bi-box me-1"></i>Orden #{{ s.pedido.id }}</a>
+        <div class="small mt-1"><span class="mb-estado mb-estado-{{ s.pedido.estado }}">{{ s.pedido.estado }}</span> · {{ s.pedido.total|cop }}</div>
+        {% elif s.estado in ['ACTIVO', 'EN PROCESO', 'COTIZADA'] %}
+        {% if s.total_cotizado %}<div class="small mb-1">Total <strong>{{ s.total_cotizado|cop }}</strong>{% if s.d_cotizacion %} · <span class="text-body-secondary">{{ s.d_cotizacion }}</span>{% endif %}</div>{% endif %}
+        <button type="button" class="btn btn-sm {{ 'btn-primary' if not s.total_cotizado else 'btn-outline-primary' }} btn-cotizar" data-id="{{ s.id }}" data-contacto="{{ (s.usuario.n_usuario if s.usuario else s.cel_contacto) or '' }}">
+            <i class="bi {{ 'bi-cash-stack' if not s.total_cotizado else 'bi-link-45deg' }} me-1"></i>{{ 'Cotizar' if not s.total_cotizado else 'Nuevo enlace' }}
+        </button>
+        {% else %}
+        <span class="text-body-secondary">—</span>
+        {% endif %}
+    </td>
+</tr>
