@@ -189,6 +189,12 @@ def login():
             flash("Bienvenido " + user['n_usuario'])
             user.pop('pwd_usuario', None)  # la clave no viaja en la cookie de sesion
             session["user"] = user
+            # Normalizar diccionario de usuario para vistas posteriores
+            session["user"].setdefault("id", user.get("id"))
+            session["user"].setdefault("n_usuario", user.get("n_usuario", ""))
+            session["user"].setdefault("ape_usuario", user.get("ape_usuario", ""))
+            session["user"].setdefault("email_usuario", user.get("email_usuario", ""))
+            session["user"].setdefault("k_rol", user.get("k_rol", "USER"))
             if user['k_rol'] == 'ADMIN':
                 return redirect(url_for('home.admin'))
             return redirect(url_for('home.index', user=g.user, purchase_cart = g.purchase))
@@ -292,13 +298,13 @@ def account():
         edit_usuario.email_usuario.data = session["user"]["email_usuario"]
         edit_usuario.email_usuario.render_kw = {'disabled': 'disabled'}
         
-        edit_usuario.city.data = session["user"]["lugar_usuario"]
-        edit_usuario.address.data = session["user"]["dir_usuario"]
+        edit_usuario.city.data = session.get("user", {}).get("lugar_usuario", "")
+        edit_usuario.address.data = session.get("user", {}).get("dir_usuario", "")
         edit_usuario.barrio.data = session["user"].get("barrio_usuario")
         edit_usuario.celular.data = session["user"].get("cel_usuario")
 
-        compras = get_purchases_by_user(session["user"]["email_usuario"])
-        solicitudes = get_solicitudes_by_user(session["user"]["email_usuario"])
+        compras = get_purchases_by_user(session.get("user", {}).get("email_usuario", ""))
+        solicitudes = get_solicitudes_by_user(session.get("user", {}).get("email_usuario", ""))
 
     return render_template("account.html",  user=g.user, purchase_cart = g.purchase, form = edit_usuario, compras = compras, solicitudes = solicitudes, get_product_by_id = get_product_by_id, get_release_by_id = get_release_by_id )
 
@@ -524,7 +530,7 @@ def newadmin():
         
         email = form_new_admin.email.data
         pwd = form_new_admin.pwd.data
-        result = new_admin(email, pwd, session["user"]["email_usuario"])
+        result = new_admin(email, pwd, session.get("user", {}).get("email_usuario", ""))
         if result:
             flash("Nuevo administrador con el correo "+ email)
             return redirect(url_for("home.admin"))

@@ -690,14 +690,30 @@ def get_release_artist():
     r_a = [r_a_schema.dump(r_a) for r_a in r_a_qs ]
 
 def get_user_by_email(email):
+    """Get user by email, returning dict with key fields."""
     usuario_qs = Usuario.query.filter_by(email_usuario = email).first()
-    usuario_schema = UsuarioSchema()
-    u = usuario_schema.dump(usuario_qs)
+    if not usuario_qs:
+        return {}
+    # Build user dict manually to avoid marshmallow schema issues
+    u = {
+        'id': usuario_qs.id, 
+        'k_rol': usuario_qs.k_rol, 
+        'n_usuario': usuario_qs.n_usuario, 
+        'ape_usuario': usuario_qs.ape_usuario, 
+        'email_usuario': usuario_qs.email_usuario, 
+        'pwd_usuario': usuario_qs.pwd_usuario, 
+        'dir_usuario': usuario_qs.dir_usuario, 
+        'lugar_usuario': usuario_qs.lugar_usuario, 
+        'tipo_id': usuario_qs.tipo_id, 
+        'num_id': usuario_qs.num_id, 
+        'barrio_usuario': usuario_qs.barrio_usuario, 
+        'cel_usuario': usuario_qs.cel_usuario
+    }
     return u
 
 def get_purchases_by_user(email):
-    user = get_user_by_email(email)
-    invoices = Invoice.query.filter_by(k_usuario = user["id"]).all()
+    # Get invoices directly by email, no need to get user object
+    invoices = Invoice.query.filter_by(k_usuario = email).all()
     facturas = []
     for i in invoices:
         items = get_items_by_id_factura(i.id)
