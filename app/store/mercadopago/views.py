@@ -286,7 +286,29 @@ def process_payment():
                     payment_data[key] = value
                 elif key not in payment_data:
                     payment_data[key] = value
-                    
+        
+        # ===== MEJORAS PARA REDUCIR 500 EN MP =====
+        # 1. Validar financial_institution (solo bancos PSE válidos Colombia)
+        valid_fi = {"1002", "1007", "1032", "1040", "1051", "1052", "1058", "1068", "1077", "1085", "1086", "1087", "1088", "1089", "1090", "1091", "1092", "1093", "1094", "1095", "1096", "1097", "1098", "1099", "1100", "1101", "1102", "1103", "1104", "1105", "1106", "1107", "1108", "1109", "1110"}
+        fi = payment_data.get("transaction_details", {}).get("financial_institution")
+        if fi and fi not in valid_fi:
+            current_app.logger.warning(f"[MP] financial_institution inválida: {fi}, removiendo")
+            payment_data.setdefault("transaction_details", {}).pop("financial_institution", None)
+        
+        # 2. Forzar x-test-token en sandbox
+        if current_app.config.get("SIMULACION_PAGO"):
+            request_options.custom_headers["x-test-token"] = "true"
+        
+        # 3. Usar IP real (no 127.0.0.1)
+        payment_data["additional_info"]["ip_address"] = get_client_ip()
+        
+        # 4. Validar email/CC contra test users conocidos (opcional)
+        # Si el email no parece test user, loggear warning
+        payer_email = payment_data.get("payer", {}).get("email", "")
+        if payer_email and not any(x in payer_email for x in ["@testuser.com", "test_", "test-"]):
+            current_app.logger.warning(f"[MP] Email no parece test user: {payer_email}")
+        # ===========================================
+        
         current_app.logger.info(f"[MP] Datos de pago PSE preparados: {payment_data}")
         
     elif payload.get("token"):
