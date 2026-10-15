@@ -20,8 +20,8 @@ from .analytics import track_event, Events
 
 # Formato de precios en pesos colombianos
 def cop(valor):
-    #precio en pesos colombianos: 150000 -> \$150.000
-    return '\$' + f"{float(valor or 0):,.0f}".replace(',', '.')
+    #precio en pesos colombianos: 150000 -> $150.000
+    return '$' + f"{float(valor or 0):,.0f}".replace(',', '.')
 
 
 solicitud = Blueprint('solicitud', __name__, url_prefix='/solicitud')
