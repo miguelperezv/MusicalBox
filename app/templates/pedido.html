@@ -251,10 +251,13 @@
           onSubmit: async ({ formData }) => {
             // Loguear el formData para ver qué campos trae PSE
             console.log("[MP] formData recibido:", formData);
+            // Contador de intentos para idempotencia estable
+            window.mpIntento = (window.mpIntento || 0) + 1;
             // Mandamos lo que devuelve el Brick + el token para ubicar Invoice
             const payload = { 
               ...formData, 
-              token_hash: TOKEN_HASH  // <- SIEMPRE incluir token_hash
+              token_hash: TOKEN_HASH,  // <- SIEMPRE incluir token_hash
+              intento: window.mpIntento
             };
             console.log("[MP] payload a backend:", payload);
             const r = await fetch("/mercadopago/process_payment", {

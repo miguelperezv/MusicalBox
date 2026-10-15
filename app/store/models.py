@@ -217,6 +217,7 @@ class Invoice(db.Model):
     id_factura_payco = db.Column(db.String(100))
     ref_payco = db.Column(db.String(100))
     mp_payment_id = db.Column(db.String(100))  # ID de pago de MercadoPago
+    mp_external_resource_url = db.Column(db.String(500))  # URL de redirección PSE
     f_compra = db.Column(db.DateTime, default=datetime.now)
     total = db.Column(db.Numeric(13,2), nullable=False)
     #checkout sin cuenta: el pedido existe antes del pago (PENDIENTE) y la pasarela lo confirma o rechaza

@@ -135,6 +135,50 @@ def process_payment():
     payment_method_id = payload.get("payment_method_id")
     current_app.logger.info(f"[MP] Método de pago seleccionado: {payment_method_id}")
     
+    # ===== PSE: REUTILIZAR PAGO PENDIENTE SI EXISTE =====
+    if payment_method_id == "pse" and inv.mp_payment_id:
+        current_app.logger.info(f"[MP] PSE: Verificando pago existente {inv.mp_payment_id}")
+        # Consultar estado del pago en MercadoPago
+        sdk = get_mp_sdk()
+        mp_resp = sdk.payment().get(inv.mp_payment_id)
+        if mp_resp.get("status") == 200:
+            mp_body = mp_resp.get("response", {})
+            mp_status = mp_body.get("status")
+            current_app.logger.info(f"[MP] Estado pago existente: {mp_status}")
+            if mp_status in ("pending", "in_process"):
+                # Pago pendiente: reutilizar, devolver URL existente
+                external_url = mp_body.get("transaction_details", {}).get("external_resource_url") or inv.mp_external_resource_url
+                if external_url:
+                    current_app.logger.info(f"[MP] Reutilizando pago pendiente {inv.mp_payment_id}, redirect: {external_url}")
+                    return jsonify({
+                        "mp_status": 200,
+                        "mp_response": mp_body,
+                        "redirect_url": external_url,
+                        "reused": True
+                    }), 200
+                # Si no hay URL, seguir para crear uno nuevo
+            elif mp_status == "approved":
+                # Ya pagado, confirmar pedido
+                current_app.logger.info(f"[MP] Pago ya aprobado, confirmando pedido {inv.id}")
+                inv.mp_payment_id = str(mp_body.get("id") or "")
+                p, nuevo = confirmar_pago(inv, inv.mp_payment_id, inv.mp_payment_id, "pse")
+                if nuevo:
+                    try:
+                        correo_pedido_pagado(p, token)
+                    except Exception as e:
+                        current_app.logger.exception(f"[MP] Fallo envío de email para pedido {inv.id}: {e}")
+                    aviso_pago_aprobado(p, token)
+                return jsonify({"mp_status": 200, "mp_response": mp_body, "approved": True}), 200
+            elif mp_status in ("rejected", "cancelled", "expired"):
+                # Pago fallido: limpiar para crear uno nuevo
+                current_app.logger.info(f"[MP] Pago previo {mp_status}, creando uno nuevo")
+                inv.mp_payment_id = None
+                inv.mp_external_resource_url = None
+                db.session.commit()
+        else:
+            current_app.logger.warning(f"[MP] Error consultando pago existente: {mp_resp}")
+    # ===== FIN REUTILIZACIÓN PSE =====
+    
     # Detectar si es PSE
     if payment_method_id == "pse":
         current_app.logger.info("[MP] Procesando pago PSE (Avanza)")
@@ -289,9 +333,14 @@ def process_payment():
                 
         current_app.logger.info(f"[MP] Datos de pago otros medios preparados: {payment_data}")
     
-    # Idempotencia para evitar duplicados si el usuario reintenta
+    # Idempotencia: clave ESTABLE por intento de pago (no UUID aleatorio)
+    # Usamos hash del token + método de pago + contador de intentos para permitir reintentos legítimos
+    # pero evitar duplicados por reenvío de request del frontend
+    intento_num = payload.get("intento", 1)
+    idem_base = f"{inv.token_hash}_{payment_method_id}_attempt{intento_num}"
+    idempotency_key = hashlib.sha256(idem_base.encode()).hexdigest()[:32]
     request_options = mp_config.RequestOptions()
-    request_options.custom_headers = {"X-Idempotency-Key": str(uuid.uuid4())}
+    request_options.custom_headers = {"X-Idempotency-Key": idempotency_key}
     # PSE en sandbox requiere x-test-token
     if payment_method_id == "pse" and current_app.config.get("SIMULACION_PAGO"):
         request_options.custom_headers["x-test-token"] = "true"
@@ -394,6 +443,15 @@ def process_payment():
         current_app.logger.info(f"[MP-PSE] external_resource_url: {external_url}")
         if external_url:
             current_app.logger.info(f"[MP-PSE] URL de redirección al banco: {external_url}")
+        # ===== GUARDAR payment_id y external_resource_url PARA REUTILIZAR =====
+        payment_id = str(mp_body.get("id") or "")
+        if payment_id:
+            inv.mp_payment_id = payment_id
+            if external_url:
+                inv.mp_external_resource_url = external_url
+            db.session.commit()
+            current_app.logger.info(f"[MP-PSE] Guardado payment_id={payment_id}, external_url={external_url}")
+        # =======================================================================
     else:
         # Log para ver qué estado devuelve MP si no es in_process/pending
         if payment_method_id == "pse":
