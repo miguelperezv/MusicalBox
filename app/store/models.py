@@ -2201,4 +2201,33 @@ def liberar_reserva_stock(k_invoice):
     db.session.commit()
 
 
+class WebEvent(db.Model):
+    """Eventos de analytics de negocio (pageviews, clicks, checkouts, purchases, etc.)"""
+    __tablename__ = 'web_event'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    event_name = db.Column(db.String(50), nullable=False, index=True)
+    session_id = db.Column(db.String(64), index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=True, index=True)
+    page_url = db.Column(db.String(500))
+    referrer = db.Column(db.String(500))
+    user_agent = db.Column(db.String(500))
+    ip_hash = db.Column(db.String(64))
+    payload = db.Column(db.JSON)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    
+    # Relaciones
+    usuario = db.relationship('Usuario', backref=db.backref('web_events', lazy='dynamic'))
+    
+    # Índices compuestos para queries frecuentes
+    __table_args__ = (
+        db.Index('ix_web_event_name_created', 'event_name', 'created_at'),
+        db.Index('ix_web_event_session_created', 'session_id', 'created_at'),
+        db.Index('ix_web_event_user_created', 'user_id', 'created_at'),
+    )
+    
+    def __repr__(self):
+        return f'<WebEvent {self.event_name} {self.created_at}>'
+
+
 

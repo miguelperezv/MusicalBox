@@ -6,6 +6,7 @@ from .views import before_request
 from ..db import db
 from .notificaciones import correo_pedido_pagado
 from .notif_admin import aviso_pago_aprobado, aviso_pago_rechazado
+from .analytics import track_event, Events
 from flask_wtf import FlaskForm
 from wtforms import StringField
 from wtforms.validators import DataRequired, Email
@@ -63,6 +64,10 @@ def actualizar_envio(token):
 def ver(token):
     p = _pedido_o_404(token)
     
+    # Track page view
+    from .analytics import track_event, Events
+    track_event(Events.PRODUCT_VIEW, {'pedido_id': p.id, 'estado': p.estado})
+    
     # Crear formulario para actualizar información de envío
     form_envio = EnvioForm()
     
@@ -82,6 +87,7 @@ def ver(token):
     if session.get("ultimo_carrito") and not session.get("purchase"):
         session["purchase"] = session["ultimo_carrito"]
     
+    needs_shipping_modal = not (p.n_envio and p.dir_envio and p.lugar_envio and p.tel_envio and p.email_envio)
     return render_template("pedido.html", pedido=p, token=token,
                             simulacion=current_app.config.get("SIMULACION_PAGO"), form_envio=form_envio)
 

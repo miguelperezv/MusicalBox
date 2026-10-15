@@ -3,7 +3,6 @@ import re
 from urllib.parse import quote
 
 from flask import Blueprint, flash, request, g, render_template, redirect, url_for, jsonify, abort
-from .forms import RegistroSolicitudForm, CheckoutForm, CotizacionRapidaForm
 from .models import (create_solicitud, get_all_solicitudes, update_estado_solicitud, get_catalogo_solicitud, get_product_by_id,
                      get_usuario_por_email, cotizar_solicitud, get_solicitud_por_token, datos_envio_previos, crear_pedido,
                      items_efectivos, get_categorias, get_all_releases, buscar_o_crear_lanzamiento,
@@ -14,6 +13,7 @@ from .envio import costo_envio, lineas_desde_cats
 from ..db import db
 from .views import before_request, admin_required
 from .notif_admin import aviso_solicitud, aviso_pedido_creado
+from .analytics import track_event, Events
 
 
 
@@ -288,6 +288,12 @@ def cotizar(id):
     #se guarda el mensaje (con su enlace) para copiarlo después desde el panel o el bot
     s.d_mensaje_cliente = resp["mensaje"]
     db.session.commit()
+    # Track cotización solicitada
+    track_event(Events.COTIZACION_SOLICITADA, {
+        'solicitud_id': s.id,
+        'items_count': len(lineas),
+        'total': resp.get('mensaje', '').split('Total:')[-1].split('\n')[0].strip() if 'Total:' in resp.get('mensaje', '') else None
+    })
     return jsonify(resp)
 
 

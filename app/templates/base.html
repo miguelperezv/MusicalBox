@@ -31,6 +31,8 @@
     {% if csrf_token() %}
     <meta name="csrf-token" content="{{ csrf_token() }}">
     {% endif %}
+    <!-- Plausible Analytics -->
+    <script defer data-domain="musicalbox.com" src="https://plausible.io/js/script.js"></script>
 </head>
 <body>
     {% set ep = request.endpoint or '' %}

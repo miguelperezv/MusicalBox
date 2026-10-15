@@ -7,6 +7,7 @@ from mercadopago import config as mp_config
 from ..models import Invoice, confirmar_pago, rechazar_pago
 from ..notificaciones import correo_pedido_pagado
 from ..notif_admin import aviso_pago_aprobado, aviso_pago_rechazado
+from ..analytics import track_event, Events
 
 mercadopago_bp = Blueprint('mercadopago', __name__, url_prefix='/mercadopago')
 
@@ -369,6 +370,14 @@ def process_payment():
         request_options.custom_headers["x-test-token"] = "true"
     current_app.logger.info("[MP] Creando SDK de MercadoPago")
     
+    # Track checkout start
+    track_event(Events.CHECKOUT_START, {
+        'pedido_id': inv.id,
+        'amount': float(inv.total),
+        'payment_method': payment_method_id,
+        'token_hash': inv.token_hash
+    })
+    
     sdk = get_mp_sdk()
     current_app.logger.info("[MP] Enviando solicitud de pago a MercadoPago")
     current_app.logger.info(f"[MP] Datos enviados a MP: {payment_data}")
@@ -428,6 +437,14 @@ def process_payment():
                 current_app.logger.exception(f"[MP] Fallo envío de email para pedido {inv.id}: {e}")
             aviso_pago_aprobado(p, payload.get("token_hash"))
             current_app.logger.info(f"[MP] Pedido {inv.id} confirmado, stock y solicitud actualizados")
+        # Track purchase
+        track_event(Events.PURCHASE, {
+            'pedido_id': inv.id,
+            'payment_id': mp_body.get("id"),
+            'amount': float(inv.total),
+            'payment_method': payment_method_id,
+            'token_hash': inv.token_hash
+        })
     elif mp_body.get("status") == "rejected":
         current_app.logger.info(f"[MP] Pago rechazado para pedido {inv.id}: {mp_body.get('status_detail')}")
         rechazar_pago(inv, str(mp_body.get("id") or ""))
@@ -474,6 +491,15 @@ def process_payment():
                 inv.mp_external_resource_url = external_url
             db.session.commit()
             current_app.logger.info(f"[MP-PSE] Guardado payment_id={payment_id}, external_url={external_url}")
+        # =======================================================================
+        # Track PSE redirect
+        track_event(Events.PSE_REDIRECT, {
+            'pedido_id': inv.id,
+            'payment_id': payment_id,
+            'amount': float(inv.total),
+            'bank': mp_body.get("transaction_details", {}).get("financial_institution"),
+            'token_hash': inv.token_hash
+        })
         # =======================================================================
     else:
         # Log para ver qué estado devuelve MP si no es in_process/pending
