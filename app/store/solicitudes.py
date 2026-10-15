@@ -169,9 +169,7 @@ def _respuesta_cotizar(s, token):
             if tipo_producto:
                 partes_label.append(f"({tipo_producto})")
             label = " - ".join(partes_label)
-            # Si hay variante, agregarla
-            if it.variante and it.variante.nombre:
-                label += f" [{it.variante.nombre}]"
+            # SolicitudItem no tiene variante directa; la info de variante estaría en descripcion si aplica
         else:
             # Item manual (sin producto vinculado): usar solo el nombre limpio sin descripción del usuario
             label = it.nombre
