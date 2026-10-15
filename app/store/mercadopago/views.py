@@ -532,6 +532,16 @@ def process_payment_notification(data):
             current_app.logger.info(f"[MP-WEBHOOK] Detalles adicionales PSE: {payment.get('payment_method', {})}")
             return jsonify({"status": "processing"}), 200
             
+        elif payment_status == "pending" and payment_method_id == "pse":
+            # PSE en estado pending esperando transferencia bancaria
+            status_detail = payment.get("status_detail", "")
+            if status_detail == "pending_waiting_transfer":
+                current_app.logger.info(f"[MP-WEBHOOK] Pago PSE pendiente transferencia para pedido {inv.id}")
+                return jsonify({"status": "pending_transfer"}), 200
+            # Otros pending para PSE
+            current_app.logger.info(f"[MP-WEBHOOK] Pago PSE pending ({status_detail}) para pedido {inv.id}")
+            return jsonify({"status": "pending"}), 200
+            
         elif payment_status == "in_process":
             # Otros pagos en proceso
             current_app.logger.info(f"[MP-WEBHOOK] Pago en proceso para pedido {inv.id}, método: {payment_method_id}")
