@@ -280,7 +280,7 @@ def process_payment():
         
         # Agregar otros campos que puedan venir en el payload de PSE
         for key, value in payload.items():
-            if key not in ["token_hash", "payment_method_id", "transaction_amount", "payer", "external_reference", "description", "additional_info", "callback_url", "financial_institution", "notification_url"] and value is not None:
+            if key not in ["token_hash", "payment_method_id", "transaction_amount", "payer", "external_reference", "description", "additional_info", "callback_url", "financial_institution", "notification_url", "intento"] and value is not None:
                 if not isinstance(value, dict):
                     payment_data[key] = value
                 elif key not in payment_data:
@@ -328,7 +328,7 @@ def process_payment():
         
         # Agregar campos del payload
         for key, value in payload.items():
-            if key not in ["token_hash"] and value is not None:
+            if key not in ["token_hash", "intento"] and value is not None:
                 payment_data[key] = value
                 
         current_app.logger.info(f"[MP] Datos de pago otros medios preparados: {payment_data}")
