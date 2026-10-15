@@ -149,10 +149,16 @@ def _respuesta_cotizar(s, token):
         n = int(it.cantidad or 1)
         if it.producto:
             lanz = it.producto.lanzamiento
-            label = " - ".join(x for x in [lanz.n_lanzamiento.title() if lanz else '', it.producto.n_producto or ''] if x) or it.nombre
+            # Mostrar: "Lanzamiento - Producto" (ej: "She's The Best - CD")
+            label = " - ".join(x for x in [lanz.n_lanzamiento.title() if lanz else '', it.producto.n_producto or ''] if x)
+            # Si hay variante, agregarla
+            if it.variante and it.variante.nombre:
+                label += f" ({it.variante.nombre})"
         else:
+            # Item manual (sin producto vinculado): usar solo el nombre limpio sin descripción del usuario
             label = it.nombre
-        fila = f"• {n} × {label}" + (f" ({it.descripcion})" if it.descripcion else "")
+        # NO incluir it.descripcion (es lo que escribió el usuario al pedir cotización)
+        fila = f"• {n} × {label}"
         if n > 1:
             fila += f"\n   {cop(it.precio_unit)} c/u  →  {cop(it.precio_unit * n)}"
         lineas.append(fila)
