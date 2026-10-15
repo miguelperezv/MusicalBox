@@ -16,6 +16,14 @@ from .views import before_request, admin_required
 from .notif_admin import aviso_solicitud, aviso_pedido_creado
 
 
+
+
+# Formato de precios en pesos colombianos
+def cop(valor):
+    #precio en pesos colombianos: 150000 -> \$150.000
+    return '\$' + f"{float(valor or 0):,.0f}".replace(',', '.')
+
+
 solicitud = Blueprint('solicitud', __name__, url_prefix='/solicitud')
 solicitud.before_request(before_request)
 
@@ -146,20 +154,20 @@ def _respuesta_cotizar(s, token):
             label = it.nombre
         fila = f"• {n} × {label}" + (f" ({it.descripcion})" if it.descripcion else "")
         if n > 1:
-            fila += f"\n   {_precio_cop(it.precio_unit)} c/u  →  {_precio_cop(it.precio_unit * n)}"
+            fila += f"\n   {cop(it.precio_unit)} c/u  →  {cop(it.precio_unit * n)}"
         lineas.append(fila)
         if not preview:
             l = it.lanzamiento or (it.producto.lanzamiento if it.producto else None)
             if l and l.i_lanzamiento:
                 preview = l.i_lanzamiento
     total = sum(int(it.precio_unit or 0) * int(it.cantidad or 1) for it in items)
-    partes = ["¡Hola! Tu pedido a la medida en Musical Box quedó así:", "", *lineas, "", f"Total: {_precio_cop(total)}"]
+    partes = ["¡Hola! Tu pedido a la medida en Musical Box quedó así:", "", *lineas, "", f"Total: {cop(total)}"]
     #envío: si el admin lo fijó al cotizar, ese es; si no, se estima por el municipio de la solicitud
     if s.p_envio_cotizado is not None:
         if s.p_envio_cotizado == 0:
             partes.append("¡Y el envío es gratis!")
         else:
-            partes.append(f"Envío: {_precio_cop(s.p_envio_cotizado)} · total {_precio_cop(total + s.p_envio_cotizado)}")
+            partes.append(f"Envío: {cop(s.p_envio_cotizado)} · total {cop(total + s.p_envio_cotizado)}")
     elif s.lugar_solicitud:
         cats = "|".join(f"{(it.producto.k_categoria if it.producto else it.categoria) or 'OTRO'}:{int(it.cantidad or 1)}"
                         for it in items)
@@ -168,7 +176,7 @@ def _respuesta_cotizar(s, token):
             if env["p_envio"] == 0:
                 partes.append(f"¡Y el envío a {s.lugar_solicitud} es gratis!")
             else:
-                partes.append(f"Envío estimado a {s.lugar_solicitud}: {_precio_cop(env['p_envio'])} · total {_precio_cop(total + env['p_envio'])}")
+                partes.append(f"Envío estimado a {s.lugar_solicitud}: {cop(env['p_envio'])} · total {cop(total + env['p_envio'])}")
     if s.d_cotizacion:
         partes.append(s.d_cotizacion)
     #el preview de WhatsApp sale de la página de confirmar (portada del disco o logo de Musical Box)
