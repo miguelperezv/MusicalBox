@@ -147,31 +147,32 @@ def _respuesta_cotizar(s, token):
     lineas, preview = [], None
     for it in items:
         n = int(it.cantidad or 1)
-        if it.producto:
-            lanz = it.producto.lanzamiento
+        # Intentar obtener info del producto o del lanzamiento
+        lanz = it.producto.lanzamiento if it.producto else it.lanzamiento
+        producto = it.producto
+        
+        if lanz:
             # Obtener artista(s) del lanzamiento
-            artistas = ""
-            if lanz:
-                from .models import Lanzamiento_Artista, Artista
-                rels = Lanzamiento_Artista.query.filter_by(k_lanzamiento=lanz.id).all()
-                if rels:
-                    artistas = ", ".join(r.artista.n_artista for r in rels if r.artista)
+            from .models import Lanzamiento_Artista, Artista
+            rels = Lanzamiento_Artista.query.filter_by(k_lanzamiento=lanz.id).all()
+            artistas = ", ".join(r.artista.n_artista for r in rels if r.artista) if rels else ""
             # Obtener tipo de producto (categoría: VINILO, CD, CASSETTE, etc.)
             tipo_producto = ""
-            if it.producto and it.producto.categoria:
-                tipo_producto = it.producto.categoria.k_categoria.title()
+            if producto and producto.categoria:
+                tipo_producto = producto.categoria.k_categoria.title()
+            elif it.categoria:
+                tipo_producto = it.categoria.title()
             # Construir label: "Artista - Álbum (Tipo)"
             partes_label = []
             if artistas:
                 partes_label.append(artistas)
-            if lanz and lanz.n_lanzamiento:
+            if lanz.n_lanzamiento:
                 partes_label.append(lanz.n_lanzamiento.title())
             if tipo_producto:
                 partes_label.append(f"({tipo_producto})")
             label = " - ".join(partes_label)
-            # SolicitudItem no tiene variante directa; la info de variante estaría en descripcion si aplica
         else:
-            # Item manual (sin producto vinculado): usar solo el nombre limpio sin descripción del usuario
+            # Item manual sin lanzamiento: usar solo el nombre limpio sin descripción del usuario
             label = it.nombre
         # NO incluir it.descripcion (es lo que escribió el usuario al pedir cotización)
         fila = f"• {n} × {label}"
