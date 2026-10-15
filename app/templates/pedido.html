@@ -351,6 +351,9 @@
       await brickController.unmount();
     }
     brickController = null;
+    // Re-habilitar botón de pago
+    const btn = document.getElementById("btnOpenMp");
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-wallet2 me-2"></i>Pagar con MercadoPago'; }
   }
   
   // Función para abrir el modal
