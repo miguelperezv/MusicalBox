@@ -1,5 +1,5 @@
 from flask import Blueprint, current_app, jsonify, request, url_for
-from ..db import db
+from app.db import db
 import uuid
 import hashlib
 import mercadopago
