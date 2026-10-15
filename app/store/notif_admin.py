@@ -30,6 +30,8 @@ def _direccion(p):
 
 def _items_bloque(p):
     #ítems agrupados por lanzamiento: el lanzamiento va arriba (cursiva) y debajo, producto, cantidad y precio
+    #incluye artista del lanzamiento
+    from .models import Lanzamiento_Artista, Artista
     grupos = {}
     for item in Item.query.filter_by(k_factura=p.id).all():
         n = int(item.cant_item or 1)
@@ -44,7 +46,14 @@ def _items_bloque(p):
             prod = item.n_item or "a la medida"
             lanza = None
         clave = lanza.n_lanzamiento.title() if lanza else None
-        grupos.setdefault(clave, []).append(f"{prod} × {n} · {_cop(int((item.p_item or 0) * n))}")
+        # Obtener artistas del lanzamiento
+        artista_str = ""
+        if lanza:
+            rels = Lanzamiento_Artista.query.filter_by(k_lanzamiento=lanza.id).all()
+            if rels:
+                artista_str = " · " + ", ".join(r.artista.n_artista for r in rels if r.artista)
+        clave_completa = (clave or "") + artista_str
+        grupos.setdefault(clave_completa, []).append(f"{prod} × {n} · {_cop(int((item.p_item or 0) * n))}")
     lineas = []
     for clave, filas in grupos.items():
         if clave:
