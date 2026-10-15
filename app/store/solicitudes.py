@@ -149,11 +149,29 @@ def _respuesta_cotizar(s, token):
         n = int(it.cantidad or 1)
         if it.producto:
             lanz = it.producto.lanzamiento
-            # Mostrar: "Lanzamiento - Producto" (ej: "She's The Best - CD")
-            label = " - ".join(x for x in [lanz.n_lanzamiento.title() if lanz else '', it.producto.n_producto or ''] if x)
+            # Obtener artista(s) del lanzamiento
+            artistas = ""
+            if lanz:
+                from .models import Lanzamiento_Artista, Artista
+                rels = Lanzamiento_Artista.query.filter_by(k_lanzamiento=lanz.id).all()
+                if rels:
+                    artistas = ", ".join(r.artista.n_artista for r in rels if r.artista)
+            # Obtener tipo de producto (categoría: VINILO, CD, CASSETTE, etc.)
+            tipo_producto = ""
+            if it.producto and it.producto.categoria:
+                tipo_producto = it.producto.categoria.k_categoria.title()
+            # Construir label: "Artista - Álbum (Tipo)"
+            partes_label = []
+            if artistas:
+                partes_label.append(artistas)
+            if lanz and lanz.n_lanzamiento:
+                partes_label.append(lanz.n_lanzamiento.title())
+            if tipo_producto:
+                partes_label.append(f"({tipo_producto})")
+            label = " - ".join(partes_label)
             # Si hay variante, agregarla
             if it.variante and it.variante.nombre:
-                label += f" ({it.variante.nombre})"
+                label += f" [{it.variante.nombre}]"
         else:
             # Item manual (sin producto vinculado): usar solo el nombre limpio sin descripción del usuario
             label = it.nombre
