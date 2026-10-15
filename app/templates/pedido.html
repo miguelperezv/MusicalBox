@@ -322,11 +322,17 @@
         console.error('[MP] bricksBuilder no está definido');
         alert('Error al inicializar el Payment Brick. Por favor, recargue la página.');
         closeMpModal();
+        // Re-habilitar botón en caso de error
+        const btn = document.getElementById("btnOpenMp");
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-wallet2 me-2"></i>Pagar con MercadoPago'; }
       }
     } catch (error) {
       console.error("[MP] Error al abrir el modal:", error);
       alert("Error al abrir el modal de pago: " + error.message);
       closeMpModal();
+      // Re-habilitar botón en caso de error
+      const btn = document.getElementById("btnOpenMp");
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-wallet2 me-2"></i>Pagar con MercadoPago'; }
     }
   }
   
@@ -361,6 +367,9 @@
       alert('Error al cargar el SDK de MercadoPago. Por favor, recargue la página.');
       return;
     }
+    // Deshabilitar botón para evitar doble clic
+    this.disabled = true;
+    this.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Procesando...';
     showMpModal();
     openMpModal();
   });
