@@ -17,21 +17,38 @@
                 </div>
                 {% if user %}<p class="mt-4 mb-0 text-white-50">¡Hola de nuevo, {{ user['n_usuario'] }}! 👋</p>{% endif %}
             </div>
-            <div class="col-lg-6 d-none d-md-block">
-                <div class="mb-hero-art">
+            <div class="col-lg-6">
+                {% if hero %}
+                <div class="mb-hero-art" id="heroArt">
                     <div class="vinyl"></div>
-                    <div class="cover">
-                        {% if releases and releases[0].portada %}
-                        <img src="{{ releases[0].portada }}" alt="Portada de {{ releases[0].nombre }}">
-                        {% endif %}
-                    </div>
+                    {% for r in hero %}
+                    <a class="cover hero-slide{{ ' is-active' if loop.first }}" href="{{ url_for_release(r) }}"
+                       aria-label="Ver {{ r.nombre }}{% if r.artista %} de {{ r.artista.n_artista }}{% endif %}">
+                        <img src="{{ r.portada }}" alt="Portada de {{ r.nombre }}"
+                             {% if loop.first %}fetchpriority="high"{% else %}loading="lazy"{% endif %}>
+                    </a>
+                    {% endfor %}
                 </div>
+                <a class="hero-meta" id="heroMeta" href="{{ url_for_release(hero[0]) }}">
+                    <span class="hero-artist">{{ hero[0].artista.n_artista.title() if hero[0].artista else 'Lanzamiento' }}</span>
+                    <span class="hero-album">{{ hero[0].nombre.title() }}</span>
+                </a>
+                {% endif %}
             </div>
         </div>
     </div>
 </section>
 
 <div class="container">
+    {% if categorias %}
+    <nav class="mb-cat-chips mb-4 mb-lg-5" aria-label="Explorar por categoría">
+        <a class="mb-chip-link" href="{{ url_for('products.home_products') }}">Todo</a>
+        {% for c in categorias %}
+        <a class="mb-chip-link" href="{{ url_for('products.home_products', categoria=c) }}">{{ c|capitalize }}</a>
+        {% endfor %}
+    </nav>
+    {% endif %}
+
     {% if productos %}
     <section class="mb-5">
         <div class="mb-section-title">
@@ -40,6 +57,20 @@
         </div>
         <div class="row row-cols-2 row-cols-sm-3 row-cols-lg-4 row-cols-xl-5 g-3 g-lg-4">
             {% for p in productos %}
+            <div class="col">{{ product_card(p) }}</div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {% if destacados %}
+    <section class="mb-5">
+        <div class="mb-section-title">
+            <div><span class="mb-eyebrow">Destacados</span><h2>{{ destacados_titulo }}</h2></div>
+            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('products.home_products') }}">Ver todos <i class="bi bi-arrow-right"></i></a>
+        </div>
+        <div class="row row-cols-2 row-cols-sm-3 row-cols-lg-4 row-cols-xl-5 g-3 g-lg-4">
+            {% for p in destacados %}
             <div class="col">{{ product_card(p) }}</div>
             {% endfor %}
         </div>
@@ -120,6 +151,48 @@
 {% endblock %}
 
 {% block scripts %}
+{% if hero and hero|length > 1 %}
+<script>
+  window.__heroSlides = [
+    {% for r in hero %}{"url": {{ url_for_release(r)|tojson }}, "artist": {{ (r.artista.n_artista.title() if r.artista else 'Lanzamiento')|tojson }}, "album": {{ r.nombre.title()|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}
+  ];
+</script>
+<script>
+  // hero: rota las portadas de los últimos lanzamientos (con etiqueta enlazada)
+  (function () {
+    var art = document.getElementById('heroArt');
+    if (!art) return;
+    var slides = art.querySelectorAll('.hero-slide');
+    if (slides.length < 2) return;
+    var meta = document.getElementById('heroMeta');
+    var datos = window.__heroSlides || [];
+    function pinta(n) {
+      slides.forEach(function (s, k) {
+        s.classList.toggle('is-active', k === n);
+        if (k === n) { s.removeAttribute('aria-hidden'); } else { s.setAttribute('aria-hidden', 'true'); }
+      });
+      var d = datos[n];
+      if (d && meta) {
+        meta.href = d.url;
+        var a = meta.querySelector('.hero-artist'), b = meta.querySelector('.hero-album');
+        if (a) a.textContent = d.artist;
+        if (b) b.textContent = d.album;
+      }
+    }
+    pinta(0);
+    // respeta "reducir movimiento": se queda en la primera portada
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var i = 0, timer = null;
+    function arranca() { if (!timer) timer = setInterval(function () { i = (i + 1) % slides.length; pinta(i); }, 5000); }
+    function para() { clearInterval(timer); timer = null; }
+    arranca();
+    art.addEventListener('mouseenter', para);
+    art.addEventListener('mouseleave', arranca);
+    art.addEventListener('focusin', para);
+    art.addEventListener('focusout', arranca);
+  })();
+</script>
+{% endif %}
 {% if redes %}
 <script>
     //los embeds de Instagram/TikTok pesan ~1,5 MB y ~6 s: se cargan solo cuando la sección entra en pantalla

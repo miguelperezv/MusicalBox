@@ -112,8 +112,23 @@ def validate_admin():
 
 @home.route("/")
 def index():
-    return render_template("home.html", releases = get_releases_cards(limit=12), productos = get_products_cards(limit=10),
-                            redes = seleccion_para_inicio())
+    from .models import get_productos_mas_vendidos
+    releases = get_releases_cards(limit=12)
+    hero = [r for r in releases if r.get("portada")][:5]  # portadas rotativas del hero
+    # sección de destacados: "Lo más vendido" si hay ventas reales; si no, "Original Musical Box"; si tampoco, se oculta
+    vendidos = get_productos_mas_vendidos(limit=5)
+    ids = [v["producto"].id for v in vendidos if v.get("producto")]
+    todas = {c["id"]: c for c in get_products_cards()}
+    if ids:
+        destacados, destacados_titulo = [todas[i] for i in ids if i in todas], "Lo más vendido"
+    else:
+        destacados, destacados_titulo = [c for c in todas.values() if c.get("original")][:5], "Original Musical Box"
+    return render_template("home.html",
+                           releases=releases, hero=hero,
+                           productos=list(todas.values())[:10],
+                           destacados=destacados, destacados_titulo=destacados_titulo,
+                           categorias=get_categorias(),
+                           redes=seleccion_para_inicio())
 
 @home.route("/robots.txt")
 def robots():
