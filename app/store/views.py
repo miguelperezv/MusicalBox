@@ -1231,7 +1231,6 @@ def detalle(k_producto, slug=None):
         return render_template("_producto_detalle.html", p=p, modal=True)
     return render_template("producto.html", p=p, relacionados=relacionados)
 
-@products.route("/", methods=["POST", "GET"])
 
 @dashboard.route("/analytics", methods=["GET", "POST"])
 @admin_required
