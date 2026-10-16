@@ -8,6 +8,7 @@ from .models import (create_solicitud, get_all_solicitudes, update_estado_solici
                      items_efectivos, get_categorias, get_all_releases, buscar_o_crear_lanzamiento,
                      buscar_o_crear_lanzamiento_spotify,
                      ESTADOS_SOLICITUD, Solicitud, SolicitudItem, Lanzamiento)
+from .forms import RegistroSolicitudForm
 from .musicapi import buscar_albumes_spotify
 from .envio import costo_envio, lineas_desde_cats
 from ..db import db
