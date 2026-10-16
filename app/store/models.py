@@ -1590,6 +1590,65 @@ def get_admin_stats(dias=30):
     }
 
 
+def get_eventos_analytics(dias=30):
+    """Obtiene estadísticas de eventos de analytics de la tabla web_event."""
+    from app.store.models import WebEvent
+    ahora = datetime.now()
+    hace_30 = ahora - timedelta(days=dias)
+
+    # Total de eventos
+    total_eventos = WebEvent.query.count()
+
+    # Eventos por tipo
+    eventos_por_tipo = db.session.query(WebEvent.event_name, db.func.count(WebEvent.id))\
+        .filter(WebEvent.created_at >= hace_30)\
+        .group_by(WebEvent.event_name)\
+        .order_by(db.func.count(WebEvent.id).desc())\
+        .all()
+    eventos_tipo_dict = {name: count for name, count in eventos_por_tipo}
+
+    # Top páginas (por URL)
+    top_paginas = db.session.query(WebEvent.page_url, db.func.count(WebEvent.id))\
+        .filter(WebEvent.page_url.isnot(None))\
+        .filter(WebEvent.created_at >= hace_30)\
+        .group_by(WebEvent.page_url)\
+        .order_by(db.func.count(WebEvent.id).desc())\
+        .limit(10).all()
+    top_paginas_list = [{"url": url or '/', 'visitas': count} for url, count in top_paginas]
+
+    # Eventos por usuario
+    eventos_por_usuario = db.session.query(WebEvent.user_id, db.func.count(WebEvent.id))\
+        .filter(WebEvent.user_id.isnot(None))\
+        .filter(WebEvent.created_at >= hace_30)\
+        .group_by(WebEvent.user_id)\
+        .order_by(db.func.count(WebEvent.id).desc())\
+        .limit(10).all()
+    eventos_usuario_dict = {str(uid): count for uid, count in eventos_por_usuario}
+
+    # Eventos recientes (última hora)
+    ultimos_eventos = WebEvent.query\
+        .filter(WebEvent.created_at >= hace_30)\
+        .order_by(db.desc(WebEvent.created_at))\
+        .limit(20).all()
+    ultimos_eventos_list = []
+    for ev in ultimos_eventos:
+        ultimos_eventos_list.append({
+            "evento": ev.event_name,
+            "url": ev.page_url or '-',
+            "usuario": str(ev.user_id) if ev.user_id else '-',
+            "fecha": ev.created_at.strftime('%H:%M:%S'),
+            "ip": ev.ip_hash[:8] if ev.ip_hash else '-',
+        })
+
+    return {
+        "total_eventos": total_eventos,
+        "eventos_por_tipo": eventos_tipo_dict,
+        "top_paginas": top_paginas_list,
+        "eventos_por_usuario": eventos_usuario_dict,
+        "ultimos_eventos": ultimos_eventos_list,
+    }
+
+
 #pedidos sin cuenta (checkout de invitado)
 def hash_token(token):
     #en la BD solo queda el SHA-256: con una copia de la BD no se pueden armar los enlaces /pedido/<token>

@@ -24,6 +24,7 @@
                 <a class="nav-link" href="#" data-load="{{ url_for('dashboard.newgenre_category_artist') }}"><i class="bi bi-tags"></i>Artistas, géneros y categorías</a>
 
                 <div class="section">Sitio</div>
+                <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.analytics' }}" href="{{ url_for('dashboard.analytics') }}"><i class="bi bi-graph-up"></i>Analytics</a>
                 <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.redes_admin' }}" href="{{ url_for('dashboard.redes_admin') }}"><i class="bi bi-camera-reels"></i>Redes en el inicio</a>
                 <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.notificaciones_admin' }}" href="{{ url_for('dashboard.notificaciones_admin') }}"><i class="bi bi-bell"></i>Notificaciones</a>
                 <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.suscriptores_admin' }}" href="{{ url_for('dashboard.suscriptores_admin') }}"><i class="bi bi-envelope-paper"></i>Suscriptores (drops)</a>
