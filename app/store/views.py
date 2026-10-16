@@ -110,6 +110,12 @@ def validate_admin():
 
     
 
+def _etiqueta_categoria(c):
+    # "CD" se queda igual; "VINILO" pasa a "Vinilo"
+    c = (c or "").strip()
+    return c if (len(c) <= 4 and c.isupper()) else c.capitalize()
+
+
 @home.route("/")
 def index():
     from .models import get_productos_mas_vendidos
@@ -120,14 +126,14 @@ def index():
     ids = [v["producto"].id for v in vendidos if v.get("producto")]
     todas = {c["id"]: c for c in get_products_cards()}
     if ids:
-        destacados, destacados_titulo = [todas[i] for i in ids if i in todas], "Lo más vendido"
+        destacados, destacados_titulo, destacados_icono = [todas[i] for i in ids if i in todas], "Lo más vendido", "bi-fire"
     else:
-        destacados, destacados_titulo = [c for c in todas.values() if c.get("original")][:5], "Original Musical Box"
+        destacados, destacados_titulo, destacados_icono = [c for c in todas.values() if c.get("original")][:5], "Original Musical Box", "bi-vinyl-fill"
     return render_template("home.html",
                            releases=releases, hero=hero,
                            productos=list(todas.values())[:10],
-                           destacados=destacados, destacados_titulo=destacados_titulo,
-                           categorias=get_categorias(),
+                           destacados=destacados, destacados_titulo=destacados_titulo, destacados_icono=destacados_icono,
+                           categorias=[(c, _etiqueta_categoria(c)) for c in get_categorias()],
                            redes=seleccion_para_inicio())
 
 @home.route("/robots.txt")

@@ -107,6 +107,12 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 .hero-meta .hero-artist { font-size: .7rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--mb-yellow); }
 .hero-meta .hero-album { font-size: 1rem; font-weight: 700; line-height: 1.2; }
 .hero-meta:hover .hero-album { text-decoration: underline; }
+.hero-meta .hero-preorder {
+    margin-top: .35rem; font-size: .68rem; font-weight: 700; color: var(--mb-ink);
+    background: var(--mb-yellow); border-radius: 999px; padding: .14rem .55rem; display: inline-flex; align-items: center; gap: .2rem;
+}
+.hero-meta .hero-preorder[hidden] { display: none; }
+.mb-title-disc { font-size: .6em; color: var(--mb-aqua-dark); margin-left: .35rem; vertical-align: .08em; }
 @keyframes mb-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .mb-hero-art .vinyl { animation: none; } }
 @media (max-width: 991.98px) { .mb-hero-art, .hero-meta { max-width: 240px; } }
@@ -130,7 +136,7 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 .mb-card .cover .badges { position: absolute; top: .5rem; left: .5rem; display: flex; gap: .25rem; }
 .mb-card .cover .admin-edit { position: absolute; top: .5rem; right: .5rem; }
 .mb-card .body { padding: .7rem .8rem .8rem; display: flex; flex-direction: column; gap: .2rem; flex: 1; }
-.mb-card .artist { font-size: .7rem; font-weight: 600; color: var(--mb-muted); text-transform: uppercase; letter-spacing: .04em; }
+.mb-card .artist { font-size: .72rem; font-weight: 600; color: var(--mb-muted); letter-spacing: 0; }
 .mb-card .title { font-weight: 700; font-size: .85rem; line-height: 1.3; color: var(--mb-ink); }
 .mb-card .title:hover { color: var(--mb-aqua-dark); }
 .mb-card .price { font-weight: 800; font-size: 1rem; }

@@ -32,6 +32,7 @@
                 <a class="hero-meta" id="heroMeta" href="{{ url_for_release(hero[0]) }}">
                     <span class="hero-artist">{{ hero[0].artista.n_artista.title() if hero[0].artista else 'Lanzamiento' }}</span>
                     <span class="hero-album">{{ hero[0].nombre.title() }}</span>
+                    <span class="hero-preorder" id="heroPre"{% if not hero[0].preorden %} hidden{% endif %}><i class="bi bi-fire" aria-hidden="true"></i> Preorden</span>
                 </a>
                 {% endif %}
             </div>
@@ -43,8 +44,8 @@
     {% if categorias %}
     <nav class="mb-cat-chips mb-4 mb-lg-5" aria-label="Explorar por categoría">
         <a class="mb-chip-link" href="{{ url_for('products.home_products') }}">Todo</a>
-        {% for c in categorias %}
-        <a class="mb-chip-link" href="{{ url_for('products.home_products', categoria=c) }}">{{ c|capitalize }}</a>
+        {% for valor, label in categorias %}
+        <a class="mb-chip-link" href="{{ url_for('products.home_products', categoria=valor) }}">{{ label }}</a>
         {% endfor %}
     </nav>
     {% endif %}
@@ -66,7 +67,7 @@
     {% if destacados %}
     <section class="mb-5">
         <div class="mb-section-title">
-            <div><span class="mb-eyebrow">Destacados</span><h2>{{ destacados_titulo }}</h2></div>
+            <div><span class="mb-eyebrow">Destacados</span><h2>{{ destacados_titulo }}<i class="bi {{ destacados_icono }} mb-title-disc" aria-hidden="true"></i></h2></div>
             <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('products.home_products') }}">Ver todos <i class="bi bi-arrow-right"></i></a>
         </div>
         <div class="row row-cols-2 row-cols-sm-3 row-cols-lg-4 row-cols-xl-5 g-3 g-lg-4">
@@ -154,7 +155,7 @@
 {% if hero and hero|length > 1 %}
 <script>
   window.__heroSlides = [
-    {% for r in hero %}{"url": {{ url_for_release(r)|tojson }}, "artist": {{ (r.artista.n_artista.title() if r.artista else 'Lanzamiento')|tojson }}, "album": {{ r.nombre.title()|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}
+    {% for r in hero %}{"url": {{ url_for_release(r)|tojson }}, "artist": {{ (r.artista.n_artista.title() if r.artista else 'Lanzamiento')|tojson }}, "album": {{ r.nombre.title()|tojson }}, "preorden": {{ 'true' if r.preorden else 'false' }}}{% if not loop.last %},{% endif %}{% endfor %}
   ];
 </script>
 <script>
@@ -166,6 +167,7 @@
     if (slides.length < 2) return;
     var meta = document.getElementById('heroMeta');
     var datos = window.__heroSlides || [];
+    var INTERVALO = 5000; // ms entre cambios; ajústalo aquí para ir más rápido o más lento
     function pinta(n) {
       slides.forEach(function (s, k) {
         s.classList.toggle('is-active', k === n);
@@ -177,13 +179,15 @@
         var a = meta.querySelector('.hero-artist'), b = meta.querySelector('.hero-album');
         if (a) a.textContent = d.artist;
         if (b) b.textContent = d.album;
+        var pre = document.getElementById('heroPre');
+        if (pre) { if (d.preorden) { pre.removeAttribute('hidden'); } else { pre.setAttribute('hidden', ''); } }
       }
     }
     pinta(0);
     // respeta "reducir movimiento": se queda en la primera portada
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     var i = 0, timer = null;
-    function arranca() { if (!timer) timer = setInterval(function () { i = (i + 1) % slides.length; pinta(i); }, 5000); }
+    function arranca() { if (!timer) timer = setInterval(function () { i = (i + 1) % slides.length; pinta(i); }, INTERVALO); }
     function para() { clearInterval(timer); timer = null; }
     arranca();
     art.addEventListener('mouseenter', para);
