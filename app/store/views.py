@@ -983,16 +983,17 @@ def release(k_lanzamiento, slug=None):
     # Redirigir a URL textual si se accede por ID
     if slug is None:
         from .models import get_release_by_id, slugify
-        from flask import request, url_for
         lanzamiento = get_release_by_id(k_lanzamiento)
         if lanzamiento and isinstance(lanzamiento, dict) and lanzamiento.get('n_lanzamiento'):
             safe_slug = slugify(lanzamiento['n_lanzamiento'])
             # Preserve query parameters in redirect
+            from flask import url_for
             query_params = request.args.to_dict()
             return redirect(url_for('releases.release', k_lanzamiento=k_lanzamiento, slug=safe_slug, **query_params), code=301)
         elif hasattr(lanzamiento, 'n_lanzamiento'):
             safe_slug = slugify(lanzamiento.n_lanzamiento)
             # Preserve query parameters in redirect
+            from flask import url_for
             query_params = request.args.to_dict()
             return redirect(url_for('releases.release', k_lanzamiento=k_lanzamiento, slug=safe_slug, **query_params), code=301)
     
@@ -1050,16 +1051,17 @@ def artist(k_artista, slug=None):
     # Redirigir a URL textual si se accede por ID
     if slug is None:
         from .models import get_artist_by_id, slugify
-        from flask import request, url_for
         artista_data = get_artist_by_id(k_artista)
         if artista_data and isinstance(artista_data, dict) and artista_data.get('n_artista'):
             safe_slug = slugify(artista_data['n_artista'])
             # Preserve query parameters in redirect
+            from flask import url_for
             query_params = request.args.to_dict()
             return redirect(url_for('artists.artist', k_artista=k_artista, slug=safe_slug, **query_params), code=301)
         elif hasattr(artista_data, 'n_artista'):
             safe_slug = slugify(artista_data.n_artista)
             # Preserve query parameters in redirect
+            from flask import url_for
             query_params = request.args.to_dict()
             return redirect(url_for('artists.artist', k_artista=k_artista, slug=safe_slug, **query_params), code=301)
     
@@ -1204,13 +1206,13 @@ def detalle(k_producto, slug=None):
         if producto and isinstance(producto, dict) and producto.get('nombre'):
             safe_slug = slugify(producto['nombre'])
             # Preserve query parameters in redirect
-            from flask import request, url_for
+            from flask import url_for
             query_params = request.args.to_dict()
             return redirect(url_for('products.detalle', k_producto=k_producto, slug=safe_slug, **query_params), code=301)
         elif hasattr(producto, 'n_producto'):
             safe_slug = slugify(producto.n_producto)
             # Preserve query parameters in redirect
-            from flask import request, url_for
+            from flask import url_for
             query_params = request.args.to_dict()
             return redirect(url_for('products.detalle', k_producto=k_producto, slug=safe_slug, **query_params), code=301)
     
