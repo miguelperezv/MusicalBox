@@ -67,7 +67,7 @@
     {% if destacados %}
     <section class="mb-5">
         <div class="mb-section-title">
-            <div><span class="mb-eyebrow">Destacados</span><h2>{{ destacados_titulo }}<i class="bi {{ destacados_icono }} mb-title-disc" aria-hidden="true"></i></h2></div>
+            <div><span class="mb-eyebrow">Destacados</span><h2>{% if destacados_marca %}Original <span class="font-brand">musical box</span><img src="{{ url_for('static', filename='imgs/musicalbox.png') }}" alt="" class="mb-title-mark">{% else %}{{ destacados_titulo }}<i class="bi {{ destacados_icono }} mb-title-disc" aria-hidden="true"></i>{% endif %}</h2></div>
             <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('products.home_products') }}">Ver todos <i class="bi bi-arrow-right"></i></a>
         </div>
         <div class="row row-cols-2 row-cols-sm-3 row-cols-lg-4 row-cols-xl-5 g-3 g-lg-4">

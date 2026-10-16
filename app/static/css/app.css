@@ -113,6 +113,7 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 }
 .hero-meta .hero-preorder[hidden] { display: none; }
 .mb-title-disc { font-size: .6em; color: var(--mb-aqua-dark); margin-left: .35rem; vertical-align: .08em; }
+.mb-title-mark { width: 1.05em; height: 1.05em; border-radius: 50%; object-fit: cover; margin-left: .4rem; vertical-align: -.16em; box-shadow: 0 1px 3px rgba(15, 28, 36, .22); }
 @keyframes mb-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .mb-hero-art .vinyl { animation: none; } }
 @media (max-width: 991.98px) { .mb-hero-art, .hero-meta { max-width: 240px; } }

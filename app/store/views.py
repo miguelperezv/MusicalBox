@@ -126,13 +126,14 @@ def index():
     ids = [v["producto"].id for v in vendidos if v.get("producto")]
     todas = {c["id"]: c for c in get_products_cards()}
     if ids:
-        destacados, destacados_titulo, destacados_icono = [todas[i] for i in ids if i in todas], "Lo más vendido", "bi-fire"
+        destacados, destacados_titulo, destacados_icono, destacados_marca = [todas[i] for i in ids if i in todas], "Lo más vendido", "bi-fire", False
     else:
-        destacados, destacados_titulo, destacados_icono = [c for c in todas.values() if c.get("original")][:5], "Original Musical Box", "bi-vinyl-fill"
+        destacados, destacados_titulo, destacados_icono, destacados_marca = [c for c in todas.values() if c.get("original")][:5], "Original Musical Box", "bi-vinyl-fill", True
     return render_template("home.html",
                            releases=releases, hero=hero,
                            productos=list(todas.values())[:10],
-                           destacados=destacados, destacados_titulo=destacados_titulo, destacados_icono=destacados_icono,
+                           destacados=destacados, destacados_titulo=destacados_titulo,
+                           destacados_icono=destacados_icono, destacados_marca=destacados_marca,
                            categorias=[(c, _etiqueta_categoria(c)) for c in get_categorias()],
                            redes=seleccion_para_inicio())
 
