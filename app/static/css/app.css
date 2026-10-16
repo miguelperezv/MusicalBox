@@ -121,12 +121,13 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 }
 .hero-meta .hero-preorder[hidden] { display: none; }
 .mb-title-disc { font-size: .6em; color: var(--mb-aqua-dark); margin-left: .35rem; vertical-align: .08em; }
-/* disquito amarillo (mini vinilo) para identificar "Original musical box" */
-.mb-title-mark {
-    display: inline-block; width: .95em; height: .95em; border-radius: 50%; position: relative;
-    background: var(--mb-yellow); border: 2px solid var(--mb-ink); margin-left: .4rem; vertical-align: -.12em;
+/* "Original musical box": replica la marca del navbar (fondo oscuro + texto amarillo + logo = disquito) */
+.mb-brand-tag {
+    display: inline-flex; align-items: center; gap: .45rem;
+    background: var(--mb-ink); color: var(--mb-yellow); font-weight: 700; line-height: 1.2;
+    padding: .28rem .95rem .28rem .5rem; border-radius: 999px; font-size: 1.05rem;
 }
-.mb-title-mark::after { content: ""; position: absolute; inset: 34%; border-radius: 50%; background: var(--mb-ink); }
+.mb-brand-tag-logo { width: 28px; height: 28px; border-radius: 50%; }
 @keyframes mb-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .mb-hero-art .vinyl { animation: none; } }
 @media (max-width: 991.98px) { .mb-hero-art, .hero-meta { max-width: 240px; } }
