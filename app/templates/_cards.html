@@ -51,7 +51,7 @@
              data-bs-html="true"
              title="<div class='text-center'><small>De {{ p.lanzamiento.n_lanzamiento.title() if p.lanzamiento }}</small></div>"
              style="cursor: pointer;">
-            <a href="{{ url_for_product(p) }}" data-quickview="{{ url_for('products.detalle', k_producto=p.id, modal=1) }}" aria-label="Ver {{ p.nombre }}" style="display: block; width: 100%; height: 100%;">
+            <a href="{{ url_for_product(p) }}" data-quickview="{{ url_for_product(p) }}?modal=1" aria-label="Ver {{ p.nombre }}" style="display: block; width: 100%; height: 100%;">
                 {% for imagen in p.imagenes|sort(attribute='orden') %}
                 <img src="{{ url_for('products.image', k_producto=p.id) }}?w=600&orden={{ imagen.orden }}" 
                      alt="{{ p.nombre }} - Imagen {{ loop.index }}"
@@ -64,7 +64,7 @@
         </div>
         {% else %}
         <!-- Imagen única -->
-        <a class="mb-cover-link" href="{{ url_for_product(p) }}" data-quickview="{{ url_for('products.detalle', k_producto=p.id, modal=1) }}" aria-label="Ver {{ p.nombre }}">{{ producto_imagen(p) }}</a>
+        <a class="mb-cover-link" href="{{ url_for_product(p) }}" data-quickview="{{ url_for_product(p) }}?modal=1" aria-label="Ver {{ p.nombre }}">{{ producto_imagen(p) }}</a>
         {% endif %}
         <div class="badges">
             {% if p.tipo == 'BUNDLE' %}<span class="mb-chip mb-badge-pack"><i class="bi bi-box-seam me-1"></i>PACK</span>
@@ -80,15 +80,15 @@
     </div>
     <div class="body">
         {% if show_release and p.lanzamiento %}
-        <a class="artist d-inline-flex align-items-center gap-1" href="{{ url_for('releases.release', k_lanzamiento=p.lanzamiento.id) }}">
+        <a class="artist d-inline-flex align-items-center gap-1" href="{{ url_for_release(p.lanzamiento) }}">
             {% if p.lanzamiento.i_lanzamiento %}
             <img src="{{ p.lanzamiento.i_lanzamiento }}" alt="" width="20" height="20" class="rounded-1" style="object-fit: cover;">
             {% endif %}
             <span>{{ p.artista.n_artista.title() if p.artista else '' }} · {{ p.lanzamiento.n_lanzamiento.title() }}</span>
         </a>
-        <a class="title" href="{{ url_for_product(p) }}" data-quickview="{{ url_for('products.detalle', k_producto=p.id, modal=1) }}">{{ p.nombre }}</a>
+        <a class="title" href="{{ url_for_product(p) }}" data-quickview="{{ url_for_product(p) }}?modal=1">{{ p.nombre }}</a>
         {% else %}
-        <a class="title" href="{{ url_for_product(p) }}" data-quickview="{{ url_for('products.detalle', k_producto=p.id, modal=1) }}">{{ p.nombre }}</a>
+        <a class="title" href="{{ url_for_product(p) }}" data-quickview="{{ url_for_product(p) }}?modal=1">{{ p.nombre }}</a>
         {% endif %}
         {% if p.descripcion %}<span class="text-body-secondary small">{{ p.descripcion }}</span>{% endif %}
         {% if p.incluye %}<span class="small"><i class="bi bi-box-seam me-1 text-primary"></i>Incluye: {{ p.incluye|join(' + ') }}</span>{% endif %}

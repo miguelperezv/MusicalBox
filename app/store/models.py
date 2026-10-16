@@ -2253,28 +2253,49 @@ def slugify(text):
     return text or 'item'
 
 
+def _campo(obj, *nombres):
+    """Lee un campo de un objeto ORM o de un dict de tarjeta; el primer valor no nulo gana."""
+    for nombre in nombres:
+        valor = obj.get(nombre) if isinstance(obj, dict) else getattr(obj, nombre, None)
+        if valor:
+            return valor
+    return None
+
+
 def url_for_release(release_obj):
-    """Genera URL textual para un lanzamiento"""
+    """Genera URL textual para un lanzamiento (objeto ORM o dict de tarjeta)."""
     from flask import url_for
-    if hasattr(release_obj, 'id') and hasattr(release_obj, 'n_lanzamiento'):
-        return url_for('releases.release', k_lanzamiento=release_obj.id, slug=slugify(release_obj.n_lanzamiento))
-    return '#'
+    k = _campo(release_obj, 'id')
+    nombre = _campo(release_obj, 'n_lanzamiento', 'nombre')
+    if k is None:
+        return '#'
+    if nombre:
+        return url_for('releases.release', k_lanzamiento=k, slug=slugify(nombre))
+    return url_for('releases.release', k_lanzamiento=k)
 
 
 def url_for_artist(artist_obj):
-    """Genera URL textual para un artista"""
+    """Genera URL textual para un artista (objeto ORM o dict de tarjeta)."""
     from flask import url_for
-    if hasattr(artist_obj, 'id') and hasattr(artist_obj, 'n_artista'):
-        return url_for('artists.artist', k_artista=artist_obj.id, slug=slugify(artist_obj.n_artista))
-    return '#'
+    k = _campo(artist_obj, 'id')
+    nombre = _campo(artist_obj, 'n_artista', 'nombre')
+    if k is None:
+        return '#'
+    if nombre:
+        return url_for('artists.artist', k_artista=k, slug=slugify(nombre))
+    return url_for('artists.artist', k_artista=k)
 
 
 def url_for_product(product_obj):
-    """Genera URL textual para un producto"""
+    """Genera URL textual para un producto (objeto ORM o dict de tarjeta)."""
     from flask import url_for
-    if hasattr(product_obj, 'id') and hasattr(product_obj, 'n_producto'):
-        return url_for('products.detalle', k_producto=product_obj.id, slug=slugify(product_obj.n_producto))
-    return '#'
+    k = _campo(product_obj, 'id')
+    nombre = _campo(product_obj, 'n_producto', 'nombre')
+    if k is None:
+        return '#'
+    if nombre:
+        return url_for('products.detalle', k_producto=k, slug=slugify(nombre))
+    return url_for('products.detalle', k_producto=k)
 
 
 def liberar_reserva_stock(k_invoice):

@@ -38,7 +38,7 @@
                 <li>
                     {% set componente = c.componente %}
                     {% set variante = c.variante %}
-                    <a href="{{ url_for('products.detalle', k_producto=componente.id) }}" class="text-decoration-none">
+                    <a href="{{ url_for_product(componente) }}" class="text-decoration-none">
                         {{ componente.n_producto or componente.lanzamiento.n_lanzamiento }}
                         {% if variante and variante.nombre %}({{ variante.nombre }}){% endif %}
                     </a>
@@ -93,7 +93,7 @@
                 <button type="submit" class="btn btn-primary btn-lg flex-fill"><i class="bi bi-bag-plus me-1"></i>Agregar al carrito</button>
             </form>
             {% endif %}
-            {% if modal %}<a class="small d-inline-block mt-3" href="{{ url_for('products.detalle', k_producto=p.id) }}">Ver página del producto <i class="bi bi-arrow-right"></i></a>{% endif %}
+            {% if modal %}<a class="small d-inline-block mt-3" href="{{ url_for_product(p) }}">Ver página del producto <i class="bi bi-arrow-right"></i></a>{% endif %}
         </div>
     </div>
 </div>
