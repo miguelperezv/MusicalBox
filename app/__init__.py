@@ -123,4 +123,14 @@ def create_app(config=None):
                 seo_canonical = None
         return {"seo_canonical": seo_canonical}
 
+    @app.context_processor
+    def url_helpers():
+        # Helpers para URLs textuales
+        from .store.models import url_for_release, url_for_artist, url_for_product
+        return {
+            "url_for_release": url_for_release,
+            "url_for_artist": url_for_artist,
+            "url_for_product": url_for_product
+        }
+
     return app

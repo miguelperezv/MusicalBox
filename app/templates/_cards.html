@@ -2,7 +2,7 @@
 
 {% macro release_card(r) %}
 <article class="mb-card {{ 'soldout' if r.agotado }}">
-    <a class="cover" href="{{ url_for('releases.release', k_lanzamiento=r.id) }}">
+    <a class="cover" href="{{ url_for_release(r) }}">
         {% if r.portada %}
         <img src="{{ r.portada }}" alt="Portada de {{ r.nombre }}" loading="lazy">
         {% else %}
@@ -21,9 +21,9 @@
     {% endif %}
     <div class="body">
         {% if r.artista %}
-        <a class="artist" href="{{ url_for('artists.artist', k_artista=r.artista.id) }}">{{ r.artista.n_artista.title() }}</a>
+        <a class="artist" href="{{ url_for_artist(r.artista) }}">{{ r.artista.n_artista.title() }}</a>
         {% endif %}
-        <a class="title" href="{{ url_for('releases.release', k_lanzamiento=r.id) }}">{{ r.nombre.title() }}</a>
+        <a class="title" href="{{ url_for_release(r) }}">{{ r.nombre.title() }}</a>
         <div class="footer d-flex flex-wrap align-items-center justify-content-between gap-1">
             <div class="d-flex flex-wrap gap-1">
                 {% for c in r.categorias %}<span class="mb-chip">{{ c }}</span>{% endfor %}
@@ -51,7 +51,7 @@
              data-bs-html="true"
              title="<div class='text-center'><small>De {{ p.lanzamiento.n_lanzamiento.title() if p.lanzamiento }}</small></div>"
              style="cursor: pointer;">
-            <a href="{{ url_for('products.detalle', k_producto=p.id) }}" data-quickview="{{ url_for('products.detalle', k_producto=p.id, modal=1) }}" aria-label="Ver {{ p.nombre }}" style="display: block; width: 100%; height: 100%;">
+            <a href="{{ url_for_product(p) }}" data-quickview="{{ url_for('products.detalle', k_producto=p.id, modal=1) }}" aria-label="Ver {{ p.nombre }}" style="display: block; width: 100%; height: 100%;">
                 {% for imagen in p.imagenes|sort(attribute='orden') %}
                 <img src="{{ url_for('products.image', k_producto=p.id) }}?w=600&orden={{ imagen.orden }}" 
                      alt="{{ p.nombre }} - Imagen {{ loop.index }}"
@@ -64,7 +64,7 @@
         </div>
         {% else %}
         <!-- Imagen única -->
-        <a class="mb-cover-link" href="{{ url_for('products.detalle', k_producto=p.id) }}" data-quickview="{{ url_for('products.detalle', k_producto=p.id, modal=1) }}" aria-label="Ver {{ p.nombre }}">{{ producto_imagen(p) }}</a>
+        <a class="mb-cover-link" href="{{ url_for_product(p) }}" data-quickview="{{ url_for('products.detalle', k_producto=p.id, modal=1) }}" aria-label="Ver {{ p.nombre }}">{{ producto_imagen(p) }}</a>
         {% endif %}
         <div class="badges">
             {% if p.tipo == 'BUNDLE' %}<span class="mb-chip mb-badge-pack"><i class="bi bi-box-seam me-1"></i>PACK</span>
@@ -86,9 +86,9 @@
             {% endif %}
             <span>{{ p.artista.n_artista.title() if p.artista else '' }} · {{ p.lanzamiento.n_lanzamiento.title() }}</span>
         </a>
-        <a class="title" href="{{ url_for('products.detalle', k_producto=p.id) }}" data-quickview="{{ url_for('products.detalle', k_producto=p.id, modal=1) }}">{{ p.nombre }}</a>
+        <a class="title" href="{{ url_for_product(p) }}" data-quickview="{{ url_for('products.detalle', k_producto=p.id, modal=1) }}">{{ p.nombre }}</a>
         {% else %}
-        <a class="title" href="{{ url_for('products.detalle', k_producto=p.id) }}" data-quickview="{{ url_for('products.detalle', k_producto=p.id, modal=1) }}">{{ p.nombre }}</a>
+        <a class="title" href="{{ url_for_product(p) }}" data-quickview="{{ url_for('products.detalle', k_producto=p.id, modal=1) }}">{{ p.nombre }}</a>
         {% endif %}
         {% if p.descripcion %}<span class="text-body-secondary small">{{ p.descripcion }}</span>{% endif %}
         {% if p.incluye %}<span class="small"><i class="bi bi-box-seam me-1 text-primary"></i>Incluye: {{ p.incluye|join(' + ') }}</span>{% endif %}

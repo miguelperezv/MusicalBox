@@ -2231,6 +2231,52 @@ def producto_card(k_producto):
     return next((c for c in get_products_cards(k_lanzamiento=p.k_lanzamiento) if c["id"] == p.id), None) if p.k_lanzamiento         else next((c for c in get_products_cards() if c["id"] == p.id), None)
 
 
+def slugify(text):
+    """Convierte texto a slug seguro para URLs"""
+    import re
+    import unicodedata
+    
+    # Convertir a minúsculas y eliminar acentos
+    text = unicodedata.normalize('NFD', text).encode('ascii', 'ignore').decode('utf-8')
+    text = text.lower()
+    
+    # Reemplazar caracteres no alfanuméricos con guiones
+    text = re.sub(r'[^a-z0-9]+', '-', text)
+    
+    # Eliminar guiones al inicio y final
+    text = text.strip('-')
+    
+    # Limitar longitud
+    if len(text) > 50:
+        text = text[:50].rstrip('-')
+        
+    return text or 'item'
+
+
+def url_for_release(release_obj):
+    """Genera URL textual para un lanzamiento"""
+    from flask import url_for
+    if hasattr(release_obj, 'id') and hasattr(release_obj, 'n_lanzamiento'):
+        return url_for('releases.release', k_lanzamiento=release_obj.id, slug=slugify(release_obj.n_lanzamiento))
+    return '#'
+
+
+def url_for_artist(artist_obj):
+    """Genera URL textual para un artista"""
+    from flask import url_for
+    if hasattr(artist_obj, 'id') and hasattr(artist_obj, 'n_artista'):
+        return url_for('artists.artist', k_artista=artist_obj.id, slug=slugify(artist_obj.n_artista))
+    return '#'
+
+
+def url_for_product(product_obj):
+    """Genera URL textual para un producto"""
+    from flask import url_for
+    if hasattr(product_obj, 'id') and hasattr(product_obj, 'n_producto'):
+        return url_for('products.detalle', k_producto=product_obj.id, slug=slugify(product_obj.n_producto))
+    return '#'
+
+
 def liberar_reserva_stock(k_invoice):
     """Libera el stock reservado para un pedido y elimina las reservas."""
     from datetime import datetime, timedelta

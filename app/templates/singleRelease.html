@@ -35,7 +35,7 @@
             <img class="mb-release-mini" src="{{ lanzamiento.i_lanzamiento }}" alt="Portada de {{ lanzamiento.n_lanzamiento }}">
             {% endif %}
             <div class="min-w-0 flex-fill">
-                {% if artista %}<a class="mb-eyebrow text-white-50" href="{{ url_for('artists.artist', k_artista=artista.id) }}">{{ artista.n_artista.title() }}</a>{% endif %}
+                {% if artista %}<a class="mb-eyebrow text-white-50" href="{{ url_for_artist(artista) }}">{{ artista.n_artista.title() }}</a>{% endif %}
                 <h1 class="h2 mb-2 text-white text-truncate">{{ lanzamiento.n_lanzamiento.title() }}</h1>
                 <div class="d-flex flex-wrap align-items-center gap-2">
                     {% for g in generos if g.k_genero and g.k_genero != 'N/A' %}<span class="mb-chip">{{ g.k_genero }}</span>{% endfor %}

@@ -978,8 +978,21 @@ def fecha_lanzamiento_pronta(lanzamiento):
 
 
 @releases.route("/<int:k_lanzamiento>", methods=["GET", "POST"])
-def release(k_lanzamiento):
+@releases.route("/<int:k_lanzamiento>/<slug>")  # URL textual con slug
+def release(k_lanzamiento, slug=None):
+    # Redirigir a URL textual si se accede por ID
+    if slug is None:
+        from .models import get_release_by_id, slugify
+        lanzamiento = get_release_by_id(k_lanzamiento)
+        if lanzamiento and isinstance(lanzamiento, dict) and lanzamiento.get('n_lanzamiento'):
+            safe_slug = slugify(lanzamiento['n_lanzamiento'])
+            return redirect(url_for('releases.release', k_lanzamiento=k_lanzamiento, slug=safe_slug), code=301)
+        elif hasattr(lanzamiento, 'n_lanzamiento'):
+            safe_slug = slugify(lanzamiento.n_lanzamiento)
+            return redirect(url_for('releases.release', k_lanzamiento=k_lanzamiento, slug=safe_slug), code=301)
+    
     if request.method == 'GET':
+        from .models import get_artist_by_release, get_release_by_id, get_genres_by_release, get_products_by_release
         artista = get_artist_by_release(k_lanzamiento)
         lanzamiento = get_release_by_id(k_lanzamiento)
         generos = get_genres_by_release(k_lanzamiento)
@@ -1027,8 +1040,21 @@ def post_lanzamiento(k_lanzamiento):
 
 
 @artists.route("/<int:k_artista>", methods=["GET", "POST"])
-def artist(k_artista):
+@artists.route("/<int:k_artista>/<slug>")  # URL textual con slug
+def artist(k_artista, slug=None):
+    # Redirigir a URL textual si se accede por ID
+    if slug is None:
+        from .models import get_artist_by_id, slugify
+        artista_data = get_artist_by_id(k_artista)
+        if artista_data and isinstance(artista_data, dict) and artista_data.get('n_artista'):
+            safe_slug = slugify(artista_data['n_artista'])
+            return redirect(url_for('artists.artist', k_artista=k_artista, slug=safe_slug), code=301)
+        elif hasattr(artista_data, 'n_artista'):
+            safe_slug = slugify(artista_data.n_artista)
+            return redirect(url_for('artists.artist', k_artista=k_artista, slug=safe_slug), code=301)
+    
     if request.method == 'GET':
+        from .models import get_artist_by_id, get_releases_cards, get_generos, get_categorias
         artista = get_artist_by_id(k_artista)
         if not artista:
             return render_template("404.html"), 404
@@ -1159,8 +1185,22 @@ def image(k_producto):
     return redirect(portada or url_for('static', filename='imgs/musicalbox.png'))
 
 @products.route("/<int:k_producto>")
-def detalle(k_producto):
+@products.route("/<int:k_producto>/<slug>")  # URL textual con slug
+def detalle(k_producto, slug=None):
+    # Redirigir a URL textual si se accede por ID
+    if slug is None:
+        from .models import producto_card, slugify
+        producto = producto_card(k_producto)
+        if producto and isinstance(producto, dict) and producto.get('nombre'):
+            safe_slug = slugify(producto['nombre'])
+            return redirect(url_for('products.detalle', k_producto=k_producto, slug=safe_slug), code=301)
+        elif hasattr(producto, 'n_producto'):
+            safe_slug = slugify(producto.n_producto)
+            return redirect(url_for('products.detalle', k_producto=k_producto, slug=safe_slug), code=301)
+    
     #página del producto; con ?modal=1 devuelve solo el contenido para la vista rápida
+    from .models import producto_card, get_products_cards, get_first_image_by_product
+    from .imagenes import imagen_producto
     p = producto_card(k_producto)
     if not p:
         return render_template("404.html"), 404

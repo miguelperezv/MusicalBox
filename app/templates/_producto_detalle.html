@@ -18,7 +18,7 @@
             {% elif agotado %}<span class="mb-chip mb-badge-out">Agotado</span>{% elif p.stock <= 3 %}<span class="mb-chip mb-badge-new">¡Últimos {{ p.stock }}!</span>{% endif %}
         </div>
         {% if p.lanzamiento %}
-        <a class="mb-eyebrow d-inline-flex align-items-center gap-2" href="{{ url_for('releases.release', k_lanzamiento=p.lanzamiento.id) }}">
+        <a class="mb-eyebrow d-inline-flex align-items-center gap-2" href="{{ url_for_release(p.lanzamiento) }}">
             {% if p.lanzamiento.i_lanzamiento %}
             <img src="{{ p.lanzamiento.i_lanzamiento }}" alt="" width="24" height="24" class="rounded-1" style="object-fit: cover;">
             {% endif %}
