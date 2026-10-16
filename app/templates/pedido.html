@@ -200,7 +200,9 @@
       console.error('[MP] Elemento mpModal no encontrado');
       return;
     }
-    modal.style.display = "block";
+    // El modal ya se muestra con showMpModal(); aquí solo asegúrate de mantener
+    // el layout centrado (display:flex), NO "block" (rompía el centrado del Brick).
+    modal.style.display = "flex";
     
     try {
       // Obtener contexto del pago
