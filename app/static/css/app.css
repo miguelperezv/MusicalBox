@@ -98,16 +98,16 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 .mb-hero p.lead { color: rgba(15, 28, 36, .78); max-width: 34rem; font-size: 0.9rem; }
 .mb-hero .text-body-secondary { color: rgba(15, 28, 36, .7) !important; }
 .mb-hero-art { position: relative; aspect-ratio: 1; max-width: 380px; margin-inline: auto; }
-.mb-hero-art .mb-live { position: absolute; left: 12%; top: 0; width: 100%; height: 100%; overflow: visible; }
+.mb-hero-art .mb-live { position: absolute; left: 8%; top: 0; width: 100%; height: 100%; overflow: visible; }
 /* vinilo vivo: los surcos giran (tocadiscos) y la nota baila por encima */
 .mb-live-grooves { transform-box: view-box; transform-origin: 1024px 1024px; animation: mb-spin var(--mb-vinyl-spin) linear infinite; }
-/* la nota vibra con la música: oscila MUY rápido y con poca amplitud, tanto que se ve
-   mínimamente borrosa. El desenfoque no es un efecto decorativo: es lo que se ve cuando
-   algo se mueve a esa velocidad. Nada de saltos ni de vaivén de lado a lado. */
-.mb-live-vibra { animation: mb-live-vibra .09s ease-in-out infinite; filter: blur(5px); }
+/* la nota NO vibra sin parar: se queda quieta y nítida, igual que el boceto, y cada 2,5 s
+   se agita medio segundo muy rápido; mientras se agita se ve mínimamente borrosa porque
+   va a esa velocidad. Nada de saltos ni de vaivén de lado a lado. */
+.mb-live-vibra { animation: mb-live-vibra 2.5s linear infinite; }
 .mb-live-spark { transform-box: fill-box; transform-origin: center; opacity: 0; animation: mb-live-spark 5s ease-out infinite; }
 .mb-hero-art .cover {
-    position: absolute; inset: 14% 28% 14% 0; border-radius: 12px; overflow: hidden;
+    position: absolute; inset: 15% 30% 15% 0; border-radius: 12px; overflow: hidden;
     box-shadow: 0 16px 38px rgba(15, 28, 36, .22); background: var(--mb-aqua);
 }
 .mb-hero-art .cover img { width: 100%; height: 100%; object-fit: cover; }
@@ -135,10 +135,21 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 }
 .mb-brand-tag-logo { width: 28px; height: 28px; border-radius: 50%; }
 @keyframes mb-spin { to { transform: rotate(360deg); } }
-/* una sola oscilación rapidísima (≈11 por segundo) y de recorrido corto */
+/* 0% - 20% (0,5 s): se agita ≈10 veces por segundo, con el desenfoque que produce esa
+   velocidad. 20% - 100% (2 s): quieta y nítida, para que se vea la nota original. */
 @keyframes mb-live-vibra {
-    0%, 100% { transform: translateY(-8px); }
-    50% { transform: translateY(8px); }
+    0% { transform: translateY(0); filter: blur(5px); }
+    1% { transform: translateY(-8px); filter: blur(5px); }
+    3% { transform: translateY(8px); filter: blur(5px); }
+    5% { transform: translateY(-8px); filter: blur(5px); }
+    7% { transform: translateY(8px); filter: blur(5px); }
+    9% { transform: translateY(-8px); filter: blur(5px); }
+    11% { transform: translateY(8px); filter: blur(5px); }
+    13% { transform: translateY(-8px); filter: blur(5px); }
+    15% { transform: translateY(8px); filter: blur(5px); }
+    17% { transform: translateY(-8px); filter: blur(5px); }
+    19% { transform: translateY(8px); filter: blur(5px); }
+    20%, 100% { transform: translateY(0); filter: blur(0); }
 }
 @keyframes mb-live-spark {
     0%, 82% { opacity: 0; transform: scale(.3); }
