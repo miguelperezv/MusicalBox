@@ -8,9 +8,9 @@
     <div class="container py-5">
         <div class="row align-items-center g-5 py-lg-4">
             <div class="col-lg-6">
-                <span class="mb-eyebrow text-white-50">Tienda de música física · Bogotá</span>
-                <h1 class="mt-2 mb-3">La música que amas, <span class="hl">en tus manos.</span></h1>
-                <p class="lead mb-4">Vinilos, CD's y cassettes: lanzamientos, ediciones especiales y lo que no encuentres en ningún otro lado, lo conseguimos por ti.</p>
+                <span class="mb-eyebrow text-white-50">Discotienda en Bogotá</span>
+                <h1 class="mt-2 mb-3">Vinilos, CD's y cassettes <span class="hl">originales</span></h1>
+                <p class="lead mb-4">Importamos lanzamientos y ediciones que no llegan al país. Si buscas un disco y no lo tenemos, lo conseguimos por ti.</p>
                 <div class="d-flex flex-wrap gap-2">
                     <a class="btn btn-accent btn-lg" href="{{ url_for('releases.home_releases') }}">Ver lanzamientos</a>
                     <a class="btn btn-outline-light btn-lg" href="{{ url_for('solicitud.nueva') }}">Pide tu disco</a>
@@ -28,11 +28,11 @@
                              {% if loop.first %}fetchpriority="high"{% else %}loading="lazy"{% endif %}>
                     </a>
                     {% endfor %}
+                    <span class="hero-preorder" id="heroPre"{% if not hero[0].preorden %} hidden{% endif %}><i class="bi bi-fire" aria-hidden="true"></i> Preorden</span>
                 </div>
                 <a class="hero-meta" id="heroMeta" href="{{ url_for_release(hero[0]) }}">
                     <span class="hero-artist">{{ hero[0].artista.n_artista.title() if hero[0].artista else 'Lanzamiento' }}</span>
                     <span class="hero-album">{{ hero[0].nombre.title() }}</span>
-                    <span class="hero-preorder" id="heroPre"{% if not hero[0].preorden %} hidden{% endif %}><i class="bi bi-fire" aria-hidden="true"></i> Preorden</span>
                 </a>
                 {% endif %}
             </div>
