@@ -29,6 +29,7 @@
                     </a>
                     {% endfor %}
                     <span class="hero-preorder" id="heroPre"{% if not hero[0].preorden %} hidden{% endif %}><i class="bi bi-fire" aria-hidden="true"></i> Preorden</span>
+                    {% include "_tema_clima.html" %}
                 </div>
                 <a class="hero-meta" id="heroMeta" href="{{ url_for_release(hero[0]) }}">
                     <span class="hero-artist">{{ hero[0].artista.n_artista|titulo if hero[0].artista else 'Lanzamiento' }}</span>

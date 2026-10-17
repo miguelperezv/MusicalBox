@@ -1,5 +1,5 @@
 #panel admin: tallas/colores de un producto y contenido de los packs (rutas del blueprint dashboard, ya protegido)
-from flask import flash, redirect, request, url_for
+from flask import abort, flash, redirect, render_template, request, url_for
 from .views import dashboard
 from .models import actualizar_variante, agregar_componente, crear_variante, eliminar_componente, eliminar_variante, db, Variante
 
@@ -325,3 +325,65 @@ def lanzamiento_campo(k_lanzamiento, campo):
         setattr(l, campo, valor or None)
     db.session.commit()
     return jsonify({campo: (l.f_lanzamiento.isoformat() if campo == "f_lanzamiento" else getattr(l, campo) or "")})
+
+
+#sección Tema de temporada del logotipo (ver app/store/temporadas.py)
+from datetime import datetime as _datetime
+
+from . import temporadas
+
+
+def _volver_tema(err=None, ok=None):
+    flash(err or ok, "warning" if err else "success")
+    return redirect(url_for('dashboard.tema_admin'))
+
+
+@dashboard.route("/tema")
+def tema_admin():
+    modo, forzado = temporadas.config_tema()
+    hoy = _datetime.now(temporadas.BOGOTA).date()
+    tema_hoy = temporadas.tema_por_fecha(hoy)
+    proximo, fecha_proximo, dias = temporadas.proximo_tema()
+    if modo == "forzado":
+        activo = forzado
+    elif modo == "apagado":
+        activo = None
+    else:
+        activo = tema_hoy
+    return render_template("tema_admin.html", modo=modo, forzado=forzado, activo=activo,
+                           tema_hoy=tema_hoy, temas=list(temporadas.TEMAS), nombres=temporadas.NOMBRES,
+                           ventanas=temporadas.VENTANAS,
+                           proximo=(proximo, temporadas.fecha_larga(fecha_proximo) if fecha_proximo else None, dias))
+
+
+@dashboard.route("/tema/config", methods=["POST"])
+def tema_config():
+    err = temporadas.guardar_config_tema(request.form.get("modo"), request.form.get("forzado"))
+    return _volver_tema(err, "Listo, quedó guardado")
+
+
+@dashboard.route("/tema/marcar/<clave>", methods=["POST"])
+def tema_marcar(clave):
+    #el botón de cada recuadro: forzar ese tema (o dejar sin tema, que es apagarlo)
+    if clave == "ninguno":
+        err, ok = temporadas.guardar_config_tema("apagado"), "Listo: el logotipo queda sin adornos"
+    else:
+        err = temporadas.guardar_config_tema("forzado", clave)
+        ok = f"Listo: se muestra {temporadas.NOMBRES.get(clave, clave)} (míralo en la tienda)"
+    return _volver_tema(err, ok)
+
+
+@dashboard.route("/tema/auto", methods=["POST"])
+def tema_auto():
+    temporadas.guardar_config_tema("auto")
+    return _volver_tema(ok="Listo: vuelve a automático, según la fecha")
+
+
+@dashboard.route("/tema/vista/<clave>")
+def tema_vista(clave):
+    #vista previa mínima (logotipo del navbar + vinilo) para los recuadros del panel
+    if clave == "ninguno":
+        return render_template("_tema_vista.html", clave=None, nombre="Sin tema")
+    if clave not in temporadas.TEMAS:
+        abort(404)
+    return render_template("_tema_vista.html", clave=clave, nombre=temporadas.NOMBRES[clave])

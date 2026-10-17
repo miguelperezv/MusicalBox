@@ -1,0 +1,33 @@
+{# Clima del tema: cae POR ENCIMA de todo (carátula incluida), como si miráramos por la
+   ventana. Va en su propio <svg> después de las portadas, en el mismo sistema de
+   coordenadas del logotipo y con el mismo desplazamiento (left: 8%), así que las piezas
+   caen alineadas con el vinilo. Ver .mb-hero-art .mb-clima en app.css.
+
+   Sólo Navidad (nieve) y Amor y amistad (lluvia de corazones) usan esta capa. #}
+{% if tema == 'navidad' %}
+{% from "_tema_macros.html" import copo %}
+<svg class="mb-clima" viewBox="200 200 1600 1600" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+    {% set nieve = [(300, 220, 26, 8, 0.0, 14), (620, 700, 20, -6, 3.5, 15), (900, 1250, 30, 10, 7.0, 13),
+                    (1180, 1700, 22, 0, 10.5, 16), (1450, 400, 26, 12, 1.2, 14), (1700, 1500, 32, -8, 5.0, 13.5),
+                    (420, 950, 20, 6, 8.6, 15.5), (780, 1800, 28, -12, 12.0, 14), (1050, 300, 24, 4, 2.4, 13),
+                    (1320, 1100, 30, -4, 6.2, 16), (1600, 600, 22, 9, 9.8, 14.5), (520, 1600, 26, -9, 13.1, 15),
+                    (1000, 850, 20, 5, 4.3, 13.5), (1750, 1300, 28, -5, 11.4, 14.5), (760, 1400, 24, 7, 0.7, 14),
+                    (1380, 900, 20, -11, 4.9, 15), (1120, 1500, 26, 3, 8.2, 13), (1620, 1000, 22, -7, 11.9, 16),
+                    (480, 600, 18, 9, 6.8, 14.5), (1250, 500, 28, -3, 9.1, 13.5), (900, 600, 20, 11, 12.6, 15),
+                    (1500, 1750, 24, -10, 2.0, 14)] %}
+    {% for (x, y, r, g, ret, dur) in nieve %}{{ copo(x, y, r, g, ret, dur, 'mb-tema-cae') }}{% endfor %}
+</svg>
+{% elif tema == 'amor_amistad' %}
+{% from "_tema_macros.html" import corazon %}
+<svg class="mb-clima" viewBox="200 200 1600 1600" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+    {% set lluvia = [(340, 280, 1.9, -10, 0.0, '#e2574c'), (700, 800, 1.4, 12, 1.1, '#f08fa8'),
+                     (980, 1300, 2.1, -6, 2.2, '#e2574c'), (1250, 1750, 1.5, 8, 3.3, '#d9466b'),
+                     (1500, 350, 1.7, 14, 4.4, '#f08fa8'), (1720, 1000, 2.0, -12, 5.5, '#e2574c'),
+                     (480, 1450, 1.3, 6, 6.6, '#d9466b'), (860, 400, 1.6, -8, 7.7, '#e2574c'),
+                     (1120, 700, 1.2, 10, 8.8, '#f08fa8'), (1380, 1500, 1.8, -4, 9.9, '#e2574c'),
+                     (620, 1700, 1.4, 9, 11.0, '#d9466b'), (1650, 1650, 1.6, -9, 12.1, '#f08fa8'),
+                     (760, 600, 1.5, -7, 0.6, '#e2574c'), (1180, 1100, 1.7, 11, 4.9, '#f08fa8'),
+                     (1580, 750, 1.3, -5, 7.1, '#d9466b'), (900, 1550, 1.8, 6, 10.4, '#e2574c')] %}
+    {% for (x, y, s, g, ret, col) in lluvia %}{{ corazon(x, y, s, g, 0.95, ret, 'mb-tema-cae', 11, col) }}{% endfor %}
+</svg>
+{% endif %}

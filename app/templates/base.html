@@ -34,12 +34,12 @@
     <!-- Plausible Analytics -->
     <script defer data-domain="musicalbox.com" src="https://plausible.io/js/script.js"></script>
 </head>
-<body>
+<body{% if tema %} class="mb-tema-{{ tema }}"{% endif %}>
     {% set ep = request.endpoint or '' %}
     <nav class="navbar navbar-expand-lg navbar-dark mb-navbar">
         <div class="container">
             <a class="navbar-brand font-brand" href="{{ url_for('home.index') }}">
-                <img src="{{ url_for('static', filename='imgs/musicalbox.png') }}" alt="">musical box
+                <span class="mb-logo-tema"><img src="{{ url_for('static', filename='imgs/musicalbox.png') }}" alt="">{% if tema %}<svg class="mb-logo-adorno" viewBox="200 200 1600 1600" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">{% with mini = true, capa = 'atras' %}{% include "_tema.html" %}{% endwith %}{% with mini = true, capa = 'nota' %}{% include "_tema.html" %}{% endwith %}</svg>{% endif %}</span>musical box
             </a>
 
             <div class="d-flex align-items-center gap-2 order-lg-last">

@@ -1,0 +1,24 @@
+{# Piezas reutilizables de los adornos de temporada (ver _tema.html y _tema_clima.html).
+
+   Cada pieza se coloca con un <g> de fuera (transform de atributo) y se anima con CSS en un
+   <g> de dentro: si se animara el de fuera, el CSS pisaría el transform del atributo y la
+   pieza saltaría al origen del dibujo. Por eso las animaciones sólo mueven y atenúan: girar
+   o escalar depende del origen de la transformación en SVG y no sirve aquí.
+
+   `clase` elige la animación:
+     - mb-tema-flota  flota suave en su sitio (copos quietos, chips...)
+     - mb-tema-cae    cae de arriba a abajo y se repite (nieve, lluvia de corazones) #}
+
+{% macro copo(x, y, r, giro=0, retardo=0, dur=9, clase='mb-tema-flota', op=1) %}
+<g transform="translate({{ x }},{{ y }}) rotate({{ giro }})"><g class="{{ clase }}" style="animation-delay:-{{ retardo }}s;animation-duration:{{ dur }}s">
+    <g stroke="#cdeef6" stroke-width="{{ (r / 3)|round(1) }}" stroke-linecap="round" opacity="{{ (0.8 * op)|round(2) }}">{% for a in (0, 60, 120, 180, 240, 300) %}<line x1="0" y1="0" x2="0" y2="{{ -r }}" transform="rotate({{ a }})"/>{% endfor %}</g>
+    <g stroke="#ffffff" stroke-width="{{ (r / 6)|round(1) }}" stroke-linecap="round" opacity="{{ op }}">{% for a in (0, 60, 120, 180, 240, 300) %}<line x1="0" y1="0" x2="0" y2="{{ -r }}" transform="rotate({{ a }})"/>{% endfor %}</g>
+</g></g>
+{% endmacro %}
+
+{# corazoncito plano: se usa flotando (Amor y amistad) o cayendo como lluvia #}
+{% macro corazon(x, y, s, giro=0, op=1, retardo=0, clase='mb-tema-flota', dur=8, color='#e2574c') %}
+<g transform="translate({{ x }},{{ y }}) rotate({{ giro }}) scale({{ s }})"><g class="{{ clase }}" style="animation-delay:-{{ retardo }}s;animation-duration:{{ dur }}s">
+    <path fill="{{ color }}" opacity="{{ op }}" d="M0,32 C-8,20 -30,10 -30,-8 C-30,-24 -12,-30 0,-16 C12,-30 30,-24 30,-8 C30,10 8,20 0,32 Z"/>
+</g></g>
+{% endmacro %}

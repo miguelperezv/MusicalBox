@@ -52,7 +52,10 @@ DEFAULTS = {'redes.activa': '0',
             'envio.proceso': '1–2 días hábiles',
             'envio.bogota': '24–72 h',
             'envio.ciudades': '2–5 días',
-            'envio.resto': '3–7 días'}
+            'envio.resto': '3–7 días',
+            #tema de temporada del logotipo, elegido por el admin en /dashboard/tema
+            #(ver app/store/temporadas.py); 'tema.forzado' sólo se usa en modo 'forzado'
+            'tema.modo': 'auto', 'tema.forzado': ''}
 _PATRONES = {
     'tiktok': re.compile(r"^https?://(www\.|m\.)?tiktok\.com/@[\w.\-]+/(video|photo)/(\d{8,25})"),
     'instagram': re.compile(r"^https?://(www\.)?instagram\.com/(p|reel|tv)/([\w\-]{5,40})"),
