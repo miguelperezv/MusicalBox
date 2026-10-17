@@ -19,7 +19,7 @@
         {% if lanzamiento.i_lanzamiento %}<img src="{{ lanzamiento.i_lanzamiento }}" alt="" width="88" height="88" class="rounded object-fit-cover">{% endif %}
         <div>
             <div class="small text-body-secondary">Lanzamiento #{{ lanzamiento.id }}</div>
-            <div class="fw-bold">{{ lanzamiento.n_lanzamiento.title() }}</div>
+            <div class="fw-bold">{{ lanzamiento.n_lanzamiento|titulo }}</div>
         </div>
     </div>
     {% if lanzamiento.external_id %}
@@ -35,7 +35,7 @@
         <label class="form-label" for="artista">Artista</label>
         <select class="form-select" name="k_artista" id="artista" required>
             <option value="" disabled {{ 'selected' if not (artista.n_artista if artista else '') }}>Elige el artista</option>
-            {% for a in artistas %}<option value="{{ a }}" {{ 'selected' if a == (artista.n_artista if artista else '') }}>{{ a.title() }}</option>{% endfor %}
+            {% for a in artistas %}<option value="{{ a }}" {{ 'selected' if a == (artista.n_artista if artista else '') }}>{{ a|titulo }}</option>{% endfor %}
         </select>
         <div class="form-text">¿No está? Créalo en Artistas, géneros y categorías.</div>
     </div>

@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 {% from "_cards.html" import product_card with context %}
 {% block title %}{{ p.nombre }}{% endblock %}
-{% block description %}{{ p.nombre }}{{ ' - ' ~ p.lanzamiento.n_lanzamiento.title() if p.lanzamiento }} en Musical Box. {{ p.descripcion or '' }}{% endblock %}
-{% block og_title %}{{ p.nombre }}{{ ' · ' ~ p.lanzamiento.n_lanzamiento.title() if p.lanzamiento }} · Musical Box{% endblock %}
-{% block og_description %}{{ p.nombre }}{{ ' - ' ~ p.lanzamiento.n_lanzamiento.title() if p.lanzamiento }} en Musical Box. {{ p.descripcion or '' }}{% endblock %}
+{% block description %}{{ p.nombre }}{{ ' - ' ~ p.lanzamiento.n_lanzamiento|titulo if p.lanzamiento }} en Musical Box. {{ p.descripcion or '' }}{% endblock %}
+{% block og_title %}{{ p.nombre }}{{ ' · ' ~ p.lanzamiento.n_lanzamiento|titulo if p.lanzamiento }} · Musical Box{% endblock %}
+{% block og_description %}{{ p.nombre }}{{ ' - ' ~ p.lanzamiento.n_lanzamiento|titulo if p.lanzamiento }} en Musical Box. {{ p.descripcion or '' }}{% endblock %}
 {% block og_image %}{{ url_for('products.image', k_producto=p.id, w=600, _external=True) }}{% endblock %}
 
 {% block head %}
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"Product","name":{{ p.nombre|tojson }},"description":{{ p.descripcion|tojson }},"image":["{{ url_for('products.image', k_producto=p.id, w=600, _external=True) }}"],"brand":{"@type":"Brand","name":{{ (p.artista.n_artista.title() if p.artista else 'Musical Box')|tojson }}},"offers":{"@type":"Offer","url":"{{ seo_canonical or request.url }}","priceCurrency":"COP","price":{{ p.precio|float }},"availability":"https://schema.org/{{ 'InStock' if p.stock > 0 else 'OutOfStock' }}","seller":{"@type":"Organization","name":"Musical Box"}}}
+{"@context":"https://schema.org","@type":"Product","name":{{ p.nombre|tojson }},"description":{{ p.descripcion|tojson }},"image":["{{ url_for('products.image', k_producto=p.id, w=600, _external=True) }}"],"brand":{"@type":"Brand","name":{{ (p.artista.n_artista|titulo if p.artista else 'Musical Box')|tojson }}},"offers":{"@type":"Offer","url":"{{ seo_canonical or request.url }}","priceCurrency":"COP","price":{{ p.precio|float }},"availability":"https://schema.org/{{ 'InStock' if p.stock > 0 else 'OutOfStock' }}","seller":{"@type":"Organization","name":"Musical Box"}}}
 </script>
 <script type="application/ld+json">
 {% set crumbs = [
@@ -17,7 +17,7 @@
 ] %}
 {% if p.lanzamiento %}
 {% set crumbs = crumbs + [
-  {"@type": "ListItem", "position": 3, "name": p.lanzamiento.n_lanzamiento.title(), "item": url_for("releases.release", k_lanzamiento=p.lanzamiento.id, _external=True)},
+  {"@type": "ListItem", "position": 3, "name": p.lanzamiento.n_lanzamiento|titulo, "item": url_for("releases.release", k_lanzamiento=p.lanzamiento.id, _external=True)},
   {"@type": "ListItem", "position": 4, "name": p.nombre, "item": (seo_canonical or request.url)}
 ] %}
 {% else %}
@@ -34,7 +34,7 @@
     <nav aria-label="breadcrumb" class="mt-4">
         <ol class="breadcrumb small">
             <li class="breadcrumb-item"><a href="{{ url_for('products.home_products') }}">Productos</a></li>
-            {% if p.lanzamiento %}<li class="breadcrumb-item"><a href="{{ url_for('releases.release', k_lanzamiento=p.lanzamiento.id) }}">{{ p.lanzamiento.n_lanzamiento.title() }}</a></li>{% endif %}
+            {% if p.lanzamiento %}<li class="breadcrumb-item"><a href="{{ url_for('releases.release', k_lanzamiento=p.lanzamiento.id) }}">{{ p.lanzamiento.n_lanzamiento|titulo }}</a></li>{% endif %}
             <li class="breadcrumb-item active" aria-current="page">{{ p.nombre }}</li>
         </ol>
     </nav>
@@ -45,7 +45,7 @@
     {% if relacionados %}
     <section class="mb-4">
         <div class="mb-section-title">
-            <div><span class="mb-eyebrow">También de este lanzamiento</span><h2 class="h5">{{ p.lanzamiento.n_lanzamiento.title() }}</h2></div>
+            <div><span class="mb-eyebrow">También de este lanzamiento</span><h2 class="h5">{{ p.lanzamiento.n_lanzamiento|titulo }}</h2></div>
             <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('releases.release', k_lanzamiento=p.lanzamiento.id) }}">Ver todo <i class="bi bi-arrow-right"></i></a>
         </div>
         <div class="row row-cols-2 row-cols-md-4 g-3 g-lg-4">

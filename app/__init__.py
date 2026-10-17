@@ -89,6 +89,12 @@ def create_app(config=None):
             return valor.strftime(fmt)
         return str(valor)
 
+    @app.template_filter('titulo')
+    def _filtro_titulo(valor):
+        #capitaliza nombres sin romper apóstrofos: "She’s the Best" -> "She’s The Best"
+        from .store.texto import titulo
+        return titulo(valor)
+
     @app.errorhandler(404)
     def no_encontrado(e):
         return render_template("404.html"), 404

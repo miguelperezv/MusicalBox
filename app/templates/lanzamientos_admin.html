@@ -17,7 +17,7 @@
                     <td class="ps-3">
                         <div class="d-flex align-items-center gap-2">
                             {% if l.i_lanzamiento %}<img src="{{ l.i_lanzamiento }}" alt="" width="48" height="48" class="rounded object-fit-cover flex-shrink-0">{% endif %}
-                            <div><div class="fw-semibold">{{ l.n_lanzamiento.title() }}<span data-preorden-chip class="{{ 'd-none' if not l.preorden }} ms-1"><span class="mb-chip mb-badge-new"><i class="bi bi-fire text-danger me-1"></i>PREORDEN</span></span></div><div class="small text-body-secondary">{{ f.artista.n_artista.title() if f.artista else 'Sin artista' }}<span data-post-hint class="{{ '' if l.url_social else 'd-none' }}"> · <i class="bi bi-link-45deg"></i> post</span></div></div>
+                            <div><div class="fw-semibold">{{ l.n_lanzamiento|titulo }}<span data-preorden-chip class="{{ 'd-none' if not l.preorden }} ms-1"><span class="mb-chip mb-badge-new"><i class="bi bi-fire text-danger me-1"></i>PREORDEN</span></span></div><div class="small text-body-secondary">{{ f.artista.n_artista|titulo if f.artista else 'Sin artista' }}<span data-post-hint class="{{ '' if l.url_social else 'd-none' }}"> · <i class="bi bi-link-45deg"></i> post</span></div></div>
                         </div>
                     </td>
                     <td class="small text-nowrap fecha-celda" data-id="{{ l.id }}" data-valor="{{ l.f_lanzamiento.isoformat() if l.f_lanzamiento else '' }}"

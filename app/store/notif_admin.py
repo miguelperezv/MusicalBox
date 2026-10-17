@@ -9,6 +9,7 @@ from flask import url_for
 
 from ..telegram import enviar_admin
 from .models import Item
+from .texto import titulo
 
 
 def _cop(total):
@@ -45,7 +46,7 @@ def _items_bloque(p):
         else:
             prod = item.n_item or "a la medida"
             lanza = None
-        clave = lanza.n_lanzamiento.title() if lanza else None
+        clave = titulo(lanza.n_lanzamiento) if lanza else None
         # Obtener artistas del lanzamiento
         artista_str = ""
         if lanza:

@@ -7,14 +7,14 @@
   {{ url_for('releases.home_releases', **f) }}
 {%- endmacro %}
 
-{% block title %}{{ artista.n_artista.title() if artista else 'Lanzamientos' }}{% endblock %}
+{% block title %}{{ artista.n_artista|titulo if artista else 'Lanzamientos' }}{% endblock %}
 
 {% block contenido %}
 <div class="container">
     <header class="mb-page-header">
         {% if artista %}
         <span class="mb-eyebrow">Artista{% if artista.pais_artista %} · {{ artista.pais_artista }}{% endif %}</span>
-        <h1 class="mt-1">{{ artista.n_artista.title() }}</h1>
+        <h1 class="mt-1">{{ artista.n_artista|titulo }}</h1>
         {% elif q %}
         <span class="mb-eyebrow">Búsqueda</span>
         <h1 class="mt-1">Resultados para “{{ q }}”</h1>

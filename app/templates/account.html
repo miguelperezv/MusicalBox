@@ -51,7 +51,7 @@
                         {% endif %}
                     </div>
                     <div class="flex-fill min-w-0">
-                        <div class="fw-semibold text-truncate">{{ lanz.n_lanzamiento.title() if lanz }}</div>
+                        <div class="fw-semibold text-truncate">{{ lanz.n_lanzamiento|titulo if lanz }}</div>
                         <small class="text-body-secondary">{{ producto.n_producto if producto else item.n_item }}{% if item.variante %} ({{ item.variante.nombre }}){% endif %} · {{ item.cant_item|int }} × {{ item.p_item|cop }}</small>
                     </div>
                     <div class="fw-semibold">{{ (item.p_item * item.cant_item)|cop }}</div>
