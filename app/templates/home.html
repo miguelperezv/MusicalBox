@@ -8,14 +8,14 @@
     <div class="container py-5">
         <div class="row align-items-center g-5 py-lg-4">
             <div class="col-lg-6">
-                <span class="mb-eyebrow text-white-50">Discotienda en Bogotá</span>
+                <span class="mb-eyebrow">Discotienda en Bogotá</span>
                 <h1 class="mt-2 mb-3">Vinilos, CD's y cassettes <span class="hl">originales</span></h1>
                 <p class="lead mb-4">Importamos lanzamientos y ediciones que no llegan al país. Si buscas un disco y no lo tenemos, lo conseguimos por ti.</p>
                 <div class="d-flex flex-wrap gap-2">
                     <a class="btn btn-accent btn-lg" href="{{ url_for('releases.home_releases') }}">Ver lanzamientos</a>
-                    <a class="btn btn-outline-light btn-lg" href="{{ url_for('solicitud.nueva') }}">Pide tu disco</a>
+                    <a class="btn btn-outline-dark btn-lg" href="{{ url_for('solicitud.nueva') }}">Pide tu disco</a>
                 </div>
-                {% if user %}<p class="mt-4 mb-0 text-white-50">¡Hola de nuevo, {{ user['n_usuario'] }}! 👋</p>{% endif %}
+                {% if user %}<p class="mt-4 mb-0 text-body-secondary">¡Hola de nuevo, {{ user['n_usuario'] }}! 👋</p>{% endif %}
             </div>
             <div class="col-lg-6">
                 {% if hero %}
