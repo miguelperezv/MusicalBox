@@ -101,8 +101,8 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 .mb-hero-art .mb-live { position: absolute; left: 7.5%; top: 0; width: 100%; height: 100%; overflow: visible; }
 /* vinilo vivo: los surcos giran (tocadiscos) y la nota baila por encima */
 .mb-live-grooves { transform-box: view-box; transform-origin: 1024px 1024px; animation: mb-spin var(--mb-vinyl-spin) linear infinite; }
-.mb-live-bob { animation: mb-live-bob 1.8s ease-in-out infinite; }
-.mb-live-tilt { transform-box: view-box; transform-origin: 1500px 570px; animation: mb-live-tilt 1.8s ease-in-out infinite; }
+/* la nota vibra con la música: temblor corto y sobrio (nada de vaivén de lado a lado) */
+.mb-live-vibra { animation: mb-live-vibra 2.4s linear infinite; }
 .mb-live-spark { transform-box: fill-box; transform-origin: center; opacity: 0; animation: mb-live-spark 5s ease-out infinite; }
 .mb-hero-art .cover {
     position: absolute; inset: 25% 50% 25% 0; border-radius: 12px; overflow: hidden;
@@ -133,24 +133,33 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 }
 .mb-brand-tag-logo { width: 28px; height: 28px; border-radius: 50%; }
 @keyframes mb-spin { to { transform: rotate(360deg); } }
-/* la nota "baila" como barras de sonido: 3 rebotes de distinta altura */
-@keyframes mb-live-bob {
-    0%, 100% { transform: translateY(0); }
-    10% { transform: translateY(-54px); }
-    20% { transform: translateY(0); }
-    30% { transform: translateY(-34px); }
-    40% { transform: translateY(0); }
-    52% { transform: translateY(-62px); }
-    64% { transform: translateY(0); }
+/* la nota vibra con la música (como el agua que siente el sonido):
+   tres temblores de distinta fuerza, muy poca amplitud, con pausas entre ellos */
+@keyframes mb-live-vibra {
+    0%, 30% { transform: translateY(0); }
+    32% { transform: translateY(-22px); }
+    36% { transform: translateY(9px); }
+    40% { transform: translateY(-16px); }
+    44% { transform: translateY(7px); }
+    48% { transform: translateY(-11px); }
+    52% { transform: translateY(4px); }
+    56%, 66% { transform: translateY(0); }
+    68% { transform: translateY(-15px); }
+    72% { transform: translateY(6px); }
+    76% { transform: translateY(-10px); }
+    80% { transform: translateY(4px); }
+    84%, 92% { transform: translateY(0); }
+    94% { transform: translateY(-7px); }
+    96.5% { transform: translateY(3px); }
+    98.5%, 100% { transform: translateY(0); }
 }
-@keyframes mb-live-tilt { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
 @keyframes mb-live-spark {
     0%, 82% { opacity: 0; transform: scale(.3); }
     88% { opacity: 1; transform: scale(1); }
     100% { opacity: 0; transform: scale(.3); }
 }
 @media (prefers-reduced-motion: reduce) {
-    .mb-live-grooves, .mb-live-bob, .mb-live-tilt, .mb-live-spark { animation: none; }
+    .mb-live-grooves, .mb-live-vibra, .mb-live-spark { animation: none; }
     .mb-live-spark { opacity: 0; }
 }
 @media (max-width: 991.98px) { .mb-hero-art, .hero-meta { max-width: 240px; } }

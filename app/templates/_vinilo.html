@@ -1,27 +1,29 @@
-{# Vinilo de marca "vivo": reconstruido del logotipo (musicalbox.png) con sus medidas reales.
-   - El cuerpo amarillo, la etiqueta central y el puntito NO se mueven.
+{# Vinilo de marca "vivo".
+   La nota musical (♫) está TRAZADA del logotipo original (musicalbox.png): la silueta con su
+   contorno oscuro, el relleno celeste y el halo turquesa que la separa del disco (mismo efecto
+   que el boceto). Nada de la nota es inventado: es el boceto original vectorizado.
+   - El disco amarillo, la etiqueta central y el puntito NO se mueven.
    - Los surcos turquesa giran como en un tocadiscos (--mb-vinyl-spin).
-   - La nota musical queda ENCIMA y baila; su contorno turquesa se dibuja solo sobre el
-     vinilo (clipPath), por eso el fondo del hero puede ser un degradado azul -> blanco.
+   - La nota (halo + sombra + relleno) va ENCIMA y vibra con la música (.mb-live-vibra).
    Las animaciones viven en app.css (.mb-live-*), para poder respetar prefers-reduced-motion. #}
 <svg class="mb-live" viewBox="200 200 1600 1600" aria-hidden="true" focusable="false"
      xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
     <defs>
-        <clipPath id="mbvDisc"><circle cx="1024" cy="1024" r="645"/></clipPath>
+        <clipPath id="mbvDisc"><circle cx="1024" cy="1024" r="646"/></clipPath>
+        {# el halo se apaga suavemente hacia el borde del disco para que no se vea un corte #}
+        <radialGradient id="mbvFade" gradientUnits="userSpaceOnUse" cx="1024" cy="1024" r="880">
+            <stop offset=".72" stop-color="#fff"/><stop offset="1" stop-color="#000"/>
+        </radialGradient>
+        <mask id="mbvHaloMask"><circle cx="1024" cy="1024" r="880" fill="url(#mbvFade)"/></mask>
         <filter id="mbvShadow" x="-12%" y="-12%" width="124%" height="124%">
             <feDropShadow dx="6" dy="14" stdDeviation="14" flood-color="#0b5a68" flood-opacity=".32"/>
         </filter>
-        {# forma de la nota (♫): barra inclinada + plicas + cabezas #}
-        <g id="mbvNote">
-            <polygon points="1695,326 1395,416 1395,530 1695,440"/>
-            <rect x="1395" y="505" width="45" height="165"/>
-            <rect x="1650" y="435" width="45" height="175"/>
-            <circle cx="1356" cy="738" r="84"/>
-            <circle cx="1607" cy="674" r="84"/>
-        </g>
+        {# nota ♫ trazada del boceto: primero la silueta (nota + su sombra), después el relleno #}
+        <path id="mbvNote" d="M1339.7 843.5C1323.3 840.4 1308.4 832.8 1296.3 821.6C1284.0 810.1 1276.3 797.8 1271.4 781.3C1268.9 773.1 1268.7 771.1 1268.7 753.5C1268.6 733.3 1269.3 728.6 1274.5 715.4C1284.2 690.7 1306.8 670.6 1333.0 663.3C1343.1 660.5 1370.1 660.8 1379.0 663.8C1382.6 665.0 1386.7 666.0 1388.2 666.0L1391.0 666.0Q1391.0 666.0 1391.0 541.7L1391.0 417.4Q1391.0 417.4 1433.2 405.3C1487.4 389.7 1533.7 376.3 1624.4 350.1C1664.5 338.5 1697.9 329.0 1698.7 329.0C1699.8 329.0 1700.0 356.9 1700.0 507.5C1699.9 697.6 1700.0 695.1 1695.2 709.0C1685.3 737.5 1660.6 759.7 1631.1 766.4C1622.3 768.4 1602.9 768.5 1593.9 766.6C1568.0 761.1 1545.5 743.4 1534.0 719.5C1526.4 703.6 1525.6 699.6 1525.6 677.0C1525.5 654.8 1526.5 649.3 1533.1 635.2C1542.0 616.0 1556.4 601.4 1575.3 592.5C1587.7 586.6 1596.5 584.7 1612.5 584.7C1624.8 584.7 1627.6 585.0 1635.3 587.4C1640.1 588.8 1644.9 590.0 1646.0 590.0C1648.0 590.0 1648.0 589.2 1648.0 523.5L1648.0 457.0Q1648.0 457.0 1645.2 457.0C1643.7 457.0 1597.6 469.9 1542.8 485.7L1443.0 514.5Q1443.0 514.5 1442.9 634.0C1442.8 699.7 1442.6 757.5 1442.5 762.5C1441.6 793.6 1421.0 823.7 1391.3 837.2C1376.3 844.0 1355.6 846.5 1339.7 843.5Z"/>
+        <path id="mbvNoteFill" d="M1339.0 833.5C1310.2 827.7 1286.2 808.2 1275.1 781.5C1270.1 769.5 1268.6 762.0 1268.6 747.5C1268.6 733.8 1269.8 727.3 1274.5 715.4C1282.2 695.6 1297.8 679.0 1317.3 669.5C1331.8 662.6 1336.9 661.5 1356.0 661.6C1372.6 661.6 1377.1 662.4 1389.2 667.5C1390.9 668.2 1391.0 661.9 1391.0 542.8L1391.0 417.4Q1391.0 417.4 1433.2 405.3C1487.4 389.7 1533.7 376.3 1624.4 350.1C1664.5 338.5 1697.9 329.0 1698.7 329.0C1699.8 329.0 1700.0 356.5 1699.7 505.8C1699.4 671.7 1699.3 683.0 1697.6 690.0C1691.2 716.7 1674.7 737.7 1650.7 749.5C1637.3 756.1 1628.2 758.2 1613.0 758.3C1588.7 758.4 1569.8 751.0 1552.2 734.5C1540.9 724.0 1533.2 711.3 1528.3 695.3C1526.0 687.6 1525.7 684.8 1525.6 672.0C1525.5 655.3 1526.9 648.4 1533.1 635.2C1542.0 616.0 1556.4 601.4 1575.3 592.5C1587.7 586.6 1596.5 584.7 1612.5 584.7C1625.0 584.7 1627.5 585.0 1635.5 587.5C1640.5 589.0 1645.3 590.5 1646.2 590.7C1647.9 591.2 1648.0 587.3 1648.0 518.5L1648.0 445.8Q1648.0 445.8 1645.2 446.5C1643.7 446.8 1597.7 460.0 1543.0 475.8L1443.5 504.6Q1443.5 504.6 1443.0 632.6C1442.4 760.3 1442.4 760.5 1440.2 768.7C1432.2 798.8 1411.0 821.4 1382.0 830.8C1368.9 835.1 1352.0 836.1 1339.0 833.5Z"/>
     </defs>
 
-    <circle cx="1024" cy="1024" r="645" fill="#fffb25" filter="url(#mbvShadow)"/>
+    <circle cx="1024" cy="1024" r="646" fill="#fffb25" filter="url(#mbvShadow)"/>
 
     <g clip-path="url(#mbvDisc)">
         <g class="mb-live-grooves">
@@ -35,14 +37,15 @@
     <circle cx="1024" cy="1024" r="239" fill="#3ab7cd"/>
     <circle cx="1024" cy="1024" r="39" fill="#92d4ff"/>
 
-    <g clip-path="url(#mbvDisc)">
-        <g class="mb-live-bob"><g class="mb-live-tilt">
-            <use href="#mbvNote" xlink:href="#mbvNote" fill="#3ab7cd" stroke="#3ab7cd" stroke-width="26" stroke-linejoin="round"/>
-        </g></g>
+    <g class="mb-live-vibra">
+        {# halo turquesa de la nota: sólo se ve sobre el disco (como en el boceto) #}
+        <g mask="url(#mbvHaloMask)">
+            <use href="#mbvNote" xlink:href="#mbvNote" fill="#3ab7cd" stroke="#3ab7cd" stroke-width="100" stroke-linejoin="round"/>
+        </g>
+        {# contorno oscuro + relleno celeste, tal cual el boceto #}
+        <use href="#mbvNote" xlink:href="#mbvNote" fill="#0e82a4"/>
+        <use href="#mbvNoteFill" xlink:href="#mbvNoteFill" fill="#92d4ff"/>
     </g>
-    <g class="mb-live-bob"><g class="mb-live-tilt">
-        <use href="#mbvNote" xlink:href="#mbvNote" fill="#92d4ff"/>
-    </g></g>
 
     <path class="mb-live-spark" fill="#fff"
           d="M1780 231 L1788 268 L1825 276 L1788 284 L1780 321 L1772 284 L1735 276 L1772 268 Z"/>
