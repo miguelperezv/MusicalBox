@@ -87,21 +87,23 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 .mb-navbar .dropdown-menu { border: 0; box-shadow: var(--mb-shadow-hover); border-radius: 10px; }
 
 /* ---------- hero ---------- */
+/* Fondo: el azul del logotipo (#3ab7cd) se degrada a blanco, que es el fondo de la página. */
 .mb-hero {
-    background:
-        radial-gradient(circle at 84% 16%, rgba(58, 183, 205, .32), transparent 52%),
-        linear-gradient(135deg, #e7f5f8 0%, #f0fafc 45%, #fffde0 100%);
+    background: linear-gradient(180deg, #3ab7cd 0%, #46bcd1 34%, #a6dee8 68%, #ffffff 100%);
     color: var(--mb-ink); border-radius: 0 0 24px 24px; overflow: hidden;
 }
 .mb-hero h1 { font-size: clamp(1.6rem, 4vw, 2.8rem); line-height: 1.05; }
 .mb-hero h1 .hl { color: var(--mb-ink); background: linear-gradient(180deg, transparent 55%, rgba(255, 251, 37, .9) 55%); padding: 0 .06em; }
-.mb-hero p.lead { color: var(--mb-muted); max-width: 34rem; font-size: 0.9rem; }
+.mb-hero .mb-eyebrow { color: rgba(15, 28, 36, .7); }
+.mb-hero p.lead { color: rgba(15, 28, 36, .78); max-width: 34rem; font-size: 0.9rem; }
+.mb-hero .text-body-secondary { color: rgba(15, 28, 36, .7) !important; }
 .mb-hero-art { position: relative; aspect-ratio: 1; max-width: 300px; margin-inline: auto; }
-.mb-hero-art .vinyl {
-    position: absolute; inset: 9% 0 9% 18%; border-radius: 50%;
-    background: url("../imgs/vinilo.svg") center/contain no-repeat;
-    box-shadow: 0 14px 34px rgba(15, 28, 36, .22); animation: mb-spin var(--mb-vinyl-spin) linear infinite;
-}
+.mb-hero-art .mb-live { position: absolute; left: 7.5%; top: 0; width: 100%; height: 100%; overflow: visible; }
+/* vinilo vivo: los surcos giran (tocadiscos) y la nota baila por encima */
+.mb-live-grooves { transform-box: view-box; transform-origin: 1024px 1024px; animation: mb-spin var(--mb-vinyl-spin) linear infinite; }
+.mb-live-bob { animation: mb-live-bob 1.8s ease-in-out infinite; }
+.mb-live-tilt { transform-box: view-box; transform-origin: 1500px 570px; animation: mb-live-tilt 1.8s ease-in-out infinite; }
+.mb-live-spark { transform-box: fill-box; transform-origin: center; opacity: 0; animation: mb-live-spark 5s ease-out infinite; }
 .mb-hero-art .cover {
     position: absolute; inset: 25% 50% 25% 0; border-radius: 12px; overflow: hidden;
     box-shadow: 0 16px 38px rgba(15, 28, 36, .22); background: var(--mb-aqua);
@@ -131,7 +133,26 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 }
 .mb-brand-tag-logo { width: 28px; height: 28px; border-radius: 50%; }
 @keyframes mb-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .mb-hero-art .vinyl { animation: none; } }
+/* la nota "baila" como barras de sonido: 3 rebotes de distinta altura */
+@keyframes mb-live-bob {
+    0%, 100% { transform: translateY(0); }
+    10% { transform: translateY(-54px); }
+    20% { transform: translateY(0); }
+    30% { transform: translateY(-34px); }
+    40% { transform: translateY(0); }
+    52% { transform: translateY(-62px); }
+    64% { transform: translateY(0); }
+}
+@keyframes mb-live-tilt { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+@keyframes mb-live-spark {
+    0%, 82% { opacity: 0; transform: scale(.3); }
+    88% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(.3); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .mb-live-grooves, .mb-live-bob, .mb-live-tilt, .mb-live-spark { animation: none; }
+    .mb-live-spark { opacity: 0; }
+}
 @media (max-width: 991.98px) { .mb-hero-art, .hero-meta { max-width: 240px; } }
 
 /* ---------- secciones ---------- */

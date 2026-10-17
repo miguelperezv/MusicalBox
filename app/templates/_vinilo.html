@@ -1,0 +1,49 @@
+{# Vinilo de marca "vivo": reconstruido del logotipo (musicalbox.png) con sus medidas reales.
+   - El cuerpo amarillo, la etiqueta central y el puntito NO se mueven.
+   - Los surcos turquesa giran como en un tocadiscos (--mb-vinyl-spin).
+   - La nota musical queda ENCIMA y baila; su contorno turquesa se dibuja solo sobre el
+     vinilo (clipPath), por eso el fondo del hero puede ser un degradado azul -> blanco.
+   Las animaciones viven en app.css (.mb-live-*), para poder respetar prefers-reduced-motion. #}
+<svg class="mb-live" viewBox="200 200 1600 1600" aria-hidden="true" focusable="false"
+     xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <defs>
+        <clipPath id="mbvDisc"><circle cx="1024" cy="1024" r="645"/></clipPath>
+        <filter id="mbvShadow" x="-12%" y="-12%" width="124%" height="124%">
+            <feDropShadow dx="6" dy="14" stdDeviation="14" flood-color="#0b5a68" flood-opacity=".32"/>
+        </filter>
+        {# forma de la nota (♫): barra inclinada + plicas + cabezas #}
+        <g id="mbvNote">
+            <polygon points="1695,326 1395,416 1395,530 1695,440"/>
+            <rect x="1395" y="505" width="45" height="165"/>
+            <rect x="1650" y="435" width="45" height="175"/>
+            <circle cx="1356" cy="738" r="84"/>
+            <circle cx="1607" cy="674" r="84"/>
+        </g>
+    </defs>
+
+    <circle cx="1024" cy="1024" r="645" fill="#fffb25" filter="url(#mbvShadow)"/>
+
+    <g clip-path="url(#mbvDisc)">
+        <g class="mb-live-grooves">
+            <circle cx="1024" cy="1024" r="375" fill="none" stroke="#3ab7cd" stroke-width="54" stroke-linecap="round" stroke-dasharray="628 1728" transform="rotate(184 1024 1024)"/>
+            <circle cx="1024" cy="1024" r="487" fill="none" stroke="#3ab7cd" stroke-width="54" stroke-linecap="round" stroke-dasharray="416 2644" transform="rotate(182 1024 1024)"/>
+            <circle cx="1024" cy="1024" r="375" fill="none" stroke="#3ab7cd" stroke-width="54" stroke-linecap="round" stroke-dasharray="314 2042"/>
+            <circle cx="1024" cy="1024" r="487" fill="none" stroke="#3ab7cd" stroke-width="54" stroke-linecap="round" stroke-dasharray="782 2278"/>
+        </g>
+    </g>
+
+    <circle cx="1024" cy="1024" r="239" fill="#3ab7cd"/>
+    <circle cx="1024" cy="1024" r="39" fill="#92d4ff"/>
+
+    <g clip-path="url(#mbvDisc)">
+        <g class="mb-live-bob"><g class="mb-live-tilt">
+            <use href="#mbvNote" xlink:href="#mbvNote" fill="#3ab7cd" stroke="#3ab7cd" stroke-width="26" stroke-linejoin="round"/>
+        </g></g>
+    </g>
+    <g class="mb-live-bob"><g class="mb-live-tilt">
+        <use href="#mbvNote" xlink:href="#mbvNote" fill="#92d4ff"/>
+    </g></g>
+
+    <path class="mb-live-spark" fill="#fff"
+          d="M1780 231 L1788 268 L1825 276 L1788 284 L1780 321 L1772 284 L1735 276 L1772 268 Z"/>
+</svg>

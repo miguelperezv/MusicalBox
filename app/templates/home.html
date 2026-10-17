@@ -20,7 +20,7 @@
             <div class="col-lg-6">
                 {% if hero %}
                 <div class="mb-hero-art" id="heroArt">
-                    <div class="vinyl"></div>
+                    {% include "_vinilo.html" %}
                     {% for r in hero %}
                     <a class="cover hero-slide{{ ' is-active' if loop.first }}" href="{{ url_for_release(r) }}"
                        aria-label="Ver {{ r.nombre }}{% if r.artista %} de {{ r.artista.n_artista }}{% endif %}">
