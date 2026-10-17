@@ -348,6 +348,10 @@ body.mb-tema-amor_amistad .hero-meta .hero-artist { color: #a4486b; }
 .mb-empty { text-align: center; padding: 2rem 1rem; color: var(--mb-muted); }
 .mb-empty .bi { font-size: 2.5rem; color: var(--mb-aqua); display: block; margin-bottom: .4rem; }
 
+/* ---------- panel: tema de temporada (/dashboard/tema) ---------- */
+/* recuadro de vista previa: carga la página mínima de _tema_vista.html en un iframe */
+.mb-tema-marco { width: 100%; height: 356px; border: 0; border-radius: 10px; background: #fff; box-shadow: inset 0 0 0 1px rgba(15, 42, 49, .12); display: block; }
+
 /* carrito */
 .mb-cart-item { display: grid; grid-template-columns: 60px 1fr auto; gap: 0.8rem; align-items: center; padding-block: 0.8rem; border-bottom: 1px solid #edf1f4; }
 .mb-cart-item:last-child { border-bottom: 0; }

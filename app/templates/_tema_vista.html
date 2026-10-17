@@ -1,0 +1,37 @@
+{# Vista previa MÍNIMA de un tema, para los recuadros del panel (/dashboard/tema).
+
+   Es una página suelta a propósito: un navbar de mentira con el logotipo de 32 px (con sus
+   adornos mini) y el vinilo con sus adornos y su clima. Así el admin ve el tema en vivo sin
+   cargar la tienda entera en cada recuadro. El tema se pasa en `clave`; con `clave = None`
+   se ve el logotipo tal cual (para comparar). #}
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ nombre }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+<style>
+    html, body { margin: 0; background: #fff; }
+    .mb-vista-nav { display: flex; align-items: center; gap: .4rem; padding: .5rem .7rem; }
+    .mb-vista-nav .nb { color: var(--mb-yellow); font-weight: 600; font-size: 1.05rem; letter-spacing: .4px; }
+    /* igual que .mb-hero en la tienda: el degradé del tema y el recorte del hero */
+    .mb-vista-hero { padding: 1rem 0 1.4rem; overflow: hidden; border-radius: 0 0 18px 18px; }
+    .mb-vista-hero .mb-hero-art { max-width: 260px; }
+</style>
+</head>
+<body{% if clave %} class="mb-tema-{{ clave }}"{% endif %}>
+{% with tema = clave %}
+    <nav class="navbar mb-navbar mb-vista-nav">
+        <span class="mb-logo-tema"><img src="{{ url_for('static', filename='imgs/musicalbox.png') }}" alt="" width="32" height="32">{% if clave %}<svg class="mb-logo-adorno" viewBox="200 200 1600 1600" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">{% with mini = true, capa = 'atras' %}{% include "_tema.html" %}{% endwith %}{% with mini = true, capa = 'nota' %}{% include "_tema.html" %}{% endwith %}</svg>{% endif %}</span>
+        <span class="nb">musical box</span>
+    </nav>
+    <div class="mb-hero mb-vista-hero">
+        <div class="mb-hero-art">
+            {% include "_vinilo.html" %}
+            {% include "_tema_clima.html" %}
+        </div>
+    </div>
+{% endwith %}
+</body>
+</html>

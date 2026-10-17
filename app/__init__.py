@@ -107,10 +107,12 @@ def create_app(config=None):
     @app.context_processor
     def tema_de_temporada():
         #tema de temporada del logotipo (gorro, murciélagos, chispas...): por fecha en hora
-        #de Bogotá, o forzado con ?tema=navidad (también sirve MUSICALBOX_TEMA)
+        #de Bogotá, forzado con ?tema=navidad (o MUSICALBOX_TEMA), o el que dejó el admin
+        #en el panel /dashboard/tema. Además se expone el modo para que el panel lo muestre.
         from flask import request as _request
-        from .store.temporadas import tema_activo
-        return {"tema": tema_activo(_request.args)}
+        from .store.temporadas import config_tema, tema_activo
+        modo, forzado = config_tema()
+        return {"tema": tema_activo(_request.args), "tema_modo": modo, "tema_forzado": forzado}
 
     @app.context_processor
     def form_suscriptor():

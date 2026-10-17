@@ -1,0 +1,109 @@
+{% extends "adminDashboard.html" %}
+
+{% block title %}Tema de temporada{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-1">Tema de temporada del logotipo</h1>
+<p class="text-body-secondary">El logotipo se disfraza unos días al año (Halloween, Navidad, Orgullo…). Aquí ves cómo queda con cada tema y decides cuál se muestra en la tienda. <strong>El disco, los surcos, la etiqueta y la nota siempre son los del boceto</strong>: sólo se le montan adornos encima.</p>
+
+{# ---------- en qué estado está hoy ---------- #}
+<div class="mb-panel mb-4">
+    <div class="d-flex flex-wrap align-items-start gap-3">
+        <div class="flex-grow-1" style="min-width: 260px">
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <h2 class="h6 mb-0">Ahora mismo</h2>
+                {% if modo == 'forzado' %}<span class="badge text-bg-warning">Forzado a mano</span>
+                {% elif modo == 'apagado' %}<span class="badge text-bg-secondary">Apagado</span>
+                {% else %}<span class="badge text-bg-success">Automático</span>{% endif %}
+                {% if activo %}<span class="badge text-bg-light border">{{ nombres[activo] }}</span>
+                {% else %}<span class="badge text-bg-light border">Sin adornos</span>{% endif %}
+            </div>
+            {% if modo == 'forzado' %}
+                <p class="mb-1">Se está mostrando <strong>{{ nombres[forzado] }}</strong> porque lo marcaste aquí. Mientras siga forzado, la fecha no se tiene en cuenta.</p>
+                <p class="small text-body-secondary mb-0">Hoy por fecha tocaría: {{ nombres[tema_hoy] if tema_hoy else 'ninguno (día normal)' }}.{% if proximo[0] %} El próximo es <strong>{{ nombres[proximo[0]] }}</strong>, el {{ proximo[1] }}.{% endif %}</p>
+            {% elif modo == 'apagado' %}
+                <p class="mb-1">El logotipo está <strong>sin adornos</strong>: se ve el boceto tal cual, aunque la fecha pida tema.</p>
+                <p class="small text-body-secondary mb-0">Hoy por fecha tocaría: {{ nombres[tema_hoy] if tema_hoy else 'ninguno (día normal)' }}.</p>
+            {% else %}
+                <p class="mb-1">Va <strong>según la fecha</strong>, en hora de Bogotá. Hoy le toca: <strong>{{ nombres[tema_hoy] if tema_hoy else 'ninguno (día normal)' }}</strong>.</p>
+                {% if proximo[0] %}<p class="small text-body-secondary mb-0">El próximo es <strong>{{ nombres[proximo[0]] }}</strong>: {{ proximo[1] }} (en {{ proximo[2] }} días).</p>{% endif %}
+            {% endif %}
+        </div>
+        <form method="POST" action="{{ url_for('dashboard.tema_auto') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-outline-dark btn-sm">Volver a automático</button>
+        </form>
+    </div>
+
+    <hr>
+
+    <form method="POST" action="{{ url_for('dashboard.tema_config') }}" class="row g-3 align-items-end">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="col-12 col-lg-8">
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="modo" id="modo-auto" value="auto" {{ 'checked' if modo == 'auto' }}>
+                <label class="form-check-label" for="modo-auto">Automático <span class="text-body-secondary small">(lo que diga la fecha)</span></label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="modo" id="modo-forzado" value="forzado" {{ 'checked' if modo == 'forzado' }}>
+                <label class="form-check-label" for="modo-forzado">Forzar un tema</label>
+            </div>
+            <div class="ms-4 mb-2" style="max-width: 340px">
+                <label class="form-label small mb-1" for="tema-forzado">Tema que se muestra siempre</label>
+                <select class="form-select form-select-sm" name="forzado" id="tema-forzado">
+                    {% for c in temas %}<option value="{{ c }}" {{ 'selected' if c == forzado }}>{{ nombres[c] }} · {{ ventanas[c] }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="modo" id="modo-apagado" value="apagado" {{ 'checked' if modo == 'apagado' }}>
+                <label class="form-check-label" for="modo-apagado">Apagado <span class="text-body-secondary small">(sin adornos, como un día normal)</span></label>
+            </div>
+        </div>
+        <div class="col-12 col-lg-4 text-lg-end">
+            <button class="btn btn-accent w-100 w-lg-auto">Guardar</button>
+            <p class="small text-body-secondary mt-2 mb-0">Ojo: lo que elijas lo ve <strong>todo el mundo</strong> en la tienda, no sólo tú. Para una mirada rápida sin cambiar nada, usa los recuadros de abajo o el link «Ver en la tienda».</p>
+        </div>
+    </form>
+
+    <script>
+    (function () {
+        var sel = document.getElementById('tema-forzado');
+        function pinta() {
+            sel.disabled = !document.getElementById('modo-forzado').checked;
+        }
+        document.querySelectorAll('input[name=modo]').forEach(function (r) { r.addEventListener('change', pinta); });
+        pinta();
+    })();
+    </script>
+</div>
+
+{# ---------- los temas, con vista previa en vivo ---------- #}
+<h2 class="h6 mb-3">Los temas</h2>
+<div class="row row-cols-1 row-cols-md-2 row-cols-xxl-3 g-3">
+    {% for c in [None] + temas %}
+    <div class="col">
+        <div class="mb-panel h-100 d-flex flex-column">
+            <iframe class="mb-tema-marco" loading="lazy" title="{{ nombres[c] if c else 'Sin tema' }}"
+                    src="{{ url_for('dashboard.tema_vista', clave=(c or 'ninguno')) }}"></iframe>
+            <div class="mt-3">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <span class="fw-semibold">{{ nombres[c] if c else 'Sin tema' }}</span>
+                    {% if c == activo %}<span class="badge text-bg-success">Se está viendo</span>{% endif %}
+                    {% if modo == 'forzado' and c and c == forzado %}<span class="badge text-bg-warning">Forzado</span>{% endif %}
+                </div>
+                <div class="small text-body-secondary">{{ ventanas[c] if c else 'El logotipo tal cual, todos los días' }}</div>
+            </div>
+            <div class="mt-auto pt-3 d-flex gap-2">
+                <form method="POST" action="{{ url_for('dashboard.tema_marcar', clave=(c or 'ninguno')) }}" class="flex-grow-1">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-sm w-100 {{ 'btn-accent' if c != activo else 'btn-outline-dark' }}">{{ 'Marcar este tema' if c else 'Dejar sin tema' }}</button>
+                </form>
+                {% if c %}<a class="btn btn-sm btn-outline-secondary" href="{{ url_for('home.index', tema=c) }}" target="_blank" rel="noopener" title="Abrir la tienda con este tema">Ver<span class="d-none d-xl-inline">&nbsp;en la tienda</span></a>{% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<p class="small text-body-secondary mt-4">Las ventanas de fechas y los adornos de cada tema viven en <code>app/store/temporadas.py</code> y <code>app/templates/_tema.html</code>. También se puede forzar sin entrar al panel con <code>?tema=navidad</code> en la URL (y <code>?tema=ninguno</code> para apagarlo).</p>
+{% endblock %}
