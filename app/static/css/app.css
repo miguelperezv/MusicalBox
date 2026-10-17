@@ -97,17 +97,17 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 .mb-hero .mb-eyebrow { color: rgba(15, 28, 36, .7); }
 .mb-hero p.lead { color: rgba(15, 28, 36, .78); max-width: 34rem; font-size: 0.9rem; }
 .mb-hero .text-body-secondary { color: rgba(15, 28, 36, .7) !important; }
-.mb-hero-art { position: relative; aspect-ratio: 1; max-width: 300px; margin-inline: auto; }
-.mb-hero-art .mb-live { position: absolute; left: 7.5%; top: 0; width: 100%; height: 100%; overflow: visible; }
+.mb-hero-art { position: relative; aspect-ratio: 1; max-width: 380px; margin-inline: auto; }
+.mb-hero-art .mb-live { position: absolute; left: 12%; top: 0; width: 100%; height: 100%; overflow: visible; }
 /* vinilo vivo: los surcos giran (tocadiscos) y la nota baila por encima */
 .mb-live-grooves { transform-box: view-box; transform-origin: 1024px 1024px; animation: mb-spin var(--mb-vinyl-spin) linear infinite; }
-/* la nota vibra con la música: temblor continuo (con un desenfoque mínimo, como el sonido)
-   y un golpe más fuerte cada 5 s. Nada de vaivén de lado a lado. */
-.mb-live-tremor { animation: mb-live-tremor .38s linear infinite; }
-.mb-live-vibra { animation: mb-live-vibra 5s linear infinite; }
+/* la nota vibra con la música: oscila MUY rápido y con poca amplitud, tanto que se ve
+   mínimamente borrosa. El desenfoque no es un efecto decorativo: es lo que se ve cuando
+   algo se mueve a esa velocidad. Nada de saltos ni de vaivén de lado a lado. */
+.mb-live-vibra { animation: mb-live-vibra .09s ease-in-out infinite; filter: blur(5px); }
 .mb-live-spark { transform-box: fill-box; transform-origin: center; opacity: 0; animation: mb-live-spark 5s ease-out infinite; }
 .mb-hero-art .cover {
-    position: absolute; inset: 21.5% 43% 21.5% 0; border-radius: 12px; overflow: hidden;
+    position: absolute; inset: 14% 28% 14% 0; border-radius: 12px; overflow: hidden;
     box-shadow: 0 16px 38px rgba(15, 28, 36, .22); background: var(--mb-aqua);
 }
 .mb-hero-art .cover img { width: 100%; height: 100%; object-fit: cover; }
@@ -135,25 +135,10 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 }
 .mb-brand-tag-logo { width: 28px; height: 28px; border-radius: 50%; }
 @keyframes mb-spin { to { transform: rotate(360deg); } }
-/* temblor continuo: poca amplitud y el desenfoque máximo cuando va más rápido
-   (en el centro del recorrido), que es donde "se ve mini borrosa" */
-@keyframes mb-live-tremor {
-    0% { transform: translateY(-7px); filter: blur(0); }
-    25% { transform: translateY(0); filter: blur(5px); }
-    50% { transform: translateY(6px); filter: blur(0); }
-    75% { transform: translateY(0); filter: blur(4px); }
-    100% { transform: translateY(-7px); filter: blur(0); }
-}
-/* golpe de sonido cada 5 s: la nota se sacude y se desenfoca un poco más */
+/* una sola oscilación rapidísima (≈11 por segundo) y de recorrido corto */
 @keyframes mb-live-vibra {
-    0%, 58% { transform: translateY(0); filter: blur(0); }
-    62% { transform: translateY(-19px); filter: blur(9px); }
-    66% { transform: translateY(8px); filter: blur(7px); }
-    70% { transform: translateY(-14px); filter: blur(6px); }
-    74% { transform: translateY(6px); filter: blur(4px); }
-    78% { transform: translateY(-9px); filter: blur(3px); }
-    82% { transform: translateY(4px); filter: blur(2px); }
-    86%, 100% { transform: translateY(0); filter: blur(0); }
+    0%, 100% { transform: translateY(-8px); }
+    50% { transform: translateY(8px); }
 }
 @keyframes mb-live-spark {
     0%, 82% { opacity: 0; transform: scale(.3); }
@@ -161,10 +146,11 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
     100% { opacity: 0; transform: scale(.3); }
 }
 @media (prefers-reduced-motion: reduce) {
-    .mb-live-grooves, .mb-live-vibra, .mb-live-tremor, .mb-live-spark { animation: none; }
+    .mb-live-grooves, .mb-live-vibra, .mb-live-spark { animation: none; }
+    .mb-live-vibra { filter: none; }
     .mb-live-spark { opacity: 0; }
 }
-@media (max-width: 991.98px) { .mb-hero-art, .hero-meta { max-width: 240px; } }
+@media (max-width: 991.98px) { .mb-hero-art, .hero-meta { max-width: 300px; } }
 
 /* ---------- secciones ---------- */
 .mb-section-title { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
