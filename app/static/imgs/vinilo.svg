@@ -1,53 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-hidden="true">
-  <!-- Disco de vinilo (SVG) para el hero de Musical Box.
-       Los surcos y el reflejo giran con el elemento; el brillo es lo que hace visible el movimiento.
-       El centro (etiqueta amarilla + logo) se pinta por CSS encima (.mb-hero-art .vinyl::after). -->
+  <!-- Vinilo de marca Musical Box: cuerpo amarillo, surcos turquesa, etiqueta turquesa y puntito celeste.
+       Los surcos son arcos asimetricos, por eso al girar SE NOTA el movimiento. -->
   <defs>
-    <radialGradient id="mbVinylBody" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#1b2a33"/>
-      <stop offset="62%" stop-color="#0f1c24"/>
-      <stop offset="100%" stop-color="#070e12"/>
-    </radialGradient>
-    <radialGradient id="mbVinylGloss" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity=".30"/>
-      <stop offset="70%" stop-color="#ffffff" stop-opacity=".05"/>
-      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
-    </radialGradient>
+    <clipPath id="mbDisc"><circle cx="100" cy="100" r="98"/></clipPath>
   </defs>
 
-  <circle cx="100" cy="100" r="98" fill="url(#mbVinylBody)"/>
+  <!-- cuerpo amarillo -->
+  <circle cx="100" cy="100" r="98" fill="#fffb25"/>
 
-  <g fill="none" stroke="#ffffff" stroke-opacity=".06" stroke-width=".8">
-    <circle cx="100" cy="100" r="93"/>
-    <circle cx="100" cy="100" r="90.5"/>
-    <circle cx="100" cy="100" r="88"/>
-    <circle cx="100" cy="100" r="85.5"/>
-    <circle cx="100" cy="100" r="83"/>
-    <circle cx="100" cy="100" r="80.5"/>
-    <circle cx="100" cy="100" r="78"/>
-    <circle cx="100" cy="100" r="75.5"/>
-    <circle cx="100" cy="100" r="73"/>
-    <circle cx="100" cy="100" r="70.5"/>
-    <circle cx="100" cy="100" r="68"/>
-    <circle cx="100" cy="100" r="65.5"/>
-    <circle cx="100" cy="100" r="63"/>
-    <circle cx="100" cy="100" r="60.5"/>
-    <circle cx="100" cy="100" r="58"/>
-    <circle cx="100" cy="100" r="55.5"/>
-    <circle cx="100" cy="100" r="53"/>
-    <circle cx="100" cy="100" r="50.5"/>
-    <circle cx="100" cy="100" r="48"/>
-    <circle cx="100" cy="100" r="45.5"/>
-    <circle cx="100" cy="100" r="43"/>
-    <circle cx="100" cy="100" r="40.5"/>
-    <circle cx="100" cy="100" r="38"/>
-    <circle cx="100" cy="100" r="35.5"/>
-    <circle cx="100" cy="100" r="33"/>
+  <!-- surcos turquesa (arcos con puntas redondeadas) -->
+  <g fill="none" stroke="#3ab7cd" stroke-linecap="round" clip-path="url(#mbDisc)">
+    <circle cx="100" cy="100" r="80" stroke-width="9" stroke-dasharray="175 328" transform="rotate(18 100 100)"/>
+    <circle cx="100" cy="100" r="66" stroke-width="8" stroke-dasharray="55 360" transform="rotate(200 100 100)"/>
+    <circle cx="100" cy="100" r="55" stroke-width="7" stroke-dasharray="42 304" transform="rotate(206 100 100)"/>
+    <circle cx="100" cy="100" r="66" stroke-width="8" stroke-dasharray="55 360" transform="rotate(330 100 100)"/>
+    <circle cx="100" cy="100" r="55" stroke-width="7" stroke-dasharray="42 304" transform="rotate(336 100 100)"/>
   </g>
 
-  <!-- Reflejo (dos bandas opuestas): como en un vinilo real y hace visible el giro -->
-  <ellipse cx="100" cy="100" rx="86" ry="26" fill="url(#mbVinylGloss)" transform="rotate(-38 100 100)"/>
-  <ellipse cx="100" cy="100" rx="86" ry="26" fill="url(#mbVinylGloss)" transform="rotate(142 100 100)"/>
-
-  <circle cx="100" cy="100" r="98" fill="none" stroke="#ffffff" stroke-opacity=".05"/>
+  <!-- etiqueta central turquesa + puntito celeste -->
+  <circle cx="100" cy="100" r="40" fill="#3ab7cd"/>
+  <circle cx="100" cy="100" r="7" fill="#92d4ff"/>
 </svg>
