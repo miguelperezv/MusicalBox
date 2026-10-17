@@ -23,6 +23,7 @@
     --mb-muted: #5f7380;
     --mb-surface: #f5f8fa;
     --mb-radius: 12px;
+    --mb-vinyl-spin: 4.5s; /* velocidad de giro del vinilo del hero (efecto tocadiscos) */
     --mb-shadow: 0 1px 2px rgba(15, 28, 36, .06), 0 8px 24px rgba(15, 28, 36, .06);
     --mb-shadow-hover: 0 2px 4px rgba(15, 28, 36, .08), 0 16px 40px rgba(15, 28, 36, .12);
 
@@ -97,13 +98,14 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 .mb-hero p.lead { color: var(--mb-muted); max-width: 34rem; font-size: 0.9rem; }
 .mb-hero-art { position: relative; aspect-ratio: 1; max-width: 300px; margin-inline: auto; }
 .mb-hero-art .vinyl {
-    position: absolute; inset: 6% 0 6% 18%; border-radius: 50%;
-    background: repeating-radial-gradient(circle, #111 0 2px, #1c1c1c 2px 4px);
-    box-shadow: 0 14px 34px rgba(15, 28, 36, .22); animation: mb-spin 12s linear infinite;
+    position: absolute; inset: 9% 0 9% 18%; border-radius: 50%;
+    background: url("../imgs/vinilo.svg") center/contain no-repeat;
+    box-shadow: 0 14px 34px rgba(15, 28, 36, .22); animation: mb-spin var(--mb-vinyl-spin) linear infinite;
 }
 .mb-hero-art .vinyl::after {
     content: ""; position: absolute; inset: 36%; border-radius: 50%;
     background: var(--mb-yellow) url("../imgs/musicalbox.png") center/70% no-repeat;
+    box-shadow: 0 0 0 1px rgba(15, 28, 36, .22);
 }
 .mb-hero-art .cover {
     position: absolute; inset: 12% 30% 12% 0; border-radius: 12px; overflow: hidden;
