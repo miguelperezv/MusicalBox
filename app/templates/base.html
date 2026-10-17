@@ -34,7 +34,7 @@
     <!-- Plausible Analytics -->
     <script defer data-domain="musicalbox.com" src="https://plausible.io/js/script.js"></script>
 </head>
-<body>
+<body{% if tema %} class="mb-tema-{{ tema }}"{% endif %}>
     {% set ep = request.endpoint or '' %}
     <nav class="navbar navbar-expand-lg navbar-dark mb-navbar">
         <div class="container">

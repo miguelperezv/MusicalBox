@@ -15,6 +15,7 @@ Ventanas de fechas (fáciles de mover aquí abajo):
 
     halloween        20 oct - 1 nov
     record_store_day el 3er sábado de abril ± 3 días (Record Store Day)
+    pride            mes del orgullo (junio) y la primera marcha de julio en Bogotá
     amor_amistad     12 - 22 de septiembre (día del Amor y la Amistad en Colombia)
     navidad          1 - 25 de diciembre
     ano_nuevo        26 de diciembre - 6 de enero
@@ -33,6 +34,7 @@ BOGOTA = ZoneInfo("America/Bogota")
 NOMBRES = {
     "halloween": "Halloween",
     "record_store_day": "Record Store Day",
+    "pride": "Orgullo",
     "amor_amistad": "Amor y amistad",
     "navidad": "Navidad",
     "ano_nuevo": "Año nuevo",
@@ -57,12 +59,21 @@ def _existe(anio, mes, dia):
         return False
 
 
+def _primer_domingo(anio, mes):
+    """Primer domingo del mes: la marcha del orgullo en Bogotá cae ahí."""
+    for dia in range(1, 8):
+        if date(anio, mes, dia).weekday() == 6:
+            return date(anio, mes, dia)
+
+
 def tema_por_fecha(d):
     """La clave del tema que toca ese día (o None si es un día normal)."""
     if (d.month == 10 and d.day >= 20) or (d.month == 11 and d.day == 1):
         return "halloween"
     if abs((d - _tercer_sabado(d.year, 4)).days) <= 3:
         return "record_store_day"
+    if d.month == 6 or (d.month == 7 and d <= _primer_domingo(d.year, 7)):
+        return "pride"
     if d.month == 9 and 12 <= d.day <= 22:
         return "amor_amistad"
     if d.month == 12 and 1 <= d.day <= 25:
@@ -83,6 +94,8 @@ def _normalizar(valor):
         return ""
     if clave in ("ano_nuevo", "añonuevo", "ano_feliz"):
         return "ano_nuevo"
+    if clave in ("pride", "lgbt", "lgbtq", "lgbtiq", "orgullo", "arcoiris", "arcoíris"):
+        return "pride"
     return clave if clave in TEMAS else None
 
 

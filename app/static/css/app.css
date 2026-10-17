@@ -156,13 +156,8 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
     88% { opacity: 1; transform: scale(1); }
     100% { opacity: 0; transform: scale(.3); }
 }
-@media (prefers-reduced-motion: reduce) {
-    .mb-live-grooves, .mb-live-vibra, .mb-live-spark { animation: none; }
-    .mb-live-vibra { filter: none; }
-    .mb-live-spark { opacity: 0; }
-    /* los adornos de temporada se quedan quietos (pero se ven) */
-    .mb-tema-flota, .mb-tema-vuela, .mb-tema-titila, .mb-tema-menea, .mb-tema-nota { animation: none; }
-}
+/* OJO: el bloque de prefers-reduced-motion va al FINAL del archivo (ver el final): por
+   orden de cascada tiene que ir después de las reglas de animación que anula. */
 /* ---------- adornos de temporada ---------- */
 /* Piezas que se montan sobre el vinilo de marca (ver _tema.html): sobrias y lentas, la
    protagonista sigue siendo la nota. Sólo se mueven y se atenúan (nada de girar ni
@@ -176,9 +171,70 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 @keyframes mb-tema-vuela { from { transform: translate(0, 0); } to { transform: translate(20px, -12px); } }
 @keyframes mb-tema-titila { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
 @keyframes mb-tema-menea { from { transform: translateY(0); } to { transform: translateY(-13px); } }
+/* el clima (nieve de Navidad, lluvia de corazones de Amor y amistad) cae por delante de la
+   carátula, como si miráramos por la ventana; su SVG se alinea con el del vinilo */
+.mb-hero-art .mb-clima { position: absolute; left: 8%; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.mb-tema-cae { animation: mb-tema-cae 15s linear infinite; }
+@keyframes mb-tema-cae {
+    0% { transform: translate(0, -1500px); opacity: 0; }
+    6%, 94% { opacity: 1; }
+    100% { transform: translate(48px, 1500px); opacity: 0; }
+}
+/* luces de navidad colombianas: prenden en cadena */
+.mb-tema-luz { animation: mb-tema-luz 1.7s ease-in-out infinite; }
+@keyframes mb-tema-luz { 0%, 100% { opacity: .38; } 46%, 58% { opacity: 1; } }
+/* la araña se mece en su hilo */
+.mb-tema-mecida { animation: mb-tema-mecida 5.5s ease-in-out infinite alternate; }
+@keyframes mb-tema-mecida { from { transform: translateX(0); } to { transform: translateX(18px); } }
+/* serpentinas: flotan despacio y una luz recorre el rollito */
+.mb-tema-serpentina { animation: mb-tema-serpentina 11s ease-in-out infinite alternate; }
+@keyframes mb-tema-serpentina { from { transform: translate(0, 0); } to { transform: translate(24px, -30px); } }
+.mb-tema-serpentina-trazo { animation: mb-tema-serpentina-trazo 4.5s linear infinite; }
+@keyframes mb-tema-serpentina-trazo { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -2140; } }
+/* Año nuevo: cada nota nace en el centro del disco y sale disparada hacia afuera
+   (el rumbo lo traen --dx/--dy) */
+.mb-tema-explota { animation: mb-tema-explota 5s linear infinite; }
+@keyframes mb-tema-explota {
+    0%, 7% { transform: translate(0, 0); opacity: 0; }
+    12% { opacity: 1; }
+    40% { transform: translate(var(--dx), var(--dy)); opacity: .9; }
+    48%, 100% { transform: translate(var(--dx), var(--dy)); opacity: 0; }
+}
+/* Record Store Day: el stack se abre en abanico y se cierra otra vez. El <g> animado
+   cuelga de un <g> ya trasladado al eje del abanico, así que el origen local (0 0) es
+   justo ese eje: girar aquí gira alrededor del eje, no de la pieza. */
+.mb-tema-abanico {
+    transform-box: view-box; transform-origin: 0 0;
+    transform: rotate(calc(var(--abre) * .12));
+    animation: mb-tema-abanico 7s ease-in-out infinite;
+}
+@keyframes mb-tema-abanico {
+    0%, 14% { transform: rotate(calc(var(--abre) * .12)); }
+    34%, 62% { transform: rotate(var(--abre)); }
+    82%, 100% { transform: rotate(calc(var(--abre) * .12)); }
+}
 /* logo del navbar: el PNG del boceto se queda intacto; los adornos "mini" van encima */
 .mb-logo-tema { position: relative; display: inline-block; line-height: 0; }
 .mb-logo-adorno { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+/* ---------- temas que además juegan con el color ---------- */
+/* El disco y la nota siguen siendo los del boceto: lo que cambia es el fondo del hero y el
+   del navbar, que es "el color de musical box" que se ve. Halloween se va al morado (y el
+   texto del hero pasa a blanco para que se lea) y Amor y amistad al rosa pastel. */
+body.mb-tema-halloween .mb-navbar { background: #2a1d45; }
+body.mb-tema-halloween .mb-hero { background: linear-gradient(180deg, #241a3d 0%, #3d2a63 30%, #5b4390 55%, #a48fc9 78%, #f6f1fb 100%); }
+body.mb-tema-halloween .mb-hero h1 { color: #fff; }
+body.mb-tema-halloween .mb-hero h1 .hl { color: var(--mb-ink); }
+body.mb-tema-halloween .mb-hero .mb-eyebrow { color: rgba(255, 255, 255, .78); }
+body.mb-tema-halloween .mb-hero p.lead { color: rgba(255, 255, 255, .82); }
+body.mb-tema-halloween .mb-hero .text-body-secondary { color: rgba(255, 255, 255, .78) !important; }
+body.mb-tema-halloween .mb-hero .btn-outline-dark {
+    --bs-btn-color: #fff; --bs-btn-border-color: rgba(255, 255, 255, .6);
+    --bs-btn-hover-bg: #fff; --bs-btn-hover-color: var(--mb-ink); --bs-btn-hover-border-color: #fff;
+    --bs-btn-active-bg: #fff; --bs-btn-active-color: var(--mb-ink); --bs-btn-active-border-color: #fff;
+}
+body.mb-tema-amor_amistad .mb-navbar { background: #7a2f4d; }
+body.mb-tema-amor_amistad .mb-hero { background: linear-gradient(180deg, #f6b8ce 0%, #fac9da 34%, #fde0ea 68%, #ffffff 100%); }
+body.mb-tema-amor_amistad .hero-meta .hero-artist { color: #a4486b; }
 @media (max-width: 991.98px) { .mb-hero-art, .hero-meta { max-width: 340px; } }
 
 /* ---------- secciones ---------- */
@@ -551,4 +607,19 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 }
 @media (max-width: 575.98px) {
     .mb-strip > div { flex-basis: calc((100% - 1rem) / 2); }
+}
+
+/* ---------- menos movimiento: todo quieto y nítido ---------- */
+/* Va al final a propósito: por orden de cascada tienen que ir después de las reglas de
+   animación que anula (si no, la regla base gana y la animación sigue corriendo). */
+@media (prefers-reduced-motion: reduce) {
+    .mb-live-grooves, .mb-live-vibra, .mb-live-spark { animation: none; }
+    .mb-live-vibra { filter: none; }
+    .mb-live-spark { opacity: 0; }
+    /* los adornos de temporada se quedan quietos (pero se ven) */
+    .mb-tema-flota, .mb-tema-vuela, .mb-tema-titila, .mb-tema-menea, .mb-tema-nota,
+    .mb-tema-luz, .mb-tema-mecida, .mb-tema-cae, .mb-tema-serpentina,
+    .mb-tema-serpentina-trazo, .mb-tema-abanico { animation: none; }
+    /* el estallido quedaría amontonado en el centro del disco: mejor no mostrarlo */
+    .mb-tema-explota { animation: none; opacity: 0; }
 }
