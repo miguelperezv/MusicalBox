@@ -99,7 +99,7 @@
                         {% for f in stats.stock_baja[:10] %}
                         <a class="d-flex justify-content-between align-items-center gap-2 py-1 border-bottom border-secondary-subtle text-decoration-none small"
                            href="{{ url_for('dashboard.updateproduct', k_producto=f.p.id) }}">
-                            <span class="text-truncate">{{ f.p.n_producto or '(sin nombre)' }}{% if f.p.lanzamiento %} <span class="text-body-secondary">· {{ f.p.lanzamiento.n_lanzamiento.title() }}</span>{% endif %}</span>
+                            <span class="text-truncate">{{ f.p.n_producto or '(sin nombre)' }}{% if f.p.lanzamiento %} <span class="text-body-secondary">· {{ f.p.lanzamiento.n_lanzamiento|titulo }}</span>{% endif %}</span>
                             {% if f.stock <= 0 %}<span class="mb-estado mb-estado-RECHAZADO">Agotado</span>
                             {% else %}<span class="mb-estado mb-estado-PENDIENTE">{{ f.stock }} restantes</span>{% endif %}
                         </a>

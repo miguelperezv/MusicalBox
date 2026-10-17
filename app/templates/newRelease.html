@@ -18,7 +18,7 @@
         <label class="form-label" for="artista">Artista</label>
         <select class="form-select" name="k_artista" id="artista" required>
             <option value="" disabled {{ 'selected' if not '' }}>Elige el artista</option>
-            {% for a in artistas %}<option value="{{ a }}" {{ 'selected' if a == '' }}>{{ a.title() }}</option>{% endfor %}
+            {% for a in artistas %}<option value="{{ a }}" {{ 'selected' if a == '' }}>{{ a|titulo }}</option>{% endfor %}
         </select>
         <div class="form-text">¿No está? Se crea solo si llega de la búsqueda, o créalo en Artistas, géneros y categorías.</div>
     </div>

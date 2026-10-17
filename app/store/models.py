@@ -10,6 +10,7 @@ import hashlib
 import requests
 from sqlalchemy.exc import IntegrityError
 from .seguridad import hash_password, check_password
+from .texto import titulo
 
 MESES = {1: 'enero', 2: 'febrero', 3: 'marzo', 4: 'abril', 5: 'mayo', 6: 'junio',
          7: 'julio', 8: 'agosto', 9: 'septiembre', 10: 'octubre', 11: 'noviembre', 12: 'diciembre'}
@@ -771,7 +772,7 @@ def get_releases_with_artists():
         r=[]
         for release in releases:
             
-            artista = get_artist_by_id(release["k_artista"]).get("n_artista", 'N/A').title()
+            artista = titulo(get_artist_by_id(release["k_artista"]).get("n_artista", 'N/A'))
             lanzamiento = get_release_by_id(release["k_lanzamiento"]).get("n_lanzamiento", "N/A")
             k_lanzamiento = str(release["k_lanzamiento"])
             r.append(k_lanzamiento+". "+artista + " - "+  lanzamiento)
@@ -1170,7 +1171,7 @@ def get_catalogo_solicitud():
     for p in productos:
         artista = get_artist_by_release(p.k_lanzamiento) if p.k_lanzamiento else None
         lanzamiento = p.lanzamiento.n_lanzamiento if p.lanzamiento else ''
-        nombre = " - ".join(x for x in [artista.n_artista.title() if artista else '', lanzamiento, p.n_producto or ''] if x)
+        nombre = " - ".join(x for x in [titulo(artista.n_artista) if artista else '', lanzamiento, p.n_producto or ''] if x)
         r.append({"id": p.id, "nombre": nombre, "categoria": 'PACK' if p.tipo == 'BUNDLE' else p.k_categoria, "stock": stock_disponible(p)})
     return r
 
@@ -1319,7 +1320,7 @@ def get_productos_mas_vendidos(limit=10, dias=30):
             productos.append({
                 "producto": p,
                 "nombre": p.n_producto or '(sin nombre)',
-                "lanzamiento": p.lanzamiento.n_lanzamiento.title() if p.lanzamiento else '',
+                "lanzamiento": titulo(p.lanzamiento.n_lanzamiento) if p.lanzamiento else '',
                 "u": int(unidades),
                 "total_ventas": float((p.p_producto or 0) * int(unidades))
             })
@@ -1510,7 +1511,7 @@ def get_admin_stats(dias=30):
         p = db.session.get(Producto, k_prod)
         if p:
             top5.append({"nombre": p.n_producto or '(sin nombre)',
-                         "lanzamiento": p.lanzamiento.n_lanzamiento.title() if p.lanzamiento else '',
+                         "lanzamiento": titulo(p.lanzamiento.n_lanzamiento) if p.lanzamiento else '',
                          "u": int(unidades)})
     stock_baja = []
     for p in Producto.query.order_by(Producto.id).all():
@@ -1532,7 +1533,7 @@ def get_admin_stats(dias=30):
             p = db.session.get(Producto, k_prod)
             if p and p.lanzamiento:
                 preordenes[p.lanzamiento.n_lanzamiento] = preordenes.get(p.lanzamiento.n_lanzamiento, 0) + int(unidades)
-    preordenes_lista = [{"lanzamiento": n.title(), "u": u} for n, u in preordenes.items()]
+    preordenes_lista = [{"lanzamiento": titulo(n), "u": u} for n, u in preordenes.items()]
     preordenes_lista.sort(key=lambda f: -f["u"])
     
     # Estados de pedidos
@@ -1756,7 +1757,7 @@ def validar_bundle(bundle):
     return errores
 
 def nombre_linea(producto, variante=None):
-    nombre = (producto.lanzamiento.n_lanzamiento.title() + " - " if producto.lanzamiento else "") + (producto.n_producto or "")
+    nombre = (titulo(producto.lanzamiento.n_lanzamiento) + " - " if producto.lanzamiento else "") + (producto.n_producto or "")
     return nombre + (f" ({variante.nombre})" if variante is not None and variante.nombre else "")
 
 def clave_carrito(k_producto, k_variante=None):

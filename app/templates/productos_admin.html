@@ -18,7 +18,7 @@
     </select>
     <select class="form-select form-select-sm" style="max-width: 260px" id="filtro-lanzamiento" aria-label="Filtrar por lanzamiento">
         <option value="">Lanzamiento: todos</option>
-        {% for l in lanzamientos %}<option value="{{ l.id }}" {{ 'selected' if f_lanzamiento == l.id }}>{{ l.n_lanzamiento.title() }}</option>{% endfor %}
+        {% for l in lanzamientos %}<option value="{{ l.id }}" {{ 'selected' if f_lanzamiento == l.id }}>{{ l.n_lanzamiento|titulo }}</option>{% endfor %}
     </select>
 </div>
 <div class="mb-panel p-0">
@@ -34,7 +34,7 @@
                             <div><div class="fw-semibold">{{ p.n_producto or '(sin nombre)' }}<span data-preorden-chip class="{{ 'd-none' if not f.preorden }} ms-1"><span class="mb-chip mb-badge-new"><i class="bi bi-fire text-danger me-1"></i>PREORDEN</span></span></div>{% if f.original %}{{ badge_original() }}{% endif %}</div>
                         </div>
                     </td>
-                    <td class="small">{{ f.artista.n_artista.title() ~ ' · ' if f.artista }}{{ p.lanzamiento.n_lanzamiento.title() if p.lanzamiento else '—' }}</td>
+                    <td class="small">{{ f.artista.n_artista|titulo ~ ' · ' if f.artista }}{{ p.lanzamiento.n_lanzamiento|titulo if p.lanzamiento else '—' }}</td>
                     <td class="small">{% if p.tipo == 'BUNDLE' %}<span class="mb-chip mb-badge-pack">PACK</span>{% else %}{{ p.k_categoria or '' }}{% if p.variantes %} <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none" data-tallas data-id="{{ p.id }}" title="Ver y editar el stock por talla">{{ p.variantes|length }} tallas ▾</button>{% endif %}{% endif %}</td>
                     <td class="text-end text-nowrap precio-celda" data-id="{{ p.id }}" data-valor="{{ p.p_producto }}" title="Clic para cambiar el precio">{{ p.p_producto|cop }}</td>
                     <td class="text-end stock-celda{% if p.tipo != 'BUNDLE' and not p.variantes %} stock-editable{% endif %}" data-id="{{ p.id }}" data-valor="{{ f.stock }}"

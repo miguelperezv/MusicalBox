@@ -31,8 +31,8 @@
                     <span class="hero-preorder" id="heroPre"{% if not hero[0].preorden %} hidden{% endif %}><i class="bi bi-fire" aria-hidden="true"></i> Preorden</span>
                 </div>
                 <a class="hero-meta" id="heroMeta" href="{{ url_for_release(hero[0]) }}">
-                    <span class="hero-artist">{{ hero[0].artista.n_artista.title() if hero[0].artista else 'Lanzamiento' }}</span>
-                    <span class="hero-album">{{ hero[0].nombre.title() }}</span>
+                    <span class="hero-artist">{{ hero[0].artista.n_artista|titulo if hero[0].artista else 'Lanzamiento' }}</span>
+                    <span class="hero-album">{{ hero[0].nombre|titulo }}</span>
                 </a>
                 {% endif %}
             </div>
@@ -155,7 +155,7 @@
 {% if hero and hero|length > 1 %}
 <script>
   window.__heroSlides = [
-    {% for r in hero %}{"url": {{ url_for_release(r)|tojson }}, "artist": {{ (r.artista.n_artista.title() if r.artista else 'Lanzamiento')|tojson }}, "album": {{ r.nombre.title()|tojson }}, "preorden": {{ 'true' if r.preorden else 'false' }}}{% if not loop.last %},{% endif %}{% endfor %}
+    {% for r in hero %}{"url": {{ url_for_release(r)|tojson }}, "artist": {{ (r.artista.n_artista|titulo if r.artista else 'Lanzamiento')|tojson }}, "album": {{ r.nombre|titulo|tojson }}, "preorden": {{ 'true' if r.preorden else 'false' }}}{% if not loop.last %},{% endif %}{% endfor %}
   ];
 </script>
 <script>

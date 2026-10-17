@@ -10,6 +10,7 @@ from .models import (create_solicitud, get_all_solicitudes, update_estado_solici
                      ESTADOS_SOLICITUD, Solicitud, SolicitudItem, Lanzamiento)
 from .forms import RegistroSolicitudForm
 from .musicapi import buscar_albumes_spotify
+from .texto import titulo
 from .envio import costo_envio, lineas_desde_cats
 from ..db import db
 from .views import before_request, admin_required
@@ -160,15 +161,15 @@ def _respuesta_cotizar(s, token):
             # Obtener tipo de producto (categoría: VINILO, CD, CASSETTE, etc.)
             tipo_producto = ""
             if producto and producto.categoria:
-                tipo_producto = producto.categoria.k_categoria.title()
+                tipo_producto = titulo(producto.categoria.k_categoria)
             elif it.categoria:
-                tipo_producto = it.categoria.title()
+                tipo_producto = titulo(it.categoria)
             # Construir label: "Artista - Álbum (Tipo)"
             partes_label = []
             if artistas:
                 partes_label.append(artistas)
             if lanz.n_lanzamiento:
-                partes_label.append(lanz.n_lanzamiento.title())
+                partes_label.append(titulo(lanz.n_lanzamiento))
             if tipo_producto:
                 partes_label.append(f"({tipo_producto})")
             label = " - ".join(partes_label)

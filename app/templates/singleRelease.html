@@ -2,10 +2,10 @@
 {% from "_cards.html" import product_card with context %}
 {% from "_macros.html" import badge_original %}
 
-{% block title %}{{ lanzamiento.n_lanzamiento.title() }}{% endblock %}
-{% block description %}{{ artista.n_artista.title() if artista }} - {{ lanzamiento.n_lanzamiento.title() }}: merch, vinilos y ediciones en Musical Box.{% endblock %}
-{% block og_title %}{{ artista.n_artista.title() ~ ' – ' if artista }}{{ lanzamiento.n_lanzamiento.title() }} · Musical Box{% endblock %}
-{% block og_description %}{{ artista.n_artista.title() if artista }} - {{ lanzamiento.n_lanzamiento.title() }}: merch, vinilos y ediciones en Musical Box.{% endblock %}
+{% block title %}{{ lanzamiento.n_lanzamiento|titulo }}{% endblock %}
+{% block description %}{{ artista.n_artista|titulo if artista }} - {{ lanzamiento.n_lanzamiento|titulo }}: merch, vinilos y ediciones en Musical Box.{% endblock %}
+{% block og_title %}{{ artista.n_artista|titulo ~ ' – ' if artista }}{{ lanzamiento.n_lanzamiento|titulo }} · Musical Box{% endblock %}
+{% block og_description %}{{ artista.n_artista|titulo if artista }} - {{ lanzamiento.n_lanzamiento|titulo }}: merch, vinilos y ediciones en Musical Box.{% endblock %}
 {% if lanzamiento.i_lanzamiento %}{% block og_image %}{{ lanzamiento.i_lanzamiento }}{% endblock %}{% endif %}
 {% block head %}
 <script type="application/ld+json">
@@ -15,12 +15,12 @@
 ] %}
 {% if artista %}
 {% set crumbs = crumbs + [
-  {"@type": "ListItem", "position": 3, "name": artista.n_artista.title(), "item": url_for("artists.artist", k_artista=artista.id, _external=True)},
-  {"@type": "ListItem", "position": 4, "name": lanzamiento.n_lanzamiento.title(), "item": (seo_canonical or request.url)}
+  {"@type": "ListItem", "position": 3, "name": artista.n_artista|titulo, "item": url_for("artists.artist", k_artista=artista.id, _external=True)},
+  {"@type": "ListItem", "position": 4, "name": lanzamiento.n_lanzamiento|titulo, "item": (seo_canonical or request.url)}
 ] %}
 {% else %}
 {% set crumbs = crumbs + [
-  {"@type": "ListItem", "position": 3, "name": lanzamiento.n_lanzamiento.title(), "item": (seo_canonical or request.url)}
+  {"@type": "ListItem", "position": 3, "name": lanzamiento.n_lanzamiento|titulo, "item": (seo_canonical or request.url)}
 ] %}
 {% endif %}
 {{ {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": crumbs}|tojson }}
@@ -35,8 +35,8 @@
             <img class="mb-release-mini" src="{{ lanzamiento.i_lanzamiento }}" alt="Portada de {{ lanzamiento.n_lanzamiento }}">
             {% endif %}
             <div class="min-w-0 flex-fill">
-                {% if artista %}<a class="mb-eyebrow text-white-50" href="{{ url_for_artist(artista) }}">{{ artista.n_artista.title() }}</a>{% endif %}
-                <h1 class="h2 mb-2 text-white text-truncate">{{ lanzamiento.n_lanzamiento.title() }}</h1>
+                {% if artista %}<a class="mb-eyebrow text-white-50" href="{{ url_for_artist(artista) }}">{{ artista.n_artista|titulo }}</a>{% endif %}
+                <h1 class="h2 mb-2 text-white text-truncate">{{ lanzamiento.n_lanzamiento|titulo }}</h1>
                 <div class="d-flex flex-wrap align-items-center gap-2">
                     {% for g in generos if g.k_genero and g.k_genero != 'N/A' %}<span class="mb-chip">{{ g.k_genero }}</span>{% endfor %}
                     {% if lanzamiento.f_lanzamiento %}<span class="small text-white-50"><i class="bi bi-calendar3 me-1"></i>{{ lanzamiento.f_lanzamiento }}</span>{% endif %}

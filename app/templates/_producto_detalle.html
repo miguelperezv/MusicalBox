@@ -22,7 +22,7 @@
             {% if p.lanzamiento.i_lanzamiento %}
             <img src="{{ p.lanzamiento.i_lanzamiento }}" alt="" width="24" height="24" class="rounded-1" style="object-fit: cover;">
             {% endif %}
-            {{ p.artista.n_artista.title() ~ ' · ' if p.artista }}{{ p.lanzamiento.n_lanzamiento.title() }}
+            {{ p.artista.n_artista|titulo ~ ' · ' if p.artista }}{{ p.lanzamiento.n_lanzamiento|titulo }}
         </a>
         {% endif %}
         {% if modal %}<h2 class="h3 mt-1">{{ p.nombre }}</h2>{% else %}<h1 class="h3 mt-1">{{ p.nombre }}</h1>{% endif %}
