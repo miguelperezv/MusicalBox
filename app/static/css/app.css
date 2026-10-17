@@ -97,7 +97,7 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 .mb-hero .mb-eyebrow { color: rgba(15, 28, 36, .7); }
 .mb-hero p.lead { color: rgba(15, 28, 36, .78); max-width: 34rem; font-size: 0.9rem; }
 .mb-hero .text-body-secondary { color: rgba(15, 28, 36, .7) !important; }
-.mb-hero-art { position: relative; aspect-ratio: 1; max-width: 380px; margin-inline: auto; }
+.mb-hero-art { position: relative; aspect-ratio: 1; max-width: 440px; margin-inline: auto; }
 .mb-hero-art .mb-live { position: absolute; left: 8%; top: 0; width: 100%; height: 100%; overflow: visible; }
 /* vinilo vivo: los surcos giran (tocadiscos) y la nota baila por encima */
 .mb-live-grooves { transform-box: view-box; transform-origin: 1024px 1024px; animation: mb-spin var(--mb-vinyl-spin) linear infinite; }
@@ -107,7 +107,7 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 .mb-live-vibra { animation: mb-live-vibra 2.5s linear infinite; }
 .mb-live-spark { transform-box: fill-box; transform-origin: center; opacity: 0; animation: mb-live-spark 5s ease-out infinite; }
 .mb-hero-art .cover {
-    position: absolute; inset: 15% 30% 15% 0; border-radius: 12px; overflow: hidden;
+    position: absolute; inset: 24% 48% 24% 0; border-radius: 12px; overflow: hidden;
     box-shadow: 0 16px 38px rgba(15, 28, 36, .22); background: var(--mb-aqua);
 }
 .mb-hero-art .cover img { width: 100%; height: 100%; object-fit: cover; }
@@ -161,7 +161,7 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
     .mb-live-vibra { filter: none; }
     .mb-live-spark { opacity: 0; }
 }
-@media (max-width: 991.98px) { .mb-hero-art, .hero-meta { max-width: 300px; } }
+@media (max-width: 991.98px) { .mb-hero-art, .hero-meta { max-width: 340px; } }
 
 /* ---------- secciones ---------- */
 .mb-section-title { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
