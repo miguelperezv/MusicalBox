@@ -37,7 +37,10 @@
     <circle cx="1024" cy="1024" r="239" fill="#3ab7cd"/>
     <circle cx="1024" cy="1024" r="39" fill="#92d4ff"/>
 
+    {# la nota vibra con la música: temblor continuo con un desenfoque mínimo (como el sonido)
+       y un golpe cada 5 s. El halo, la sombra y el relleno se mueven juntos. #}
     <g class="mb-live-vibra">
+      <g class="mb-live-tremor">
         {# halo turquesa de la nota: sólo se ve sobre el disco (como en el boceto) #}
         <g mask="url(#mbvHaloMask)">
             <use href="#mbvNote" xlink:href="#mbvNote" fill="#3ab7cd" stroke="#3ab7cd" stroke-width="100" stroke-linejoin="round"/>
@@ -45,6 +48,7 @@
         {# contorno oscuro + relleno celeste, tal cual el boceto #}
         <use href="#mbvNote" xlink:href="#mbvNote" fill="#0e82a4"/>
         <use href="#mbvNoteFill" xlink:href="#mbvNoteFill" fill="#92d4ff"/>
+      </g>
     </g>
 
     <path class="mb-live-spark" fill="#fff"
