@@ -3,6 +3,10 @@
 
 {% block title %}CD's, vinilos y cassettes en Bogotá{% endblock %}
 
+{% block head %}
+<script type="application/ld+json">{{ schema_tienda()|tojson }}</script>
+{% endblock %}
+
 {% block contenido %}
 <section class="mb-hero mb-5">
     <div class="container py-5">

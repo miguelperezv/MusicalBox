@@ -20,12 +20,13 @@ from .store.mercadopago import views as mercadopago_views
 from .store import catalogo_admin  # noqa: F401 (rutas de tallas y packs en el panel)
 from .store import envios_admin  # noqa: F401 (sección "Envíos" del panel y costo por orden)
 from .store import suscriptores  # noqa: F401 (suscriptores de drops: form del footer y lista del panel)
+from .store.promocion import promo
 from .telegram import telegram_bp
 
 import logging
 logging.getLogger("mb.tgbot").setLevel(logging.INFO)  #logs del bot para el error log (ver app/telegram.py)
 
-ACTIVE_ENDPOINTS = [('/',home), ('/dashboard', dashboard), ('/releases', releases), ('/artists', artists), ('/purchase', purchase), ("/products", products), ("/solicitud", solicitud), ("/pedido", pedido), ("/mercadopago", mercadopago_views.mercadopago_bp), ("/telegram-bot", telegram_bp) ]
+ACTIVE_ENDPOINTS = [('/',home), ('/dashboard', dashboard), ('/releases', releases), ('/artists', artists), ('/purchase', purchase), ("/products", products), ("/solicitud", solicitud), ("/pedido", pedido), ("/mercadopago", mercadopago_views.mercadopago_bp), ("/telegram-bot", telegram_bp), ("/feed", promo) ]
 
 def create_app(config=None):
     app = Flask(__name__)
@@ -88,6 +89,18 @@ def create_app(config=None):
         if hasattr(valor, 'strftime'):
             return valor.strftime(fmt)
         return str(valor)
+
+    @app.template_filter('schema_producto')
+    def _filtro_schema_producto(p, url=None):
+        #schema.org Product de la ficha (ver app/store/promocion.py)
+        from .store.promocion import schema_producto
+        return schema_producto(p, url)
+
+    @app.template_global('schema_tienda')
+    def _global_schema_tienda():
+        #schema.org Store del inicio, con los datos del negocio del panel (ver /dashboard/promocion)
+        from .store.promocion import schema_tienda
+        return schema_tienda()
 
     @app.template_filter('titulo')
     def _filtro_titulo(valor):

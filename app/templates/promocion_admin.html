@@ -1,0 +1,108 @@
+{% extends "adminDashboard.html" %}
+
+{% block title %}Salir en otras páginas{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-1">Salir en otras páginas</h1>
+<p class="text-body-secondary">Aquí no se anuncian terceros en la tienda: al revés. Esto es el catálogo de Musical Box listo para que aparezca <strong>en Google, en Instagram y en los marketplaces</strong> donde la gente busca música física. Todo sale del catálogo que ya tienes: no cambia precios, stock ni nada de la tienda.</p>
+
+{# ---------- 1 · el feed ---------- #}
+<div class="mb-panel mb-4">
+    <h2 class="h6 mb-2">1 · El feed del catálogo <span class="badge text-bg-light border">Google · Instagram</span></h2>
+    <p class="text-body-secondary">Es una URL que se refresca sola con todo tu catálogo (nombre, precio, foto, si hay stock, preorden, tallas y colores). Se pega una vez en cada plataforma y ya:</p>
+    {% for f in feeds %}
+    <div class="mb-3">
+        <label class="form-label small mb-1">{{ f.destino }} <span class="text-body-secondary">— {{ f.nota }}</span></label>
+        <div class="input-group input-group-sm" style="max-width: 620px">
+            <input class="form-control" type="text" readonly value="{{ f.url }}" onclick="this.select()">
+            <button class="btn btn-outline-dark" type="button" data-copia="{{ f.url }}">Copiar</button>
+            <a class="btn btn-outline-secondary" href="{{ f.url }}" target="_blank" rel="noopener">Ver</a>
+        </div>
+    </div>
+    {% endfor %}
+    <div class="small text-body-secondary mb-3"><i class="bi bi-info-circle me-1"></i>Si un producto no tiene fotos propias, el feed manda la portada del lanzamiento (o el logo). En Google y en Instagram se ven mucho mejor con foto propia del producto.</div>
+    <details class="mb-2">
+        <summary class="fw-semibold">Cómo conectarlo a Google (Merchant Center, gratis)</summary>
+        <ol class="small text-body-secondary mt-2 mb-0">
+            <li>Crea la cuenta en <a href="https://merchant.google.com" target="_blank" rel="noopener">merchant.google.com</a> y verifica el dominio de la tienda.</li>
+            <li>En "Productos → Fuentes de datos" agrega una fuente <strong>programada</strong> y pega la URL del feed (frecuencia diaria).</li>
+            <li>Completa envíos y devoluciones en la cuenta (esto es lo que Google usa para mostrar el precio final).</li>
+            <li>Listo: los productos pueden aparecer en la pestaña Shopping y en los resultados de búsqueda con foto y precio.</li>
+        </ol>
+    </details>
+    <details>
+        <summary class="fw-semibold">Cómo conectarlo a Instagram y Facebook</summary>
+        <ol class="small text-body-secondary mt-2 mb-0">
+            <li>Entra a <a href="https://business.facebook.com/commerce" target="_blank" rel="noopener">Commerce Manager</a> y crea un catálogo.</li>
+            <li>Agrega una fuente de datos <strong>programada</strong> con la URL del feed de Meta.</li>
+            <li>Vincula el catálogo a la cuenta de Instagram: ya se pueden etiquetar productos en las publicaciones.</li>
+        </ol>
+    </details>
+</div>
+
+{# ---------- 2 · exportaciones ---------- #}
+<div class="mb-panel mb-4">
+    <h2 class="h6 mb-2">2 · Exportar el catálogo para marketplaces</h2>
+    <p class="text-body-secondary">Un archivo para subir el inventario a donde la gente ya compra. Se descarga con el catálogo de hoy (tallas y colores incluidos):</p>
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        <a class="btn btn-accent btn-sm" href="{{ url_for('dashboard.export_catalogo', formato='generico') }}"><i class="bi bi-filetype-csv me-1"></i>Catálogo completo</a>
+        <a class="btn btn-outline-dark btn-sm" href="{{ url_for('dashboard.export_catalogo', formato='mercadolibre') }}"><i class="bi bi-shop me-1"></i>Mercado Libre</a>
+        <a class="btn btn-outline-dark btn-sm" href="{{ url_for('dashboard.export_catalogo', formato='discogs') }}"><i class="bi bi-vinyl me-1"></i>Discogs</a>
+    </div>
+    <ul class="small text-body-secondary mb-0">
+        <li><strong>Mercado Libre:</strong> viene listo para su carga masiva; lo único que hay que llenar es la <em>categoría</em> de cada publicación (Mercado Libre la sugiere cuando pegas el título).</li>
+        <li><strong>Discogs:</strong> su carga exige el <code>release_id</code> y la condición de cada disco — cosas que el catálogo no tiene — así que el archivo trae el resto armado y una columna con el enlace de búsqueda en Discogs para conseguir el id rápido.</li>
+        <li><strong>Catálogo completo:</strong> para lo que sea (eBay, un Google Sheets, la lista de WhatsApp).</li>
+    </ul>
+</div>
+
+{# ---------- 3 · datos del negocio ---------- #}
+<div class="mb-panel mb-4">
+    <h2 class="h6 mb-2">3 · Datos del negocio <span class="badge text-bg-light border">búsquedas locales</span></h2>
+    <p class="text-body-secondary">Con esto la ficha del sitio (schema.org) dice dónde estás y cómo te contactan: es lo que ayuda a aparecer en búsquedas tipo "vinilos en Bogotá" y en el perfil de Google. Lo que dejes vacío no se publica.</p>
+    <form method="POST" action="{{ url_for('dashboard.promocion_negocio') }}" class="row g-3 align-items-end">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="col-12 col-md-4">
+            <label class="form-label small mb-1" for="neg-telefono">WhatsApp / teléfono</label>
+            <input class="form-control form-control-sm" id="neg-telefono" name="telefono" value="{{ negocio.telefono }}" placeholder="+57 300 000 0000">
+        </div>
+        <div class="col-12 col-md-4">
+            <label class="form-label small mb-1" for="neg-direccion">Dirección (opcional)</label>
+            <input class="form-control form-control-sm" id="neg-direccion" name="direccion" value="{{ negocio.direccion }}" placeholder="Calle 00 #00-00, Bogotá">
+        </div>
+        <div class="col-12 col-md-2">
+            <label class="form-label small mb-1" for="neg-ciudad">Ciudad</label>
+            <input class="form-control form-control-sm" id="neg-ciudad" name="ciudad" value="{{ negocio.ciudad }}">
+        </div>
+        <div class="col-12 col-md-2">
+            <button class="btn btn-accent btn-sm w-100">Guardar</button>
+        </div>
+    </form>
+</div>
+
+{# ---------- 4 · tareas ---------- #}
+<div class="mb-panel">
+    <h2 class="h6 mb-2">4 · Lo que toca por fuera del código</h2>
+    <ul class="mb-0">
+        <li class="mb-2"><strong>Publica la política de cambios y devoluciones.</strong> Hoy la tienda sólo tiene la de envíos y Google la exige para el catálogo (también la pide Mercado Libre). Cuando tengas el texto, se agrega como página igual que la de envíos.</li>
+        <li class="mb-2"><strong>Perfil de empresa en Google</strong> (<a href="https://business.google.com" target="_blank" rel="noopener">business.google.com</a>): es gratis y es lo que te pone en Maps y en el cuadro lateral de "vinilos Bogotá". Usa las mismas fotos y el teléfono de arriba.</li>
+        <li class="mb-2"><strong>Mercado Libre</strong>: cuenta de vendedor y subir el archivo del punto 2. Es donde más compra la gente en Colombia.</li>
+        <li class="mb-2"><strong>Discogs</strong> (<a href="https://www.discogs.com/sell" target="_blank" rel="noopener">discogs.com/sell</a>): es donde están los coleccionistas de vinilo del mundo; el archivo del punto 2 deja las fichas casi listas.</li>
+        <li class="mb-2"><strong>Record Store Day</strong>: pedir figurar en el listado oficial de tiendas participantes (pega con el tema que ya hicimos).</li>
+        <li class="mb-0"><strong>Prensa, blogs y creadores</strong>: enviar copias para reseña y el enlace de la tienda; así se sale en las listas de "tiendas de vinilo de LatAm".</li>
+    </ul>
+</div>
+
+<script>
+document.querySelectorAll('[data-copia]').forEach(function (boton) {
+    boton.addEventListener('click', function () {
+        var texto = boton.getAttribute('data-copia');
+        navigator.clipboard.writeText(texto).then(function () {
+            var antes = boton.textContent;
+            boton.textContent = '¡Copiado!';
+            setTimeout(function () { boton.textContent = antes; }, 1500);
+        });
+    });
+});
+</script>
+{% endblock %}

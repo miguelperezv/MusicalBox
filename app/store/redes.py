@@ -55,7 +55,10 @@ DEFAULTS = {'redes.activa': '0',
             'envio.resto': '3–7 días',
             #tema de temporada del logotipo, elegido por el admin en /dashboard/tema
             #(ver app/store/temporadas.py); 'tema.forzado' sólo se usa en modo 'forzado'
-            'tema.modo': 'auto', 'tema.forzado': ''}
+            'tema.modo': 'auto', 'tema.forzado': '',
+            #datos del negocio para el schema.org Store del inicio (ver app/store/promocion.py);
+            #vacíos = no se publica nada, no se inventa dirección ni teléfono
+            'negocio.telefono': '', 'negocio.direccion': '', 'negocio.ciudad': 'Bogotá'}
 _PATRONES = {
     'tiktok': re.compile(r"^https?://(www\.|m\.)?tiktok\.com/@[\w.\-]+/(video|photo)/(\d{8,25})"),
     'instagram': re.compile(r"^https?://(www\.)?instagram\.com/(p|reel|tv)/([\w\-]{5,40})"),

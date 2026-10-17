@@ -8,7 +8,7 @@
 
 {% block head %}
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"Product","name":{{ p.nombre|tojson }},"description":{{ p.descripcion|tojson }},"image":["{{ url_for('products.image', k_producto=p.id, w=600, _external=True) }}"],"brand":{"@type":"Brand","name":{{ (p.artista.n_artista|titulo if p.artista else 'Musical Box')|tojson }}},"offers":{"@type":"Offer","url":"{{ seo_canonical or request.url }}","priceCurrency":"COP","price":{{ p.precio|float }},"availability":"https://schema.org/{{ 'InStock' if p.stock > 0 else 'OutOfStock' }}","seller":{"@type":"Organization","name":"Musical Box"}}}
+{{ p|schema_producto(seo_canonical or request.url)|tojson }}
 </script>
 <script type="application/ld+json">
 {% set crumbs = [
