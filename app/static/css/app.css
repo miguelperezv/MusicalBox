@@ -160,7 +160,25 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
     .mb-live-grooves, .mb-live-vibra, .mb-live-spark { animation: none; }
     .mb-live-vibra { filter: none; }
     .mb-live-spark { opacity: 0; }
+    /* los adornos de temporada se quedan quietos (pero se ven) */
+    .mb-tema-flota, .mb-tema-vuela, .mb-tema-titila, .mb-tema-menea, .mb-tema-nota { animation: none; }
 }
+/* ---------- adornos de temporada ---------- */
+/* Piezas que se montan sobre el vinilo de marca (ver _tema.html): sobrias y lentas, la
+   protagonista sigue siendo la nota. Sólo se mueven y se atenúan (nada de girar ni
+   escalar: el origen de esas transformaciones en SVG no es el de la pieza). */
+.mb-tema-flota { animation: mb-tema-flota 9s ease-in-out infinite alternate; }
+.mb-tema-vuela { animation: mb-tema-vuela 7s ease-in-out infinite alternate; }
+.mb-tema-titila { animation: mb-tema-titila 3.4s ease-in-out infinite; }
+.mb-tema-menea { animation: mb-tema-menea 6.5s ease-in-out infinite alternate; }
+.mb-tema-nota { animation: mb-tema-flota 11s ease-in-out infinite alternate; }
+@keyframes mb-tema-flota { from { transform: translateY(0); } to { transform: translateY(-22px); } }
+@keyframes mb-tema-vuela { from { transform: translate(0, 0); } to { transform: translate(20px, -12px); } }
+@keyframes mb-tema-titila { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
+@keyframes mb-tema-menea { from { transform: translateY(0); } to { transform: translateY(-13px); } }
+/* logo del navbar: el PNG del boceto se queda intacto; los adornos "mini" van encima */
+.mb-logo-tema { position: relative; display: inline-block; line-height: 0; }
+.mb-logo-adorno { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 @media (max-width: 991.98px) { .mb-hero-art, .hero-meta { max-width: 340px; } }
 
 /* ---------- secciones ---------- */

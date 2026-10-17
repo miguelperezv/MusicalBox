@@ -37,6 +37,12 @@
     <circle cx="1024" cy="1024" r="239" fill="#3ab7cd"/>
     <circle cx="1024" cy="1024" r="39" fill="#92d4ff"/>
 
+    {# adornos de temporada (si hoy toca alguno). Esta capa va ANTES de la nota, así los
+       murciélagos, la luna, las chispas... quedan por detrás de ella.
+       OJO: van dentro de {% raw %}{% with %}{% endraw %} para que sus variables (capa, mini) no se
+       filtren al resto de la página: los include comparten el contexto. #}
+    {% with capa = 'atras' %}{% include "_tema.html" %}{% endwith %}
+
     {# la nota vibra muy rápido con la música: oscila tan rápido que se ve mínimamente
        borrosa (eso es el desenfoque, no un efecto aparte). El halo, la sombra y el
        relleno se mueven juntos. #}
@@ -48,6 +54,8 @@
         {# contorno oscuro + relleno celeste, tal cual el boceto #}
         <use href="#mbvNote" xlink:href="#mbvNote" fill="#0e82a4"/>
         <use href="#mbvNoteFill" xlink:href="#mbvNoteFill" fill="#92d4ff"/>
+        {# lo que va pegado a la nota (el gorro de Navidad) va AQUÍ dentro: se agita con ella #}
+        {% with capa = 'nota' %}{% include "_tema.html" %}{% endwith %}
     </g>
 
     <path class="mb-live-spark" fill="#fff"

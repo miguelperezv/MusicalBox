@@ -105,6 +105,14 @@ def create_app(config=None):
         return {"user": g.get("user"), "purchase_cart": g.get("purchase")}
 
     @app.context_processor
+    def tema_de_temporada():
+        #tema de temporada del logotipo (gorro, murciélagos, chispas...): por fecha en hora
+        #de Bogotá, o forzado con ?tema=navidad (también sirve MUSICALBOX_TEMA)
+        from flask import request as _request
+        from .store.temporadas import tema_activo
+        return {"tema": tema_activo(_request.args)}
+
+    @app.context_processor
     def form_suscriptor():
         #formulario del footer (avisos de drops); el panel sobreescribe el bloque footer
         from .store.forms import SuscriptorForm
