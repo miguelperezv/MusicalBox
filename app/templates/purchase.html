@@ -1,10 +1,11 @@
 {% extends "base.html" %}
-{% from "_macros.html" import product_cover %}
+{% from "_macros.html" import product_cover, barra_confianza %}
 
 {% block title %}Mi carrito{% endblock %}
 
 {% block contenido %}
 <div class="container">
+    {{ barra_confianza() }}
     <header class="mb-page-header">
         <span class="mb-eyebrow">Paso 1 de 3</span>
         <h1 class="mt-1">Carrito</h1>

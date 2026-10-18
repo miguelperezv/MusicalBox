@@ -174,10 +174,14 @@
                 </div>
                 <div class="col-6 col-lg-3">
                     <h6>Ayuda</h6>
+                    {% set negocio = negocio_datos() %}
                     <ul class="list-unstyled d-grid gap-2">
                         <li><a href="{{ url_for('home.politica_envios') }}">Política de envíos</a></li>
                         <li><a href="{{ url_for('home.account') }}">Seguimiento de mi pedido</a></li>
-                        <li><a href="https://www.instagram.com/musicalboxcol/">Escríbenos</a></li>
+                        {% if negocio.telefono %}
+                        <li><a href="{{ whatsapp_enlace(negocio.telefono) }}" target="_blank" rel="noopener">WhatsApp {{ negocio.telefono }}</a></li>
+                        {% endif %}
+                        <li><a href="https://www.instagram.com/musicalboxcol/">Escríbenos por Instagram</a></li>
                     </ul>
                 </div>
             </div>

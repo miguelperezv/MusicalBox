@@ -18,11 +18,11 @@ import csv
 import io
 from urllib.parse import quote_plus
 
-from flask import Blueprint, Response, flash, redirect, render_template, request, url_for
+from flask import Blueprint, Response, flash, g, redirect, render_template, request, url_for
 
 from .models import Producto, get_artist_by_release, stock_disponible
 from .redes import get_config, set_config
-from .texto import titulo
+from .texto import TIPOS_CATEGORIA as TIPOS, categoria_legible, titulo
 
 #el feed se sirve en /feed/productos.csv (ver ACTIVE_ENDPOINTS en app/__init__.py)
 promo = Blueprint("promo", __name__)
@@ -30,10 +30,6 @@ promo = Blueprint("promo", __name__)
 #el mismo catálogo, dos dialectos: Google quiere availability "in_stock" y Meta "in stock"
 DESTINOS = {"google": "google", "merchant": "google", "meta": "meta", "facebook": "meta",
             "instagram": "meta"}
-
-#categorías del catálogo -> nombre legible para el campo product_type del feed
-TIPOS = {"VINILO": "Vinilos", "CD": "CDs", "CASSETTE": "Cassettes", "CAMISETA": "Camisetas",
-         "POSTER": "Pósters", "MUG": "Mugs", "ACCESORIO": "Accesorios"}
 
 #formatos de Discogs para la hoja de trabajo de Discogs
 FORMATOS_DISCOGS = {"VINILO": "Vinyl", "CD": "CD", "CASSETTE": "Cassette", "CAMISETA": "T-Shirt",
@@ -260,12 +256,31 @@ def csv_descarga(nombre, filas):
 
 # ---------------------------------------------------------------- datos del negocio
 def datos_negocio():
-    """Lo que se puede mostrar en el schema.org Store (todo opcional: si está vacío no se
-    inventa nada y el bloque no se dibuja)."""
-    return {"telefono": (get_config("negocio.telefono") or "").strip(),
-            "direccion": (get_config("negocio.direccion") or "").strip(),
-            "ciudad": (get_config("negocio.ciudad") or "Bogotá").strip(),
-            "pais": "CO"}
+    """Datos del negocio para el schema.org Store, la barra de confianza y el pie del sitio.
+    Se leen una sola vez por petición y lo que esté vacío no se publica: nunca se inventa
+    teléfono ni dirección (si no hay teléfono, no se muestra un WhatsApp falso)."""
+    cache = getattr(g, "_datos_negocio", None)
+    if cache is None:
+        #la dirección real ya vive en el código: es el origen de los envíos (app/store/envio.py)
+        from .envio import ORIGEN_DIRECCION
+        cache = {"telefono": (get_config("negocio.telefono") or "").strip(),
+                 "direccion": (get_config("negocio.direccion") or "").strip(),
+                 "ciudad": (get_config("negocio.ciudad") or "Bogotá").strip(),
+                 "pais": "CO",
+                 "sugerencia_direccion": ORIGEN_DIRECCION}
+        g._datos_negocio = cache
+    return cache
+
+
+def whatsapp_enlace(numero, texto=None):
+    """Enlace de WhatsApp a partir del teléfono del panel (acepta "+57 300 123 4567").
+    Un número de 10 dígitos se toma como colombiano y se le pone el 57; sin número, no hay enlace."""
+    digitos = "".join(c for c in (numero or "") if c.isdigit())
+    if not digitos:
+        return ""
+    if len(digitos) == 10:
+        digitos = "57" + digitos
+    return "https://wa.me/%s%s" % (digitos, "?text=" + quote_plus(texto) if texto else "")
 
 
 def guardar_datos_negocio(telefono, direccion, ciudad):

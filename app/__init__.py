@@ -79,7 +79,8 @@ def create_app(config=None):
     @app.template_filter('cop')
     def cop(valor):
         #precio en pesos colombianos: 150000 -> $150.000
-        return "$" + f"{float(valor or 0):,.0f}".replace(",", ".")
+        from .store.texto import pesos
+        return pesos(valor)
 
     @app.template_filter('fecha_co')
     def fecha_co(valor, fmt='%d/%m/%Y %H:%M'):
@@ -101,6 +102,30 @@ def create_app(config=None):
         #schema.org Store del inicio, con los datos del negocio del panel (ver /dashboard/promocion)
         from .store.promocion import schema_tienda
         return schema_tienda()
+
+    @app.template_global('negocio_datos')
+    def _global_negocio_datos():
+        #teléfono/dirección/ciudad que dejó el admin (barra de confianza y pie del sitio)
+        from .store.promocion import datos_negocio
+        return datos_negocio()
+
+    @app.template_global('whatsapp_enlace')
+    def _global_whatsapp_enlace(numero, texto=None):
+        #enlace wa.me a partir del teléfono del panel (ver app/store/promocion.py)
+        from .store.promocion import whatsapp_enlace
+        return whatsapp_enlace(numero, texto)
+
+    @app.template_global('envio_gratis_texto')
+    def _global_envio_gratis_texto():
+        #frase con la regla de envío gratis activa (la misma que aplica el pedido)
+        from .store.envio import envio_gratis_texto
+        return envio_gratis_texto()
+
+    @app.template_global('minutos_reserva')
+    def _global_minutos_reserva():
+        #minutos reales de la reserva de stock (una sola fuente: app/store/models.py)
+        from .store.models import MINUTOS_RESERVA
+        return MINUTOS_RESERVA
 
     @app.template_filter('titulo')
     def _filtro_titulo(valor):

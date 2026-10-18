@@ -255,6 +255,9 @@ ESTADOS_PEDIDO = ['PENDIENTE', 'PAGADO', 'RECHAZADO']
 ESTADOS_ENVIO = ['POR PREPARAR', 'EN PREPARACION', 'ENVIADO', 'ENTREGADO']
 #el rótulo solo tiene sentido cuando el pedido se está preparando o ya salió
 ESTADOS_CON_ROTULO = ['EN PREPARACION', 'ENVIADO']
+#minutos que se le reserva el stock a un pedido mientras el cliente paga (ver reservar_stock_pedido);
+#es el único valor que debe decir el sitio cuando promete "reserva tuya N min"
+MINUTOS_RESERVA = 30
 class Usuario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     k_rol = db.Column(db.String(20), db.ForeignKey('rol.k_rol'))
@@ -2030,7 +2033,7 @@ def reservar_stock_pedido(pedido, lineas):
                 tipo_elemento=tipo,
                 k_elemento=k,
                 cantidad=cantidad_necesaria,
-                f_expiracion=datetime.now() + timedelta(minutes=30)  # Expira en 30 minutos
+                f_expiracion=datetime.now() + timedelta(minutes=MINUTOS_RESERVA)  # Expira en MINUTOS_RESERVA minutos
             )
             db.session.add(reserva)
         

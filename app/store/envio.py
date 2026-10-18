@@ -16,6 +16,7 @@ from flask import current_app
 from ..db import db
 from .models import Ubicacion, ReglaEnvio, CotizacionCache
 from .redes import get_config
+from .texto import pesos, categoria_legible
 
 #origen fijo de los envíos (la tienda)
 ORIGEN_DANE = "11001000"  #Bogotá D.C.
@@ -145,6 +146,22 @@ def regla_envio_aplicada(lineas, total):
             if regla.tipo == 'CANTIDAD_CATEGORIA' and unidades >= (regla.cantidad or 0):
                 return "Envío gratis · consulta nuestra política de envíos"
     return None
+
+
+def envio_gratis_texto():
+    """Frase corta con la regla de envío gratis que manda (la primera activa por orden, igual que
+    decide `regla_envio_aplicada`). La usan la barra de confianza del checkout y del pedido: así lo
+    que promete la página es la misma regla que de verdad aplica el pedido (antes decía "$0")."""
+    for regla in ReglaEnvio.query.filter_by(activo=True).order_by(ReglaEnvio.orden, ReglaEnvio.id).all():
+        if regla.tipo == 'SIEMPRE':
+            return "Envío gratis en todas las compras"
+        if regla.tipo == 'TOTAL_MIN' and regla.total_min:
+            return "Envío gratis desde " + pesos(regla.total_min)
+        if regla.tipo == 'SOLO_CATEGORIA' and regla.k_categoria:
+            return "Envío gratis en " + categoria_legible(regla.k_categoria)
+        if regla.tipo == 'CANTIDAD_CATEGORIA' and regla.k_categoria and regla.cantidad:
+            return "Envío gratis desde %d %s" % (int(regla.cantidad), categoria_legible(regla.k_categoria))
+    return "Envíos a todo Colombia"
 
 
 def _caja():

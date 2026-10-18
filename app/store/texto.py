@@ -47,3 +47,18 @@ def titulo(valor):
         return m.group(0)[:1].upper() + m.group(0)[1:]
 
     return _PALABRA.sub(_palabra, s)
+
+
+def pesos(valor):
+    """Precio en pesos colombianos: 150000 -> $150.000 (el mismo formato del filtro `cop`)."""
+    return "$" + f"{float(valor or 0):,.0f}".replace(",", ".")
+
+
+#nombre legible de cada categoría del catálogo (barra de confianza, feed de productos, correos)
+TIPOS_CATEGORIA = {"VINILO": "Vinilos", "CD": "CDs", "CASSETTE": "Cassettes", "CAMISETA": "Camisetas",
+                   "POSTER": "Pósters", "MUG": "Mugs", "ACCESORIO": "Accesorios"}
+
+
+def categoria_legible(clave):
+    """"VINILO" -> "Vinilos"; una categoría nueva se muestra tal como está escrita."""
+    return TIPOS_CATEGORIA.get((clave or "").upper(), clave or "")
