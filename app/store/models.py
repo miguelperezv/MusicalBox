@@ -1,5 +1,7 @@
 #from app.db import db, ma
+from flask import current_app
 from flask.wrappers import Response
+from itsdangerous import BadData, URLSafeTimedSerializer
 from werkzeug.utils import secure_filename
 from ..db import db, ma
 from datetime import datetime, timedelta
@@ -245,6 +247,8 @@ class Invoice(db.Model):
     envio_manual = db.Column(db.Boolean, default=False, server_default='0')
     envio_carrier = db.Column(db.String(30))
     envio_id_rate = db.Column(db.String(30))
+    #número de guía del envío (lo escribe el admin al despachar); viaja al correo y a /pedido/<token>
+    guia = db.Column(db.String(60))
     #nota interna del admin (corrección de dirección, detalles del cliente, etc.)
     nota = db.Column(db.Text)
     #atributos de la relacion
@@ -255,6 +259,11 @@ ESTADOS_PEDIDO = ['PENDIENTE', 'PAGADO', 'RECHAZADO']
 ESTADOS_ENVIO = ['POR PREPARAR', 'EN PREPARACION', 'ENVIADO', 'ENTREGADO']
 #el rótulo solo tiene sentido cuando el pedido se está preparando o ya salió
 ESTADOS_CON_ROTULO = ['EN PREPARACION', 'ENVIADO']
+#los 4 pasos que ve el comprador en /pedido/<token> (ver pasos_envio)
+PASOS_ENVIO = [('POR PREPARAR', 'Pedido recibido', 'Estamos alistando tus discos.'),
+               ('EN PREPARACION', 'En preparación', 'Empacamos tu pedido y preparamos el rótulo.'),
+               ('ENVIADO', 'En camino', 'Ya salió de la tienda.'),
+               ('ENTREGADO', 'Entregado', 'Llegó a tu dirección.')]
 #minutos que se le reserva el stock a un pedido mientras el cliente paga (ver reservar_stock_pedido);
 #es el único valor que debe decir el sitio cuando promete "reserva tuya N min"
 MINUTOS_RESERVA = 30
@@ -1658,6 +1667,25 @@ def hash_token(token):
     #en la BD solo queda el SHA-256: con una copia de la BD no se pueden armar los enlaces /pedido/<token>
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
+
+#Enlace de pedido que se puede volver a armar: el token del enlace solo vive hasheado, así que para
+#mandarlo por correo más adelante (pedido despachado, "perdí mi enlace") se firma el id con SECRET_KEY.
+#Ojo: si cambia SECRET_KEY estos enlaces dejan de servir (igual que los de activación de cuenta).
+SALT_PEDIDO = "enlace-pedido"
+
+
+def token_pedido(pedido):
+    return URLSafeTimedSerializer(current_app.config["SECRET_KEY"], salt=SALT_PEDIDO).dumps(pedido.id)
+
+
+def pedido_de_token_firmado(token):
+    #devuelve el pedido del token firmado, o None si el token no es de fiar
+    try:
+        k_invoice = URLSafeTimedSerializer(current_app.config["SECRET_KEY"], salt=SALT_PEDIDO).loads(token)
+    except BadData:
+        return None
+    return db.session.get(Invoice, k_invoice) if isinstance(k_invoice, int) else None
+
 def get_or_create_comprador(nombre, email, telefono, direccion, ciudad, barrio):
     #un comprador por correo (sin distinguir mayúsculas); si no existe queda como CLIENTE, sin login
     email = email.strip().lower()
@@ -1905,9 +1933,13 @@ def crear_pedido(cart, datos, k_usuario=None, cotizacion=None, p_envio_fijado=No
     return None, None, ["No pudimos crear tu pedido, intenta de nuevo"]
 
 def get_pedido_por_token(token):
-    if not token or len(token) > 100:
+    if not token or len(token) > 200:
         return None
-    return Invoice.query.filter_by(token_hash=hash_token(token)).first()
+    p = Invoice.query.filter_by(token_hash=hash_token(token)).first()
+    if p:
+        return p
+    #los enlaces que se mandan por correo van firmados (ver token_pedido)
+    return pedido_de_token_firmado(token)
 
 def confirmar_pago(pedido, ref_payco, id_factura_payco=None, franquicia=None):
     #idempotente: el stock se descuenta una sola vez, en el paso a PAGADO. Devuelve (pedido, pago_nuevo)
@@ -2194,11 +2226,28 @@ def datos_envio_previos(email):
                 "ciudad": u.lugar_usuario, "direccion": u.dir_usuario, "barrio": u.barrio_usuario}
     return None
 
-def actualizar_envio(k_invoice, estado):
+def pasos_envio(pedido):
+    """Los 4 pasos del envío con el estado real del pedido: (clave, título, nota, 'hecho'|'actual'|'pendiente').
+    Lo pinta la página del pedido (/pedido/<token>): es la línea de tiempo que ve el comprador."""
+    actual = ESTADOS_ENVIO.index(pedido.estado_envio) if pedido.estado_envio in ESTADOS_ENVIO else 0
+    pasos = []
+    for i, (clave, titulo, nota) in enumerate(PASOS_ENVIO):
+        if clave == 'ENVIADO' and pedido.guia:
+            nota = "Guía %s%s" % (pedido.guia, (" · " + pedido.envio_carrier) if pedido.envio_carrier else "")
+        pasos.append((clave, titulo, nota, 'hecho' if i < actual else ('actual' if i == actual else 'pendiente')))
+    return pasos
+
+
+def actualizar_envio(k_invoice, estado, guia=None, carrier=None):
     p = db.session.get(Invoice, k_invoice)
     if not p or p.estado != 'PAGADO' or estado not in ESTADOS_ENVIO:
         return None
     p.estado_envio = estado
+    #la guía y la transportadora se pueden corregir mientras el pedido no esté entregado
+    if guia is not None and estado != 'ENTREGADO':
+        p.guia = (guia or "").strip()[:60] or None
+    if carrier is not None and estado != 'ENTREGADO':
+        p.envio_carrier = (carrier or "").strip()[:30] or None
     db.session.commit()
     return p
 

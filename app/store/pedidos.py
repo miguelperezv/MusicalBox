@@ -1,7 +1,7 @@
 #checkout sin cuenta y seguimiento de pedidos por enlace /pedido/<token>
 #el pago lo procesa el blueprint "mercadopago" (app/store/mercadopago/views.py)
 from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for, abort
-from .models import get_pedido_por_token, confirmar_pago, rechazar_pago
+from .models import get_pedido_por_token, confirmar_pago, rechazar_pago, pasos_envio
 from .views import before_request
 from ..db import db
 from .notificaciones import correo_pedido_pagado
@@ -88,7 +88,7 @@ def ver(token):
         session["purchase"] = session["ultimo_carrito"]
     
     needs_shipping_modal = not (p.n_envio and p.dir_envio and p.lugar_envio and p.tel_envio and p.email_envio)
-    return render_template("pedido.html", pedido=p, token=token,
+    return render_template("pedido.html", pedido=p, token=token, pasos_envio=pasos_envio(p),
                             simulacion=current_app.config.get("SIMULACION_PAGO"), form_envio=form_envio)
 
 

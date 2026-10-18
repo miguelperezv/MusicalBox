@@ -62,14 +62,25 @@ def componente_eliminar(k_componente):
 #órdenes: estado de envío, rechazo manual, nota interna y rótulo (el rótulo es de la orden, con su copia de datos de envío)
 from flask import jsonify, render_template, abort
 from .models import ESTADOS_CON_ROTULO, Invoice, actualizar_envio, rechazar_pago
+from .notificaciones import correo_pedido_enviado
 
 
 @dashboard.route("/pedido/<int:k_invoice>/envio", methods=["POST"])
 def pedido_envio(k_invoice):
-    p = actualizar_envio(k_invoice, request.form.get("estado_envio"))
+    #el admin despacha: cambia el estado y, de paso, guarda guía y transportadora
+    antes = db.session.get(Invoice, k_invoice)
+    estado_antes = antes.estado_envio if antes else None
+    p = actualizar_envio(k_invoice, request.form.get("estado_envio"),
+                         guia=request.form.get("guia"), carrier=request.form.get("carrier"))
     if not p:
         return jsonify({"error": "Solo los pedidos pagados tienen estado de envío"}), 400
-    return jsonify({"estado_envio": p.estado_envio, "rotulo": p.estado_envio in ESTADOS_CON_ROTULO})
+    #al marcar ENVIADO se le avisa al comprador con la guía; si el pedido ya estaba ENVIADO,
+    #solo se reenvía cuando el admin lo pide (avisar=1) al guardar la guía
+    aviso = False
+    if p.estado_envio == 'ENVIADO' and (estado_antes != 'ENVIADO' or request.form.get("avisar") == "1"):
+        aviso = correo_pedido_enviado(p)
+    return jsonify({"estado_envio": p.estado_envio, "rotulo": p.estado_envio in ESTADOS_CON_ROTULO,
+                    "guia": p.guia or "", "carrier": p.envio_carrier or "", "aviso_enviado": bool(aviso)})
 
 
 @dashboard.route("/pedido/<int:k_invoice>/rotulo")

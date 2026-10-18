@@ -37,13 +37,24 @@
     </td>
     <td class="text-end text-nowrap">
         <span class="total-pago fw-semibold">{{ ((i.total or 0) + (i.p_envio or 0))|cop }}</span>
-        {% if i.p_envio and i.p_envio > 0 %}<br><small class="text-body-secondary">envío +{{ i.p_envio|cop }}{% if i.envio_manual %} <i class="bi bi-pencil" title="Ajustado manualmente"></i>{% endif %}</small>{% endif %}
+        {% if i.p_envio and i.p_envio > 0 %}<br><small class="text-body-secondary detalle-envio">{% if i.envio_manual %}<i class="bi bi-pencil" title="Ajustado manualmente"></i> {% endif %}envío +{{ i.p_envio|cop }}</small>{% endif %}
     </td>
     <td>
         {% if i.estado == 'PAGADO' %}
         <select class="form-select form-select-sm estado-envio" data-url="{{ url_for('dashboard.pedido_envio', k_invoice=i.id) }}" aria-label="Estado de envío del pedido {{ i.id }}">
             {% for e in estados_envio %}<option value="{{ e }}" {{ 'selected' if e == i.estado_envio }}>{{ e }}</option>{% endfor %}
         </select>
+        {# guía y transportadora del despacho: viajan al correo del comprador al marcar ENVIADO #}
+        <form class="envio-guia mt-1 d-grid gap-1" data-url="{{ url_for('dashboard.pedido_envio', k_invoice=i.id) }}">
+            <input type="hidden" name="estado_envio" value="{{ i.estado_envio or 'POR PREPARAR' }}">
+            <input class="form-control form-control-sm" name="carrier" value="{{ i.envio_carrier or '' }}"
+                   placeholder="Transportadora" aria-label="Transportadora del pedido {{ i.id }}">
+            <div class="d-flex gap-1">
+                <input class="form-control form-control-sm" name="guia" value="{{ i.guia or '' }}"
+                       placeholder="Nro. de guía" aria-label="Número de guía del pedido {{ i.id }}">
+                <button class="btn btn-sm btn-outline-secondary" title="Guardar guía y transportadora"><i class="bi bi-save"></i></button>
+            </div>
+        </form>
         <a class="btn btn-sm btn-outline-secondary mt-1 rotulo {{ '' if i.estado_envio in con_rotulo else 'd-none' }}" target="_blank"
            href="{{ url_for('dashboard.pedido_rotulo', k_invoice=i.id) }}"><i class="bi bi-printer me-1"></i>Rótulo</a>
         {% else %}

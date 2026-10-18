@@ -632,6 +632,37 @@ body.mb-tema-amor_amistad .hero-meta .hero-artist { color: #a4486b; }
 .mb-trust-bar a:hover, .mb-trust-bar a:focus-visible { text-decoration: underline; }
 .mb-trust-bar small { font-size: .75em; }
 
+/* ---------- línea de tiempo del envío (página del pedido) ---------- */
+/* Va de "Pedido recibido" a "Entregado": el comprador ve en qué paso va sin preguntar. */
+.mb-pasos { list-style: none; margin: 0; padding: 0; }
+.mb-paso { display: flex; gap: 12px; padding-bottom: 18px; position: relative; }
+.mb-paso:last-child { padding-bottom: 0; }
+.mb-paso:not(:last-child)::before {
+    content: "";
+    position: absolute;
+    left: 11px;
+    top: 28px;
+    bottom: 2px;
+    width: 2px;
+    background: var(--bs-border-color);
+}
+.mb-paso-marca {
+    flex: 0 0 24px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+    color: var(--bs-secondary-color);
+    font-size: .8rem;
+}
+.mb-paso-hecho .mb-paso-marca { background: var(--bs-primary); border-color: var(--bs-primary); color: #fff; }
+.mb-paso-actual .mb-paso-marca { border-color: var(--bs-primary); color: var(--bs-primary); }
+.mb-paso-pendiente { color: var(--bs-secondary-color); }
+
 /* ---------- menos movimiento: todo quieto y nítido ---------- */
 /* Va al final a propósito: por orden de cascada tienen que ir después de las reglas de
    animación que anula (si no, la regla base gana y la animación sigue corriendo). */

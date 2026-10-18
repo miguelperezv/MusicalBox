@@ -5,11 +5,21 @@
 {% block head %}<meta name="robots" content="noindex, nofollow">{% endblock %}
 
 {% block contenido %}
+{# el título dice dónde va el pedido: primero el pago, después el envío #}
+{% if pedido.estado == 'PAGADO' and pedido.estado_envio %}
+{% set info = {
+    'POR PREPARAR': ('bi-check-circle-fill', 'text-success', '¡Pago confirmado!'),
+    'EN PREPARACION': ('bi-box-seam-fill', 'text-primary', 'Estamos empacando tu pedido'),
+    'ENVIADO': ('bi-truck', 'text-primary', 'Tu pedido va en camino'),
+    'ENTREGADO': ('bi-house-check-fill', 'text-success', '¡Tu pedido llegó!'),
+}[pedido.estado_envio] %}
+{% else %}
 {% set info = {
     'PENDIENTE': ('bi-hourglass-split', 'text-warning', 'Pendiente de pago'),
     'PAGADO': ('bi-check-circle-fill', 'text-success', '¡Pago confirmado!'),
     'RECHAZADO': ('bi-x-circle-fill', 'text-danger', 'Pago no aprobado'),
 }[pedido.estado] %}
+{% endif %}
 <div class="container">
     <!-- Barra de confianza (un solo macro para carrito, checkout y pedido) -->
     {{ barra_confianza() }}
@@ -17,8 +27,12 @@
     <header class="mb-page-header">
         <span class="mb-eyebrow">Pedido #{{ pedido.id }} · {{ pedido.f_compra|fecha_co('%d/%m/%Y %H:%M') if pedido.f_compra }}</span>
         <h1 class="mt-1"><i class="bi {{ info[0] }} {{ info[1] }} me-2"></i>{{ info[2] }}</h1>
-        {% if pedido.estado == 'PAGADO' %}
-        <p class="text-body-secondary mb-0">Gracias por tu compra, {{ (pedido.n_envio or '').split(' ')[0] }}. Preparamos tu pedido en 1–2 días hábiles, te confirmamos la dirección y, al salir, recibes el número de seguimiento por correo a <strong>{{ pedido.email_envio }}</strong> y en este mismo enlace.</p>
+        {% if pedido.estado == 'PAGADO' and pedido.estado_envio == 'ENVIADO' %}
+        <p class="text-body-secondary mb-0">Salió de Musical Box hacia {{ pedido.lugar_envio }}. Te enviamos la guía por correo a <strong>{{ pedido.email_envio }}</strong> y queda guardada en esta misma página.</p>
+        {% elif pedido.estado == 'PAGADO' and pedido.estado_envio == 'ENTREGADO' %}
+        <p class="text-body-secondary mb-0">Gracias por tu compra, {{ (pedido.n_envio or '').split(' ')[0] }}. Si algo no llegó como esperabas, escríbenos y lo resolvemos.</p>
+        {% elif pedido.estado == 'PAGADO' %}
+        <p class="text-body-secondary mb-0">Gracias por tu compra, {{ (pedido.n_envio or '').split(' ')[0] }}. Preparamos tu pedido en 1–2 días hábiles y, cuando salga, te avisamos por correo a <strong>{{ pedido.email_envio }}</strong> con el número de guía: aquí mismo verás el avance.</p>
         {% else %}
         <p class="text-body-secondary mb-0">Tu pedido está guardado. Completa el pago para confirmarlo.</p>
         {% endif %}
@@ -26,6 +40,31 @@
 
     <div class="row g-4">
         <div class="col-lg-7">
+            {% if pedido.estado == 'PAGADO' %}
+            {# línea de tiempo del envío: es lo que más pregunta el comprador #}
+            <div class="mb-panel mb-4">
+                <h2 class="h5 mb-3">Estado de tu pedido</h2>
+                <ol class="mb-pasos">
+                    {% for clave, titulo, nota, estado_paso in pasos_envio %}
+                    <li class="mb-paso mb-paso-{{ estado_paso }}">
+                        <span class="mb-paso-marca" aria-hidden="true">
+                            {% if estado_paso == 'hecho' %}<i class="bi bi-check-lg"></i>{% elif estado_paso == 'actual' %}<i class="bi bi-record-fill"></i>{% endif %}
+                        </span>
+                        <div>
+                            <div class="fw-semibold">{{ titulo }}{% if estado_paso == 'actual' %} <span class="badge text-bg-primary ms-1">Ahora</span>{% endif %}</div>
+                            <small class="text-body-secondary">{{ nota }}</small>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ol>
+                {% if pedido.guia and pedido.estado_envio in ['ENVIADO', 'ENTREGADO'] %}
+                <div class="alert alert-info py-2 small mt-3 mb-0">
+                    <i class="bi bi-upc-scan me-1"></i>Guía <strong>{{ pedido.guia }}</strong>{% if pedido.envio_carrier %} · {{ pedido.envio_carrier }}{% endif %}.
+                    Guarda este número para consultar el envío con la transportadora.
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
             <div class="mb-panel mb-4">
                 <h2 class="h5 mb-3">Productos</h2>
                 {% for item in pedido.items %}
@@ -51,7 +90,7 @@
                             {% set stock = producto.stock|default(0) %}
                             {% if stock > 0 %}
                                 <span class="badge bg-success-subtle text-success-emphasis small"><i class="bi bi-check-circle me-1"></i>Quedan {{ stock }}</span>
-                                <span class="badge bg-info-subtle text-info-emphasis small"><i class="bi bi-shield-lock me-1"></i>Reserva tuya 15 min</span>
+                                <span class="badge bg-info-subtle text-info-emphasis small"><i class="bi bi-shield-lock me-1"></i>Reserva tuya {{ minutos_reserva() }} min</span>
                             {% else %}
                                 <span class="badge bg-danger-subtle text-danger-emphasis small"><i class="bi bi-x-circle me-1"></i>Agotado</span>
                             {% endif %}
@@ -130,7 +169,38 @@
 
         <div class="col-lg-5">
             <div class="mb-panel mb-sticky">
-                {% if pedido.estado in ['PENDIENTE', 'RECHAZADO'] %}
+                {% if pedido.estado == 'PAGADO' %}
+                {# resumen del pago: sin esto el panel lateral quedaba en blanco cuando el pedido ya estaba pagado #}
+                <h2 class="h5 mb-3">Resumen del pago</h2>
+                <dl class="row small mb-2">
+                    <dt class="col-6 fw-normal text-body-secondary">Estado</dt>
+                    <dd class="col-6 text-end mb-1"><span class="mb-estado mb-estado-PAGADO">PAGADO</span></dd>
+                    {% if pedido.f_compra %}
+                    <dt class="col-6 fw-normal text-body-secondary">Fecha</dt>
+                    <dd class="col-6 text-end mb-1">{{ pedido.f_compra|fecha_co('%d/%m/%Y %H:%M') }}</dd>
+                    {% endif %}
+                    {% if pedido.metodo_pago %}
+                    <dt class="col-6 fw-normal text-body-secondary">Medio de pago</dt>
+                    <dd class="col-6 text-end mb-1">{{ pedido.metodo_pago }}</dd>
+                    {% endif %}
+                    {% if pedido.p_envio and pedido.p_envio > 0 %}
+                    <dt class="col-6 fw-normal text-body-secondary">Envío</dt>
+                    <dd class="col-6 text-end mb-1">{{ pedido.p_envio|cop }}</dd>
+                    {% else %}
+                    <dt class="col-6 fw-normal text-body-secondary">Envío</dt>
+                    <dd class="col-6 text-end mb-1 text-success fw-semibold">Gratis</dd>
+                    {% endif %}
+                    <dt class="col-6 fw-bold border-top pt-2">Total pagado</dt>
+                    <dd class="col-6 text-end fw-bold border-top pt-2 mb-0">{{ ((pedido.total or 0) + (pedido.p_envio or 0))|cop }}</dd>
+                </dl>
+                <p class="small text-body-secondary mb-0 mt-3"><i class="bi bi-receipt me-1"></i>Guarda este enlace: es tu comprobante y el seguimiento de tu pedido. No necesitas cuenta.</p>
+                {% set negocio = negocio_datos() %}
+                {% if negocio.telefono %}
+                <a class="btn btn-outline-secondary btn-sm w-100 mt-3" href="{{ whatsapp_enlace(negocio.telefono, 'Hola, tengo una duda con mi pedido #' ~ pedido.id) }}" target="_blank" rel="noopener">
+                    <i class="bi bi-whatsapp me-1"></i>Escríbenos por WhatsApp
+                </a>
+                {% endif %}
+                {% elif pedido.estado in ['PENDIENTE', 'RECHAZADO'] %}
                 <h2 class="h5 mb-2">Pagar {{ ((pedido.total or 0) + (pedido.p_envio or 0))|cop }}</h2>
                 
                 <!-- Botón de pago MercadoPago -->

@@ -12,7 +12,7 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from .. import correo
 from ..db import db
-from .models import Usuario
+from .models import Usuario, token_pedido
 
 SALT_ACTIVACION = "activar-cuenta"
 
@@ -57,6 +57,17 @@ def correo_pedido_pagado(pedido, token):
     return correo.enviar(pedido.email_envio, f"Tu pedido #{pedido.id} en Musical Box está confirmado",
                          render_template("correos/pedido_pagado.txt", **ctx),
                          render_template("correos/pedido_pagado.html", **ctx))
+
+
+def correo_pedido_enviado(pedido):
+    #se llama una sola vez, cuando el pedido pasa a ENVIADO; si falla, el pedido igual queda guardado
+    if not pedido.email_envio:
+        return False
+    ctx = {"pedido": pedido,
+           "enlace_pedido": url_for("pedido.ver", token=token_pedido(pedido), _external=True)}
+    return correo.enviar(pedido.email_envio, f"Tu pedido #{pedido.id} ya salió de Musical Box",
+                         render_template("correos/pedido_enviado.txt", **ctx),
+                         render_template("correos/pedido_enviado.html", **ctx))
 
 
 def correo_activacion(user):

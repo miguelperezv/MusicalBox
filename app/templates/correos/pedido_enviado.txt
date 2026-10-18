@@ -1,0 +1,16 @@
+¡Hola {{ (pedido.n_envio or '').split(' ')[0] }}!
+
+Tu pedido #{{ pedido.id }} ya salió de Musical Box.
+
+{% for item in pedido.items %}- {{ item.cant_item|int }} x {{ (item.producto.lanzamiento.n_lanzamiento|titulo if item.producto and item.producto.lanzamiento) or (item.lanzamiento.n_lanzamiento|titulo if item.lanzamiento) }} {{ item.producto.n_producto if item.producto else item.n_item }}{% if item.variante %} ({{ item.variante.nombre }}){% endif %}
+{% endfor %}
+{% if pedido.envio_carrier %}Transportadora: {{ pedido.envio_carrier }}
+{% endif %}{% if pedido.guia %}Número de guía: {{ pedido.guia }}
+{% endif %}
+Sigue tu pedido en cualquier momento (sin contraseña):
+{{ enlace_pedido }}
+No compartas este enlace.
+
+{% if pedido.guia %}Con el número de guía puedes consultar el estado en la página de la transportadora.{% else %}Si necesitas el número de guía, respóndenos este correo y te lo enviamos.{% endif %}
+
+Musical Box · Bogotá, Colombia

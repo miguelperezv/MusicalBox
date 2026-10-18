@@ -732,3 +732,104 @@ document.addEventListener('change', function (e) {
         });
     });
 })();
+
+//órdenes: estado de envío, guía/transportadora y costo de envío (delegado: también sirve lo que
+//llega por AJAX al panel). Antes estos controles no tenían JS: no hacían nada al usarlos.
+(function () {
+    function pesos(n) { return '$' + Number(n || 0).toLocaleString('es-CO'); }
+    function rotuloDe(tr) { return tr.querySelector('a.rotulo'); }
+
+    //cambiar el estado de envío: POR PREPARAR -> EN PREPARACION -> ENVIADO -> ENTREGADO
+    document.addEventListener('change', function (e) {
+        var sel = e.target.closest && e.target.closest('select.estado-envio');
+        if (!sel || sel.disabled) return;
+        var tr = sel.closest('tr');
+        sel.disabled = true;
+        $.post(sel.dataset.url, { estado_envio: sel.value })
+            .done(function (r) {
+                tr.dataset.envio = r.estado_envio;
+                var rot = rotuloDe(tr);
+                if (rot) rot.classList.toggle('d-none', !r.rotulo);
+                //al quedar ENTREGADO deja de ser "requiere envío" y pasa al historial
+                if (r.estado_envio === 'ENTREGADO') {
+                    var destino = document.querySelector('#tabla-entregados tbody');
+                    if (destino) destino.appendChild(tr);
+                }
+                if (r.estado_envio === 'ENVIADO') {
+                    showAlert(r.aviso_enviado
+                        ? 'Pedido marcado ENVIADO. Le avisamos al comprador por correo.'
+                        : 'Pedido marcado ENVIADO, pero no se pudo enviar el correo de aviso: revisa el correo del comprador.',
+                        r.aviso_enviado ? 'success' : 'warning');
+                }
+            })
+            .fail(function (xhr) {
+                sel.value = tr.dataset.envio || sel.value;
+                showAlert((xhr.responseJSON && xhr.responseJSON.error) || 'No se pudo cambiar el estado de envío', 'danger');
+            })
+            .always(function () { sel.disabled = false; });
+    });
+
+    //guía y transportadora del despacho (viajan al correo del comprador)
+    document.addEventListener('submit', function (e) {
+        var form = e.target.closest && e.target.closest('form.envio-guia');
+        if (!form) return;
+        e.preventDefault();
+        if (form.dataset.enviado) return;
+        var tr = form.closest('tr');
+        var boton = form.querySelector('button');
+        function guardar(avisar) {
+            form.dataset.enviado = '1';
+            boton.disabled = true;
+            var datos = $(form).serialize();
+            if (avisar) datos += '&avisar=1';
+            $.post(form.dataset.url, datos)
+                .done(function (r) {
+                    showAlert(avisar && r.aviso_enviado
+                        ? 'Guía guardada y enviada al comprador por correo.'
+                        : 'Guía y transportadora guardadas.', 'success');
+                })
+                .fail(function (xhr) {
+                    form.dataset.enviado = '';
+                    showAlert((xhr.responseJSON && xhr.responseJSON.error) || 'No se pudo guardar la guía', 'danger');
+                })
+                .always(function () { boton.disabled = false; });
+        }
+        //si el pedido ya está ENVIADO, la guía se puede mandar al comprador en ese momento
+        if (tr && tr.dataset.envio === 'ENVIADO') {
+            Swal.fire({
+                title: 'Guardar la guía',
+                text: 'El pedido ya está marcado ENVIADO. ¿Le avisamos al comprador por correo con esta guía?',
+                icon: 'question', showCancelButton: true,
+                confirmButtonText: 'Sí, avisar', cancelButtonText: 'Solo guardar'
+            }).then(function (r) { guardar(!!r.isConfirmed); });
+        } else {
+            guardar(false);
+        }
+    });
+
+    //costo de envío de la orden (se corrige hasta que el pedido quede ENVIADO)
+    document.addEventListener('submit', function (e) {
+        var form = e.target.closest && e.target.closest('form.envio-override');
+        if (!form) return;
+        e.preventDefault();
+        if (form.dataset.enviado) return;
+        var input = form.querySelector('input[name="p_envio"]');
+        var valor = parseInt(input.value, 10);
+        if (isNaN(valor) || valor < 0) { input.classList.add('is-invalid'); return; }
+        input.classList.remove('is-invalid');
+        form.dataset.enviado = '1';
+        $.post(form.dataset.url, { p_envio: valor })
+            .done(function (r) {
+                var tr = form.closest('tr');
+                var total = tr.querySelector('.total-pago');
+                if (total) total.textContent = pesos(r.total_pago);
+                var detalle = tr.querySelector('.detalle-envio');
+                if (detalle) detalle.innerHTML = '<i class="bi bi-pencil" title="Ajustado manualmente"></i> envío +' + pesos(r.p_envio);
+                showAlert('Costo de envío actualizado: ' + pesos(r.p_envio), 'success');
+            })
+            .fail(function (xhr) {
+                form.dataset.enviado = '';
+                showAlert((xhr.responseJSON && xhr.responseJSON.error) || 'No se pudo actualizar el costo de envío', 'danger');
+            });
+    });
+})();
