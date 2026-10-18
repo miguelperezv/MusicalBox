@@ -22,11 +22,12 @@ from .store import envios_admin  # noqa: F401 (sección "Envíos" del panel y co
 from .store import suscriptores  # noqa: F401 (suscriptores de drops: form del footer y lista del panel)
 from .store.promocion import promo
 from .telegram import telegram_bp
+from .store.seguimiento import seguimiento
 
 import logging
 logging.getLogger("mb.tgbot").setLevel(logging.INFO)  #logs del bot para el error log (ver app/telegram.py)
 
-ACTIVE_ENDPOINTS = [('/',home), ('/dashboard', dashboard), ('/releases', releases), ('/artists', artists), ('/purchase', purchase), ("/products", products), ("/solicitud", solicitud), ("/pedido", pedido), ("/mercadopago", mercadopago_views.mercadopago_bp), ("/telegram-bot", telegram_bp), ("/feed", promo) ]
+ACTIVE_ENDPOINTS = [('/',home), ('/dashboard', dashboard), ('/releases', releases), ('/artists', artists), ('/purchase', purchase), ("/products", products), ("/solicitud", solicitud), ("/pedido", pedido), ("/seguimiento", seguimiento), ("/mercadopago", mercadopago_views.mercadopago_bp), ("/telegram-bot", telegram_bp), ("/feed", promo) ]
 
 def create_app(config=None):
     app = Flask(__name__)

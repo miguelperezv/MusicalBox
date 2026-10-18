@@ -2205,10 +2205,56 @@ def cotizar_solicitud(k_solicitud, lineas, d_cotizacion=None, p_envio=None):
     db.session.commit()
     return token, None
 
-def get_solicitud_por_token(token):
-    if not token or len(token) > 100:
+#Enlace de solicitud rearmable (mismo criterio que los pedidos: ver token_pedido)
+SALT_SOLICITUD = "enlace-solicitud"
+
+
+def token_solicitud(solicitud):
+    return URLSafeTimedSerializer(current_app.config["SECRET_KEY"], salt=SALT_SOLICITUD).dumps(solicitud.id)
+
+
+def solicitud_de_token_firmado(token):
+    try:
+        k_solicitud = URLSafeTimedSerializer(current_app.config["SECRET_KEY"], salt=SALT_SOLICITUD).loads(token)
+    except BadData:
         return None
-    return Solicitud.query.filter_by(token_hash=hash_token(token)).first()
+    return db.session.get(Solicitud, k_solicitud) if isinstance(k_solicitud, int) else None
+
+
+def get_solicitud_por_token(token):
+    if not token or len(token) > 200:
+        return None
+    s = Solicitud.query.filter_by(token_hash=hash_token(token)).first()
+    if s:
+        return s
+    #los enlaces que se mandan por correo van firmados (ver token_solicitud)
+    return solicitud_de_token_firmado(token)
+
+def telefono_coincide(a, b):
+    """Compara dos teléfonos por sus últimos 10 dígitos: \"300 123 4567\" == \"+57 3001234567\"."""
+    da = "".join(c for c in (a or "") if c.isdigit())[-10:]
+    dbb = "".join(c for c in (b or "") if c.isdigit())[-10:]
+    return bool(da) and da == dbb
+
+
+def pedidos_de(email, telefono):
+    """Pedidos de este comprador, para el reenvío de enlaces: pide correo Y teléfono (los dos,
+    tal como los escribió al comprar). Nunca se muestran en pantalla: solo se mandan por correo."""
+    correo = (email or "").strip().lower()
+    if not correo:
+        return []
+    candidatos = Invoice.query.filter(db.func.lower(Invoice.email_envio) == correo).order_by(Invoice.id.desc()).all()
+    return [p for p in candidatos if telefono_coincide(p.tel_envio, telefono)]
+
+
+def solicitudes_de(email, telefono):
+    """Solicitudes a la medida de este comprador (misma regla: correo Y teléfono)."""
+    correo = (email or "").strip().lower()
+    if not correo:
+        return []
+    candidatos = Solicitud.query.filter(db.func.lower(Solicitud.email_contacto) == correo).order_by(Solicitud.id.desc()).all()
+    return [s for s in candidatos if telefono_coincide(s.cel_contacto, telefono)]
+
 
 def datos_envio_previos(email):
     #última dirección usada con ese correo (copia del pedido) o la del perfil, para reutilizarla

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<body style="margin:0;background:#f5f8fa;font-family:Arial,Helvetica,sans-serif;color:#0f1c24;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f8fa;padding:24px 12px;">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;">
+    <tr><td style="background:#0f1c24;padding:20px 28px;color:#fffb25;font-size:22px;font-weight:bold;">musical box</td></tr>
+    <tr><td style="padding:28px;">
+        <p style="margin:0 0 6px;color:#1d8aa0;font-size:12px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;">Solicitud #{{ solicitud.id }}</p>
+        <h1 style="margin:0 0 12px;font-size:24px;">Recibimos tu pedido a la medida</h1>
+        <p style="margin:0 0 20px;color:#5f7380;">Ya estamos buscando lo que nos pediste. Esto fue lo que quedó registrado:</p>
+
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #edf1f4;">
+            {% for it in items %}
+            <tr><td style="padding:10px 0;border-bottom:1px solid #edf1f4;">
+                <strong>{{ it.cantidad|int }} × {{ it.nombre }}</strong>{% if it.descripcion %}<br><span style="color:#5f7380;font-size:13px;">{{ it.descripcion }}</span>{% endif %}
+            </td></tr>
+            {% endfor %}
+        </table>
+
+        <p style="margin:20px 0 6px;font-weight:bold;">Qué sigue</p>
+        <ol style="margin:0;padding-left:20px;color:#5f7380;font-size:14px;line-height:1.6;">
+            <li>Buscamos los discos y te escribimos por WhatsApp{% if solicitud.cel_contacto %} al <strong>{{ solicitud.cel_contacto }}</strong>{% endif %} con precio, tiempos y opciones.</li>
+            <li>Si te gusta, te mandamos un enlace para pagar sin crear cuenta.</li>
+            <li>Cuando pagas, te llega el seguimiento del pedido a este correo.</li>
+        </ol>
+
+        <p style="margin:24px 0 0;color:#5f7380;font-size:12px;">Si no te escribimos en un día hábil, respóndenos este correo y lo miramos enseguida.</p>
+    </td></tr>
+    <tr><td style="padding:16px 28px;background:#f5f8fa;color:#5f7380;font-size:12px;">Musical Box · Bogotá, Colombia</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>

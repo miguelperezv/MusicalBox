@@ -12,7 +12,7 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from .. import correo
 from ..db import db
-from .models import Usuario, token_pedido
+from .models import Usuario, items_efectivos, token_pedido
 
 SALT_ACTIVACION = "activar-cuenta"
 
@@ -60,7 +60,7 @@ def correo_pedido_pagado(pedido, token):
 
 
 def correo_pedido_enviado(pedido):
-    #se llama una sola vez, cuando el pedido pasa a ENVIADO; si falla, el pedido igual queda guardado
+    #se llama cuando el pedido pasa a ENVIADO; si falla, el pedido igual queda guardado
     if not pedido.email_envio:
         return False
     ctx = {"pedido": pedido,
@@ -68,6 +68,35 @@ def correo_pedido_enviado(pedido):
     return correo.enviar(pedido.email_envio, f"Tu pedido #{pedido.id} ya salió de Musical Box",
                          render_template("correos/pedido_enviado.txt", **ctx),
                          render_template("correos/pedido_enviado.html", **ctx))
+
+
+def correo_solicitud_recibida(solicitud):
+    #apenas entra la solicitud a la medida: el comprador queda con constancia en su correo
+    if not solicitud.email_contacto:
+        return False
+    ctx = {"solicitud": solicitud, "items": items_efectivos(solicitud)}
+    return correo.enviar(solicitud.email_contacto, f"Recibimos tu solicitud #{solicitud.id} en Musical Box",
+                         render_template("correos/solicitud_recibida.txt", **ctx),
+                         render_template("correos/solicitud_recibida.html", **ctx))
+
+
+def correo_cotizacion_lista(solicitud, mensaje, enlace):
+    #cuando el admin cotiza: el mismo mensaje del WhatsApp, por correo, con el enlace para pagar.
+    #así el comprador no depende de que el WhatsApp no se pierda.
+    if not solicitud.email_contacto:
+        return False
+    ctx = {"solicitud": solicitud, "mensaje": mensaje, "enlace": enlace}
+    return correo.enviar(solicitud.email_contacto, f"Tu cotización #{solicitud.id} está lista en Musical Box",
+                         render_template("correos/cotizacion_lista.txt", **ctx),
+                         render_template("correos/cotizacion_lista.html", **ctx))
+
+
+def correo_enlaces_seguimiento(destino, pedidos, solicitudes):
+    #reenvío de enlaces pedido desde /seguimiento: va SOLO al correo del comprador
+    ctx = {"pedidos": pedidos, "solicitudes": solicitudes}
+    return correo.enviar(destino, "Tus enlaces de seguimiento en Musical Box",
+                         render_template("correos/enlaces_seguimiento.txt", **ctx),
+                         render_template("correos/enlaces_seguimiento.html", **ctx))
 
 
 def correo_activacion(user):

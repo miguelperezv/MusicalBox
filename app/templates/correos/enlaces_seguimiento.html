@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+<body style="margin:0;background:#f5f8fa;font-family:Arial,Helvetica,sans-serif;color:#0f1c24;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f8fa;padding:24px 12px;">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;">
+    <tr><td style="background:#0f1c24;padding:20px 28px;color:#fffb25;font-size:22px;font-weight:bold;">musical box</td></tr>
+    <tr><td style="padding:28px;">
+        <h1 style="margin:0 0 12px;font-size:24px;">Tus enlaces de seguimiento</h1>
+        <p style="margin:0 0 20px;color:#5f7380;">Estos son los enlaces que pediste. Guárdalos: con ellos ves tu pedido sin contraseña.</p>
+
+        {% if pedidos %}
+        <p style="margin:0 0 6px;font-weight:bold;">Tus pedidos</p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #edf1f4;">
+            {% for p in pedidos %}
+            <tr><td style="padding:12px 0;border-bottom:1px solid #edf1f4;">
+                <strong>Pedido #{{ p.id }}</strong> <span style="color:#5f7380;font-size:13px;">{{ p.estado }}</span>
+                {% if p.resumen %}<br><span style="color:#5f7380;font-size:13px;">{{ p.resumen }}</span>{% endif %}
+                <br><a href="{{ p.enlace }}" style="color:#1d8aa0;font-weight:bold;font-size:14px;">Ver mi pedido</a>
+            </td></tr>
+            {% endfor %}
+        </table>
+        {% endif %}
+
+        {% if solicitudes %}
+        <p style="margin:20px 0 6px;font-weight:bold;">Tus pedidos a la medida</p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #edf1f4;">
+            {% for s in solicitudes %}
+            <tr><td style="padding:12px 0;border-bottom:1px solid #edf1f4;">
+                <strong>Solicitud #{{ s.id }}</strong> <span style="color:#5f7380;font-size:13px;">{{ s.estado }}</span>
+                {% if s.resumen %}<br><span style="color:#5f7380;font-size:13px;">{{ s.resumen }}</span>{% endif %}
+                {% if s.enlace %}<br><a href="{{ s.enlace }}" style="color:#1d8aa0;font-weight:bold;font-size:14px;">Confirmar y pagar</a>{% endif %}
+            </td></tr>
+            {% endfor %}
+        </table>
+        {% endif %}
+
+        <p style="margin:24px 0 0;color:#5f7380;font-size:12px;">No compartas estos enlaces: cualquiera que los tenga puede ver el pedido. Si no pediste esto, ignora el correo.</p>
+    </td></tr>
+    <tr><td style="padding:16px 28px;background:#f5f8fa;color:#5f7380;font-size:12px;">Musical Box · Bogotá, Colombia</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>

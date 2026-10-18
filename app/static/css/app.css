@@ -457,6 +457,8 @@ body.mb-tema-amor_amistad .hero-meta .hero-artist { color: #a4486b; }
 }
 .mb-admin-content .table { font-size: .8rem; }
 .mb-step { width: 24px; height: 24px; flex-shrink: 0; border-radius: 50%; display: grid; place-items: center; background: var(--mb-yellow); color: var(--mb-ink); font-weight: 800; font-size: .75rem; }
+/* el paso donde va el cliente ahora mismo (página de la solicitud recibida) */
+.mb-step-actual { background: var(--bs-success); color: #fff; }
 @media (min-width: 992px) and (max-width: 1199.98px) {
     .mb-navbar .navbar-brand { font-size: 1.1rem; }
     .mb-navbar .navbar-brand img { width: 28px; height: 28px; }

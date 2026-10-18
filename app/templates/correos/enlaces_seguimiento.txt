@@ -1,0 +1,17 @@
+¡Hola!
+
+Pediste tus enlaces de seguimiento en Musical Box. Aquí van.
+
+{% if pedidos %}Tus pedidos:
+{% for p in pedidos %}- Pedido #{{ p.id }} ({{ p.estado }}){% if p.resumen %} · {{ p.resumen }}{% endif %}
+  {{ p.enlace }}
+{% endfor %}{% endif %}
+{% if solicitudes %}Tus pedidos a la medida:
+{% for s in solicitudes %}- Solicitud #{{ s.id }} ({{ s.estado }}){% if s.resumen %} · {{ s.resumen }}{% endif %}
+{% if s.enlace %}  {{ s.enlace }}
+{% endif %}{% endfor %}{% endif %}
+No compartas estos enlaces: cualquiera que los tenga puede ver el pedido.
+
+Si no pediste esto, ignora el correo: sin los enlaces nadie puede entrar.
+
+Musical Box · Bogotá, Colombia

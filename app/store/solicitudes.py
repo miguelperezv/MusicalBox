@@ -2,19 +2,20 @@
 import re
 from urllib.parse import quote
 
-from flask import Blueprint, flash, request, g, render_template, redirect, url_for, jsonify, abort
+from flask import Blueprint, flash, request, g, render_template, redirect, url_for, jsonify, abort, session
 from .models import (create_solicitud, get_all_solicitudes, update_estado_solicitud, get_catalogo_solicitud, get_product_by_id,
                      get_usuario_por_email, cotizar_solicitud, get_solicitud_por_token, datos_envio_previos, crear_pedido,
                      items_efectivos, get_categorias, get_all_releases, buscar_o_crear_lanzamiento,
                      buscar_o_crear_lanzamiento_spotify,
                      ESTADOS_SOLICITUD, Solicitud, SolicitudItem, Lanzamiento)
-from .forms import RegistroSolicitudForm
+from .forms import RegistroSolicitudForm, CotizacionRapidaForm, CheckoutForm
 from .musicapi import buscar_albumes_spotify
 from .texto import titulo
 from .envio import costo_envio, lineas_desde_cats
 from ..db import db
 from .views import before_request, admin_required
 from .notif_admin import aviso_solicitud, aviso_pedido_creado
+from .notificaciones import correo_solicitud_recibida, correo_cotizacion_lista
 from .analytics import track_event, Events
 
 
@@ -75,13 +76,25 @@ def nueva():
                                       lugar=form.ciudad.data)
             if s:
                 aviso_solicitud(s)
-                flash("¡Recibimos tu solicitud #" + str(s.id) + "! Te escribiremos por WhatsApp con precio y tiempos.", "success")
-                return redirect(url_for('home.index'))
+                correo_solicitud_recibida(s)
+                #la página de "recibida" lee la solicitud de la sesión: sin esto, recargar la
+                #confirmación obligaría a adivinar el número en la URL (y cualquiera podría leerla)
+                session["solicitud_recibida"] = s.id
+                return redirect(url_for('solicitud.recibida'))
             flash("Error registrando la solicitud: " + str(err), "error")
     elif request.method == 'POST':
         flash("Revisa los campos del formulario", "warning")
 
     return render_template('solicitud.html', form=form, categorias=(get_categorias() or []) + ['OTRO'])
+
+
+@solicitud.route("/recibida")
+def recibida():
+    #confirmación de la solicitud que acaba de entrar (el id viaja en la sesión, no en la URL)
+    s = db.session.get(Solicitud, session.get("solicitud_recibida")) if session.get("solicitud_recibida") else None
+    if not s:
+        return redirect(url_for('solicitud.nueva'))
+    return render_template('solicitud_recibida.html', solicitud=s, items=items_efectivos(s))
 
 
 @solicitud.route("/productos")
@@ -287,6 +300,8 @@ def cotizar(id):
     if err:
         return jsonify({"error": err}), 400
     resp = _respuesta_cotizar(s, token)
+    #el mismo mensaje con el enlace, por correo: si el WhatsApp se pierde, el comprador no queda varado
+    resp["correo_enviado"] = bool(correo_cotizacion_lista(s, resp["mensaje"], resp["enlace"]))
     #se guarda el mensaje (con su enlace) para copiarlo después desde el panel o el bot
     s.d_mensaje_cliente = resp["mensaje"]
     db.session.commit()

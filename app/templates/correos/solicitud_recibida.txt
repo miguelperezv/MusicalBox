@@ -1,0 +1,15 @@
+¡Hola!
+
+Recibimos tu solicitud #{{ solicitud.id }} en Musical Box.
+
+Esto fue lo que nos pediste:
+{% for it in items %}- {{ it.cantidad|int }} x {{ it.nombre }}{% if it.descripcion %} ({{ it.descripcion }}){% endif %}
+{% endfor %}
+Qué sigue:
+1. Buscamos los discos y te escribimos por WhatsApp{% if solicitud.cel_contacto %} al {{ solicitud.cel_contacto }}{% endif %} con precio, tiempos y opciones.
+2. Si te gusta, te mandamos un enlace para pagar sin crear cuenta.
+3. Cuando pagas, te llega el seguimiento del pedido a este correo.
+
+Si no te escribimos en un día hábil, respóndenos este correo y lo miramos enseguida.
+
+Musical Box · Bogotá, Colombia

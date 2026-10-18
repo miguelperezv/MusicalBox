@@ -1,0 +1,14 @@
+¡Hola!
+
+Tu cotización de la solicitud #{{ solicitud.id }} está lista.
+
+{{ mensaje }}
+
+Paga y confirma tus datos aquí (sin crear cuenta):
+{{ enlace }}
+
+Ese enlace es tuyo: no lo compartas.
+
+{% if solicitud.p_envio_cotizado == 0 %}Ojo: en esta cotización el envío va por nuestra cuenta (gratis).
+{% endif %}
+Musical Box · Bogotá, Colombia
