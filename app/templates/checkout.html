@@ -84,15 +84,19 @@
                             {% else %}<span class="text-body-secondary">{{ l.cantidad }}</span>{% endif %}
                             <span class="text-body-secondary">{{ l.precio|cop }} {{ 'c/u' if l.cantidad|default(1) > 1 or solicitud else '' }}</span>
                         </div>
-                        {# Stock visible + reserva #}
+                        {# stock, reserva y preorden #}
                         {% if l.producto and not solicitud %}
-                        <div class="mt-1 d-flex align-items-center gap-2">
-                            {% set stock = l.producto.stock|default(0) %}
+                        <div class="mt-1 d-flex align-items-center gap-2 flex-wrap">
+                            {% if l.preorden %}
+                            <span class="badge bg-primary-subtle text-primary-emphasis small"><i class="bi bi-hourglass-split me-1"></i>Preorden: paga hoy y llega con la tirada</span>
+                            {% else %}
+                            {% set stock = l.disponible if l.disponible is defined else (l.producto.stock|default(0)) %}
                             {% if stock > 0 %}
                                 <span class="badge bg-success-subtle text-success-emphasis small"><i class="bi bi-check-circle me-1"></i>Quedan {{ stock }}</span>
-                                <span class="badge bg-info-subtle text-info-emphasis small"><i class="bi bi-shield-lock me-1"></i>Reserva tuya 15 min</span>
+                                <span class="badge bg-info-subtle text-info-emphasis small"><i class="bi bi-shield-lock me-1"></i>Reserva tuya {{ minutos_reserva() }} min</span>
                             {% else %}
                                 <span class="badge bg-danger-subtle text-danger-emphasis small"><i class="bi bi-x-circle me-1"></i>Agotado</span>
+                            {% endif %}
                             {% endif %}
                         </div>
                         {% endif %}
@@ -114,81 +118,95 @@
 </div>
 {% endblock %}
 
-{% if solicitud %}
 {% block scripts %}
 <script>
-    //recalcula subtotales y total al cambiar cantidades o marcar "no lo quiero" en la cotización
+    //Checkout de los dos caminos (carrito y cotización a la medida): cotiza el envío al elegir el
+    //municipio y recalcula subtotales; en la cotización además deja ajustar cantidades y retirar ítems.
     document.addEventListener('DOMContentLoaded', function () {
         var cop = function (n) { return '$' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.'); };
-        var inputs = document.querySelectorAll('input[name^="cant_"]');
-        var retiros = document.querySelectorAll('input[name^="retirar_"]');
+        var filas = Array.prototype.slice.call(document.querySelectorAll('.linea-item'));
         var total = document.getElementById('total-pedido');
-        function refrescar() {
-            var suma = 0;
-            inputs.forEach(function (inp) {
-                var fila = inp.closest('.linea-item');
-                var retirada = fila.querySelector('input[name^="retirar_"]');
-                var retada = !!(retirada && retirada.checked);
-                var precio = parseInt(inp.dataset.precio, 10) || 0;
-                var cant = retada ? 0 : Math.max(1, Math.min(99, parseInt(inp.value, 10) || 1));
-                suma += precio * cant;
-                fila.querySelector('.linea-subtotal').textContent = cop(precio * cant);
-                fila.classList.toggle('cot-retirada', retada);
-                inp.disabled = retada;
-            });
-            total.textContent = cop(suma + envioActual);
-        }
-        //estimado del envío según el municipio elegido (no guarda nada; la orden cobra lo suyo)
-        var PENVIO_FIJADO = {{ (solicitud.p_envio_cotizado if solicitud else 'none')|tojson }};
-        var ciudad = document.querySelector('form#form-checkout input[name="ciudad"]');
         var envioEl = document.getElementById('total-envio');
         var envioActual = 0;
+        //si el admin fijó el envío al cotizar, ya no se recalcula por municipio
+        var PENVIO_FIJADO = {{ (solicitud.p_envio_cotizado if solicitud else none)|tojson }};
         var CATS = {{ cats|default('')|tojson }} || '';
-        if (PENVIO_FIJADO !== 'none') {
-            //el admin fijó el envío al cotizar: ya no se recalcula por municipio
+
+        function inputDe(fila) { return fila.querySelector('input[name^="cant_"]'); }
+        function retiroDe(fila) { return fila.querySelector('input[name^="retirar_"]'); }
+        function subtotalDe(fila) { return fila.querySelector('.linea-subtotal'); }
+
+        //cantidad de la línea: la del input (cotización) o la que ya viene del carrito
+        function cantidadDe(fila) {
+            var retiro = retiroDe(fila);
+            if (retiro && retiro.checked) return 0;
+            var inp = inputDe(fila);
+            if (inp) return Math.max(1, Math.min(99, parseInt(inp.value, 10) || 1));
+            return parseInt(subtotalDe(fila).dataset.cant, 10) || 1;
+        }
+        function precioDe(fila) {
+            var inp = inputDe(fila);
+            return parseInt((inp ? inp.dataset.precio : subtotalDe(fila).dataset.precio), 10) || 0;
+        }
+        function sumaProductos() {
+            return filas.reduce(function (suma, fila) { return suma + precioDe(fila) * cantidadDe(fila); }, 0);
+        }
+        function refrescar() {
+            filas.forEach(function (fila) {
+                var inp = inputDe(fila), retiro = retiroDe(fila), sub = subtotalDe(fila);
+                if (sub) sub.textContent = cop(precioDe(fila) * cantidadDe(fila));
+                if (retiro) fila.classList.toggle('cot-retirada', retiro.checked);
+                if (inp && retiro) inp.disabled = retiro.checked;
+            });
+            if (total) total.textContent = cop(sumaProductos() + envioActual);
+        }
+
+        var ciudad = document.querySelector('form#form-checkout input[name="ciudad"]');
+        function cotizarEnvio() {
+            var valor = (ciudad.value || '').trim();
+            if (!valor) {
+                envioActual = 0;
+                envioEl.textContent = 'Se estima al escribir tu municipio';
+                refrescar();
+                return;
+            }
+            envioEl.textContent = 'Cotizando el envío…';
+            var q = new URLSearchParams({ ciudad: valor, total: sumaProductos(), cats: CATS });
+            fetch('{{ url_for("purchase.costo_envio_vista") }}?' + q.toString())
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    if (d.p_envio == null) {
+                        envioActual = 0;
+                        envioEl.textContent = d.detalle || 'Se coordina al pagar';
+                    } else if (Number(d.p_envio) === 0) {
+                        envioActual = 0;
+                        envioEl.innerHTML = '<i class="bi bi-check-circle-fill text-success me-1"></i><strong class="text-success">¡gratis!</strong> · <a href="{{ url_for("home.politica_envios") }}" class="text-success fw-semibold text-decoration-none">consulta nuestra política de envíos</a>';
+                    } else {
+                        envioActual = Number(d.p_envio);
+                        envioEl.innerHTML = '<strong>' + cop(envioActual) + '</strong> · ' + (d.detalle || '');
+                    }
+                    refrescar();
+                })
+                .catch(function () {
+                    envioActual = 0;
+                    envioEl.textContent = 'No se pudo cotizar ahora; se confirma al pagar';
+                    refrescar();
+                });
+        }
+
+        if (PENVIO_FIJADO !== null) {
             envioActual = PENVIO_FIJADO;
             envioEl.innerHTML = PENVIO_FIJADO === 0
                 ? '<i class="bi bi-check-circle-fill text-success me-1"></i><strong class="text-success">¡gratis!</strong> · fijado por la tienda'
                 : '<strong>' + cop(PENVIO_FIJADO) + '</strong> · fijado por la tienda';
         } else if (ciudad) {
-            ciudad.addEventListener('change', function () {
-                var valor = ciudad.value.trim();
-                if (!valor) { envioActual = 0; envioEl.textContent = 'Se estima al escribir tu municipio'; refrescar(); return; }
-                envioEl.textContent = 'Cotizando el envío…';
-                var q = new URLSearchParams({ ciudad: valor, total: sumaProductos(), cats: CATS });
-                fetch('{{ url_for("purchase.costo_envio_vista") }}?' + q.toString())
-                    .then(function (r) { return r.json(); })
-                    .then(function (d) {
-                        if (d.p_envio == null) { envioActual = 0; envioEl.textContent = d.detalle || 'Se coordina al pagar'; }
-                        else if (Number(d.p_envio) === 0) {
-                            envioActual = 0;
-                            envioEl.innerHTML = '<i class="bi bi-check-circle-fill text-success me-1"></i><strong class="text-success">¡gratis!</strong> · <a href="{{ url_for("home.politica_envios") }}" class="text-success fw-semibold text-decoration-none">consulta nuestra política de envíos</a>';
-                        }
-                        else { envioActual = Number(d.p_envio); envioEl.innerHTML = '<strong>' + cop(envioActual) + '</strong> · ' + (d.detalle || ''); }
-                        refrescar();
-                    })
-                    .catch(function () {
-                        envioActual = 0;
-                        envioEl.textContent = 'No se pudo cotizar ahora; se confirma al pagar';
-                    });
-            });
+            ciudad.addEventListener('change', cotizarEnvio);
         }
-        function sumaProductos() {
-            var suma = 0;
-            inputs.forEach(function (inp) {
-                var fila = inp.closest('.linea-item');
-                var retirada = fila.querySelector('input[name^="retirar_"]');
-                if (retirada && retirada.checked) return;
-                var precio = parseInt(inp.dataset.precio, 10) || 0;
-                var cant = Math.max(1, Math.min(99, parseInt(inp.value, 10) || 1));
-                suma += precio * cant;
-            });
-            return suma;
-        }
-        inputs.forEach(function (inp) { inp.addEventListener('input', refrescar); });
-        retiros.forEach(function (cb) { cb.addEventListener('change', refrescar); });
+
+        document.querySelectorAll('input[name^="cant_"], input[name^="retirar_"]').forEach(function (el) {
+            el.addEventListener(el.type === 'checkbox' ? 'change' : 'input', refrescar);
+        });
         refrescar();
     });
 </script>
 {% endblock %}
-{% endif %}

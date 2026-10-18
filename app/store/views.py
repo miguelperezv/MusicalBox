@@ -1,7 +1,7 @@
 #from app.store.forms import CreateUsuarioForm, LoginUsuarioForm, newArtistForm, newReleaseForm
 
 from flask.wrappers import Request
-from .forms import ActivarCuentaForm, CreateUsuarioForm, LoginUsuarioForm,  newReleaseForm, newProductForm, newCat_Genre_Artist, newAdmin, editReleaseForm, EditUsuarioForm
+from .forms import ActivarCuentaForm, CheckoutForm, CreateUsuarioForm, LoginUsuarioForm,  newReleaseForm, newProductForm, newCat_Genre_Artist, newAdmin, editReleaseForm, EditUsuarioForm
 from flask import Blueprint, Response, current_app, flash, session, request, g, render_template, redirect, url_for, jsonify, make_response
 #from app.store.models import create_new_user, get_all_artists, get_user_by_email, create_new_artist
 from .models import create_new_user, get_all_artists, get_user_by_email, create_new_artist, get_k_artist_by_name, obtener_artista, create_new_release, get_release_by_name, get_releases_with_artists, get_categories, create_new_product, get_k_release_by_name_artista, create_new_category, create_new_genre, create_release_genre, new_admin, get_all_releases, get_artist_by_release, get_categories_by_release, get_release_by_id, get_genres_by_release, get_products_by_release, get_product_by_id, get_artist_by_release, update_release, get_products_with_info, edit_product, create_new_image, get_rawimage_by_product, edit_image, get_items_by_id_factura, Imagen, Producto
@@ -1135,6 +1135,48 @@ def updatesingle(k_producto, opc):
     return redirect(request.referrer or url_for('purchase.summary'))
 
 
+@purchase.route("/checkout", methods=["GET"])
+def checkout():
+    #paso 2 de la compra directa: datos y envío. Es la MISMA página que la cotización a la medida
+    #(checkout.html), para que comprar sea siempre el mismo camino de 3 pasos.
+    lineas, total, errores = carrito.resumen(session.get("purchase"))
+    if not lineas:
+        flash("Tu carrito está vacío", "warning")
+        return redirect(url_for('purchase.summary'))
+    if errores:
+        for e in errores:
+            flash(e, "warning")
+        return redirect(url_for('purchase.summary'))
+
+    form = CheckoutForm()
+    #si el envío anterior falló (o ya compró antes), se rellenan los datos para no volver a escribirlos
+    intento = session.pop("checkout_intento", None)
+    guardados = session.get("checkout_datos") or {}
+    fuente = intento or guardados
+    if fuente:
+        form.nombre.data = fuente.get("nombre")
+        form.email.data = fuente.get("email")
+        form.telefono.data = fuente.get("telefono")
+        form.ciudad.data = fuente.get("ciudad")
+        form.direccion.data = fuente.get("direccion")
+        form.barrio.data = fuente.get("barrio")
+
+    linea_vista, cats = [], {}
+    for i, l in enumerate(lineas):
+        producto = l["producto"]
+        categoria = producto.k_categoria or "OTRO"
+        cats[categoria] = cats.get(categoria, 0) + int(l["cantidad"])
+        linea_vista.append({"producto": producto, "variante": l["variante"], "cantidad": l["cantidad"],
+                            "precio": producto.p_producto, "lanzamiento": producto.lanzamiento, "n_item": None,
+                            "subtotal": l["subtotal"], "idx": i, "retirado": False,
+                            "disponible": l["disponible"], "preorden": l["preorden"]})
+
+    return render_template("checkout.html", form=form, lineas=linea_vista, total=total,
+                           accion=url_for('purchase.process_checkout'),
+                           previos=bool(guardados) and not intento, solicitud=None,
+                           cats="|".join(f"{k}:{v}" for k, v in sorted(cats.items())))
+
+
 @purchase.route("/envio", methods=["GET"])
 def costo_envio_vista():
     #estimado en vivo del envío al elegir el municipio en el checkout (no guarda nada)
@@ -1162,8 +1204,10 @@ def process_checkout():
     
     # Validar que los datos no estén vacíos
     if not all([datos["nombre"], datos["email"], datos["telefono"], datos["ciudad"], datos["direccion"]]):
-        flash("Por favor completa todos los campos obligatorios", "warning")
-        return redirect(url_for('purchase.summary'))
+        #se guarda lo escrito para devolverlo en el formulario (no hacer escribir todo otra vez)
+        session["checkout_intento"] = datos
+        flash("Revisa los datos marcados para continuar", "warning")
+        return redirect(url_for('purchase.checkout'))
     
     # Validar carrito
     lineas, total, errores = validar_carrito(session.get("purchase"))
@@ -1175,9 +1219,10 @@ def process_checkout():
     # Crear pedido con los datos proporcionados
     pedido, token, errores = crear_pedido(session.get("purchase"), datos)
     if errores:
+        session["checkout_intento"] = datos
         for e in errores:
             flash(e, "warning")
-        return redirect(url_for('purchase.summary'))
+        return redirect(url_for('purchase.checkout'))
     aviso_pedido_creado(pedido, token)
     
     # Guardar datos para futuros checkouts
