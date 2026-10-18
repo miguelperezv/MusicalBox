@@ -1,7 +1,7 @@
 #panel admin: sección "Envíos" (configuración general y reglas de envío gratis) y
 #corrección del costo de envío por orden (hasta que quede ENVIADO)
 from flask import flash, redirect, render_template, request, url_for, jsonify, abort
-from .views import dashboard
+from .views import dashboard, render_seccion
 from .models import ReglaEnvio, Invoice, get_categorias
 from .redes import get_config, set_config
 from ..db import db
@@ -26,7 +26,7 @@ def envios_admin():
     reglas = ReglaEnvio.query.order_by(ReglaEnvio.orden, ReglaEnvio.id).all()
     criterios = [('MENOR_COSTO', 'La más barata'), ('MENOR_TIEMPO', 'La más rápida')] + \
                 [(p, f"Paquetería {p.lower()} (si responde la ruta)") for p in PAQUETERIAS]
-    return render_template("envios_admin.html", reglas=reglas, tipos=TIPOS_REGLA, criterios=criterios,
+    return render_seccion("envios_admin.html", reglas=reglas, tipos=TIPOS_REGLA, criterios=criterios,
                            categorias=get_categorias() or [],
                            habilitado=get_config('envio.habilitado') == '1',
                            criterio=get_config('envio.criterio') or 'MENOR_COSTO',

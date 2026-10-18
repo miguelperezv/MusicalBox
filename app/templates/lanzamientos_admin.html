@@ -1,5 +1,3 @@
-{% extends "adminDashboard.html" %}
-{% block content %}
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
     <h1 class="h3 mb-0">Lanzamientos</h1>
     <div class="d-flex gap-2">
@@ -45,4 +43,3 @@
         document.querySelectorAll('#tabla tbody tr').forEach(function (tr) { tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none'; });
     });
 </script>
-{% endblock %}

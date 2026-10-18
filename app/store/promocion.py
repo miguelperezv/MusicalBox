@@ -370,7 +370,7 @@ def feed_productos():
 
 
 #las de abajo viven en el panel (blueprint dashboard, ya protegido por admin)
-from .views import dashboard  # noqa: E402
+from .views import dashboard, render_seccion  # noqa: E402
 
 
 @dashboard.route("/promocion")
@@ -382,7 +382,7 @@ def promocion_admin():
                 {"url": url_for("promo.feed_productos", destino="meta", _external=True),
                  "destino": "catálogo de Meta",
                  "nota": "mismo catálogo, con los valores que pide Meta"}]
-    return render_template("promocion_admin.html", negocio=negocio, feeds=intentos,
+    return render_seccion("promocion_admin.html", negocio=negocio, feeds=intentos,
                            exportaciones=EXPORTACIONES)
 
 

@@ -13,7 +13,7 @@ from .musicapi import buscar_albumes_spotify
 from .texto import titulo
 from .envio import costo_envio, lineas_desde_cats
 from ..db import db
-from .views import before_request, admin_required
+from .views import before_request, admin_required, render_seccion
 from .notif_admin import aviso_solicitud, aviso_pedido_creado
 from .notificaciones import correo_solicitud_recibida, correo_cotizacion_lista
 from .analytics import track_event, Events
@@ -121,7 +121,7 @@ def lista():
             por_cotizar += 1
         else:
             otras += 1
-    return render_template('solicitudes.html',
+    return render_seccion('solicitudes.html',
                            solicitudes=solicitudes,
                            estados=ESTADOS_SOLICITUD, portadas=portadas,
                            conteos={'por_cotizar': por_cotizar, 'otras': otras})

@@ -1,6 +1,6 @@
 #panel admin: tallas/colores de un producto y contenido de los packs (rutas del blueprint dashboard, ya protegido)
 from flask import abort, flash, redirect, render_template, request, url_for
-from .views import dashboard
+from .views import dashboard, render_seccion
 from .models import actualizar_variante, agregar_componente, crear_variante, eliminar_componente, eliminar_variante, db, Variante
 
 
@@ -128,7 +128,7 @@ def redes_admin():
         elif c["modo"] == 'random_n_de_m' and c["m"] > visibles:
             avisos.append(f"{nombre}: el sorteo es entre las últimas {c['m']}, pero solo hay {visibles}.")
     pubs = redes.PublicacionSocial.query.order_by(redes.PublicacionSocial.orden, redes.PublicacionSocial.id.desc()).all()
-    return render_template("redes_admin.html", cfg=cfg, pubs=pubs, avisos=avisos, plataformas=redes.PLATAFORMAS, modos=redes.MODOS)
+    return render_seccion("redes_admin.html", cfg=cfg, pubs=pubs, avisos=avisos, plataformas=redes.PLATAFORMAS, modos=redes.MODOS)
 
 
 @dashboard.route("/redes/config", methods=["POST"])
@@ -207,7 +207,7 @@ def notificaciones_admin():
             'always_on': always_on,
             'valor': (row.valor if row else '0') == '1',
         }
-    return render_template("notificaciones_admin.html", cfg=cfg)
+    return render_seccion("notificaciones_admin.html", cfg=cfg)
 
 
 @dashboard.route("/notificaciones/guardar", methods=["POST"])
@@ -252,7 +252,7 @@ def productos_admin():
     elif f_stock == "bajo":
         filas = [f for f in filas if f["stock"] <= 3]
     categorias = sorted({p.k_categoria for p in Producto.query.all() if p.k_categoria})
-    return render_template("productos_admin.html", filas=filas, categorias=categorias,
+    return render_seccion("productos_admin.html", filas=filas, categorias=categorias,
                            lanzamientos=Lanzamiento.query.order_by(Lanzamiento.n_lanzamiento).all(),
                            f_lanzamiento=f_lanzamiento or "", f_categoria=f_categoria, f_stock=f_stock)
 
@@ -261,7 +261,7 @@ def productos_admin():
 def lanzamientos_admin():
     filas = [{"l": l, "artista": get_artist_by_release(l.id), "productos": Producto.query.filter_by(k_lanzamiento=l.id).count()}
              for l in Lanzamiento.query.order_by(db.desc(Lanzamiento.f_lanzamiento)).all()]
-    return render_template("lanzamientos_admin.html", filas=filas)
+    return render_seccion("lanzamientos_admin.html", filas=filas)
 
 
 #edición rápida desde los listados: stock/precio de producto y campos de lanzamiento,
@@ -361,7 +361,7 @@ def tema_admin():
         activo = None
     else:
         activo = tema_hoy
-    return render_template("tema_admin.html", modo=modo, forzado=forzado, activo=activo,
+    return render_seccion("tema_admin.html", modo=modo, forzado=forzado, activo=activo,
                            tema_hoy=tema_hoy, temas=list(temporadas.TEMAS), nombres=temporadas.NOMBRES,
                            ventanas=temporadas.VENTANAS,
                            proximo=(proximo, temporadas.fecha_larga(fecha_proximo) if fecha_proximo else None, dias))

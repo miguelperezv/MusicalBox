@@ -1,7 +1,5 @@
-{% extends "adminDashboard.html" %}
 {% from "_macros.html" import field, product_cover %}
 
-{% block content %}
 <h1 class="h3 mb-4">Editar producto</h1>
 <form class="mb-panel mb-4" style="max-width: 760px" method="POST" action="{{ url_for('dashboard.editproduct') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -232,4 +230,3 @@
 </div>
 {% endif %}
 {% endif %}
-{% endblock %}

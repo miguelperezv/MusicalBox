@@ -6,7 +6,7 @@ from flask import flash, redirect, render_template, request, url_for, abort
 
 from ..db import db
 from .forms import SuscriptorForm
-from .views import home, dashboard
+from .views import home, dashboard, render_seccion
 
 
 class Suscriptor(db.Model):
@@ -72,7 +72,7 @@ def suscriptores_admin():
     filas = listar(request.args.get("busca"))
     total = Suscriptor.query.count()
     activos = Suscriptor.query.filter_by(activo=True).count()
-    return render_template("suscriptores_admin.html", filas=filas, total=total, activos=activos,
+    return render_seccion("suscriptores_admin.html", filas=filas, total=total, activos=activos,
                            busca=(request.args.get("busca") or '').strip())
 
 

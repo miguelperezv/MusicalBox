@@ -1,8 +1,3 @@
-{% extends "adminDashboard.html" %}
-
-{% block title %}Tema de temporada{% endblock %}
-
-{% block content %}
 <h1 class="h3 mb-1">Tema de temporada del logotipo</h1>
 <p class="text-body-secondary">El logotipo se disfraza unos días al año (Halloween, Navidad, Orgullo…). Aquí ves cómo queda con cada tema y decides cuál se muestra en la tienda. <strong>El disco, los surcos, la etiqueta y la nota siempre son los del boceto</strong>: sólo se le montan adornos encima.</p>
 
@@ -106,4 +101,3 @@
 </div>
 
 <p class="small text-body-secondary mt-4">Las ventanas de fechas y los adornos de cada tema viven en <code>app/store/temporadas.py</code> y <code>app/templates/_tema.html</code>. También se puede forzar sin entrar al panel con <code>?tema=navidad</code> en la URL (y <code>?tema=ninguno</code> para apagarlo).</p>
-{% endblock %}

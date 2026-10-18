@@ -93,10 +93,34 @@ def before_request():
 def is_admin():
     return bool(g.get("user")) and g.user.get("k_rol") == 'ADMIN'
 
+def es_ajax():
+    """¿La petición viene del cargador del panel (pide el fragmento) y no de una navegación?
+    jQuery pone X-Requested-With; fetch() de la misma página manda Sec-Fetch-Mode distinto de
+    'navigate'. Así una sección sólo sale con armazón cuando el navegador la navega de verdad."""
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return True
+    modo = request.headers.get("Sec-Fetch-Mode")
+    return bool(modo) and modo != "navigate"
+
+
+def render_seccion(template, **ctx):
+    """Renderiza una sección del panel.
+    Si la pide el cargador AJAX, devuelve solo el fragmento (lo que se mete en #admin-content).
+    Si la pide el navegador directo (escribir la URL, refrescar, atrás/adelante), la mete en el
+    armazón del panel (sidebar + contenido), para que cada sección tenga su propia URL."""
+    fragmento = render_template(template, **ctx)
+    if es_ajax():
+        return fragmento
+    return render_template("adminDashboard.html", contenido_panel=fragmento, **ctx)
+
+
 def admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if not is_admin():
+            if es_ajax():
+                #si no, el panel se quedaría con la página de login metida en #admin-content
+                return jsonify({"error": "sesion_caducada", "login": url_for("home.login")}), 401
             flash("Debes ingresar como administrador", "warning")
             return redirect(url_for('home.login'))
         return f(*args, **kwargs)
@@ -460,7 +484,7 @@ def newrelease():
         else:
             flash("No se pudo registrar")
         return redirect(url_for('home.admin'))
-    return render_template("newRelease.html", form = form_new_release, artistas = sorted(a['n_artista'] for a in get_all_artists()))
+    return render_seccion("newRelease.html", form = form_new_release, artistas = sorted(a['n_artista'] for a in get_all_artists()))
 
 @dashboard.route("/newrelease_artists")
 def newrelease_artists():
@@ -513,7 +537,7 @@ def newproduct():
         else:
             flash("No se pudo registrar")
         return redirect(url_for('home.admin'))
-    return render_template("newProduct.html", form=form_new_product, lanzamientos=get_releases_with_artists() or [],
+    return render_seccion("newProduct.html", form=form_new_product, lanzamientos=get_releases_with_artists() or [],
                            preseleccion=request.args.get("lanzamiento", ""))
 
 @dashboard.route("/newproduct_releases")
@@ -536,7 +560,7 @@ def newgenre_category_artist():
     form_cat_genre = newCat_Genre_Artist()
     if request.method=='POST':
         return "Soy el Post de esta vista"
-    return render_template("newCatGenreArtist.html", form = form_cat_genre) 
+    return render_seccion("newCatGenreArtist.html", form = form_cat_genre) 
 
 @dashboard.route("/newgenre", methods=["GET", "POST"])
 def newgenre():
@@ -590,7 +614,7 @@ def newadmin():
             flash("Contraseña o email incorrectos! ")
             return redirect(url_for("home.admin"))
         
-    return render_template("newAdmin.html", form = form_new_admin)
+    return render_seccion("newAdmin.html", form = form_new_admin)
 
 @dashboard.route("/invoices", methods=["GET", "POST"])
 def invoices():
@@ -607,7 +631,7 @@ def invoices():
     }
     for e in ESTADOS_ENVIO:
         conteos[e] = Invoice.query.filter(Invoice.estado == 'PAGADO', Invoice.estado_envio == e).count()
-    return render_template("invoices.html", invoices=get_all_invoices(), get_items_by_id_factura=get_items_by_id_factura,
+    return render_seccion("invoices.html", invoices=get_all_invoices(), get_items_by_id_factura=get_items_by_id_factura,
                            estados_envio=ESTADOS_ENVIO, con_rotulo=ESTADOS_CON_ROTULO,
                            conteos=conteos, busca=request.args.get("busca", "").strip())
 
@@ -646,7 +670,7 @@ def editrelease():
             
         else:
             form_edit_release.k_genero.data = "N/A"
-    return render_template("editRelease.html", form = form_edit_release, get_artist_by_release = get_artist_by_release,  lanzamiento = lanzamiento, artistas = sorted(a['n_artista'] for a in get_all_artists()))
+    return render_seccion("editRelease.html", form = form_edit_release, get_artist_by_release = get_artist_by_release,  lanzamiento = lanzamiento, artistas = sorted(a['n_artista'] for a in get_all_artists()))
 
 
 @dashboard.route("/updaterelease_<string:k_lanzamiento>", methods=["GET", "POST"])
@@ -685,7 +709,7 @@ def updaterelease(k_lanzamiento):
             form_edit_release.k_genero.data = "N/A"
         form_edit_release.preorden.data = bool(db.session.get(Lanzamiento, k_lanzamiento).preorden)
      
-    return render_template("editRelease.html", form = form_edit_release, get_artist_by_release = get_artist_by_release,  lanzamiento = lanzamiento, artistas = sorted(a['n_artista'] for a in get_all_artists()))
+    return render_seccion("editRelease.html", form = form_edit_release, get_artist_by_release = get_artist_by_release,  lanzamiento = lanzamiento, artistas = sorted(a['n_artista'] for a in get_all_artists()))
 
 @dashboard.route("/updaterelease_spotify/<int:k_lanzamiento>", methods=["POST"])
 def updaterelease_spotify(k_lanzamiento):
@@ -730,7 +754,7 @@ def editproduct():
         form_edit_product.k_category.data = producto.k_categoria
         # En lugar de renderizar el mismo template, redirigir a updateproduct
         return redirect(url_for('dashboard.updateproduct', k_producto=k_producto))
-    return render_template("editProduct.html", form = form_edit_product, producto = producto, opciones_componentes = opciones_componentes, stock_disponible = stock_disponible)
+    return render_seccion("editProduct.html", form = form_edit_product, producto = producto, opciones_componentes = opciones_componentes, stock_disponible = stock_disponible)
 
 @dashboard.route("/updateproduct/<string:k_producto>",  methods=["GET", "POST"])
 def updateproduct(k_producto):
@@ -803,7 +827,7 @@ def updateproduct(k_producto):
         form_edit_product.k_category.data = producto.k_categoria
         form_edit_product.original_mb.data = producto.original_mb
         form_edit_product.preorden.data = bool(producto.preorden)
-        return render_template("editProduct.html", form = form_edit_product, producto = producto, opciones_componentes = opciones_componentes, stock_disponible = stock_disponible)
+        return render_seccion("editProduct.html", form = form_edit_product, producto = producto, opciones_componentes = opciones_componentes, stock_disponible = stock_disponible)
     return redirect(url_for('dashboard.editproduct'))
 
 
@@ -961,7 +985,7 @@ def batch_upload():
             
         return redirect(url_for("dashboard.batch_upload"))
         
-    return render_template("batch_upload.html")
+    return render_seccion("batch_upload.html")
 
 @releases.route('/', methods=["GET", "POST"])
 def home_releases():
@@ -1307,7 +1331,7 @@ def analytics():
     if dias not in [30, 90, 365]:
         dias = 30
     stats = get_eventos_analytics(dias)
-    return render_template("dashboard_analytics.html", stats=stats, periodo=dias)
+    return render_seccion("dashboard_analytics.html", stats=stats, periodo=dias)
 
 
 @products.route("/", methods=["POST", "GET"])

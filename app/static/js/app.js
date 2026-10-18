@@ -242,27 +242,92 @@ function mbAutocomplete(root) {
     });
 }
 
-// panel admin: enlaces con data-load cargan su contenido en #admin-content sin recargar la página
-// (por delegación: también sirven los enlaces que llegan después por AJAX, p. ej. "Orden #N")
+// panel admin: los enlaces con data-load traen su sección a #admin-content sin recargar la página
+// (por delegación: también sirven los enlaces que llegan después por AJAX, p. ej. "Orden #N").
+// Cada sección tiene su URL: se empuja al historial, atrás/adelante funcionan y el enlace del menú
+// queda marcado. Lo que se trae por AJAX es el fragmento (sin armazón), ver render_seccion.
 function mbAdminLoader() {
     var content = document.getElementById('admin-content');
     if (!content) return;
+
+    //innerHTML no ejecuta los <script> de la sección: se vuelven a crear para que corran
+    function ejecutarScripts(cont) {
+        cont.querySelectorAll('script').forEach(function (viejo) {
+            var nuevo = document.createElement('script');
+            if (viejo.src) {
+                nuevo.src = viejo.src;
+                nuevo.async = false; //los scripts con src corren en orden (chart.js antes de las gráficas)
+            } else {
+                nuevo.textContent = viejo.textContent;
+            }
+            viejo.parentNode.replaceChild(nuevo, viejo);
+        });
+    }
+
+    function marcarActivo(link) {
+        var enlaces = document.querySelectorAll('.mb-sidebar .nav-link');
+        enlaces.forEach(function (l) { l.classList.remove('active'); });
+        var activo = link;
+        if (!activo) {
+            enlaces.forEach(function (l) {
+                if (!activo && l.getAttribute('href') && l.pathname === location.pathname) activo = l;
+            });
+        }
+        if (!activo) return;
+        activo.classList.add('active');
+        var titulo = (activo.textContent || '').trim();
+        if (titulo) document.title = titulo + ' · Musical Box';
+    }
+
+    function cargar(url, link) {
+        content.innerHTML = '<div class="mb-loading"><div class="spinner-border" role="status"></div></div>';
+        $.ajax({ url: url, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .done(function (html) {
+                content.innerHTML = html;
+                ejecutarScripts(content);
+                mbAutocomplete(content);
+                marcarActivo(link);
+                //la sección se trae con lo que traiga escrito su buscador (p. ej. #filtro-solicitudes)
+                var bus = content.querySelector('#filtro-solicitudes');
+                if (bus && bus.value && window.mbFiltrarSolicitudes) window.mbFiltrarSolicitudes(content);
+            })
+            .fail(function (xhr) {
+                //sin sesión: antes se metía la página de login dentro del panel
+                var login = (xhr.responseJSON && xhr.responseJSON.login) || '/';
+                if (xhr.status === 401) {
+                    content.innerHTML = '<div class="alert alert-warning mb-0"><i class="bi bi-clock-history me-1"></i>' +
+                        'Tu sesión caducó. <a href="' + login + '">Vuelve a entrar</a> para seguir.</div>';
+                    Swal.fire({ title: 'Tu sesión caducó', text: 'Vuelve a entrar para seguir en el panel.',
+                                icon: 'warning', confirmButtonText: 'Entrar' })
+                        .then(function () { window.location = login; });
+                    return;
+                }
+                content.innerHTML = '<div class="alert alert-danger mb-0">No se pudo cargar la sección. ' +
+                    '<a href="' + url + '">Ábrela en una página nueva</a> o recarga el panel.</div>';
+            });
+    }
+
     document.addEventListener('click', function (e) {
         var link = e.target.closest('[data-load]');
         if (!link) return;
         e.preventDefault();
-        document.querySelectorAll('.mb-sidebar .nav-link').forEach(function (l) { l.classList.remove('active'); });
-        if (link.classList.contains('nav-link')) link.classList.add('active');
-        content.innerHTML = '<div class="mb-loading"><div class="spinner-border" role="status"></div></div>';
-        $(content).load(link.dataset.load, function () {
-            mbAutocomplete(content);
-            //secciones cargadas por AJAX respetan su filtro (p. ej. "Orden #N" de pedidos a la medida)
-            var bus = content.querySelector('#buscador-ordenes');
-            if (bus && bus.value && window.mbFiltrarOrdenes) window.mbFiltrarOrdenes(content);
-        });
+        var url = link.dataset.load || link.getAttribute('href');
+        var href = link.getAttribute('href') || '';
+        if (history.pushState && /^\//.test(href)) history.pushState({}, '', href);
+        cargar(url, link.classList.contains('nav-link') ? link : null);
         var sidebar = bootstrap.Offcanvas.getInstance(document.getElementById('adminSidebar'));
         if (sidebar) sidebar.hide();
     });
+
+    //atrás/adelante del navegador: se vuelve a pedir la sección de esa URL
+    window.addEventListener('popstate', function () {
+        cargar(location.pathname + location.search, null);
+    });
+
+    //otras partes del panel pueden pedir que se recargue la sección (p. ej. al rechazar un pedido)
+    window.mbRecargarSeccion = function () {
+        cargar(location.pathname + location.search, null);
+    };
 }
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -314,7 +379,7 @@ document.addEventListener('click', function (e) {
     var body = modalEl.querySelector('.modal-body');
     body.innerHTML = '<div class="mb-loading"><div class="spinner-border" role="status"></div></div>';
     bootstrap.Modal.getOrCreateInstance(modalEl).show();
-    fetch(link.dataset.quickview).then(function (r) { return r.text(); }).then(function (html) {
+    fetch(link.dataset.quickview, { headers: { 'X-Requested-With': 'XMLHttpRequest' } }).then(function (r) { return r.text(); }).then(function (html) {
         body.innerHTML = html;
         //los embeds de redes necesitan volver a procesarse al insertarse
         if (window.instgrm) window.instgrm.Embeds.process();
@@ -467,53 +532,17 @@ document.addEventListener('change', function (e) {
     });
 })();
 
-//órdenes y solicitudes: chips para filtrar la lista por estado, combinables con el buscador (delegado)
+//solicitudes: chips para filtrar la lista por estado, combinables con el buscador (delegado).
+//(las órdenes de compra filtran con su propio script en invoices.html: secciones por grupo + buscador)
 (function () {
-    function estadoOk(tr, filtro) {
-        return filtro === 'todas'
-            || (filtro === 'pendientes' && tr.dataset.estado === 'PENDIENTE')
-            || (filtro !== 'todas' && filtro !== 'pendientes' && tr.dataset.estado === 'PAGADO' && tr.dataset.envio === filtro);
-    }
-    //recalcula la visibilidad de las órdenes según chip activo + texto del buscador
-    window.mbFiltrarOrdenes = function (panel) {
-        panel = panel || document;
-        var grupo = panel.querySelector('[data-grupo-ordenes]');
-        if (!grupo) return;
-        var filtro = grupo.dataset.filtroActual || 'todas';
-        var input = panel.querySelector('#buscador-ordenes');
-        var q = input ? input.value.trim().toLowerCase() : '';
-        var tabla = panel.querySelector('#tabla-ordenes');
-        if (!tabla) return;
-        var filas = tabla.querySelectorAll('tr[data-estado]');
-        var visibles = 0;
-        filas.forEach(function (tr) {
-            var ok = estadoOk(tr, filtro) && (!q || tr.textContent.toLowerCase().indexOf(q) !== -1);
-            tr.classList.toggle('d-none', !ok);
-            if (ok) visibles++;
-        });
-        var vacio = tabla.querySelector('.fila-sin-resultado');
-        if (vacio) vacio.classList.toggle('d-none', visibles > 0);
-    };
     function marcar(chip) {
-        document.querySelectorAll('.chip-filtro[data-filtra="' + chip.dataset.filtra + '"]').forEach(function (b) {
+        document.querySelectorAll('.chip-filtro[data-filtra="solicitudes"]').forEach(function (b) {
             var es = b === chip;
             b.classList.toggle('active', es);
             b.classList.toggle('btn-primary', es);
             b.classList.toggle('btn-outline-secondary', !es);
         });
     }
-    document.addEventListener('click', function (e) {
-        var chip = e.target.closest && e.target.closest('.chip-filtro');
-        if (!chip) return;
-        if (chip.dataset.filtra === 'ordenes') {
-            chip.closest('[data-grupo-ordenes]').dataset.filtroActual = chip.dataset.filtro;
-            marcar(chip);
-            window.mbFiltrarOrdenes(chip.closest('#admin-content') || document);
-        } else if (chip.dataset.filtra === 'solicitudes') {
-            marcar(chip);
-            window.mbFiltrarSolicitudes(chip.closest('#admin-content') || document);
-        }
-    });
     //solicitudes: chip de estado + texto del buscador, combinados
     window.mbFiltrarSolicitudes = function (panel) {
         panel = panel || document;
@@ -530,34 +559,17 @@ document.addEventListener('change', function (e) {
         var vacio = panel.querySelector('.fila-sin-resultado-sol');
         if (vacio) vacio.classList.toggle('d-none', visibles > 0);
     };
+    document.addEventListener('click', function (e) {
+        var chip = e.target.closest && e.target.closest('.chip-filtro[data-filtra="solicitudes"]');
+        if (!chip) return;
+        marcar(chip);
+        window.mbFiltrarSolicitudes(chip.closest('#admin-content') || document);
+    });
     document.addEventListener('input', function (e) {
-        if (e.target && e.target.id === 'filtro-solicitudes') window.mbFiltrarSolicitudes(e.target.closest('#admin-content') || document);
-    });
-    //buscador de órdenes (número, comprador, teléfono) combinado con el chip activo
-    document.addEventListener('input', function (e) {
-        if (e.target && e.target.id === 'buscador-ordenes') window.mbFiltrarOrdenes(e.target.closest('#admin-content') || document);
-    });
-    //si la sección llega ya con ?busca= (p. ej. desde "Orden #N" de una solicitud), se aplica al entrar
-    document.addEventListener('DOMContentLoaded', function () {
-        var input = document.getElementById('buscador-ordenes');
-        if (input && input.value) window.mbFiltrarOrdenes(document);
-    });
-    window.aplicarFiltroOrdenes = function (row) {
-        //al cambiar el estado de envío (o el de pago), la fila pasa al grupo que le toca
-        var panel = row.closest('#admin-content') || document;
-        var grupo = panel.querySelector('[data-grupo-ordenes]');
-        if (grupo && grupo.dataset.filtroActual && grupo.dataset.filtroActual !== 'todas') {
-            var filtro = grupo.dataset.filtroActual;
-            var env = row.dataset.envio, esta = row.dataset.estado;
-            var sigue = filtro === 'pendientes' ? esta === 'PENDIENTE' : (esta === 'PAGADO' && env === filtro);
-            if (!sigue) {
-                grupo.dataset.filtroActual = 'todas';
-                var todo = grupo.querySelector('.chip-filtro[data-filtro="todas"]');
-                if (todo) marcar(todo);
-            }
+        if (e.target && e.target.id === 'filtro-solicitudes') {
+            window.mbFiltrarSolicitudes(e.target.closest('#admin-content') || document);
         }
-        window.mbFiltrarOrdenes(panel);
-    };
+    });
 })();
 
 //lanzamientos: portada, post y disco por un campo en modal (delegado: sección y modal)
@@ -726,7 +738,8 @@ document.addEventListener('change', function (e) {
                     var chip = tr.querySelector('.mb-estado');
                     if (chip) chip.outerHTML = '<span class="mb-estado mb-estado-' + res.estado + '">' + res.estado + '</span>';
                     b.remove();
-                    if (window.aplicarFiltroOrdenes) window.aplicarFiltroOrdenes(tr);
+                    //el pedido ya no está pendiente: se recarga la sección para que caiga en su grupo y se muevan los contadores
+                    if (window.mbRecargarSeccion) window.mbRecargarSeccion();
                 })
                 .fail(function (xhr) { showAlert((xhr.responseJSON && xhr.responseJSON.error) || 'No se pudo rechazar el pedido', 'danger'); });
         });

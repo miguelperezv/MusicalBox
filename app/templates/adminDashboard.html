@@ -15,25 +15,26 @@
                 <a class="nav-link {{ 'active' if request.endpoint == 'home.admin' }}" href="{{ url_for('home.admin') }}"><i class="bi bi-speedometer2"></i>Resumen</a>
 
                 <div class="section">Ventas</div>
-                <a class="nav-link" href="#" data-load="{{ url_for('solicitud.lista', sol=sol) if sol else url_for('solicitud.lista') }}"><i class="bi bi-send"></i>Pedidos a la medida</a>
-                <a class="nav-link" href="#" data-load="{{ url_for('dashboard.invoices') }}"><i class="bi bi-receipt"></i>Órdenes de compra</a>
+                <a class="nav-link {{ 'active' if request.endpoint == 'solicitud.lista' }}" href="{{ url_for('solicitud.lista', sol=sol) if sol else url_for('solicitud.lista') }}" data-load="{{ url_for('solicitud.lista', sol=sol) if sol else url_for('solicitud.lista') }}"><i class="bi bi-send"></i>Pedidos a la medida</a>
+                <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.invoices' }}" href="{{ url_for('dashboard.invoices') }}" data-load="{{ url_for('dashboard.invoices') }}"><i class="bi bi-receipt"></i>Órdenes de compra</a>
+                <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.envios_admin' }}" href="{{ url_for('dashboard.envios_admin') }}" data-load="{{ url_for('dashboard.envios_admin') }}"><i class="bi bi-truck"></i>Envíos y reglas</a>
 
                 <div class="section">Catálogo</div>
-                <a class="nav-link {{ 'active' if request.endpoint in ['dashboard.lanzamientos_admin', 'dashboard.editrelease', 'dashboard.updaterelease'] }}" href="{{ url_for('dashboard.lanzamientos_admin') }}"><i class="bi bi-vinyl"></i>Lanzamientos</a>
-                <a class="nav-link {{ 'active' if request.endpoint in ['dashboard.productos_admin', 'dashboard.editproduct', 'dashboard.updateproduct'] }}" href="{{ url_for('dashboard.productos_admin') }}"><i class="bi bi-bag"></i>Productos y packs</a>
-                <a class="nav-link" href="#" data-load="{{ url_for('dashboard.newgenre_category_artist') }}"><i class="bi bi-tags"></i>Artistas, géneros y categorías</a>
+                <a class="nav-link {{ 'active' if request.endpoint in ['dashboard.lanzamientos_admin', 'dashboard.editrelease', 'dashboard.updaterelease', 'dashboard.newrelease'] }}" href="{{ url_for('dashboard.lanzamientos_admin') }}" data-load="{{ url_for('dashboard.lanzamientos_admin') }}"><i class="bi bi-vinyl"></i>Lanzamientos</a>
+                <a class="nav-link {{ 'active' if request.endpoint in ['dashboard.productos_admin', 'dashboard.editproduct', 'dashboard.updateproduct', 'dashboard.newproduct'] }}" href="{{ url_for('dashboard.productos_admin') }}" data-load="{{ url_for('dashboard.productos_admin') }}"><i class="bi bi-bag"></i>Productos y packs</a>
+                <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.newgenre_category_artist' }}" href="{{ url_for('dashboard.newgenre_category_artist') }}" data-load="{{ url_for('dashboard.newgenre_category_artist') }}"><i class="bi bi-tags"></i>Artistas, géneros y categorías</a>
 
                 <div class="section">Sitio</div>
-                <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.analytics' }}" href="{{ url_for('dashboard.analytics') }}"><i class="bi bi-graph-up"></i>Analytics</a>
-                <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.redes_admin' }}" href="{{ url_for('dashboard.redes_admin') }}"><i class="bi bi-camera-reels"></i>Redes en el inicio</a>
-                <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.tema_admin' }}" href="{{ url_for('dashboard.tema_admin') }}"><i class="bi bi-magic"></i>Tema de temporada{% if tema_modo == 'forzado' %} <span class="badge text-bg-warning">Forzado</span>{% elif tema_modo == 'apagado' %} <span class="badge text-bg-secondary">Apagado</span>{% endif %}</a>
-                <a class="nav-link {{ 'active' if request.endpoint in ['dashboard.promocion_admin'] }}" href="{{ url_for('dashboard.promocion_admin') }}"><i class="bi bi-megaphone"></i>Salir en otras páginas</a>
-                <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.notificaciones_admin' }}" href="{{ url_for('dashboard.notificaciones_admin') }}"><i class="bi bi-bell"></i>Notificaciones</a>
-                <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.suscriptores_admin' }}" href="{{ url_for('dashboard.suscriptores_admin') }}"><i class="bi bi-envelope-paper"></i>Suscriptores (drops)</a>
-                <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.batch_upload' }}" href="{{ url_for('dashboard.batch_upload') }}"><i class="bi bi-file-earmark-arrow-up"></i>Carga masiva</a>
+                <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.analytics' }}" href="{{ url_for('dashboard.analytics') }}" data-load="{{ url_for('dashboard.analytics') }}"><i class="bi bi-graph-up"></i>Analytics</a>
+                <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.redes_admin' }}" href="{{ url_for('dashboard.redes_admin') }}" data-load="{{ url_for('dashboard.redes_admin') }}"><i class="bi bi-camera-reels"></i>Redes en el inicio</a>
+                <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.tema_admin' }}" href="{{ url_for('dashboard.tema_admin') }}" data-load="{{ url_for('dashboard.tema_admin') }}"><i class="bi bi-magic"></i>Tema de temporada{% if tema_modo == 'forzado' %} <span class="badge text-bg-warning">Forzado</span>{% elif tema_modo == 'apagado' %} <span class="badge text-bg-secondary">Apagado</span>{% endif %}</a>
+                <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.promocion_admin' }}" href="{{ url_for('dashboard.promocion_admin') }}" data-load="{{ url_for('dashboard.promocion_admin') }}"><i class="bi bi-megaphone"></i>Salir en otras páginas</a>
+                <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.notificaciones_admin' }}" href="{{ url_for('dashboard.notificaciones_admin') }}" data-load="{{ url_for('dashboard.notificaciones_admin') }}"><i class="bi bi-bell"></i>Notificaciones</a>
+                <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.suscriptores_admin' }}" href="{{ url_for('dashboard.suscriptores_admin') }}" data-load="{{ url_for('dashboard.suscriptores_admin') }}"><i class="bi bi-envelope-paper"></i>Suscriptores (drops)</a>
+                <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.batch_upload' }}" href="{{ url_for('dashboard.batch_upload') }}" data-load="{{ url_for('dashboard.batch_upload') }}"><i class="bi bi-file-earmark-arrow-up"></i>Carga masiva</a>
 
                 <div class="section">Equipo</div>
-                <a class="nav-link" href="#" data-load="{{ url_for('dashboard.newadmin') }}"><i class="bi bi-person-gear"></i>Nuevo administrador</a>
+                <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.newadmin' }}" href="{{ url_for('dashboard.newadmin') }}" data-load="{{ url_for('dashboard.newadmin') }}"><i class="bi bi-person-gear"></i>Nuevo administrador</a>
                 <a class="nav-link" href="{{ url_for('home.index') }}"><i class="bi bi-shop"></i>Ver tienda</a>
             </nav>
         </div>
@@ -44,6 +45,10 @@
             <i class="bi bi-layout-sidebar me-1"></i>Menú
         </button>
         <div id="admin-content">
+            {% if contenido_panel %}
+            {# sección pedida por su URL: se mete tal cual en el armazón (ver render_seccion) #}
+            {{ contenido_panel|safe }}
+            {% else %}
             {% block content %}
             {% if stats %}
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
@@ -62,14 +67,14 @@
                 </div>
             </div>
             <div class="d-flex flex-wrap gap-2 mb-4">
-                <a class="btn btn-sm btn-outline-primary" href="#" data-load="{{ url_for('solicitud.lista', nuevo=1) }}"><i class="bi bi-send me-1"></i>Nuevo pedido a la medida</a>
-                <a class="btn btn-sm btn-outline-primary" href="#" data-quickview="{{ url_for('dashboard.newrelease') }}"><i class="bi bi-plus-lg me-1"></i>Nuevo lanzamiento</a>
-                <a class="btn btn-sm btn-outline-primary" href="#" data-quickview="{{ url_for('dashboard.newproduct') }}"><i class="bi bi-bag-plus me-1"></i>Nuevo producto</a>
+                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('solicitud.lista', nuevo=1) }}" data-load="{{ url_for('solicitud.lista', nuevo=1) }}"><i class="bi bi-send me-1"></i>Nuevo pedido a la medida</a>
+                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('dashboard.newrelease') }}" data-quickview="{{ url_for('dashboard.newrelease') }}"><i class="bi bi-plus-lg me-1"></i>Nuevo lanzamiento</a>
+                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('dashboard.newproduct') }}" data-quickview="{{ url_for('dashboard.newproduct') }}"><i class="bi bi-bag-plus me-1"></i>Nuevo producto</a>
                 <a class="btn btn-sm btn-outline-primary" href="{{ url_for('dashboard.batch_upload') }}"><i class="bi bi-file-earmark-arrow-up me-1"></i>Carga masiva</a>
             </div>
             <div class="row row-cols-2 row-cols-xl-4 g-3 mb-4">
-                <div class="col"><a class="mb-stat d-block text-decoration-none" href="#" data-load="{{ url_for('solicitud.lista') }}" title="Ver pedidos a la medida"><i class="bi bi-send"></i><div class="value mt-2">{{ stats.solicitudes_activas }}</div><div class="label">Solicitudes por atender{% if stats.solicitudes_cotizadas %} · {{ stats.solicitudes_cotizadas }} cotizadas esperando cliente{% endif %}</div></a></div>
-                <div class="col"><a class="mb-stat d-block text-decoration-none" href="#" data-load="{{ url_for('dashboard.invoices') }}" title="Ver órdenes de compra"><i class="bi bi-receipt"></i><div class="value mt-2">{{ stats.ordenes }}</div><div class="label">Pagadas · {{ stats.ventas|cop }}{% if stats.pendientes %} · {{ stats.pendientes }} pendientes{% endif %}{% if stats.pendientes_envio %} · <span class="text-warning">{{ stats.pendientes_envio }} por enviar</span>{% endif %}</div></a></div>
+                <div class="col"><a class="mb-stat d-block text-decoration-none" href="{{ url_for('solicitud.lista') }}" data-load="{{ url_for('solicitud.lista') }}" title="Ver pedidos a la medida"><i class="bi bi-send"></i><div class="value mt-2">{{ stats.solicitudes_activas }}</div><div class="label">Solicitudes por atender{% if stats.solicitudes_cotizadas %} · {{ stats.solicitudes_cotizadas }} cotizadas esperando cliente{% endif %}</div></a></div>
+                <div class="col"><a class="mb-stat d-block text-decoration-none" href="{{ url_for('dashboard.invoices') }}" data-load="{{ url_for('dashboard.invoices') }}" title="Ver órdenes de compra"><i class="bi bi-receipt"></i><div class="value mt-2">{{ stats.ordenes }}</div><div class="label">Pagadas · {{ stats.ventas|cop }}{% if stats.pendientes %} · {{ stats.pendientes }} pendientes{% endif %}{% if stats.pendientes_envio %} · <span class="text-warning">{{ stats.pendientes_envio }} por enviar</span>{% endif %}</div></a></div>
                 <div class="col"><a class="mb-stat d-block text-decoration-none" href="{{ url_for('dashboard.productos_admin', stock='agotado') }}" title="Ver productos agotados"><i class="bi bi-bag"></i><div class="value mt-2">{{ stats.productos }}</div><div class="label">Productos · {{ stats.agotados }} agotados</div></a></div>
                 <div class="col"><div class="mb-stat"><i class="bi bi-people"></i><div class="value mt-2">{{ stats.clientes }}</div><div class="label">Clientes</div></div></div>
             </div>
@@ -219,7 +224,7 @@
                     <div class="mb-panel h-100">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <h2 class="h6 mb-0">Últimas solicitudes</h2>
-                            <a href="#" class="small" data-load="{{ url_for('solicitud.lista') }}">Ver todas</a>
+                            <a href="{{ url_for('solicitud.lista') }}" class="small" data-load="{{ url_for('solicitud.lista') }}">Ver todas</a>
                         </div>
                         <div class="table-responsive">
                             <table class="table table-sm mb-0">
@@ -242,7 +247,7 @@
                     <div class="mb-panel h-100">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <h2 class="h6 mb-0">Últimas órdenes</h2>
-                            <a href="#" class="small" data-load="{{ url_for('dashboard.invoices') }}">Ver todas</a>
+                            <a href="{{ url_for('dashboard.invoices') }}" class="small" data-load="{{ url_for('dashboard.invoices') }}">Ver todas</a>
                         </div>
                         <div class="table-responsive">
                             <table class="table table-sm mb-0">
@@ -333,6 +338,7 @@
             </script>
             {% endif %}
             {% endblock %}
+            {% endif %}
         </div>
     </div>
 </div>
