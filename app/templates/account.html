@@ -32,10 +32,23 @@
                         <small class="text-body-secondary">{{ factura.f_compra|fecha_co('%d/%m/%Y %H:%M') if factura.f_compra }}{% if factura.id_factura_payco %} · Ref. {{ factura.id_factura_payco }}{% endif %}</small>
                     </div>
                     <div class="text-end">
-                        <span class="mb-estado mb-estado-{{ factura.estado }}">{{ factura.estado|capitalize }}</span>{% if factura.estado_envio %} <span class="mb-estado mb-estado-ACTIVO">{{ factura.estado_envio|capitalize }}</span>{% endif %}
+                        <span class="mb-estado mb-estado-{{ factura.estado }}">{{ factura.estado_legible }}</span>{% if factura.estado_envio %} <span class="mb-estado mb-estado-ACTIVO">{{ factura.estado_envio|capitalize }}</span>{% endif %}
                         <div class="fw-bold fs-5 mt-1">{{ factura.total|cop }}</div>
                     </div>
                 </div>
+                {% set ab = factura.abono %}
+                {% if ab and ab.estado_saldo != 'PAGADO' %}
+                <div class="alert {{ 'alert-success' if ab.estado_abono == 'PAGADO' else 'alert-warning' }} py-2 small d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                    <span>
+                        {% if ab.estado_abono == 'PAGADO' %}
+                        <i class="bi bi-check-circle-fill me-1"></i>Abono recibido. Saldo pendiente: <strong>{{ ab.p_saldo|cop }}</strong>.
+                        {% else %}
+                        <i class="bi bi-hourglass-split me-1"></i>Preorden con abono del {{ ab.porcentaje_abono|int }}%: paga <strong>{{ ab.p_abono|cop }}</strong> para asegurarla.
+                        {% endif %}
+                    </span>
+                    <a class="btn btn-sm btn-primary" href="{{ url_for('pedido.ver', token=token_pedido(factura)) }}">{{ 'Pagar el saldo' if ab.estado_abono == 'PAGADO' else 'Pagar el abono' }}</a>
+                </div>
+                {% endif %}
                 {% for item in compra[1] %}
                 {% set producto = item.producto %}
                 {% set lanz = producto.lanzamiento if producto else item.lanzamiento %}

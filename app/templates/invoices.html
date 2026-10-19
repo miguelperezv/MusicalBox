@@ -11,6 +11,17 @@
     <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="ordenes" data-filtro="todas">Todas <span class="badge text-bg-secondary">{{ invoices|length }}</span></button>
 </div>
 
+{% if conteos['ABONADO'] %}
+<form method="POST" action="{{ url_for('dashboard.recordar_saldo') }}" class="mb-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="metodo" value="email">
+    <input type="hidden" name="masivo" value="1">
+    <button type="submit" class="btn btn-sm btn-outline-primary">
+        <i class="bi bi-bell me-1"></i>Recordar saldos pendientes por correo ({{ conteos['ABONADO'] }})
+    </button>
+</form>
+{% endif %}
+
 <!-- PRIORIDAD 1: PAGADO - Requieren envío (POR PREPARAR, EN PREPARACION, ENVIADO) -->
 <div class="mb-panel p-0 mb-3" id="seccion-prioridad">
     <div class="mb-panel-header bg-success-subtle border-bottom">
@@ -100,7 +111,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for i in invoices if i.estado in ['PENDIENTE', 'RECHAZADO'] %}
+                    {% for i in invoices if i.estado in ['PENDIENTE', 'PENDIENTE_ABONO', 'ABONADO', 'RECHAZADO'] %}
                     {% include 'invoices/_fila_invoice.html' %}
                     {% else %}
                     <tr><td colspan="8" class="mb-empty text-center py-4">Sin pedidos pendientes o rechazados.</td></tr>

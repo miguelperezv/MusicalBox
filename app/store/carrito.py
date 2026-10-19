@@ -1,6 +1,6 @@
 """Carrito en la sesión: {"producto" o "producto:variante": cantidad}."""
 from ..db import db
-from .models import Producto, Variante, clave_carrito, nombre_linea, requiere_variante, stock_disponible, validar_carrito, es_preorden
+from .models import Producto, Variante, clave_carrito, nombre_linea, requiere_variante, stock_disponible, validar_carrito, es_preorden, porcentaje_abono_producto
 
 
 def _leer_clave(clave):
@@ -61,7 +61,7 @@ def resumen(cart):
         falta_variante = requiere_variante(producto) and variante is None
         lineas.append({"clave": clave, "producto": producto, "variante": variante, "cantidad": cantidad,
                        "disponible": disponible, "subtotal": producto.p_producto * cantidad,
-                       "preorden": preorden,
+                       "preorden": preorden, "porcentaje_abono": porcentaje_abono_producto(producto),
                        "problema": "Elige talla o color" if falta_variante else
                                    (f"Solo quedan {disponible}" if cantidad > disponible else None)})
         total += producto.p_producto * cantidad

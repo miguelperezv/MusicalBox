@@ -94,10 +94,52 @@ def pedido_rotulo(k_invoice):
 @dashboard.route("/pedido/<int:k_invoice>/rechazar", methods=["POST"])
 def pedido_rechazar(k_invoice):
     p = db.session.get(Invoice, k_invoice) or abort(404)
-    if p.estado != 'PENDIENTE':
+    if p.estado not in ('PENDIENTE', 'PENDIENTE_ABONO', 'ABONADO'):
         return jsonify({"error": "Solo se pueden rechazar los pedidos pendientes de pago"}), 400
     rechazar_pago(p, "rechazo manual")
     return jsonify({"estado": p.estado})
+
+
+@dashboard.route("/recordar-saldo", methods=["POST"])
+def recordar_saldo():
+    """Recordatorio del saldo de una preorden abonada: por correo (uno o masivo) o devuelve el
+    enlace de WhatsApp para que el admin lo mande. El historial queda en abono_pago."""
+    from .models import AbonoPago, marcar_recordatorio, token_pedido
+    from .notificaciones import correo_saldo_pendiente
+    metodo = (request.form.get("metodo") or "email").strip().lower()
+    if request.form.get("masivo"):
+        pendientes = AbonoPago.query.filter(AbonoPago.estado_abono == 'PAGADO',
+                                            AbonoPago.estado_saldo != 'PAGADO').all()
+        enviados = 0
+        for ab in pendientes:
+            p = db.session.get(Invoice, ab.k_invoice)
+            if p and correo_saldo_pendiente(p, ab):
+                marcar_recordatorio(ab)
+                enviados += 1
+        flash(f"Recordatorios de saldo enviados: {enviados}", "success")
+        return redirect(url_for('dashboard.invoices'))
+    k_invoice = request.form.get("k_invoice", type=int)
+    p = db.session.get(Invoice, k_invoice) if k_invoice else None
+    ab = p.abono if p else None
+    if not p or not ab or ab.estado_abono != 'PAGADO' or ab.estado_saldo == 'PAGADO':
+        flash("Ese pedido no tiene un saldo pendiente", "warning")
+        return redirect(request.referrer or url_for('dashboard.invoices'))
+    if metodo == "whatsapp":
+        tel = (p.tel_envio or "").strip()
+        if not tel:
+            return jsonify({"error": "El pedido no tiene celular"}), 400
+        from .promocion import whatsapp_enlace
+        mensaje = (f"Musical Box: tu pedido #{p.id} está abonado y le queda un saldo de "
+                   f"${int(ab.p_saldo or 0):,}".replace(",", ".") +
+                   f". Puedes pagarlo aquí: {url_for('pedido.ver', token=token_pedido(p), _external=True)}")
+        marcar_recordatorio(ab)
+        return jsonify({"enlace": whatsapp_enlace(tel, mensaje), "saldo": float(ab.p_saldo or 0)})
+    if correo_saldo_pendiente(p, ab):
+        marcar_recordatorio(ab)
+        flash(f"Recordatorio enviado a {p.email_envio}", "success")
+    else:
+        flash("No se pudo enviar el recordatorio (revisa el correo del pedido)", "warning")
+    return redirect(request.referrer or url_for('dashboard.invoices'))
 
 
 @dashboard.route("/pedido/<int:k_invoice>/nota", methods=["POST"])

@@ -6,7 +6,7 @@ from flask import Blueprint, Response, current_app, flash, session, request, g, 
 #from app.store.models import create_new_user, get_all_artists, get_user_by_email, create_new_artist
 from .models import create_new_user, get_all_artists, get_user_by_email, create_new_artist, get_k_artist_by_name, obtener_artista, create_new_release, get_release_by_name, get_releases_with_artists, get_categories, create_new_product, get_k_release_by_name_artista, create_new_category, create_new_genre, create_release_genre, new_admin, get_all_releases, get_artist_by_release, get_categories_by_release, get_release_by_id, get_genres_by_release, get_products_by_release, get_product_by_id, get_artist_by_release, update_release, get_products_with_info, edit_product, create_new_image, get_rawimage_by_product, edit_image, get_items_by_id_factura, Imagen, Producto
 from .models import actualizar_lanzamiento_spotify, buscar_o_crear_lanzamiento
-from .models import producto_card, lanzamiento_tiene_original, ESTADOS_ENVIO, ESTADOS_CON_ROTULO, Invoice,opciones_componentes, stock_disponible, get_usuario_por_email, get_artist_by_id, get_releases_cards, get_products_cards, get_generos, get_categorias, get_admin_stats, edit_user_by_email, get_purchases_by_user, get_all_invoices, get_solicitudes_by_user, validar_carrito, crear_pedido, get_images_by_product, get_first_image_by_product, crear_variante, agregar_componente, normalizar_url_imagen, validar_url_imagen, Lanzamiento, get_eventos_analytics
+from .models import producto_card, lanzamiento_tiene_original, ESTADOS_ENVIO, ESTADOS_CON_ROTULO, Invoice,opciones_componentes, stock_disponible, get_usuario_por_email, get_artist_by_id, get_releases_cards, get_products_cards, get_generos, get_categorias, get_admin_stats, edit_user_by_email, get_purchases_by_user, get_all_invoices, get_solicitudes_by_user, validar_carrito, crear_pedido, get_images_by_product, get_first_image_by_product, crear_variante, agregar_componente, normalizar_url_imagen, validar_url_imagen, Lanzamiento, get_eventos_analytics, token_pedido
 from .analytics import track_event, Events
 from .models import MESES, datos_envio_previos
 import csv
@@ -382,7 +382,7 @@ def account():
         compras = get_purchases_by_user(session.get("user", {}).get("email_usuario", ""))
         solicitudes = get_solicitudes_by_user(session.get("user", {}).get("email_usuario", ""))
 
-    return render_template("account.html",  user=g.user, purchase_cart = g.purchase, form = edit_usuario, compras = compras, solicitudes = solicitudes, get_product_by_id = get_product_by_id, get_release_by_id = get_release_by_id )
+    return render_template("account.html",  user=g.user, purchase_cart = g.purchase, form = edit_usuario, compras = compras, solicitudes = solicitudes, get_product_by_id = get_product_by_id, get_release_by_id = get_release_by_id, token_pedido = token_pedido )
 
 PERIODOS_DASHBOARD = [30, 90, 365]
 
@@ -529,6 +529,9 @@ def newproduct():
         product = create_new_product(k_lanzamiento, n_producto, p_producto, d_producto, stock, i_producto, k_categoria, form_new_product.tipo.data, url_imagen=url_imagen)
         if product:
             product.original_mb = bool(form_new_product.original_mb.data)
+            #la preorden (y su abono) solo aplica a SIMPLE sin tallas; las tallas se agregan después
+            product.preorden = bool(form_new_product.preorden.data) and product.tipo == 'SIMPLE' and not product.variantes
+            product.porcentaje_abono = form_new_product.porcentaje_abono.data if product.preorden else None
             db.session.commit()
             if image_files:
                 create_multiple_images(product.id, image_files)
@@ -623,11 +626,15 @@ def invoices():
     #conteos para los chips de filtro: prioridad (pagados que requieren envío), pendientes, rechazadas, entregadas
     prioridad = Invoice.query.filter(Invoice.estado == 'PAGADO', Invoice.estado_envio.in_(['POR PREPARAR', 'EN PREPARACION', 'ENVIADO'])).count()
     pendientes = Invoice.query.filter_by(estado='PENDIENTE').count()
+    pendientes_abono = Invoice.query.filter_by(estado='PENDIENTE_ABONO').count()
+    abonados = Invoice.query.filter_by(estado='ABONADO').count()
     rechazadas = Invoice.query.filter_by(estado='RECHAZADO').count()
     entregadas = Invoice.query.filter(Invoice.estado == 'PAGADO', Invoice.estado_envio == 'ENTREGADO').count()
     conteos = {
         'prioridad': prioridad,
-        'PENDIENTE': pendientes,
+        'PENDIENTE': pendientes + pendientes_abono + abonados,
+        'PENDIENTE_ABONO': pendientes_abono,
+        'ABONADO': abonados,
         'RECHAZADO': rechazadas,
         'ENTREGADO': entregadas,
     }
@@ -635,7 +642,8 @@ def invoices():
         conteos[e] = Invoice.query.filter(Invoice.estado == 'PAGADO', Invoice.estado_envio == e).count()
     return render_seccion("invoices.html", invoices=get_all_invoices(), get_items_by_id_factura=get_items_by_id_factura,
                            estados_envio=ESTADOS_ENVIO, con_rotulo=ESTADOS_CON_ROTULO,
-                           conteos=conteos, busca=request.args.get("busca", "").strip())
+                           conteos=conteos, busca=request.args.get("busca", "").strip(),
+                           token_pedido=token_pedido)
 
 
 @dashboard.route("/invoices/<int:id>/eliminar", methods=["POST"])
@@ -644,9 +652,9 @@ def invoice_eliminar(id):
     inv = db.session.get(Invoice, id)
     if not inv:
         return jsonify({"error": "Pedido no encontrado"}), 404
-    # Solo permitir eliminar si está PENDIENTE (no pagado)
-    if inv.estado != 'PENDIENTE':
-        return jsonify({"error": "Solo se pueden eliminar pedidos PENDIENTES"}), 400
+    # Solo permitir eliminar si todavía no entró ningún pago (ni abono)
+    if inv.estado not in ('PENDIENTE', 'PENDIENTE_ABONO'):
+        return jsonify({"error": "Solo se pueden eliminar pedidos sin pago confirmado"}), 400
     # Liberar stock reservado si existe
     if inv.stock_reservado:
         from .models import liberar_reserva_stock
@@ -802,6 +810,9 @@ def updateproduct(k_producto):
             prod.original_mb = request.form.get("original_mb") == "y"
             #preorden solo para SIMPLE sin tallas (igual que los pedidos a la medida)
             prod.preorden = request.form.get("preorden") == "y" and prod.tipo == 'SIMPLE' and not prod.variantes
+            #el abono solo vive mientras el producto siga siendo una preorden válida
+            pct = form.porcentaje_abono.data
+            prod.porcentaje_abono = pct if (prod.preorden and pct) else None
             db.session.commit()
         if result:
             flash("Se actualizó el producto")
@@ -829,6 +840,7 @@ def updateproduct(k_producto):
         form_edit_product.k_category.data = producto.k_categoria
         form_edit_product.original_mb.data = producto.original_mb
         form_edit_product.preorden.data = bool(producto.preorden)
+        form_edit_product.porcentaje_abono.data = int(producto.porcentaje_abono or 0) or None
         return render_seccion("editProduct.html", form = form_edit_product, producto = producto, opciones_componentes = opciones_componentes, stock_disponible = stock_disponible)
     return redirect(url_for('dashboard.editproduct'))
 
@@ -1133,9 +1145,12 @@ def summary():
         cats[cat] = cats.get(cat, 0) + int(l["cantidad"])
     from .envio import aviso_envio_gratis
     envio_aviso = aviso_envio_gratis([(l["producto"], l["variante"], int(l["cantidad"])) for l in lineas], total)
+    from .models import calcular_abono
+    abono = calcular_abono([(l["producto"], l["variante"], int(l["cantidad"]), l["producto"].p_producto)
+                            for l in lineas], total)
     return render_template("purchase.html", lineas=lineas, total=total, errores=errores,
                            cats="|".join(f"{k}:{v}" for k, v in sorted(cats.items())),
-                           envio_aviso=envio_aviso)
+                           envio_aviso=envio_aviso, abono=abono)
 
 
 @purchase.route("/addtocart" ,methods=["POST"])
@@ -1203,7 +1218,10 @@ def checkout():
                             "subtotal": l["subtotal"], "idx": i, "retirado": False,
                             "disponible": l["disponible"], "preorden": l["preorden"]})
 
-    return render_template("checkout.html", form=form, lineas=linea_vista, total=total,
+    from .models import calcular_abono
+    abono = calcular_abono([(l["producto"], l["variante"], int(l["cantidad"]), l["producto"].p_producto)
+                            for l in lineas], total)
+    return render_template("checkout.html", form=form, lineas=linea_vista, total=total, abono=abono,
                            accion=url_for('purchase.process_checkout'),
                            previos=bool(fuente) and not intento, solicitud=None,
                            cats="|".join(f"{k}:{v}" for k, v in sorted(cats.items())))

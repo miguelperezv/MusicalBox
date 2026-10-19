@@ -88,7 +88,7 @@
                         {% if l.producto and not solicitud %}
                         <div class="mt-1 d-flex align-items-center gap-2 flex-wrap">
                             {% if l.preorden %}
-                            <span class="badge bg-primary-subtle text-primary-emphasis small"><i class="bi bi-hourglass-split me-1"></i>Preorden: paga hoy y llega con la tirada</span>
+                            <span class="badge bg-primary-subtle text-primary-emphasis small"><i class="bi bi-hourglass-split me-1"></i>Preorden{% if l.producto.porcentaje_abono %} · abono del {{ l.producto.porcentaje_abono|int }}%{% else %}: paga hoy y llega con la tirada{% endif %}</span>
                             {% else %}
                             {% set stock = l.disponible if l.disponible is defined else (l.producto.stock|default(0)) %}
                             {% if stock > 0 %}
@@ -105,6 +105,11 @@
                 </div>
                 {% endfor %}
                 <hr>
+                {% if abono %}
+                <div class="alert alert-warning small py-2 mb-2">
+                    <i class="bi bi-piggy-bank me-1"></i><strong>Preorden con abono:</strong> hoy pagas el abono del {{ abono.porcentaje|int }}% ({{ abono.p_abono|cop }}) más el envío. El saldo ({{ abono.p_saldo|cop }}) lo pagas cuando llegue la tirada.
+                </div>
+                {% endif %}
                 <div class="d-flex justify-content-between align-items-baseline mb-1">
                     <span class="text-body-secondary">Envío</span><span id="total-envio" class="text-body-secondary small">Se estima al escribir tu municipio</span>
                 </div>

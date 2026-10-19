@@ -5,9 +5,10 @@ import hmac
 import time
 import mercadopago
 from mercadopago import config as mp_config
-from ..models import Invoice, confirmar_pago, rechazar_pago
-from ..notificaciones import correo_pedido_pagado
-from ..notif_admin import (aviso_pago_aprobado, aviso_pago_rechazado,
+from ..models import (Invoice, confirmar_pago, rechazar_pago, etapa_pago,
+                      estado_pagable, pago_ya_registrado)
+from ..notificaciones import notificar_pago_aprobado
+from ..notif_admin import (aviso_pago_rechazado,
                            aviso_pago_de_otro_monto, aviso_pago_no_creado)
 from ..analytics import track_event, Events
 
@@ -51,8 +52,9 @@ def get_mp_sdk():
     return mercadopago.SDK(current_app.config["MERCADOPAGO_ACCESS_TOKEN"])
 
 def monto_pedido(inv):
-    #lo que se cobra en la pasarela: el total de la orden + el costo de envío calculado al crearla
-    return float((inv.total or 0) + (inv.p_envio or 0))
+    #lo que se cobra en la pasarela: el abono (con envío), el saldo, o el total de la orden
+    _etapa, _ab, monto = etapa_pago(inv)
+    return float(monto)
 
 
 def _monto_coincide(pago, inv):
@@ -95,9 +97,9 @@ def create_preference(token):
     
     current_app.logger.info(f"[MP] Pedido encontrado: {inv.id}, estado: {inv.estado}")
     
-    if inv.estado != "PENDIENTE":
-        current_app.logger.warning(f"[MP] Pedido {inv.id} no está en estado PENDIENTE: {inv.estado}")
-        return jsonify({"error": "El pedido no está en estado PENDIENTE"}), 409
+    if not estado_pagable(inv):
+        current_app.logger.warning(f"[MP] Pedido {inv.id} no tiene un pago pendiente: {inv.estado}")
+        return jsonify({"error": "El pedido no tiene un pago pendiente"}), 409
     
     current_app.logger.info(f"[MP] Devolviendo contexto para pedido {inv.id}: amount={monto_pedido(inv)}, email={inv.email_envio}")
     
@@ -134,9 +136,9 @@ def process_payment():
     current_app.logger.info("[MP] pedido %s (%s) · medio %s · total %s + envío %s",
                             inv.id, inv.estado, payload.get("payment_method_id"),
                             inv.total, inv.p_envio)
-    if inv.estado != "PENDIENTE":
-        current_app.logger.warning("[MP] el pedido %s no está PENDIENTE: %s", inv.id, inv.estado)
-        return jsonify({"error": "El pedido no está en estado PENDIENTE"}), 409
+    if not estado_pagable(inv):
+        current_app.logger.warning("[MP] el pedido %s no tiene pago pendiente: %s", inv.id, inv.estado)
+        return jsonify({"error": "El pedido no tiene un pago pendiente"}), 409
 
     # Seguridad: monto desde la BD (no confiar en el frontend)
     payer_email = inv.email_envio
@@ -181,14 +183,14 @@ def process_payment():
                                                inv.mp_payment_id, inv.id, monto, monto_pedido(inv))
                     return jsonify({"error": "El monto no coincide con el pedido"}), 409
                 current_app.logger.info("[MP] pago ya aprobado, confirmando el pedido %s", inv.id)
+                etapa = inv.etapa_pago
                 inv.mp_payment_id = str(mp_body.get("id") or "")
                 p, nuevo = confirmar_pago(inv, inv.mp_payment_id, inv.mp_payment_id, "pse")
                 if nuevo:
                     try:
-                        correo_pedido_pagado(p, token_pedido)
+                        notificar_pago_aprobado(p, token_pedido, etapa)
                     except Exception as e:
-                        current_app.logger.exception(f"[MP] Fallo envío de email para pedido {inv.id}: {e}")
-                    aviso_pago_aprobado(p, token_pedido)
+                        current_app.logger.exception(f"[MP] Fallo en la notificación del pedido {inv.id}: {e}")
                 return jsonify({"mp_status": 200, "mp_response": mp_body, "payment_id": inv.mp_payment_id,
                                 "status": mp_status, "status_detail": mp_body.get("status_detail"),
                                 "approved": True}), 200
@@ -378,6 +380,7 @@ def process_payment():
 
     # Confirmación: confirmar_pago() es idempotente y completa el pedido de un solo paso
     # (estado_envio POR PREPARAR, solicitud→COMPRADA, liberar reservas y stock)
+    etapa = inv.etapa_pago
     if mp_body.get("status") == "approved":
         ok, monto = _monto_coincide(mp_body, inv)
         if not ok:
@@ -385,27 +388,27 @@ def process_payment():
                                        mp_body.get("id"), inv.id, monto, monto_pedido(inv))
             return jsonify({"error": "El monto no coincide con el pedido"}), 409
         inv.mp_payment_id = str(mp_body.get("id") or "")
+        monto_etapa = monto_pedido(inv)
         p, nuevo = confirmar_pago(inv, inv.mp_payment_id, inv.mp_payment_id, payment_method_id)
         if nuevo:
             try:
                 #el payload manda el token plano como "token_hash": es el que va en el enlace del correo
-                correo_pedido_pagado(p, token_pedido)
+                notificar_pago_aprobado(p, token_pedido, etapa)
             except Exception as e:
-                current_app.logger.exception("[MP] falló el correo del pedido %s: %s", inv.id, e)
-            aviso_pago_aprobado(p, token_pedido)
+                current_app.logger.exception("[MP] falló la notificación del pedido %s: %s", inv.id, e)
             current_app.logger.info("[MP] pedido %s confirmado, stock y solicitud actualizados", inv.id)
         # Track purchase
         track_event(Events.PURCHASE, {
             'pedido_id': inv.id,
             'payment_id': mp_body.get("id"),
-            'amount': monto_pedido(inv),
+            'amount': monto if monto is not None else monto_etapa,
             'payment_method': payment_method_id,
             'token_hash': inv.token_hash
         })
     elif mp_body.get("status") == "rejected":
         current_app.logger.info("[MP] pago rechazado para el pedido %s: %s", inv.id, mp_body.get("status_detail"))
         rechazar_pago(inv, str(mp_body.get("id") or ""))
-        aviso_pago_rechazado(inv, token_pedido)
+        aviso_pago_rechazado(inv, token_pedido, etapa)
     elif mp_http_status == 424:
         # Error específico de BankTransfers Api fail: el pedido queda PENDIENTE para reintentar
         causa = _detalle_causa(mp_body)
@@ -565,9 +568,17 @@ def process_payment_notification(data):
                                 payment_id, inv.id, inv.estado, payment_status, payment_method_id,
                                 payment.get("transaction_amount"))
 
-        if payment_status == "approved" and inv.estado == "PENDIENTE":
-            #el pago tiene que ser por el monto que se cobró (total + envío): si no cuadra no se
-            #confirma nada, se avisa al admin y se responde 200 (reintentar no lo va a arreglar)
+        if payment_status == "approved":
+            if pago_ya_registrado(inv, payment_id):
+                current_app.logger.info("[MP-WEBHOOK] pago %s ya registrado para el pedido %s", payment_id, inv.id)
+                return jsonify({"status": "already_processed"}), 200
+            etapa = inv.etapa_pago
+            if not etapa:
+                current_app.logger.info("[MP-WEBHOOK] el pedido %s ya no tiene pago pendiente (%s)",
+                                        inv.id, inv.estado)
+                return jsonify({"status": "already_processed"}), 200
+            #el pago tiene que ser por el monto de la etapa (abono+envío, saldo o total): si no
+            #cuadra no se confirma nada, se avisa al admin y se responde 200 (reintentar no lo arregla)
             ok, monto = _monto_coincide(payment, inv)
             if not ok:
                 current_app.logger.warning("[MP-WEBHOOK] monto distinto en el pedido %s: pagó %s y vale %s",
@@ -583,22 +594,29 @@ def process_payment_notification(data):
             if nuevo:
                 try:
                     #aquí solo hay el hash del token: el enlace del correo puede no resolver (caso PSE tardío)
-                    correo_pedido_pagado(p, p.token_hash)
+                    notificar_pago_aprobado(p, p.token_hash, etapa)
                 except Exception as e:
-                    current_app.logger.exception("[MP-WEBHOOK] falló el correo del pedido %s: %s", inv.id, e)
-                aviso_pago_aprobado(p, p.token_hash)
-                current_app.logger.info("[MP-WEBHOOK] pedido %s confirmado", inv.id)
+                    current_app.logger.exception("[MP-WEBHOOK] falló la notificación del pedido %s: %s", inv.id, e)
+                current_app.logger.info("[MP-WEBHOOK] pedido %s confirmado (%s)", inv.id, etapa or "TOTAL")
             else:
                 current_app.logger.info("[MP-WEBHOOK] pedido %s ya estaba confirmado", inv.id)
             return jsonify({"status": "processed"}), 200
 
         if payment_status in ("rejected", "cancelled", "refunded"):
-            if inv.estado == "PENDIENTE":
-                inv.mp_payment_id = str(payment.get("id", ""))
-                rechazar_pago(inv, inv.mp_payment_id)
-                aviso_pago_rechazado(inv, inv.token_hash)
-                current_app.logger.info("[MP-WEBHOOK] pedido %s marcado como rechazado", inv.id)
-                return jsonify({"status": "processed"}), 200
+            #solo se rechaza si el pago corresponde a la etapa pendiente (evita pisar el abono
+            #cuando el banco reintenta una notificación vieja del mismo pago)
+            etapa = inv.etapa_pago
+            if etapa and not pago_ya_registrado(inv, payment_id):
+                ok, _monto = _monto_coincide(payment, inv)
+                if ok:
+                    inv.mp_payment_id = str(payment.get("id", ""))
+                    rechazar_pago(inv, inv.mp_payment_id)
+                    aviso_pago_rechazado(inv, inv.token_hash, etapa)
+                    current_app.logger.info("[MP-WEBHOOK] pedido %s marcado como rechazado (%s)", inv.id, etapa)
+                    return jsonify({"status": "processed"}), 200
+                current_app.logger.info("[MP-WEBHOOK] rechazo de %s no corresponde a la etapa %s del pedido %s",
+                                        payment_id, etapa, inv.id)
+                return jsonify({"status": "not_handled"}), 200
             current_app.logger.info("[MP-WEBHOOK] pedido %s ya estaba en %s", inv.id, inv.estado)
             return jsonify({"status": "already_processed"}), 200
 

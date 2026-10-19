@@ -75,6 +75,8 @@ class Producto(db.Model):
     original_mb = db.Column(db.Boolean, nullable=False, default=False, server_default='0')
     #preorden: se vende antes de que llegue la tirada (paga hoy, llega después); solo SIMPLE sin tallas
     preorden = db.Column(db.Boolean, nullable=False, default=False, server_default='0')
+    #porcentaje del precio que se cobra como abono en una preorden (1-99; NULL = pago completo)
+    porcentaje_abono = db.Column(db.Numeric(5,2))
     #atributos de la relacion
     lanzamiento = db.relationship("Lanzamiento")
     categoria = db.relationship("Categoria")
@@ -251,11 +253,67 @@ class Invoice(db.Model):
     guia = db.Column(db.String(60))
     #nota interna del admin (corrección de dirección, detalles del cliente, etc.)
     nota = db.Column(db.Text)
+    #pagos parciales de una preorden: monto del abono y saldo que queda por cobrar
+    es_preorden_abonada = db.Column(db.Boolean, nullable=False, default=False, server_default='0')
+    monto_abono = db.Column(db.Numeric(13,2))
+    monto_saldo = db.Column(db.Numeric(13,2))
     #atributos de la relacion
     usuario = db.relationship("Usuario")
     items = db.relationship("Item", viewonly=True, order_by="Item.id")
+    abono = db.relationship("AbonoPago", uselist=False, back_populates="invoice", cascade="all, delete-orphan")
 
-ESTADOS_PEDIDO = ['PENDIENTE', 'PAGADO', 'RECHAZADO']
+    @property
+    def estado_legible(self):
+        return {'PENDIENTE': 'Pendiente', 'PENDIENTE_ABONO': 'Abono pendiente',
+                'ABONADO': 'Abonado', 'PAGADO': 'Pagado',
+                'RECHAZADO': 'Rechazado'}.get(self.estado, self.estado)
+
+    @property
+    def monto_pago(self):
+        #lo que hay que cobrar ahora: abono (con envío) o saldo; sin abono, el total completo
+        _etapa, _abono, monto = etapa_pago(self)
+        return monto
+
+    @property
+    def etapa_pago(self):
+        etapa, _abono, _monto = etapa_pago(self)
+        return etapa
+
+    @property
+    def saldo_pendiente(self):
+        ab = self.abono
+        if ab and ab.estado_abono == 'PAGADO' and ab.estado_saldo != 'PAGADO':
+            return float(ab.p_saldo or 0)
+        return 0
+
+
+class AbonoPago(db.Model):
+    #dos pagos de una preorden: el abono que asegura el pedido y el saldo cuando llega la tirada.
+    #la tabla guarda los montos, los ids de MercadoPago y el historial de recordatorios.
+    __tablename__ = 'abono_pago'
+    id = db.Column(db.Integer, primary_key=True)
+    k_invoice = db.Column(db.Integer, db.ForeignKey("invoice.id"), nullable=False, unique=True, index=True)
+    tipo = db.Column(db.String(10), nullable=False, default='ABONO', server_default='ABONO')
+    porcentaje_abono = db.Column(db.Numeric(5,2))
+    p_abono = db.Column(db.Numeric(13,2), nullable=False)
+    p_saldo = db.Column(db.Numeric(13,2), nullable=False)
+    p_abono_pagado = db.Column(db.Numeric(13,2))
+    p_saldo_pagado = db.Column(db.Numeric(13,2))
+    estado_abono = db.Column(db.String(20), nullable=False, default='PENDIENTE', server_default='PENDIENTE')
+    estado_saldo = db.Column(db.String(20), nullable=False, default='PENDIENTE', server_default='PENDIENTE')
+    mp_pref_id_abono = db.Column(db.String(100))
+    mp_pref_id_saldo = db.Column(db.String(100))
+    mp_payment_id_abono = db.Column(db.String(100))
+    mp_payment_id_saldo = db.Column(db.String(100))
+    f_pago_abono = db.Column(db.DateTime)
+    f_pago_saldo = db.Column(db.DateTime)
+    f_recordatorio = db.Column(db.DateTime)
+    n_recordatorios = db.Column(db.Integer, nullable=False, default=0, server_default='0')
+    f_creacion = db.Column(db.DateTime, default=datetime.now)
+    #atributos de la relacion
+    invoice = db.relationship("Invoice", back_populates="abono")
+
+ESTADOS_PEDIDO = ['PENDIENTE', 'PENDIENTE_ABONO', 'ABONADO', 'PAGADO', 'RECHAZADO']
 ESTADOS_ENVIO = ['POR PREPARAR', 'EN PREPARACION', 'ENVIADO', 'ENTREGADO']
 #el rótulo solo tiene sentido cuando el pedido se está preparando o ya salió
 ESTADOS_CON_ROTULO = ['EN PREPARACION', 'ENVIADO']
@@ -1308,6 +1366,7 @@ def get_products_cards(limit=None, k_lanzamiento=None, categoria=None, orden='re
             "incluye": [f"{c.cantidad} × {c.componente.n_producto}" + (f" ({c.variante.nombre})" if c.variante else "") for c in p.componentes] if p.tipo == 'BUNDLE' else [],
             "original": es_original(p),
             "preorden": es_preorden(p),
+            "porcentaje_abono": porcentaje_abono_producto(p),
             #pack: imágenes de sus productos para armar el collage (máx. 4)
             "collage": [{"id": c.componente.id, "nombre": c.componente.n_producto, "respaldo": c.componente.lanzamiento.i_lanzamiento if c.componente.lanzamiento else ''}
                         for c in p.componentes][:4] if p.tipo == 'BUNDLE' else [],
@@ -1544,7 +1603,7 @@ def get_admin_stats(dias=30):
     if pre_ids:
         filas_pre = (db.session.query(Item.k_producto, db.func.sum(Item.cant_item))
                      .join(Invoice, Invoice.id == Item.k_factura)
-                     .filter(Invoice.estado == 'PAGADO', Item.k_producto.in_(pre_ids),
+                     .filter(Invoice.estado.in_(('PAGADO', 'ABONADO')), Item.k_producto.in_(pre_ids),
                              db.or_(Invoice.estado_envio.is_(None), Invoice.estado_envio != 'ENTREGADO'))
                      .group_by(Item.k_producto).all())
         for k_prod, unidades in filas_pre:
@@ -1800,6 +1859,88 @@ def nombre_linea(producto, variante=None):
 def clave_carrito(k_producto, k_variante=None):
     return f"{int(k_producto)}:{int(k_variante)}" if k_variante else str(int(k_producto))
 
+def porcentaje_abono_producto(producto):
+    """Porcentaje de abono configurado, solo si el producto es una preorden válida (SIMPLE sin tallas)."""
+    if not es_preorden(producto):
+        return 0
+    try:
+        pct = float(producto.porcentaje_abono or 0)
+    except (TypeError, ValueError):
+        return 0
+    return pct if 0 < pct < 100 else 0
+
+
+def calcular_abono(lineas, total):
+    """Devuelve {porcentaje, p_abono, p_saldo} si TODAS las líneas son preórdenes con el mismo
+    porcentaje de abono; si no, None (el pedido se cobra completo). Las líneas tienen la forma
+    (producto, variante, cantidad, precio, k_lanzamiento, n_item)."""
+    if not lineas:
+        return None
+    porcentaje = None
+    p_abono = 0
+    for producto, _variante, cantidad, precio, *_resto in lineas:
+        pct = porcentaje_abono_producto(producto)
+        if not pct:
+            return None
+        if porcentaje is None:
+            porcentaje = pct
+        elif abs(porcentaje - pct) > 0.01:
+            return None
+        precio_unit = precio if precio is not None else (producto.p_producto if producto else 0)
+        p_abono += int(round(float(precio_unit or 0) * int(cantidad or 0) * pct / 100.0))
+    p_saldo = int(total or 0) - p_abono
+    if p_abono <= 0 or p_saldo <= 0:
+        return None
+    return {"porcentaje": porcentaje, "p_abono": p_abono, "p_saldo": p_saldo}
+
+
+def abono_de(pedido):
+    return AbonoPago.query.filter_by(k_invoice=pedido.id).first()
+
+
+def etapa_pago(pedido):
+    """(etapa, abono, monto) que toca cobrar: ('ABONO', fila, abono+envío), ('SALDO', fila, saldo)
+    o ('TOTAL', None, total+envío) si el pedido se cobra completo; (None, ...) si ya está pagado."""
+    ab = abono_de(pedido)
+    total_envio = float((pedido.total or 0) + (pedido.p_envio or 0))
+    if not ab:
+        return (None if pedido.estado == 'PAGADO' else 'TOTAL'), None, total_envio
+    if ab.estado_abono != 'PAGADO':
+        return 'ABONO', ab, float(ab.p_abono or 0) + float(pedido.p_envio or 0)
+    if ab.estado_saldo != 'PAGADO':
+        return 'SALDO', ab, float(ab.p_saldo or 0)
+    return None, ab, total_envio
+
+
+def estado_pagable(pedido):
+    """¿La página del pedido puede abrir el brick? También permite reintentar un pago rechazado."""
+    if pedido.estado == 'PAGADO':
+        return False
+    etapa, _ab, _monto = etapa_pago(pedido)
+    return etapa is not None and pedido.estado in ('PENDIENTE', 'PENDIENTE_ABONO', 'ABONADO', 'RECHAZADO')
+
+
+def pago_ya_registrado(pedido, pago_id):
+    """Idempotencia por id de pago: MercadoPago puede reintentar el mismo webhook."""
+    if not pago_id:
+        return False
+    pago_id = str(pago_id)
+    ab = abono_de(pedido)
+    if ab:
+        if pago_id in (str(ab.mp_payment_id_abono or ''), str(ab.mp_payment_id_saldo or '')):
+            return True
+    if str(pedido.id_factura_payco or '') == pago_id:
+        return True
+    return pedido.estado == 'PAGADO' and str(pedido.mp_payment_id or '') == pago_id
+
+
+def marcar_recordatorio(abono):
+    #el panel cuenta cuántos recordatorios de saldo se han mandado por pedido
+    abono.f_recordatorio = datetime.now()
+    abono.n_recordatorios = int(abono.n_recordatorios or 0) + 1
+    db.session.commit()
+
+
 def validar_carrito(cart):
     """Devuelve (lineas, total, errores) con lineas = [(producto, variante, cantidad)].
     Claves del carrito: "producto" o "producto:variante". El stock se revisa sumando lo que pide todo el
@@ -1879,6 +2020,9 @@ def crear_pedido(cart, datos, k_usuario=None, cotizacion=None, p_envio_fijado=No
     else:
         envio = costo_envio(lineas, total, datos["ciudad"])
 
+    #pago parcial: solo si todo el pedido son preórdenes con el mismo porcentaje de abono
+    abono = calcular_abono(lineas, total)
+
     # Validar que los datos de envío no estén vacíos
     nombre_envio = datos["nombre"].strip()
     email_envio = datos["email"].strip().lower()
@@ -1900,7 +2044,12 @@ def crear_pedido(cart, datos, k_usuario=None, cotizacion=None, p_envio_fijado=No
             token = secrets.token_urlsafe(32)
             
             # Solo guardar datos de envío si son válidos
-            pedido = Invoice(k_usuario=comprador.id, total=total, estado='PENDIENTE', metodo_pago=datos.get("metodo_pago"),
+            pedido = Invoice(k_usuario=comprador.id, total=total,
+                             estado='PENDIENTE_ABONO' if abono else 'PENDIENTE',
+                             metodo_pago=datos.get("metodo_pago"),
+                             es_preorden_abonada=bool(abono),
+                             monto_abono=abono["p_abono"] if abono else None,
+                             monto_saldo=abono["p_saldo"] if abono else None,
                              token_hash=hash_token(token), token_creado=datetime.now(),
                              p_envio=float(envio["p_envio"]) if envio else 0,
                              d_envio=(envio["detalle"][:100] if envio else None),
@@ -1920,7 +2069,14 @@ def crear_pedido(cart, datos, k_usuario=None, cotizacion=None, p_envio_fijado=No
                             k_lanzamiento=k_lanzamiento, n_item=n_item,
                             cant_item=cantidad, p_item=precio if precio is not None else producto.p_producto)
                 db.session.add(item)
-            
+
+            #preorden abonada: dos pagos (abono hoy, saldo cuando llegue la tirada)
+            if abono:
+                db.session.add(AbonoPago(k_invoice=pedido.id, tipo='ABONO',
+                                         porcentaje_abono=abono["porcentaje"],
+                                         p_abono=abono["p_abono"], p_saldo=abono["p_saldo"],
+                                         estado_abono='PENDIENTE', estado_saldo='PENDIENTE'))
+
             # Reservar stock para el pedido
             if not cotizacion:  # No reservar stock para pedidos a la medida
                 exito, errores_reserva = reservar_stock_pedido(pedido, [(producto, variante, cantidad) for producto, variante, cantidad, *_resto in lineas])
@@ -1953,6 +2109,64 @@ def confirmar_pago(pedido, ref_payco, id_factura_payco=None, franquicia=None):
     #descuenten el stock dos veces. Devuelve (pedido, pago_nuevo)
     if pedido.estado == 'PAGADO':
         return pedido, False
+    if pago_ya_registrado(pedido, id_factura_payco):
+        return pedido, False
+
+    ab = abono_de(pedido)
+    #una preorden abonada se cobra en dos etapas: abono (hoy) y saldo (cuando llega la tirada)
+    if ab and ab.estado_abono != 'PAGADO':
+        gano = (db.session.query(Invoice)
+                .filter(Invoice.id == pedido.id, Invoice.estado.in_(('PENDIENTE_ABONO', 'RECHAZADO')))
+                .update({'estado': 'ABONADO', 'estado_envio': None, 'ref_payco': ref_payco,
+                         'id_factura_payco': id_factura_payco}, synchronize_session=False))
+        if not gano:  #otro proceso lo confirmó primero
+            db.session.expire(pedido)
+            return pedido, False
+        ab.estado_abono = 'PAGADO'
+        ab.p_abono_pagado = ab.p_abono
+        ab.mp_payment_id_abono = str(id_factura_payco or ref_payco or '')
+        ab.f_pago_abono = datetime.now()
+        pedido.estado = 'ABONADO'
+        pedido.estado_envio = None
+        pedido.ref_payco = ref_payco
+        pedido.id_factura_payco = id_factura_payco
+        pedido.mp_payment_id = None  #el id del abono queda en abono_pago; el saldo usa el suyo
+        pedido.mp_external_resource_url = None
+        if franquicia:
+            pedido.metodo_pago = (f"{pedido.metodo_pago} ({franquicia})" if pedido.metodo_pago else franquicia)[:30]
+        db.session.commit()
+        return pedido, True
+
+    if ab and ab.estado_saldo != 'PAGADO':
+        gano = (db.session.query(Invoice)
+                .filter(Invoice.id == pedido.id, Invoice.estado.in_(('ABONADO', 'RECHAZADO')))
+                .update({'estado': 'PAGADO', 'ref_payco': ref_payco,
+                         'id_factura_payco': id_factura_payco}, synchronize_session=False))
+        if not gano:
+            db.session.expire(pedido)
+            return pedido, False
+        ab.estado_saldo = 'PAGADO'
+        ab.p_saldo_pagado = ab.p_saldo
+        ab.mp_payment_id_saldo = str(id_factura_payco or ref_payco or '')
+        ab.f_pago_saldo = datetime.now()
+        pedido.estado = 'PAGADO'
+        pedido.estado_envio = pedido.estado_envio or 'POR PREPARAR'
+        pedido.ref_payco = ref_payco
+        pedido.id_factura_payco = id_factura_payco
+        pedido.mp_payment_id = None
+        pedido.mp_external_resource_url = None
+        if franquicia:
+            pedido.metodo_pago = (f"{pedido.metodo_pago} ({franquicia})" if pedido.metodo_pago else franquicia)[:30]
+        for s in Solicitud.query.filter_by(k_invoice=pedido.id).all():
+            s.estado = 'COMPRADA'
+            s.k_usuario = s.k_usuario or pedido.k_usuario
+        #el stock de una preorden entra cuando llegue la tirada; descontar_stock lo ignora
+        for item in Item.query.filter_by(k_factura=pedido.id).all():
+            if item.producto:
+                descontar_stock(item.producto, item.variante, int(item.cant_item))
+        db.session.commit()
+        return pedido, True
+
     gano = (db.session.query(Invoice)
             .filter(Invoice.id == pedido.id, Invoice.estado != 'PAGADO')
             .update({'estado': 'PAGADO'}, synchronize_session=False))

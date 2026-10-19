@@ -5,6 +5,9 @@
 {% block head %}<meta name="robots" content="noindex, nofollow">{% endblock %}
 
 {% block contenido %}
+{% set ab = pedido.abono %}
+{% set abono_pendiente = ab and ab.estado_abono != 'PAGADO' %}
+{% set saldo_pendiente = ab and ab.estado_abono == 'PAGADO' and ab.estado_saldo != 'PAGADO' %}
 {# el título dice dónde va el pedido: primero el pago, después el envío #}
 {% if pedido.estado == 'PAGADO' and pedido.estado_envio %}
 {% set info = {
@@ -16,6 +19,8 @@
 {% else %}
 {% set info = {
     'PENDIENTE': ('bi-hourglass-split', 'text-warning', 'Pendiente de pago'),
+    'PENDIENTE_ABONO': ('bi-hourglass-split', 'text-warning', 'Pendiente del abono'),
+    'ABONADO': ('bi-check-circle-fill', 'text-success', '¡Abono confirmado!'),
     'PAGADO': ('bi-check-circle-fill', 'text-success', '¡Pago confirmado!'),
     'RECHAZADO': ('bi-x-circle-fill', 'text-danger', 'Pago no aprobado'),
 }[pedido.estado] %}
@@ -33,6 +38,10 @@
         <p class="text-body-secondary mb-0">Gracias por tu compra, {{ (pedido.n_envio or '').split(' ')[0] }}. Si algo no llegó como esperabas, escríbenos y lo resolvemos.</p>
         {% elif pedido.estado == 'PAGADO' %}
         <p class="text-body-secondary mb-0">Gracias por tu compra, {{ (pedido.n_envio or '').split(' ')[0] }}. Preparamos tu pedido en 1–2 días hábiles y, cuando salga, te avisamos por correo a <strong>{{ pedido.email_envio }}</strong> con el número de guía: aquí mismo verás el avance.</p>
+        {% elif abono_pendiente %}
+        <p class="text-body-secondary mb-0">Tu preorden quedó reservada con un <strong>abono del {{ ab.porcentaje_abono|int }}%</strong>. Págalo desde aquí para asegurarla; el saldo lo pagas cuando llegue la tirada.</p>
+        {% elif saldo_pendiente %}
+        <p class="text-body-secondary mb-0">Recibimos tu abono: muchas gracias. Puedes pagar el saldo restante ahora o esperar a que te avisemos que llegó la tirada.</p>
         {% else %}
         <p class="text-body-secondary mb-0">Tu pedido está guardado. Completa el pago para confirmarlo.</p>
         {% endif %}
@@ -115,6 +124,17 @@
                 <div class="d-flex justify-content-between align-items-baseline">
                     <span class="fw-bold">Total</span><span class="fs-4 fw-bold">{{ ((pedido.total or 0) + (pedido.p_envio or 0))|cop }}</span>
                 </div>
+                {% if ab %}
+                <hr>
+                <div class="d-flex justify-content-between align-items-baseline small">
+                    <span class="text-body-secondary">Abono ({{ ab.porcentaje_abono|int }}%) + envío</span>
+                    <span>{{ ab.p_abono|cop }}{% if ab.estado_abono == 'PAGADO' %} <i class="bi bi-check-circle-fill text-success" title="Pagado"></i>{% endif %}</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-baseline small">
+                    <span class="text-body-secondary">Saldo (cuando llegue la tirada)</span>
+                    <span>{{ ab.p_saldo|cop }}{% if ab.estado_saldo == 'PAGADO' %} <i class="bi bi-check-circle-fill text-success" title="Pagado"></i>{% endif %}</span>
+                </div>
+                {% endif %}
             </div>
 
             <div class="mb-panel">
@@ -190,6 +210,12 @@
                     <dt class="col-6 fw-normal text-body-secondary">Envío</dt>
                     <dd class="col-6 text-end mb-1 text-success fw-semibold">Gratis</dd>
                     {% endif %}
+                    {% if ab %}
+                    <dt class="col-6 fw-normal text-body-secondary">Abono ({{ ab.porcentaje_abono|int }}%)</dt>
+                    <dd class="col-6 text-end mb-1">{{ ab.p_abono|cop }}</dd>
+                    <dt class="col-6 fw-normal text-body-secondary">Saldo</dt>
+                    <dd class="col-6 text-end mb-1">{{ ab.p_saldo|cop }}</dd>
+                    {% endif %}
                     <dt class="col-6 fw-bold border-top pt-2">Total pagado</dt>
                     <dd class="col-6 text-end fw-bold border-top pt-2 mb-0">{{ ((pedido.total or 0) + (pedido.p_envio or 0))|cop }}</dd>
                 </dl>
@@ -200,8 +226,27 @@
                     <i class="bi bi-whatsapp me-1"></i>Escríbenos por WhatsApp
                 </a>
                 {% endif %}
-                {% elif pedido.estado in ['PENDIENTE', 'RECHAZADO'] %}
-                {% if pedido.estado == 'PENDIENTE' and pedido.mp_payment_id %}
+                {% else %}
+                {% if ab %}
+                {# preorden abonada: un pago asegura el pedido y queda un saldo para cuando llegue la tirada #}
+                <h2 class="h5 mb-3">{{ 'Pago del abono' if abono_pendiente else 'Saldo pendiente' }}</h2>
+                <dl class="row small mb-3">
+                    <dt class="col-6 fw-normal text-body-secondary">Estado</dt>
+                    <dd class="col-6 text-end mb-1"><span class="badge text-bg-{{ 'danger' if pedido.estado == 'RECHAZADO' else 'warning text-dark' }}">{{ pedido.estado_legible }}</span></dd>
+                    {% if pedido.metodo_pago %}
+                    <dt class="col-6 fw-normal text-body-secondary">Medio de pago</dt>
+                    <dd class="col-6 text-end mb-1">{{ pedido.metodo_pago }}</dd>
+                    {% endif %}
+                    <dt class="col-6 fw-normal text-body-secondary">Abono ({{ ab.porcentaje_abono|int }}%)</dt>
+                    <dd class="col-6 text-end mb-1">{{ ab.p_abono|cop }}{% if ab.estado_abono == 'PAGADO' %} <i class="bi bi-check-circle-fill text-success" title="Pagado"></i>{% endif %}</dd>
+                    <dt class="col-6 fw-normal text-body-secondary">Saldo</dt>
+                    <dd class="col-6 text-end mb-1">{{ ab.p_saldo|cop }}{% if ab.estado_saldo == 'PAGADO' %} <i class="bi bi-check-circle-fill text-success" title="Pagado"></i>{% endif %}</dd>
+                    <dt class="col-6 fw-bold border-top pt-2">Total del pedido</dt>
+                    <dd class="col-6 text-end fw-bold border-top pt-2 mb-0">{{ ((pedido.total or 0) + (pedido.p_envio or 0))|cop }}</dd>
+                </dl>
+                {% endif %}
+                {% if abono_pendiente or saldo_pendiente or pedido.estado in ['PENDIENTE', 'RECHAZADO'] %}
+                {% if pedido.mp_payment_id %}
                 {# volvió del banco: el pago PSE queda pendiente hasta que el banco lo confirme #}
                 <div class="alert alert-info small mb-3" role="alert">
                     <i class="bi bi-bank me-1"></i><strong>Tu pago con PSE está en trámite.</strong>
@@ -209,8 +254,8 @@
                     Si no la terminaste, vuelve a intentarlo con el botón de abajo.
                 </div>
                 {% endif %}
-                <h2 class="h5 mb-2">Pagar {{ ((pedido.total or 0) + (pedido.p_envio or 0))|cop }}</h2>
-                
+                <h2 class="h5 mb-2">{{ 'Pagar el abono' if abono_pendiente else ('Pagar el saldo' if saldo_pendiente else 'Pagar') }} {{ pedido.monto_pago|cop }}</h2>
+
                 <!-- Botón de pago MercadoPago -->
                 <div class="mb-3">
                     <h4 class="h6 mb-1">Pagar con MercadoPago</h4>
@@ -220,6 +265,7 @@
                     <p class="small text-body-secondary mt-1 mb-0">Tarjetas de crédito, débito, efectivo y más.</p>
                     <p class="small text-body-secondary mt-2"><i class="bi bi-info-circle me-1"></i>Tus datos de tarjeta los procesa <strong>MercadoPago (certificado PCI DSS Nivel 1)</strong>. MusicalBox nunca ve tu número de tarjeta.</p>
                 </div>
+                {% endif %}
                 {% endif %}
             </div>
         </div>

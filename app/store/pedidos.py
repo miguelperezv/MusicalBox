@@ -4,8 +4,8 @@ from flask import Blueprint, current_app, flash, redirect, render_template, requ
 from .models import get_pedido_por_token, confirmar_pago, rechazar_pago, pasos_envio
 from .views import before_request
 from ..db import db
-from .notificaciones import correo_pedido_pagado
-from .notif_admin import aviso_pago_aprobado, aviso_pago_rechazado
+from .notificaciones import notificar_pago_aprobado
+from .notif_admin import aviso_pago_rechazado
 from .analytics import track_event, Events
 from flask_wtf import FlaskForm
 from wtforms import StringField
@@ -106,14 +106,17 @@ def simular(token):
         abort(404)
     p = _pedido_o_404(token)
     if request.form.get("resultado") == "aprobado":
-        p, pago_nuevo = confirmar_pago(p, "SIMULADO", "SIMULADO", "SIM")
+        etapa = p.etapa_pago
+        #id de pago distinto por etapa: si no, el abono y el saldo simulados chocarían como duplicados
+        pago_id = "SIMULADO" if etapa in (None, 'TOTAL') else f"SIMULADO-{etapa}"
+        p, pago_nuevo = confirmar_pago(p, pago_id, pago_id, "SIM")
         if pago_nuevo:
-            correo_pedido_pagado(p, token)
-            aviso_pago_aprobado(p, token)
+            notificar_pago_aprobado(p, token, etapa)
         flash("Pago simulado: aprobado", "success")
     else:
-        rechazar_pago(p, "SIMULADO")
-        aviso_pago_rechazado(p, token)
+        etapa = p.etapa_pago
+        rechazar_pago(p, "SIMULADO" if etapa in (None, 'TOTAL') else f"SIMULADO-{etapa}")
+        aviso_pago_rechazado(p, token, etapa)
         flash("Pago simulado: rechazado", "error")
     return redirect(url_for('pedido.ver', token=token))
 

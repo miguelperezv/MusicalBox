@@ -1,0 +1,11 @@
+¡Hola {{ (pedido.n_envio or '').split(' ')[0] }}!
+
+Te recordamos que tu pedido #{{ pedido.id }} en Musical Box tiene un saldo pendiente de {{ abono.p_saldo|cop }}.
+
+Puedes pagarlo aquí:
+{{ enlace_pedido }}
+No compartas este enlace.
+
+Si ya hiciste el pago, ignora este mensaje.
+
+Musical Box · Bogotá, Colombia

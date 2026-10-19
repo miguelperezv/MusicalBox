@@ -12,7 +12,7 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from .. import correo
 from ..db import db
-from .models import Usuario, items_efectivos, token_pedido
+from .models import Usuario, items_efectivos, token_pedido, get_pedido_por_token
 
 SALT_ACTIVACION = "activar-cuenta"
 
@@ -57,6 +57,45 @@ def correo_pedido_pagado(pedido, token):
     return correo.enviar(pedido.email_envio, f"Tu pedido #{pedido.id} en Musical Box está confirmado",
                          render_template("correos/pedido_pagado.txt", **ctx),
                          render_template("correos/pedido_pagado.html", **ctx))
+
+
+def notificar_pago_aprobado(pedido, token, etapa=None):
+    """Avisa al comprador y al admin según la etapa pagada: abono (queda saldo) o pago completo.
+    Nunca lanza: un fallo de correo/Telegram no puede dañar una confirmación de pago ya guardada."""
+    from .notif_admin import aviso_abono_recibido, aviso_pago_aprobado
+    #el webhook solo tiene el hash del token: si no resuelve, se firma uno para que el enlace sirva
+    encontrado = get_pedido_por_token(token) if token else None
+    if encontrado is None or encontrado.id != pedido.id:
+        token = token_pedido(pedido)
+    abono = pedido.abono
+    if etapa == 'ABONO' and abono is not None:
+        correo_abono_recibido(pedido, token, abono)
+        aviso_abono_recibido(pedido, token)
+    else:
+        correo_pedido_pagado(pedido, token)
+        aviso_pago_aprobado(pedido, token)
+
+
+def correo_abono_recibido(pedido, token, abono):
+    #apenas se aprueba el abono: el comprador queda con constancia del saldo que le falta
+    if not pedido.email_envio:
+        return False
+    ctx = {"pedido": pedido, "abono": abono,
+           "enlace_pedido": url_for("pedido.ver", token=token, _external=True)}
+    return correo.enviar(pedido.email_envio, f"Recibimos tu abono del pedido #{pedido.id}",
+                         render_template("correos/abono_recibido.txt", **ctx),
+                         render_template("correos/abono_recibido.html", **ctx))
+
+
+def correo_saldo_pendiente(pedido, abono):
+    #recordatorio manual del saldo (lo dispara el admin desde el panel)
+    if not pedido.email_envio:
+        return False
+    ctx = {"pedido": pedido, "abono": abono,
+           "enlace_pedido": url_for("pedido.ver", token=token_pedido(pedido), _external=True)}
+    return correo.enviar(pedido.email_envio, f"Te queda un saldo pendiente del pedido #{pedido.id}",
+                         render_template("correos/saldo_pendiente.txt", **ctx),
+                         render_template("correos/saldo_pendiente.html", **ctx))
 
 
 def correo_pedido_enviado(pedido):

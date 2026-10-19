@@ -9,6 +9,10 @@
         <span class="mb-estado mb-estado-PAGADO">PAGADO</span>
         {% elif i.estado == 'PENDIENTE' %}
         <span class="mb-estado mb-estado-PENDIENTE">PENDIENTE</span>
+        {% elif i.estado == 'PENDIENTE_ABONO' %}
+        <span class="mb-estado mb-estado-PENDIENTE">ABONO PENDIENTE</span>
+        {% elif i.estado == 'ABONADO' %}
+        <span class="mb-estado mb-estado-PENDIENTE">ABONADO</span>{% if i.abono %}<br><small class="text-body-secondary">saldo {{ i.abono.p_saldo|cop }}</small>{% endif %}
         {% else %}
         <span class="mb-estado mb-estado-RECHAZADO">RECHAZADO</span>
         {% endif %}
@@ -59,11 +63,26 @@
            href="{{ url_for('dashboard.pedido_rotulo', k_invoice=i.id) }}"><i class="bi bi-printer me-1"></i>Rótulo</a>
         {% else %}
         <span class="text-body-secondary small">—</span>
-        {% if i.estado == 'PENDIENTE' %}
+        {% if i.estado in ('PENDIENTE', 'PENDIENTE_ABONO') %}
         <button type="button" class="btn btn-sm btn-outline-danger mt-1" data-rechazar data-id="{{ i.id }}"
             data-url="{{ url_for('dashboard.pedido_rechazar', k_invoice=i.id) }}"><i class="bi bi-x-lg me-1"></i>Rechazar</button>
         <button type="button" class="btn btn-sm btn-outline-danger mt-1 ms-1" data-eliminar data-id="{{ i.id }}"
             data-url="{{ url_for('dashboard.invoice_eliminar', id=i.id) }}" title="Eliminar pedido pendiente"><i class="bi bi-trash me-1"></i>Eliminar</button>
+        {% endif %}
+        {% set saldo = i.abono.p_saldo if i.abono and i.abono.estado_abono == 'PAGADO' and i.abono.estado_saldo != 'PAGADO' else None %}
+        {% if saldo %}
+        {% set tel = i.tel_envio or (i.usuario.cel_usuario if i.usuario) %}
+        {% if tel %}
+        <a class="btn btn-sm btn-outline-success mt-1" target="_blank" rel="noopener"
+           href="{{ whatsapp_enlace(tel, 'Musical Box: tu pedido #' ~ i.id ~ ' está abonado y le queda un saldo de ' ~ (saldo|cop) ~ '. Puedes pagarlo aquí: ' ~ url_for('pedido.ver', token=token_pedido(i), _external=True)) }}"
+           title="Recordar el saldo por WhatsApp"><i class="bi bi-whatsapp me-1"></i>Saldo</a>
+        {% endif %}
+        <form method="POST" action="{{ url_for('dashboard.recordar_saldo') }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="k_invoice" value="{{ i.id }}">
+            <input type="hidden" name="metodo" value="email">
+            <button type="submit" class="btn btn-sm btn-outline-secondary mt-1" title="Recordar el saldo por correo"><i class="bi bi-envelope"></i></button>
+        </form>
         {% endif %}
         {% endif %}
         {% if i.estado in ('PENDIENTE', 'PAGADO') and i.estado_envio not in ('ENVIADO', 'ENTREGADO') %}
