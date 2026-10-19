@@ -1,4 +1,4 @@
-"""Pagos parciales de preorden (#7): el abono asegura el pedido y el saldo se cobra después."""
+"""Pagos parciales de preorden (#7): el cliente elige abono o pago completo; el envío va con el saldo."""
 import re
 
 from app.db import db
@@ -34,8 +34,8 @@ def test_preorden_abonada_se_cobra_en_dos_etapas(client, app):
     ab = AbonoPago.query.filter_by(k_invoice=inv.id).first()
     assert ab and ab.estado_abono == 'PENDIENTE' and ab.estado_saldo == 'PENDIENTE'
     assert float(ab.p_abono) == 72000.0 and float(ab.p_saldo) == 168000.0
-    #primera pasada: abono + envío
-    assert inv.monto_pago == float(ab.p_abono) + float(inv.p_envio or 0)
+    #primera pasada: solo el abono (el envío se cobra con el saldo)
+    assert inv.monto_pago == float(ab.p_abono)
     #el stock de una preorden no se reserva al crear el pedido
     assert int(db.session.get(Producto, 1).stock) == 5
 
@@ -49,12 +49,14 @@ def test_preorden_abonada_se_cobra_en_dos_etapas(client, app):
     assert float(ab.p_abono_pagado) == 72000.0
     assert inv.estado_envio is None
     assert int(db.session.get(Producto, 1).stock) == 5
-    #ahora se cobra el saldo, sin envío
-    assert inv.monto_pago == 168000.0
+    #ahora se cobra el saldo + envío
+    assert inv.monto_pago == 168000.0 + float(inv.p_envio or 0)
+    assert inv.saldo_total == 168000.0 + float(inv.p_envio or 0)
     #la página del pedido se adapta a la etapa del abono
     pagina = client.get(f"/pedido/{token}").get_data(as_text=True)
     assert "Pagado" in pagina or "abono" in pagina.lower()
-    assert "168.000" in pagina  #el saldo se muestra en el panel
+    saldo_mostrado = "$" + f"{int(inv.saldo_total):,}".replace(",", ".")
+    assert saldo_mostrado in pagina  #el saldo + envío se muestra en el panel
 
     #saldo aprobado -> PAGADO y listo para preparar
     simular_pago(client, app, token, "aprobado")
@@ -76,6 +78,29 @@ def test_pedido_normal_sigue_cobrandose_completo(client, app):
     assert inv.abono is None
     assert inv.etapa_pago == 'TOTAL'
     assert inv.monto_pago == float(inv.total) + float(inv.p_envio or 0)
+
+
+def test_cliente_puede_elegir_pagar_todo(client, app):
+    #aunque la preorden ofrezca abono, el cliente puede pagar completo desde el checkout
+    _preparar_preorden(30)
+    resp = comprar(client, {1: 1}, dict(DATOS_ENVIO, pago_parcial="total"))
+    token_de(resp)
+    inv = Invoice.query.order_by(Invoice.id.desc()).first()
+    assert inv.estado == 'PENDIENTE'
+    assert inv.es_preorden_abonada is False
+    assert inv.abono is None
+    assert inv.etapa_pago == 'TOTAL'
+    assert inv.monto_pago == float(inv.total) + float(inv.p_envio or 0)
+
+
+def test_checkout_muestra_abono_y_pago_completo(client, app):
+    _preparar_preorden(30)
+    client.post("/purchase/addtocart", data={"product_id": "1", "quantity": "1"})
+    html = client.get("/purchase/checkout").get_data(as_text=True)
+    assert 'name="pago_parcial"' in html
+    assert "Reservar con abono del 30%" in html
+    assert "Pagar todo ahora" in html
+    assert "el envío se cobra junto con el saldo" in html.lower()
 
 
 def test_carrito_mixto_no_aplica_abono(client, app):

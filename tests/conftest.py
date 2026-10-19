@@ -59,11 +59,15 @@ DATOS_ENVIO = {
 
 
 def comprar(client, carrito, datos=None):
-    """Agrega al carrito y envía el checkout. Devuelve la respuesta del POST."""
+    """Agrega al carrito y envía el checkout. Devuelve la respuesta del POST.
+    Por defecto elige el abono cuando la preorden lo permite; pasa pago_parcial='total'
+    para probar el pago completo."""
     for k_producto, cantidad in carrito.items():
         client.post("/purchase/addtocart", data={"product_id": str(k_producto), "quantity": str(cantidad)},
                     headers={"Referer": "/products/"})
-    return client.post("/purchase/process_checkout", data=datos or DATOS_ENVIO)
+    datos = dict(datos or DATOS_ENVIO)
+    datos.setdefault("pago_parcial", "abono")
+    return client.post("/purchase/process_checkout", data=datos)
 
 
 def simular_pago(client, app, token, resultado="aprobado"):

@@ -39,9 +39,9 @@
         {% elif pedido.estado == 'PAGADO' %}
         <p class="text-body-secondary mb-0">Gracias por tu compra, {{ (pedido.n_envio or '').split(' ')[0] }}. Preparamos tu pedido en 1–2 días hábiles y, cuando salga, te avisamos por correo a <strong>{{ pedido.email_envio }}</strong> con el número de guía: aquí mismo verás el avance.</p>
         {% elif abono_pendiente %}
-        <p class="text-body-secondary mb-0">Tu preorden quedó reservada con un <strong>abono del {{ ab.porcentaje_abono|int }}%</strong>. Págalo desde aquí para asegurarla; el saldo lo pagas cuando llegue la tirada.</p>
+        <p class="text-body-secondary mb-0">Tu preorden quedó reservada con un <strong>abono del {{ ab.porcentaje_abono|int }}%</strong>. Págalo desde aquí para asegurarla; el saldo y el envío los pagas cuando llegue la tirada.</p>
         {% elif saldo_pendiente %}
-        <p class="text-body-secondary mb-0">Recibimos tu abono: muchas gracias. Puedes pagar el saldo restante ahora o esperar a que te avisemos que llegó la tirada.</p>
+        <p class="text-body-secondary mb-0">Recibimos tu abono: muchas gracias. Puedes pagar el saldo (que incluye el envío) ahora o esperar a que te avisemos que llegó la tirada.</p>
         {% else %}
         <p class="text-body-secondary mb-0">Tu pedido está guardado. Completa el pago para confirmarlo.</p>
         {% endif %}
@@ -127,13 +127,14 @@
                 {% if ab %}
                 <hr>
                 <div class="d-flex justify-content-between align-items-baseline small">
-                    <span class="text-body-secondary">Abono ({{ ab.porcentaje_abono|int }}%) + envío</span>
+                    <span class="text-body-secondary">Abono ({{ ab.porcentaje_abono|int }}%)</span>
                     <span>{{ ab.p_abono|cop }}{% if ab.estado_abono == 'PAGADO' %} <i class="bi bi-check-circle-fill text-success" title="Pagado"></i>{% endif %}</span>
                 </div>
                 <div class="d-flex justify-content-between align-items-baseline small">
-                    <span class="text-body-secondary">Saldo (cuando llegue la tirada)</span>
-                    <span>{{ ab.p_saldo|cop }}{% if ab.estado_saldo == 'PAGADO' %} <i class="bi bi-check-circle-fill text-success" title="Pagado"></i>{% endif %}</span>
+                    <span class="text-body-secondary">Saldo + envío (cuando llegue la tirada)</span>
+                    <span>{{ pedido.saldo_total|cop }}{% if ab.estado_saldo == 'PAGADO' %} <i class="bi bi-check-circle-fill text-success" title="Pagado"></i>{% endif %}</span>
                 </div>
+                <div class="small text-body-secondary mt-1">{% if pedido.p_envio and pedido.p_envio > 0 %}El envío se cobra junto con el saldo.{% else %}Envío gratis.{% endif %}</div>
                 {% endif %}
             </div>
 
@@ -213,7 +214,7 @@
                     {% if ab %}
                     <dt class="col-6 fw-normal text-body-secondary">Abono ({{ ab.porcentaje_abono|int }}%)</dt>
                     <dd class="col-6 text-end mb-1">{{ ab.p_abono|cop }}</dd>
-                    <dt class="col-6 fw-normal text-body-secondary">Saldo</dt>
+                    <dt class="col-6 fw-normal text-body-secondary">Saldo (producto)</dt>
                     <dd class="col-6 text-end mb-1">{{ ab.p_saldo|cop }}</dd>
                     {% endif %}
                     <dt class="col-6 fw-bold border-top pt-2">Total pagado</dt>
@@ -230,6 +231,15 @@
                 {% if ab %}
                 {# preorden abonada: un pago asegura el pedido y queda un saldo para cuando llegue la tirada #}
                 <h2 class="h5 mb-3">{{ 'Pago del abono' if abono_pendiente else 'Saldo pendiente' }}</h2>
+                {% if abono_pendiente %}
+                {% if pedido.p_envio and pedido.p_envio > 0 %}
+                <p class="small text-body-secondary mb-2">El envío ({{ pedido.p_envio|cop }}) se cobra junto con el saldo, no ahora.</p>
+                {% else %}
+                <p class="small text-body-secondary mb-2">El envío es gratis; solo queda el saldo del producto.</p>
+                {% endif %}
+                {% elif saldo_pendiente and pedido.p_envio and pedido.p_envio > 0 %}
+                <p class="small text-body-secondary mb-2">El saldo incluye el envío de {{ pedido.p_envio|cop }}.</p>
+                {% endif %}
                 <dl class="row small mb-3">
                     <dt class="col-6 fw-normal text-body-secondary">Estado</dt>
                     <dd class="col-6 text-end mb-1"><span class="badge text-bg-{{ 'danger' if pedido.estado == 'RECHAZADO' else 'warning text-dark' }}">{{ pedido.estado_legible }}</span></dd>
@@ -239,8 +249,8 @@
                     {% endif %}
                     <dt class="col-6 fw-normal text-body-secondary">Abono ({{ ab.porcentaje_abono|int }}%)</dt>
                     <dd class="col-6 text-end mb-1">{{ ab.p_abono|cop }}{% if ab.estado_abono == 'PAGADO' %} <i class="bi bi-check-circle-fill text-success" title="Pagado"></i>{% endif %}</dd>
-                    <dt class="col-6 fw-normal text-body-secondary">Saldo</dt>
-                    <dd class="col-6 text-end mb-1">{{ ab.p_saldo|cop }}{% if ab.estado_saldo == 'PAGADO' %} <i class="bi bi-check-circle-fill text-success" title="Pagado"></i>{% endif %}</dd>
+                    <dt class="col-6 fw-normal text-body-secondary">Saldo + envío</dt>
+                    <dd class="col-6 text-end mb-1">{{ pedido.saldo_total|cop }}{% if ab.estado_saldo == 'PAGADO' %} <i class="bi bi-check-circle-fill text-success" title="Pagado"></i>{% endif %}</dd>
                     <dt class="col-6 fw-bold border-top pt-2">Total del pedido</dt>
                     <dd class="col-6 text-end fw-bold border-top pt-2 mb-0">{{ ((pedido.total or 0) + (pedido.p_envio or 0))|cop }}</dd>
                 </dl>

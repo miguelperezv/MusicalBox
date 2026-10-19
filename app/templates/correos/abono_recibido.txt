@@ -4,7 +4,7 @@ Recibimos tu abono del pedido #{{ pedido.id }} en Musical Box.
 Tu preorden quedó asegurada.
 
 Abono ({{ abono.porcentaje_abono|int }}%): {{ abono.p_abono|cop }}
-Saldo pendiente: {{ abono.p_saldo|cop }}
+Saldo pendiente (incluye envío): {{ pedido.saldo_total|cop }}
 Total del pedido: {{ ((pedido.total or 0) + (pedido.p_envio or 0))|cop }}
 
 {% for item in pedido.items %}- {{ item.cant_item|int }} x {{ (item.producto.lanzamiento.n_lanzamiento|titulo if item.producto and item.producto.lanzamiento) or (item.lanzamiento.n_lanzamiento|titulo if item.lanzamiento) }} {{ item.producto.n_producto if item.producto else item.n_item }}{% if item.variante %} ({{ item.variante.nombre }}){% endif %}

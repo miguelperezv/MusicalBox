@@ -270,7 +270,7 @@ class Invoice(db.Model):
 
     @property
     def monto_pago(self):
-        #lo que hay que cobrar ahora: abono (con envío) o saldo; sin abono, el total completo
+        #lo que hay que cobrar ahora: abono (sin envío), saldo+envío; sin abono, el total completo
         _etapa, _abono, monto = etapa_pago(self)
         return monto
 
@@ -280,10 +280,18 @@ class Invoice(db.Model):
         return etapa
 
     @property
+    def saldo_total(self):
+        #lo que falta pagar de una preorden abonada: saldo del producto + envío (el envío se cobra con el saldo)
+        ab = self.abono
+        if not ab:
+            return 0
+        return float(ab.p_saldo or 0) + float(self.p_envio or 0)
+
+    @property
     def saldo_pendiente(self):
         ab = self.abono
         if ab and ab.estado_abono == 'PAGADO' and ab.estado_saldo != 'PAGADO':
-            return float(ab.p_saldo or 0)
+            return self.saldo_total
         return 0
 
 
@@ -1899,16 +1907,17 @@ def abono_de(pedido):
 
 
 def etapa_pago(pedido):
-    """(etapa, abono, monto) que toca cobrar: ('ABONO', fila, abono+envío), ('SALDO', fila, saldo)
-    o ('TOTAL', None, total+envío) si el pedido se cobra completo; (None, ...) si ya está pagado."""
+    """(etapa, abono, monto) que toca cobrar: ('ABONO', fila, abono), ('SALDO', fila, saldo+envío)
+    o ('TOTAL', None, total+envío) si el pedido se cobra completo; (None, ...) si ya está pagado.
+    El envío se cobra junto con el saldo, no con el abono."""
     ab = abono_de(pedido)
     total_envio = float((pedido.total or 0) + (pedido.p_envio or 0))
     if not ab:
         return (None if pedido.estado == 'PAGADO' else 'TOTAL'), None, total_envio
     if ab.estado_abono != 'PAGADO':
-        return 'ABONO', ab, float(ab.p_abono or 0) + float(pedido.p_envio or 0)
+        return 'ABONO', ab, float(ab.p_abono or 0)
     if ab.estado_saldo != 'PAGADO':
-        return 'SALDO', ab, float(ab.p_saldo or 0)
+        return 'SALDO', ab, float(ab.p_saldo or 0) + float(pedido.p_envio or 0)
     return None, ab, total_envio
 
 
@@ -1985,12 +1994,14 @@ def validar_carrito(cart):
         errores.append("Tu carrito está vacío")
     return lineas, total, errores
 
-def crear_pedido(cart, datos, k_usuario=None, cotizacion=None, p_envio_fijado=None):
+def crear_pedido(cart, datos, k_usuario=None, cotizacion=None, p_envio_fijado=None, usar_abono=True):
     """Crea el pedido PENDIENTE con sus líneas. Devuelve (pedido, token, errores).
     El token se entrega una sola vez (enlace de seguimiento); en la BD queda su hash.
     cotizacion: lista de líneas de un pedido a la medida ya acordado, cada una
     {producto, cantidad, precio, k_lanzamiento, n_item}; no revisa stock (se consigue por encargo).
-    p_envio_fijado: precio de envío que el admin fijó al cotizar (0 = gratis); si es None se calcula."""
+    p_envio_fijado: precio de envío que el admin fijó al cotizar (0 = gratis); si es None se calcula.
+    usar_abono: el cliente eligió reservar con abono en el checkout; solo aplica si todo el pedido
+    son preórdenes con el mismo porcentaje. Las cotizaciones a la medida se cobran completas."""
     if cotizacion:
         lineas, total, errores = [], 0, []
         for l in cotizacion:
@@ -2020,8 +2031,9 @@ def crear_pedido(cart, datos, k_usuario=None, cotizacion=None, p_envio_fijado=No
     else:
         envio = costo_envio(lineas, total, datos["ciudad"])
 
-    #pago parcial: solo si todo el pedido son preórdenes con el mismo porcentaje de abono
-    abono = calcular_abono(lineas, total)
+    #pago parcial: el cliente lo elige en el checkout y solo aplica si todo el pedido son
+    #preórdenes con el mismo porcentaje de abono. Una cotización a la medida se cobra completa.
+    abono = None if cotizacion else (calcular_abono(lineas, total) if usar_abono else None)
 
     # Validar que los datos de envío no estén vacíos
     nombre_envio = datos["nombre"].strip()

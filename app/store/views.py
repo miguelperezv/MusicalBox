@@ -1266,9 +1266,13 @@ def process_checkout():
             flash(e, "warning")
         return redirect(url_for('purchase.summary'))
     
+    #el cliente elige en el checkout: reservar con abono (si la preorden lo permite) o pagar todo
+    usar_abono = request.form.get("pago_parcial") == "abono"
+
     # Crear pedido con los datos proporcionados (si hay sesión, el pedido queda en su cuenta)
     pedido, token, errores = crear_pedido(session.get("purchase"), datos,
-                                          k_usuario=g.user["id"] if g.user else None)
+                                          k_usuario=g.user["id"] if g.user else None,
+                                          usar_abono=usar_abono)
     if errores:
         session["checkout_intento"] = datos
         for e in errores:

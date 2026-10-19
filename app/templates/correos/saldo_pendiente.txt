@@ -1,6 +1,6 @@
 ¡Hola {{ (pedido.n_envio or '').split(' ')[0] }}!
 
-Te recordamos que tu pedido #{{ pedido.id }} en Musical Box tiene un saldo pendiente de {{ abono.p_saldo|cop }}.
+Te recordamos que tu pedido #{{ pedido.id }} en Musical Box tiene un saldo pendiente de {{ pedido.saldo_total|cop }} (incluye envío).
 
 Puedes pagarlo aquí:
 {{ enlace_pedido }}

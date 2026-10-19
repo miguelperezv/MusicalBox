@@ -41,7 +41,7 @@
                 <div class="alert {{ 'alert-success' if ab.estado_abono == 'PAGADO' else 'alert-warning' }} py-2 small d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                     <span>
                         {% if ab.estado_abono == 'PAGADO' %}
-                        <i class="bi bi-check-circle-fill me-1"></i>Abono recibido. Saldo pendiente: <strong>{{ ab.p_saldo|cop }}</strong>.
+                        <i class="bi bi-check-circle-fill me-1"></i>Abono recibido. Saldo pendiente (incluye envío): <strong>{{ factura.saldo_total|cop }}</strong>.
                         {% else %}
                         <i class="bi bi-hourglass-split me-1"></i>Preorden con abono del {{ ab.porcentaje_abono|int }}%: paga <strong>{{ ab.p_abono|cop }}</strong> para asegurarla.
                         {% endif %}

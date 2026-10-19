@@ -46,6 +46,28 @@
                     {{ field(form.barrio, col='col-sm-4 mb-3') }}
                 </div>
 
+                {% if abono and not solicitud %}
+                <h2 class="h5 mt-3 mb-1"><i class="bi bi-piggy-bank me-2 text-primary"></i>Forma de pago</h2>
+                <p class="small text-body-secondary mb-2">Esta preorden permite reservarla con un abono del {{ abono.porcentaje|int }}%. Elige lo que prefieras.</p>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="radio" name="pago_parcial" id="pago-abono" value="abono" checked>
+                    <label class="form-check-label" for="pago-abono">
+                        <strong>Reservar con abono del {{ abono.porcentaje|int }}%</strong>
+                        <span class="d-block small text-body-secondary">Pagas hoy {{ abono.p_abono|cop }}. El saldo de {{ abono.p_saldo|cop }} + envío lo pagas cuando llegue la tirada.</span>
+                    </label>
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="radio" name="pago_parcial" id="pago-total" value="total">
+                    <label class="form-check-label" for="pago-total">
+                        <strong>Pagar todo ahora</strong>
+                        <span class="d-block small text-body-secondary">Pagas hoy {{ total|cop }} + envío y no queda saldo pendiente.</span>
+                    </label>
+                </div>
+                <div class="alert alert-warning small py-2 mb-3">
+                    <i class="bi bi-truck me-1"></i>Si eliges el abono, el envío se cobra junto con el saldo, no ahora.
+                </div>
+                {% endif %}
+
 <p class="small text-body-secondary mt-3"><i class="bi bi-shield-lock me-1"></i>Al confirmar, elegirá su medio de pago (tarjetas, PSE y más) en la ventana segura de MercadoPago.</p>
 <p class="small text-body-secondary mt-2"><i class="bi bi-info-circle me-1"></i>Tus datos de tarjeta los procesa <strong>MercadoPago (certificado PCI DSS Nivel 1)</strong>. MusicalBox nunca ve tu número de tarjeta.</p>
 
@@ -107,7 +129,8 @@
                 <hr>
                 {% if abono %}
                 <div class="alert alert-warning small py-2 mb-2">
-                    <i class="bi bi-piggy-bank me-1"></i><strong>Preorden con abono:</strong> hoy pagas el abono del {{ abono.porcentaje|int }}% ({{ abono.p_abono|cop }}) más el envío. El saldo ({{ abono.p_saldo|cop }}) lo pagas cuando llegue la tirada.
+                    <i class="bi bi-piggy-bank me-1"></i><strong>Preorden con abono opcional del {{ abono.porcentaje|int }}%.</strong>
+                    Elige en el formulario si reservas con abono o pagas todo. Si eliges el abono, el envío se cobra con el saldo.
                 </div>
                 {% endif %}
                 <div class="d-flex justify-content-between align-items-baseline mb-1">
@@ -123,8 +146,19 @@
                 </div>
                 {% endif %}
                 <div class="d-flex justify-content-between align-items-baseline">
-                    <span class="fw-bold">Total</span><span class="fs-4 fw-bold" id="total-pedido">{{ total|cop }}</span>
+                    <span class="fw-bold">Total del pedido</span><span class="fs-4 fw-bold" id="total-pedido">{{ total|cop }}</span>
                 </div>
+                {% if abono and not solicitud %}
+                <div class="alert alert-light border small py-2 mb-0 mt-2" id="resumen-pago">
+                    <div class="d-flex justify-content-between align-items-baseline">
+                        <span>Pagas hoy</span><strong id="pago-hoy">{{ abono.p_abono|cop }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-baseline text-body-secondary">
+                        <span>Saldo + envío</span><span id="saldo-pendiente">{{ abono.p_saldo|cop }}</span>
+                    </div>
+                    <div class="text-body-secondary mt-1" id="nota-envio">El envío se cobra junto con el saldo.</div>
+                </div>
+                {% endif %}
                 {% if not solicitud %}<a class="small d-inline-block mt-3" href="{{ url_for('purchase.summary') }}"><i class="bi bi-pencil me-1"></i>Editar carrito</a>{% endif %}
             </div>
         </div>
@@ -142,6 +176,9 @@
         var total = document.getElementById('total-pedido');
         var envioEl = document.getElementById('total-envio');
         var envioActual = 0;
+        var envioCotizado = false;
+        //datos del abono (si la preorden lo permite); si el cliente elige abono, el envío va con el saldo
+        var ABONO = {{ (abono if abono else none)|tojson }};
         //si el admin fijó el envío al cotizar, ya no se recalcula por municipio
         var PENVIO_FIJADO = {{ (solicitud.p_envio_cotizado if solicitud else none)|tojson }};
         var CATS = {{ cats|default('')|tojson }} || '';
@@ -173,6 +210,26 @@
                 if (inp && retiro) inp.disabled = retiro.checked;
             });
             if (total) total.textContent = cop(sumaProductos() + envioActual);
+            var elPago = document.getElementById('pago-hoy');
+            var elSaldo = document.getElementById('saldo-pendiente');
+            var elNota = document.getElementById('nota-envio');
+            if (ABONO && elPago) {
+                var productos = sumaProductos();
+                var radioAbono = document.querySelector('input[name="pago_parcial"][value="abono"]');
+                var eligioAbono = !radioAbono || radioAbono.checked;
+                if (eligioAbono) {
+                    var saldoProducto = Math.max(0, productos - ABONO.p_abono);
+                    elPago.textContent = cop(ABONO.p_abono);
+                    if (elSaldo) elSaldo.textContent = cop(saldoProducto + envioActual) + (envioCotizado ? '' : ' + envío');
+                    if (elNota) elNota.textContent = envioCotizado
+                        ? 'Incluye el envío. Se paga cuando llegue la tirada.'
+                        : 'El envío se cobra junto con el saldo.';
+                } else {
+                    elPago.textContent = cop(productos + envioActual) + (envioCotizado ? '' : ' + envío');
+                    if (elSaldo) elSaldo.textContent = cop(0);
+                    if (elNota) elNota.textContent = 'No queda saldo pendiente.';
+                }
+            }
         }
 
         var ciudad = document.querySelector('form#form-checkout input[name="ciudad"]');
@@ -180,6 +237,7 @@
             var valor = (ciudad.value || '').trim();
             if (!valor) {
                 envioActual = 0;
+                envioCotizado = false;
                 envioEl.textContent = 'Se estima al escribir tu municipio';
                 refrescar();
                 return;
@@ -191,18 +249,22 @@
                 .then(function (d) {
                     if (d.p_envio == null) {
                         envioActual = 0;
+                        envioCotizado = false;
                         envioEl.textContent = d.detalle || 'Se coordina al pagar';
                     } else if (Number(d.p_envio) === 0) {
                         envioActual = 0;
+                        envioCotizado = true;
                         envioEl.innerHTML = '<i class="bi bi-check-circle-fill text-success me-1"></i><strong class="text-success">¡gratis!</strong> · <a href="{{ url_for("home.politica_envios") }}" class="text-success fw-semibold text-decoration-none">consulta nuestra política de envíos</a>';
                     } else {
                         envioActual = Number(d.p_envio);
+                        envioCotizado = true;
                         envioEl.innerHTML = '<strong>' + cop(envioActual) + '</strong> · ' + (d.detalle || '');
                     }
                     refrescar();
                 })
                 .catch(function () {
                     envioActual = 0;
+                    envioCotizado = false;
                     envioEl.textContent = 'No se pudo cotizar ahora; se confirma al pagar';
                     refrescar();
                 });
@@ -210,12 +272,18 @@
 
         if (PENVIO_FIJADO !== null) {
             envioActual = PENVIO_FIJADO;
+            envioCotizado = true;
             envioEl.innerHTML = PENVIO_FIJADO === 0
                 ? '<i class="bi bi-check-circle-fill text-success me-1"></i><strong class="text-success">¡gratis!</strong> · fijado por la tienda'
                 : '<strong>' + cop(PENVIO_FIJADO) + '</strong> · fijado por la tienda';
         } else if (ciudad) {
             ciudad.addEventListener('change', cotizarEnvio);
+            if ((ciudad.value || '').trim()) cotizarEnvio();
         }
+
+        document.querySelectorAll('input[name="pago_parcial"]').forEach(function (el) {
+            el.addEventListener('change', refrescar);
+        });
 
         document.querySelectorAll('input[name^="cant_"], input[name^="retirar_"]').forEach(function (el) {
             el.addEventListener(el.type === 'checkbox' ? 'change' : 'input', refrescar);

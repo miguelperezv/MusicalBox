@@ -52,7 +52,7 @@ def get_mp_sdk():
     return mercadopago.SDK(current_app.config["MERCADOPAGO_ACCESS_TOKEN"])
 
 def monto_pedido(inv):
-    #lo que se cobra en la pasarela: el abono (con envío), el saldo, o el total de la orden
+    #lo que se cobra en la pasarela: el abono (sin envío), el saldo+envío, o el total de la orden
     _etapa, _ab, monto = etapa_pago(inv)
     return float(monto)
 
@@ -577,7 +577,7 @@ def process_payment_notification(data):
                 current_app.logger.info("[MP-WEBHOOK] el pedido %s ya no tiene pago pendiente (%s)",
                                         inv.id, inv.estado)
                 return jsonify({"status": "already_processed"}), 200
-            #el pago tiene que ser por el monto de la etapa (abono+envío, saldo o total): si no
+            #el pago tiene que ser por el monto de la etapa (abono, saldo+envío o total): si no
             #cuadra no se confirma nada, se avisa al admin y se responde 200 (reintentar no lo arregla)
             ok, monto = _monto_coincide(payment, inv)
             if not ok:

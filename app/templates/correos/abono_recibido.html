@@ -21,7 +21,7 @@
             </tr>
             {% endfor %}
             <tr><td style="padding:10px 0;border-bottom:1px solid #edf1f4;">Abono ({{ abono.porcentaje_abono|int }}%)</td><td align="right" style="padding:10px 0;border-bottom:1px solid #edf1f4;font-weight:bold;">{{ abono.p_abono|cop }}</td></tr>
-            <tr><td style="padding:14px 0;font-weight:bold;">Saldo pendiente</td><td align="right" style="padding:14px 0;font-size:20px;font-weight:bold;color:#b5851a;">{{ abono.p_saldo|cop }}</td></tr>
+            <tr><td style="padding:14px 0;font-weight:bold;">Saldo pendiente (incluye envío)</td><td align="right" style="padding:14px 0;font-size:20px;font-weight:bold;color:#b5851a;">{{ pedido.saldo_total|cop }}</td></tr>
         </table>
 
         <p style="margin:8px 0 4px;font-weight:bold;">Envío</p>

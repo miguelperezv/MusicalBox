@@ -12,7 +12,7 @@
         {% elif i.estado == 'PENDIENTE_ABONO' %}
         <span class="mb-estado mb-estado-PENDIENTE">ABONO PENDIENTE</span>
         {% elif i.estado == 'ABONADO' %}
-        <span class="mb-estado mb-estado-PENDIENTE">ABONADO</span>{% if i.abono %}<br><small class="text-body-secondary">saldo {{ i.abono.p_saldo|cop }}</small>{% endif %}
+        <span class="mb-estado mb-estado-PENDIENTE">ABONADO</span>{% if i.abono %}<br><small class="text-body-secondary">saldo {{ i.saldo_total|cop }}</small>{% endif %}
         {% else %}
         <span class="mb-estado mb-estado-RECHAZADO">RECHAZADO</span>
         {% endif %}
@@ -69,7 +69,7 @@
         <button type="button" class="btn btn-sm btn-outline-danger mt-1 ms-1" data-eliminar data-id="{{ i.id }}"
             data-url="{{ url_for('dashboard.invoice_eliminar', id=i.id) }}" title="Eliminar pedido pendiente"><i class="bi bi-trash me-1"></i>Eliminar</button>
         {% endif %}
-        {% set saldo = i.abono.p_saldo if i.abono and i.abono.estado_abono == 'PAGADO' and i.abono.estado_saldo != 'PAGADO' else None %}
+        {% set saldo = i.saldo_total if i.abono and i.abono.estado_abono == 'PAGADO' and i.abono.estado_saldo != 'PAGADO' else None %}
         {% if saldo %}
         {% set tel = i.tel_envio or (i.usuario.cel_usuario if i.usuario) %}
         {% if tel %}

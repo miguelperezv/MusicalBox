@@ -129,11 +129,12 @@ def recordar_saldo():
         if not tel:
             return jsonify({"error": "El pedido no tiene celular"}), 400
         from .promocion import whatsapp_enlace
+        saldo_total = p.saldo_total
         mensaje = (f"Musical Box: tu pedido #{p.id} está abonado y le queda un saldo de "
-                   f"${int(ab.p_saldo or 0):,}".replace(",", ".") +
-                   f". Puedes pagarlo aquí: {url_for('pedido.ver', token=token_pedido(p), _external=True)}")
+                   f"${int(saldo_total):,}".replace(",", ".") +
+                   f" (incluye envío). Puedes pagarlo aquí: {url_for('pedido.ver', token=token_pedido(p), _external=True)}")
         marcar_recordatorio(ab)
-        return jsonify({"enlace": whatsapp_enlace(tel, mensaje), "saldo": float(ab.p_saldo or 0)})
+        return jsonify({"enlace": whatsapp_enlace(tel, mensaje), "saldo": float(saldo_total)})
     if correo_saldo_pendiente(p, ab):
         marcar_recordatorio(ab)
         flash(f"Recordatorio enviado a {p.email_envio}", "success")

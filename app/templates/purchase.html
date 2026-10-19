@@ -37,7 +37,7 @@
                         <div class="small text-body-secondary">{{ 'PACK' if producto.tipo == 'BUNDLE' else producto.k_categoria }}</div>
                         <div class="fw-bold text-truncate">{{ lanz.n_lanzamiento|titulo if lanz }}</div>
                         <div class="small text-body-secondary">{{ producto.n_producto }}{% if variante %} · <strong>{{ variante.nombre }}</strong>{% endif %}</div>
-                        {% if l.preorden %}<div class="small text-primary fw-semibold"><i class="bi bi-hourglass-split me-1"></i>Preorden{% if l.porcentaje_abono %} con abono del {{ l.porcentaje_abono|int }}%{% else %}: paga hoy y llega contigo la tirada{% endif %}</div>{% endif %}
+                        {% if l.preorden %}<div class="small text-primary fw-semibold"><i class="bi bi-hourglass-split me-1"></i>Preorden{% if l.porcentaje_abono %} · abono del {{ l.porcentaje_abono|int }}%{% else %}: paga hoy y llega contigo la tirada{% endif %}</div>{% endif %}
                         {% if l.problema %}<div class="small text-danger fw-semibold"><i class="bi bi-exclamation-circle me-1"></i>{{ l.problema }}</div>{% endif %}
                         <div class="mb-stepper mt-2">
                             <a href="{{ url_for('purchase.updatesingle', k_producto=l.clave, opc='down') }}" aria-label="Quitar uno"><i class="bi bi-dash"></i></a>
@@ -78,7 +78,7 @@
                 <hr>
                 {% if abono %}
                 <div class="alert alert-warning small py-2 mb-2">
-                    <i class="bi bi-piggy-bank me-1"></i><strong>Preorden con abono:</strong> hoy pagas el abono del {{ abono.porcentaje|int }}% ({{ abono.p_abono|cop }}) más el envío. El saldo ({{ abono.p_saldo|cop }}) lo pagas cuando llegue la tirada.
+                    <i class="bi bi-piggy-bank me-1"></i><strong>Preorden con abono opcional del {{ abono.porcentaje|int }}%:</strong> en el siguiente paso eliges entre reservar con un abono de {{ abono.p_abono|cop }} o pagar todo. Si eliges abono, el saldo de {{ abono.p_saldo|cop }} + envío se paga cuando llegue la tirada.
                 </div>
                 {% endif %}
                 <div class="d-flex justify-content-between align-items-baseline mb-4">

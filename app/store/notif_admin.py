@@ -75,10 +75,10 @@ def _total_bloque(p):
     ab = getattr(p, "abono", None)
     if ab:
         pagado = _cop(ab.p_abono_pagado or 0) if ab.estado_abono == 'PAGADO' else _cop(ab.p_abono)
-        pendiente = _cop(ab.p_saldo_pagado or ab.p_saldo or 0)
+        pendiente = _cop(float(ab.p_saldo_pagado or ab.p_saldo or 0) + p_envio)
         lineas.append(f"Abono ({float(ab.porcentaje_abono or 0):.0f}%): {pagado}"
                       + (" (pagado)" if ab.estado_abono == 'PAGADO' else ""))
-        lineas.append(f"Saldo: {pendiente}" + (" (pagado)" if ab.estado_saldo == 'PAGADO' else " (pendiente)"))
+        lineas.append(f"Saldo + envío: {pendiente}" + (" (pagado)" if ab.estado_saldo == 'PAGADO' else " (pendiente)"))
     lineas.append(f"<b>Total compra: {_cop(subtotal + p_envio)}</b> · {_esc(p.metodo_pago or 'método por definir')}")
     return "\n".join(lineas)
 
@@ -179,7 +179,7 @@ def aviso_pago_aprobado(p, token=None):
 def aviso_abono_recibido(p, token=None):
     #el abono asegura la preorden; queda pendiente el saldo cuando llegue la tirada
     ab = getattr(p, "abono", None)
-    saldo = _cop(ab.p_saldo) if ab else _cop(p.monto_saldo)
+    saldo = _cop(p.saldo_total) if ab else _cop(p.monto_saldo)
     msg_cliente = (
         "Musical Box: recibimos tu abono del pedido #{p_id} ✅. "
         "Saldo pendiente: {saldo}. Ver: {url_pedido}."
