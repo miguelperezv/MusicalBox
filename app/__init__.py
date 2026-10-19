@@ -12,7 +12,7 @@ if os.path.exists(env_path):
     load_dotenv(dotenv_path=env_path, override=True)
 
 import click
-from .config import CONFIGS, DevelopmentConfig
+from .config import CONFIGS, DevelopmentConfig, LLAVES_PUBLICADAS
 from .store.views import home, dashboard, releases, artists, purchase, products
 from .store.solicitudes import solicitud
 from .store.pedidos import pedido
@@ -36,7 +36,11 @@ def create_app(config=None):
     config = config or CONFIGS.get(os.getenv("APP_CONFIG", "development"), DevelopmentConfig)
     app.config.from_object(config)
     if not app.config.get("SECRET_KEY"):
-        raise RuntimeError("Falta la variable de entorno SECRET_KEY")
+        raise RuntimeError("Falta SECRET_KEY: ponla en .env (local) o en las variables de entorno del servidor")
+    if app.config["SECRET_KEY"] in LLAVES_PUBLICADAS:
+        #el repositorio es público: con esa clave cualquiera puede firmar una sesión y entrar como admin
+        raise RuntimeError("La SECRET_KEY está publicada en el repositorio. Genera una nueva: "
+                           "python -c \"import secrets; print(secrets.token_urlsafe(48))\"")
 
     # Inicializar protección CSRF
     csrf = CSRFProtect()

@@ -19,6 +19,7 @@ def app(tmp_path):
         TESTING = True
         WTF_CSRF_ENABLED = False
         SIMULACION_PAGO = False
+        SECRET_KEY = "clave-solo-para-las-pruebas"  #las pruebas no dependen del .env
         MAIL_BACKEND = "memoria"
         TG_BACKEND = "memoria"  #los avisos al admin quedan en app.extensions["telegram_enviados"]
         SQLALCHEMY_DATABASE_URI = "sqlite:///" + str(tmp_path / "test.sqlite3").replace("\\", "/")

@@ -2,9 +2,19 @@ import os
 
 UPLOAD_FOLDER = os.path.abspath("./uploads/")
 
+#Claves que quedaron escritas en este archivo y, como el repositorio es público, son públicas.
+#No sirven para nada: create_app se niega a arrancar si alguna vuelve a aparecer (ver app/__init__.py).
+LLAVES_PUBLICADAS = {
+    '?\xbf,\xb4\x8d\xa3"<\x9c\xb0@\x0f5\xab,w\xee\x8d$0\x13\x8b83',
+    '\xfd{H\xe5<\x95\xf9\xe3\x96.5\xd1\x01O<!\xd5\xa2\xa0\x9fR"\xa1\xa8',
+}
+
+
 class Config(object):
     DEBUG = True
-    SECRET_KEY = os.getenv("SECRET_KEY", '?\xbf,\xb4\x8d\xa3"<\x9c\xb0@\x0f5\xab,w\xee\x8d$0\x13\x8b83')
+    #sin respaldo escrito aquí: la clave sale siempre del entorno (SECRET_KEY) y create_app
+    #verifica que exista, así nunca queda en uso una clave que esté en el repositorio
+    SECRET_KEY = os.getenv("SECRET_KEY")
     # OJO: PARA CUANDO TRABAJE EN MEMORIA   SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     # las rutas sqlite relativas quedan dentro de la carpeta instance/ (Flask-SQLAlchemy 3)
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "sqlite:///musicalbox.sqlite3")
@@ -62,9 +72,9 @@ class ProductionConfig(Config):
 
 
 class DevelopmentConfig(Config):
-    DEBUG=True
+    DEBUG = True
     SIMULACION_PAGO = True
-    SECRET_KEY = '\xfd{H\xe5<\x95\xf9\xe3\x96.5\xd1\x01O<!\xd5\xa2\xa0\x9fR"\xa1\xa8'
+    #la clave secreta se toma del entorno (SECRET_KEY), igual que en producción: ver docs/DEPLOY_PYTHONANYWHERE.md
 
 
 CONFIGS = {"production": ProductionConfig, "development": DevelopmentConfig}
