@@ -201,6 +201,14 @@
                 </a>
                 {% endif %}
                 {% elif pedido.estado in ['PENDIENTE', 'RECHAZADO'] %}
+                {% if pedido.estado == 'PENDIENTE' and pedido.mp_payment_id %}
+                {# volvió del banco: el pago PSE queda pendiente hasta que el banco lo confirme #}
+                <div class="alert alert-info small mb-3" role="alert">
+                    <i class="bi bi-bank me-1"></i><strong>Tu pago con PSE está en trámite.</strong>
+                    Ya te llevamos al banco. Si completaste la transferencia, la confirmación llega en unos minutos y te avisamos por correo.
+                    Si no la terminaste, vuelve a intentarlo con el botón de abajo.
+                </div>
+                {% endif %}
                 <h2 class="h5 mb-2">Pagar {{ ((pedido.total or 0) + (pedido.p_envio or 0))|cop }}</h2>
                 
                 <!-- Botón de pago MercadoPago -->
@@ -366,6 +374,17 @@
                 allowOutsideClick: false
               }).then(() => {
                 window.location.reload();
+              });
+              return;
+            }
+            
+            // El servidor explica qué pasó (PSE caído, banco sin elegir, etc.)
+            if (!r.ok || data.error) {
+              Swal.fire({
+                title: "No se pudo iniciar el pago",
+                text: data.error || `MercadoPago respondió con estado ${r.status}.`,
+                icon: "error",
+                confirmButtonText: "Entendido"
               });
               return;
             }

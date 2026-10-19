@@ -1,13 +1,14 @@
-from flask import Blueprint, current_app, jsonify, request, url_for
+from flask import Blueprint, abort, current_app, jsonify, request, url_for
 from app.db import db
 import hashlib
 import hmac
-import uuid
+import time
 import mercadopago
 from mercadopago import config as mp_config
 from ..models import Invoice, confirmar_pago, rechazar_pago
 from ..notificaciones import correo_pedido_pagado
-from ..notif_admin import aviso_pago_aprobado, aviso_pago_rechazado, aviso_pago_de_otro_monto
+from ..notif_admin import (aviso_pago_aprobado, aviso_pago_rechazado,
+                           aviso_pago_de_otro_monto, aviso_pago_no_creado)
 from ..analytics import track_event, Events
 
 mercadopago_bp = Blueprint('mercadopago', __name__, url_prefix='/mercadopago')
@@ -30,12 +31,20 @@ def hash_token(token):
 
 
 def _build_callback_url(token_plano):
-    """Construye la URL de callback para PSE.
-    Usa PUBLIC_BASE_URL si está configurado (tunnel), si no usa url_for normal."""
+    """URL a la que el banco devuelve al comprador (PSE).
+    Usa PUBLIC_BASE_URL si está configurado (túnel), si no usa url_for normal."""
     base = current_app.config.get("PUBLIC_BASE_URL", "").rstrip("/")
     if base:
         return f"{base}/pedido/{token_plano}"
     return url_for('pedido.ver', token=token_plano, _external=True)
+
+
+def _url_webhook():
+    """URL pública del webhook de MercadoPago que se manda en cada pago."""
+    base = current_app.config.get("PUBLIC_BASE_URL", "").rstrip("/")
+    if base:
+        return f"{base}/mercadopago/webhook"
+    return url_for('mercadopago.webhook', _external=True)
 
 
 def get_mp_sdk():
@@ -111,12 +120,13 @@ def process_payment():
         current_app.logger.error("[MP] el body no es un JSON objeto")
         return jsonify({"error": "El body debe ser un JSON objeto"}), 400
 
-    token = payload.get("token_hash")  # El frontend envía el token original como token_hash
-    if not token:
+    # El frontend envía el token original del pedido como token_hash (no confundir con el token de tarjeta)
+    token_pedido = payload.get("token_hash")
+    if not token_pedido:
         current_app.logger.error("[MP] falta token en el payload")
         return jsonify({"error": "Falta token"}), 400
 
-    inv = get_invoice_by_token(hash_token(token))
+    inv = get_invoice_by_token(hash_token(token_pedido))
     if not inv:
         current_app.logger.warning("[MP] pedido no encontrado para el token recibido")
         return jsonify({"error": "Pedido no encontrado"}), 404
@@ -171,10 +181,10 @@ def process_payment():
                 p, nuevo = confirmar_pago(inv, inv.mp_payment_id, inv.mp_payment_id, "pse")
                 if nuevo:
                     try:
-                        correo_pedido_pagado(p, token)
+                        correo_pedido_pagado(p, token_pedido)
                     except Exception as e:
                         current_app.logger.exception(f"[MP] Fallo envío de email para pedido {inv.id}: {e}")
-                    aviso_pago_aprobado(p, token)
+                    aviso_pago_aprobado(p, token_pedido)
                 return jsonify({"mp_status": 200, "mp_response": mp_body, "approved": True}), 200
             elif mp_status in ("rejected", "cancelled", "expired"):
                 # Pago fallido: limpiar para crear uno nuevo
@@ -188,128 +198,68 @@ def process_payment():
     
     # Detectar si es PSE
     if payment_method_id == "pse":
+        # PSE (Avanza) no usa token: se arma con los datos del pedido y los que manda el Brick
         current_app.logger.info("[MP] procesando pago PSE (Avanza)")
-        # Flujo PSE: no requiere token, pero necesita IP, entity_type e identification
         ip = get_client_ip()
-
         if not ip:
             current_app.logger.error("[MP] no se pudo detectar la IP del comprador para PSE")
             return jsonify({"error": "No se pudo detectar la IP del comprador"}), 400
 
-        # Obtener datos del pagador del payload (nueva estructura PSE Avanza)
         pse_payer = payload.get("payer") or {}
         ident = pse_payer.get("identification") or {}
-        id_type = ident.get("type")
-        id_number = ident.get("number")
-
-        # NUEVO: financial_institution (banco seleccionado en el Brick)
-        financial_institution = payload.get("financial_institution") or pse_payer.get("financial_institution")
-
-        # Para PSE, estos datos son obligatorios
+        id_type, id_number = ident.get("type"), ident.get("number")
         if not id_type or not id_number:
-            current_app.logger.error("[MP] Faltan payer.identification.type/number para PSE")
+            current_app.logger.error("[MP] faltan payer.identification.type/number para PSE")
             return jsonify({"error": "Falta payer.identification.type/number para PSE"}), 400
+
+        # El banco lo elige el comprador en el Brick: viaja en transaction_details.financial_institution.
+        # MercadoPago lo exige anidado (en la raíz responde 400 "the name of the parameters is wrong").
+        financial_institution = ((payload.get("transaction_details") or {}).get("financial_institution")
+                                 or payload.get("financial_institution")
+                                 or pse_payer.get("financial_institution"))
+        if not financial_institution:
+            current_app.logger.error("[MP] el comprador no eligió banco para PSE")
+            return jsonify({"error": "Falta elegir el banco para pagar con PSE"}), 400
         
-        # Extraer nombre completo para first_name / last_name
-        nombre_completo = inv.n_envio or pse_payer.get("first_name", "") + " " + pse_payer.get("last_name", "")
-        partes_nombre = nombre_completo.strip().split(" ", 1)
-        first_name = partes_nombre[0] if partes_nombre else "Cliente"
-        last_name = partes_nombre[1] if len(partes_nombre) > 1 else "MusicalBox"
-        
-        # Dirección para payer.address (requerida por PSE Avanza)
-        # Campo correcto según API MP: zip_code; state no requerido para CO
-        street_name = inv.dir_envio or "Calle desconocida"
-        street_number = "S/N"
-        neighborhood = inv.barrio_envio or "Sin barrio"
-        city = inv.lugar_envio or "Bogotá"
-        zip_code = "110111"  # Default Bogotá
-        
-        # Teléfono para payer.phone
-        phone_str = inv.tel_envio or pse_payer.get("phone", {}).get("number", "3000000000")
-        # Extraer código de área (primeros 2-3 dígitos) y número
-        if len(phone_str) >= 10:
-            area_code = phone_str[:3]
-            number = phone_str[3:]
-        else:
-            area_code = "300"
-            number = "0000000"
-        
+        # nombre y apellido del pedido (PSE pide entre 1 y 32 caracteres en cada uno)
+        partes = (inv.n_envio or "Cliente MusicalBox").strip().split(" ", 1)
+        first_name = (partes[0] or "Cliente")[:32]
+        last_name = (partes[1] if len(partes) > 1 else "MusicalBox")[:32]
+
+        # teléfono: 3 dígitos de área + hasta 7 del número, como los valida PSE
+        digitos = "".join(c for c in (inv.tel_envio or "") if c.isdigit()) or "3000000000"
+        area_code = digitos[:3].ljust(3, "0")
+        number = (digitos[3:10] or "0000000").ljust(7, "0")
+
+        # Campos que exige PSE; el monto y la referencia salen del pedido en la BD, no del navegador
         payment_data = {
             "transaction_amount": monto_pedido(inv),
             "payment_method_id": "pse",
+            "description": f"Musical Box - Pedido {inv.token_hash}",
+            "external_reference": inv.token_hash,
             "payer": {
                 "email": payer_email,
                 "entity_type": "individual",
                 "first_name": first_name,
                 "last_name": last_name,
-                "identification": {
-                    "type": id_type,
-                    "number": str(id_number)
-                },
+                "identification": {"type": id_type, "number": str(id_number)},
+                # PSE exige la dirección del pagador (el zip code, exactamente 5 dígitos)
                 "address": {
-                    "street_name": street_name,
-                    "street_number": street_number,
-                    "neighborhood": neighborhood,
-                    "city": city,
-                    "zip_code": zip_code,
+                    "zip_code": "110111",
+                    "street_name": (inv.dir_envio or "Calle desconocida")[:18],
+                    "street_number": "S/N",
+                    "neighborhood": (inv.barrio_envio or "Sin barrio")[:18],
+                    "city": (inv.lugar_envio or "Bogotá")[:18],
                 },
-                "phone": {
-                    "area_code": area_code,
-                    "number": number
-                }
+                "phone": {"area_code": area_code, "number": number},
             },
-            "external_reference": inv.token_hash,
-            "description": f"Musical Box - Pedido {inv.token_hash}",
-            "additional_info": {
-                "ip_address": ip
-            },
+            "additional_info": {"ip_address": ip},
+            "transaction_details": {"financial_institution": str(financial_institution)},
         }
-        # NUEVO: financial_institution para PSE Avanza
-        if financial_institution:
-            payment_data["financial_institution"] = financial_institution
-            
-        # URLs de callback y notificación
-        token_plano = payload.get("token_hash")
-        if token_plano:
-            payment_data["callback_url"] = _build_callback_url(token_plano)
-        
-        # notification_url para webhook de MP
-        base = current_app.config.get("PUBLIC_BASE_URL", "").rstrip("/")
-        if base:
-            payment_data["notification_url"] = f"{base}/mercadopago/webhook"
-        else:
-            payment_data["notification_url"] = url_for('mercadopago.webhook', _external=True)
-        
-        # Agregar otros campos que puedan venir en el payload de PSE
-        for key, value in payload.items():
-            if key not in ["token_hash", "payment_method_id", "transaction_amount", "payer", "external_reference", "description", "additional_info", "callback_url", "financial_institution", "notification_url", "intento"] and value is not None:
-                if not isinstance(value, dict):
-                    payment_data[key] = value
-                elif key not in payment_data:
-                    payment_data[key] = value
-        
-        # ===== MEJORAS PARA REDUCIR 500 EN MP =====
-        # 1. Validar financial_institution (solo bancos PSE válidos Colombia)
-        valid_fi = {"1002", "1007", "1032", "1040", "1051", "1052", "1058", "1068", "1077", "1085", "1086", "1087", "1088", "1089", "1090", "1091", "1092", "1093", "1094", "1095", "1096", "1097", "1098", "1099", "1100", "1101", "1102", "1103", "1104", "1105", "1106", "1107", "1108", "1109", "1110"}
-        fi = payment_data.get("transaction_details", {}).get("financial_institution")
-        if fi and fi not in valid_fi:
-            current_app.logger.warning(f"[MP] financial_institution inválida: {fi}, removiendo")
-            payment_data.setdefault("transaction_details", {}).pop("financial_institution", None)
-        
-        # 2. Forzar x-test-token en sandbox
-        if current_app.config.get("SIMULACION_PAGO"):
-            request_options.custom_headers["x-test-token"] = "true"
-        
-        # 3. Usar IP real (no 127.0.0.1)
-        payment_data["additional_info"]["ip_address"] = get_client_ip()
-        
-        # 4. Validar email/CC contra test users conocidos (opcional)
-        # Si el email no parece test user, loggear warning
-        payer_email = payment_data.get("payer", {}).get("email", "")
-        if payer_email and not any(x in payer_email for x in ["@testuser.com", "test_", "test-"]):
-            current_app.logger.warning(f"[MP] Email no parece test user: {payer_email}")
-        # ===========================================
-        
+        # el comprador vuelve aquí desde el banco (callback) y MercadoPago avisa al webhook
+        payment_data["callback_url"] = _build_callback_url(token_pedido)
+        payment_data["notification_url"] = _url_webhook()
+
         current_app.logger.info("[MP] datos PSE preparados · banco %s · monto %s",
                                 financial_institution, payment_data["transaction_amount"])
 
@@ -382,48 +332,40 @@ def process_payment():
     
     sdk = get_mp_sdk()
 
-    # Implementar reintentos para errores 424 y 500
+    # Reintentos para los errores transitorios de MercadoPago (424 en PSE, 500 internal_error)
     max_retries = 3
-    retry_delay = 1  # segundos
-    
+    retry_delay = 1  # segundos; se duplica en cada intento
+
+    mp_http_status, mp_body = 500, {}
     for attempt in range(max_retries):
         try:
             mp_resp = sdk.payment().create(payment_data, request_options)
-            mp_http_status = mp_resp.get("status", 500)
-            mp_body = mp_resp.get("response", {}) or {}
-
-            current_app.logger.info("[MP] intento %s · HTTP %s · pago %s · %s (%s)",
-                                    attempt + 1, mp_http_status, mp_body.get("id"),
-                                    mp_body.get("status"), mp_body.get("status_detail"))
-            
-            # Si es éxito o error definitivo, no reintentar
-            if mp_http_status < 500 or mp_http_status in [400, 401, 403, 404]:
-                break
-                
-            # Si es error 424 (BankTransfers Api fail) o 500 (internal_error), esperar y reintentar
-            if mp_http_status in [424, 500]:
-                cause = mp_body.get("cause", [])
-                current_app.logger.warning(f"[MP] Error {mp_http_status} en intento {attempt + 1}, cause: {cause}")
-                if attempt < max_retries - 1:
-                    import time
-                    time.sleep(retry_delay)
-                    retry_delay *= 2
-                continue
-                
-            break  # Otros errores, no reintentar
-            
         except Exception as e:
-            current_app.logger.error(f"[MP] Error en intento {attempt + 1}: {str(e)}")
+            current_app.logger.error("[MP] error de conexión en el intento %s: %s", attempt + 1, e)
             if attempt < max_retries - 1:
-                import time
                 time.sleep(retry_delay)
                 retry_delay *= 2
-            else:
-                return jsonify({
-                    "error": "Error de conexión con MercadoPago",
-                    "details": str(e)
-                }), 500
-    
+                continue
+            aviso_pago_no_creado(inv, f"No se pudo hablar con MercadoPago: {e}", token_pedido)
+            return jsonify({
+                "error": "No pudimos conectar con MercadoPago. Intenta de nuevo en unos minutos."
+            }), 500
+
+        mp_http_status = mp_resp.get("status", 500)
+        mp_body = mp_resp.get("response", {}) or {}
+        current_app.logger.info("[MP] intento %s · HTTP %s · pago %s · %s (%s)",
+                                attempt + 1, mp_http_status, mp_body.get("id"),
+                                mp_body.get("status"), mp_body.get("status_detail"))
+
+        # 424 (BankTransfers Api fail) y 500 (internal_error) suelen ser transitorios: se reintenta
+        if mp_http_status in (424, 500) and attempt < max_retries - 1:
+            current_app.logger.warning("[MP] HTTP %s en el intento %s · cause %s",
+                                       mp_http_status, attempt + 1, str(mp_body.get("cause"))[:200])
+            time.sleep(retry_delay)
+            retry_delay *= 2
+            continue
+        break
+
     # Confirmación: confirmar_pago() es idempotente y completa el pedido de un solo paso
     # (estado_envio POR PREPARAR, solicitud→COMPRADA, liberar reservas y stock)
     if mp_body.get("status") == "approved":
@@ -437,10 +379,10 @@ def process_payment():
         if nuevo:
             try:
                 #el payload manda el token plano como "token_hash": es el que va en el enlace del correo
-                correo_pedido_pagado(p, payload.get("token_hash"))
+                correo_pedido_pagado(p, token_pedido)
             except Exception as e:
                 current_app.logger.exception("[MP] falló el correo del pedido %s: %s", inv.id, e)
-            aviso_pago_aprobado(p, payload.get("token_hash"))
+            aviso_pago_aprobado(p, token_pedido)
             current_app.logger.info("[MP] pedido %s confirmado, stock y solicitud actualizados", inv.id)
         # Track purchase
         track_event(Events.PURCHASE, {
@@ -453,13 +395,14 @@ def process_payment():
     elif mp_body.get("status") == "rejected":
         current_app.logger.info("[MP] pago rechazado para el pedido %s: %s", inv.id, mp_body.get("status_detail"))
         rechazar_pago(inv, str(mp_body.get("id") or ""))
-        aviso_pago_rechazado(inv, payload.get("token_hash"))
+        aviso_pago_rechazado(inv, token_pedido)
     elif mp_http_status == 424:
         # Error específico de BankTransfers Api fail: el pedido queda PENDIENTE para reintentar
         current_app.logger.error("[MP] error 424 (BankTransfers Api fail) en el pedido %s · %s",
                                  inv.id, str(mp_body.get("cause"))[:200])
+        aviso_pago_no_creado(inv, "MercadoPago no pudo iniciar el pago PSE (error 424 · BankTransfers Api fail)", token_pedido)
         return jsonify({
-            "error": "No se pudo procesar el pago PSE en este momento. Por favor intenta de nuevo o elige otro medio de pago.",
+            "error": "No pudimos iniciar el pago con PSE. Intenta de nuevo en unos minutos o paga con tarjeta.",
             "mp_status": mp_http_status,
             "mp_response": mp_body,
             "retryable": True
@@ -468,8 +411,9 @@ def process_payment():
         # Error interno de MercadoPago (común en sandbox)
         current_app.logger.error("[MP] error 500 (internal_error) en el pedido %s · %s",
                                  inv.id, str(mp_body.get("cause"))[:200])
+        aviso_pago_no_creado(inv, "MercadoPago devolvió un error interno (500)", token_pedido)
         return jsonify({
-            "error": "Error temporal de MercadoPago. Por favor intenta de nuevo en unos minutos o elige otro medio de pago.",
+            "error": "MercadoPago está fallando ahora mismo. Intenta de nuevo en unos minutos.",
             "mp_status": mp_http_status,
             "mp_response": mp_body,
             "retryable": True
@@ -651,10 +595,9 @@ def process_merchant_order_notification(data):
 
 @mercadopago_bp.route("/webhook-test", methods=["POST"])
 def webhook_test():
-    """Endpoint para pruebas de webhook en desarrollo"""
-    if current_app.config.get("ENV") == "development":
-        data = request.get_json()
-        current_app.logger.info(f"[MP-WEBHOOK-TEST] Test notification received: {data}")
-        return jsonify({"status": "test_received"}), 200
-    else:
+    """Endpoint para pruebas de webhook: solo existe con SIMULACION_PAGO (desarrollo)."""
+    if not current_app.config.get("SIMULACION_PAGO"):
         abort(404)
+    data = request.get_json(silent=True)
+    current_app.logger.info("[MP-WEBHOOK-TEST] notificación de prueba: %s", data)
+    return jsonify({"status": "test_received"}), 200

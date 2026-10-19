@@ -193,3 +193,16 @@ def aviso_pago_de_otro_monto(p, monto, esperado):
                            "No se confirmó el pedido: revisa el pago en MercadoPago antes de prepararlo.",
                            None))
 
+
+def aviso_pago_no_creado(p, motivo, token=None):
+    #no se pudo ni iniciar el pago (PSE caído, MercadoPago devolviendo error): el cliente se queda sin pagar
+    msg_cliente = (
+        "Musical Box: no pudimos abrir el pago de tu pedido #{p_id}. "
+        "Reintenta aquí: {url_pedido}. Si sigue igual, escríbenos."
+    ).format(p_id=p.id, url_pedido=_url_pedido(token))
+    enviar_admin(f"<b>⚠️ PAGO NO INICIADO · PEDIDO #{p.id}</b>\n\n"
+                 + _cuerpo(p, "PENDIENTE DE PAGO", f"El pago no se pudo crear: {motivo}", token, "Reintento"),
+                 botones=[
+                     {"texto": "🔗 Ir al pedido", "url": _url_admin(p)},
+                     {"texto": "📋 Copiar mensaje para el cliente", "copy_text": {"text": msg_cliente}},
+                 ])
