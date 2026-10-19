@@ -313,6 +313,7 @@
   // Variables del pedido
   const TOKEN_HASH = "{{ token }}";
   const MP_PUBLIC_KEY = "{{ config.MERCADOPAGO_PUBLIC_KEY }}";
+  let bricksBuilder = null;  // se inicializa una sola vez y se reutiliza
   let brickController = null;
   let statusController = null;
   
@@ -340,19 +341,15 @@
     try {
       // Obtener contexto del pago
       const ctx = await getPaymentContext(TOKEN_HASH);
-      
-      // Inicializar MercadoPago
-      const mp = new MercadoPago(MP_PUBLIC_KEY, { locale: "es-CO" });
-      if (!mp) {
-        console.error('[MP] Error al inicializar MercadoPago');
-        alert('Error al inicializar MercadoPago. Por favor, recargue la página.');
-        closeMpModal();
-        return;
+
+      // El builder se inicializa UNA sola vez y se reutiliza (recomendación del soporte de MP)
+      if (!bricksBuilder) {
+        const mp = new MercadoPago(MP_PUBLIC_KEY, { locale: "es-CO" });
+        bricksBuilder = (mp && typeof mp.bricks === "function") ? mp.bricks() : null;
       }
-      const bricksBuilder = mp.bricks();
       if (!bricksBuilder) {
         console.error('[MP] Error al obtener bricksBuilder');
-        alert('Error al obtener bricksBuilder. Por favor, recargue la página.');
+        alert('Error al inicializar MercadoPago. Por favor, recargue la página.');
         closeMpModal();
         return;
       }
@@ -465,20 +462,22 @@
         },
       };
       
-      // Crear el Payment Brick
-      if (typeof bricksBuilder !== 'undefined') {
-        brickController = await bricksBuilder.create(
-          "payment",
-          "paymentBrick_container",
-          settings
-        );
-      } else {
-        console.error('[MP] bricksBuilder no está definido');
-        alert('Error al inicializar el Payment Brick. Por favor, recargue la página.');
+      // Crear el Payment Brick. Si había uno montado, se desmonta antes.
+      if (brickController && typeof brickController.unmount === 'function') {
+        try { await brickController.unmount(); } catch (_) { /* seguimos igual */ }
+        brickController = null;
+      }
+      brickController = await bricksBuilder.create(
+        "payment",
+        "paymentBrick_container",
+        settings
+      );
+      // El SDK atrapa los fallos de init, los loguea y devuelve null (no relanza).
+      // Sin este chequeo el modal queda vacío y sin ningún aviso al comprador.
+      if (!brickController) {
+        console.error('[MP] El Payment Brick no se pudo inicializar. Revisá Network: /v1/payment_methods, /card_issuers, /installments.');
+        alert('No se pudo inicializar el medio de pago. Revisá tu conexión e intentá de nuevo en unos minutos.');
         closeMpModal();
-        // Re-habilitar botón en caso de error
-        const btn = document.getElementById("btnOpenMp");
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-wallet2 me-2"></i>Pagar con MercadoPago'; }
       }
     } catch (error) {
       console.error("[MP] Error al abrir el modal:", error);
