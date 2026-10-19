@@ -2067,13 +2067,22 @@ def reservar_stock_pedido(pedido, lineas):
     if errores:
         return False, errores
     
-    # Reservar el stock y crear registros de reserva
+    # Reservar el stock y crear registros de reserva.
+    # El descuento es un UPDATE condicional ("quedan al menos N"): si otra compra se llevó las
+    # últimas unidades entre la comprobación de arriba y este momento, acá no pasa y se deshace todo.
     try:
         for (tipo, k), cantidad_necesaria in demanda_total.items():
-            # Descontar el stock disponible
-            elemento = db.session.get(Variante if tipo == 'V' else Producto, k)
-            elemento.stock = int(elemento.stock or 0) - cantidad_necesaria
-            
+            modelo = Variante if tipo == 'V' else Producto
+            elemento = db.session.get(modelo, k)
+            filas = (db.session.query(modelo)
+                     .filter(modelo.id == k, modelo.stock >= cantidad_necesaria)
+                     .update({'stock': modelo.stock - cantidad_necesaria}, synchronize_session=False))
+            if filas != 1:
+                nombre = ((elemento.n_producto if tipo == 'P' else elemento.nombre) if elemento else k)
+                db.session.rollback()
+                return False, [f"No hay suficiente stock de {nombre}: otro pedido se llevó las últimas unidades"]
+            db.session.expire(elemento)  #que cualquier lectura posterior vea el stock ya descontado
+
             # Crear registro de reserva
             reserva = ReservaStock(
                 k_invoice=pedido.id,
@@ -2324,6 +2333,8 @@ def es_original(producto):
 #preorden: se vende antes de que llegue la tirada (paga hoy, llega después); solo SIMPLE sin tallas
 def es_preorden(producto):
     #se hereda del lanzamiento: si el disco está en preorden, todos sus sueltos también
+    if not producto:  #un ítem a la medida sin producto no puede estar en preorden
+        return False
     bajo = bool(producto.preorden or (producto.lanzamiento is not None and producto.lanzamiento.preorden))
     return bajo and producto.tipo != 'BUNDLE' and not producto.variantes
 
