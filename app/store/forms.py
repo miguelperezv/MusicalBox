@@ -80,7 +80,7 @@ class newProductForm(FlaskForm):
     original_mb = BooleanField("Merch original Musical Box (personalizado por nosotros)")
     preorden = BooleanField("Preorden: se vende antes de que llegue la tirada (solo mientras el stock esté en 0)")
     #pago parcial de una preorden: el cliente asegura con este % y paga el saldo cuando llegue la tirada
-    porcentaje_abono = IntegerField("Abono de la preorden (%)", widget=h5widgets.NumberInput(min=1, max=99, step=5),
+    porcentaje_abono = IntegerField("Abono de la preorden (%)", widget=h5widgets.NumberInput(min=1, max=99, step=1),
                                     validators=[Optional(), NumberRange(min=1, max=99, message="El abono va entre 1% y 99%")],
                                     render_kw={"placeholder": "Ej.: 30 (vacío = pago completo)"})
     tipo = SelectField("Tipo", choices=[('SIMPLE', 'Producto individual'), ('BUNDLE', 'Pack (arma sus productos después)')], default='SIMPLE')
