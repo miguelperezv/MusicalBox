@@ -606,6 +606,14 @@ def process_payment_notification(data):
             current_app.logger.info(f"[MP-WEBHOOK] Método de pago detallado: {payment['payment_method']}")
         
         if payment_status == "approved" and inv.estado == "PENDIENTE":
+            #el pago tiene que ser por el monto que se cobró (total + envío): si no cuadra no se
+            #confirma nada y queda para revisarlo a mano (antes sólo se miraba el estado del pago)
+            monto = int(round(float(payment.get("transaction_amount") or 0)))
+            if monto != int(round(monto_pedido(inv))):
+                current_app.logger.warning(
+                    "[MP-WEBHOOK] Monto distinto en el pedido %s: pagó %s y el pedido vale %s",
+                    inv.id, monto, monto_pedido(inv))
+                return jsonify({"error": "El monto no coincide con el pedido"}), 409
             # Pago aprobado, confirmar el pedido por el camino único idempotente
             current_app.logger.info(f"[MP-WEBHOOK] Pago aprobado para pedido pendiente {inv.id}")
             inv.mp_payment_id = str(payment.get("id", ""))

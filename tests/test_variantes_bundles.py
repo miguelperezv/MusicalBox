@@ -2,10 +2,9 @@
 import pytest
 
 from app.db import db
-from app.store import pedidos
 from app.store.models import (Invoice, Item, Producto, ProductoComponente, Variante, confirmar_pago,
-                              referencia_epayco, stock_disponible, validar_bundle, validar_carrito)
-from conftest import DATOS_ENVIO
+                              stock_disponible, validar_bundle, validar_carrito)
+from conftest import DATOS_ENVIO, simular_pago
 
 
 @pytest.fixture
@@ -80,7 +79,7 @@ def test_demanda_combinada_de_sueltos_y_packs(catalogo):
 
 def test_mismo_producto_en_dos_tallas_en_un_pedido(client, catalogo):
     poner_carrito(client, {"2:10": 1, "2:11": 1})
-    resp = client.post("/purchase/checkout", data=DATOS_ENVIO)
+    resp = client.post("/purchase/process_checkout", data=DATOS_ENVIO)
     assert resp.status_code == 302 and "/pedido/" in resp.headers["Location"]
     with catalogo.app_context():
         items = Item.query.order_by(Item.id).all()
@@ -88,14 +87,10 @@ def test_mismo_producto_en_dos_tallas_en_un_pedido(client, catalogo):
         assert Invoice.query.one().total == 120000
 
 
-def test_pago_descuenta_variante_y_componentes_del_pack(client, catalogo, monkeypatch):
+def test_pago_descuenta_variante_y_componentes_del_pack(client, catalogo):
     poner_carrito(client, {"2:11": 1, "3": 2})
-    token = client.post("/purchase/checkout", data=DATOS_ENVIO).headers["Location"].rsplit("/", 1)[1]
-    with catalogo.app_context():
-        p = Invoice.query.one()
-        ref, monto = referencia_epayco(p), str(p.total)
-    monkeypatch.setattr(pedidos, "consultar_epayco", lambda r: {"x_response": "Aceptada", "x_id_invoice": ref, "x_amount": monto})
-    client.get(f"/pedido/{token}/respuesta?ref_payco=x")
+    token = client.post("/purchase/process_checkout", data=DATOS_ENVIO).headers["Location"].rsplit("/", 1)[1]
+    simular_pago(client, catalogo, token)
     with catalogo.app_context():
         assert Invoice.query.one().estado == "PAGADO"
         assert db.session.get(Variante, 11).stock == 0   #camiseta L suelta

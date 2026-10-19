@@ -8,7 +8,7 @@ from .models import create_new_user, get_all_artists, get_user_by_email, create_
 from .models import actualizar_lanzamiento_spotify, buscar_o_crear_lanzamiento
 from .models import producto_card, lanzamiento_tiene_original, ESTADOS_ENVIO, ESTADOS_CON_ROTULO, Invoice,opciones_componentes, stock_disponible, get_usuario_por_email, get_artist_by_id, get_releases_cards, get_products_cards, get_generos, get_categorias, get_admin_stats, edit_user_by_email, get_purchases_by_user, get_all_invoices, get_solicitudes_by_user, validar_carrito, crear_pedido, get_images_by_product, get_first_image_by_product, crear_variante, agregar_componente, normalizar_url_imagen, validar_url_imagen, Lanzamiento, get_eventos_analytics
 from .analytics import track_event, Events
-from .models import MESES
+from .models import MESES, datos_envio_previos
 import csv
 import io
 import json
@@ -1173,10 +1173,11 @@ def checkout():
         return redirect(url_for('purchase.summary'))
 
     form = CheckoutForm()
-    #si el envío anterior falló (o ya compró antes), se rellenan los datos para no volver a escribirlos
+    #si el envío anterior falló, si ya compró (o si tiene cuenta) se rellenan los datos para no volver a escribirlos
     intento = session.pop("checkout_intento", None)
     guardados = session.get("checkout_datos") or {}
-    fuente = intento or guardados
+    de_la_cuenta = datos_envio_previos(g.user.get("email_usuario")) if g.get("user") else None
+    fuente = intento or guardados or de_la_cuenta or {}
     if fuente:
         form.nombre.data = fuente.get("nombre")
         form.email.data = fuente.get("email")
@@ -1184,6 +1185,8 @@ def checkout():
         form.ciudad.data = fuente.get("ciudad")
         form.direccion.data = fuente.get("direccion")
         form.barrio.data = fuente.get("barrio")
+    if g.get("user"):  #con cuenta: al menos el correo siempre se sabe
+        form.email.data = form.email.data or g.user.get("email_usuario")
 
     linea_vista, cats = [], {}
     for i, l in enumerate(lineas):
@@ -1197,7 +1200,7 @@ def checkout():
 
     return render_template("checkout.html", form=form, lineas=linea_vista, total=total,
                            accion=url_for('purchase.process_checkout'),
-                           previos=bool(guardados) and not intento, solicitud=None,
+                           previos=bool(fuente) and not intento, solicitud=None,
                            cats="|".join(f"{k}:{v}" for k, v in sorted(cats.items())))
 
 
@@ -1240,8 +1243,9 @@ def process_checkout():
             flash(e, "warning")
         return redirect(url_for('purchase.summary'))
     
-    # Crear pedido con los datos proporcionados
-    pedido, token, errores = crear_pedido(session.get("purchase"), datos)
+    # Crear pedido con los datos proporcionados (si hay sesión, el pedido queda en su cuenta)
+    pedido, token, errores = crear_pedido(session.get("purchase"), datos,
+                                          k_usuario=g.user["id"] if g.user else None)
     if errores:
         session["checkout_intento"] = datos
         for e in errores:

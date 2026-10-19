@@ -3,10 +3,9 @@ import re
 
 from app import correo
 from app.db import db
-from app.store import pedidos
-from app.store.models import Invoice, Usuario, referencia_epayco
+from app.store.models import Invoice, Usuario
 from app.store.notificaciones import token_activacion
-from conftest import DATOS_ENVIO, comprar
+from conftest import DATOS_ENVIO, comprar, simular_pago
 from test_checkout_invitado import token_de
 
 
@@ -22,12 +21,9 @@ def html(msg):
     return msg.get_body(preferencelist=("html",)).get_content()
 
 
-def pagar(client, app, monkeypatch, token):
-    with app.app_context():
-        p = Invoice.query.order_by(Invoice.id.desc()).first()
-        ref, monto = referencia_epayco(p), str(p.total)
-    monkeypatch.setattr(pedidos, "consultar_epayco", lambda r: {"x_response": "Aceptada", "x_id_invoice": ref, "x_amount": monto})
-    return client.get(f"/pedido/{token}/respuesta?ref_payco=ok1")
+def pagar(client, app, token):
+    """Confirma el pago por el mismo camino que el webhook de MercadoPago."""
+    return simular_pago(client, app, token)
 
 
 def enlace_activacion(msg):
@@ -35,11 +31,11 @@ def enlace_activacion(msg):
     return m.group(1) if m else None
 
 
-def test_correo_de_confirmacion_una_sola_vez_con_enlace_de_seguimiento(client, app, monkeypatch):
+def test_correo_de_confirmacion_una_sola_vez_con_enlace_de_seguimiento(client, app):
     token = token_de(comprar(client, {1: 1}))
     assert correos(app) == []  #el pedido pendiente no envía nada
-    pagar(client, app, monkeypatch, token)
-    pagar(client, app, monkeypatch, token)  #respuesta + confirmación de ePayco
+    pagar(client, app, token)
+    pagar(client, app, token)  #MercadoPago avisa varias veces
     assert len(correos(app)) == 1
     msg = correos(app)[0]
     assert msg["To"] == "laura@correo.com"
@@ -54,15 +50,15 @@ def test_si_falla_el_correo_el_pedido_igual_queda_pagado(client, app, monkeypatc
     def smtp_caido(*a, **k):
         raise ConnectionError("SMTP caído")
     monkeypatch.setattr(correo, "_mensaje", smtp_caido)
-    assert pagar(client, app, monkeypatch, token).status_code == 302
+    assert pagar(client, app, token).status_code == 302
     with app.app_context():
         assert Invoice.query.one().estado == "PAGADO"
     assert client.get(f"/pedido/{token}").status_code == 200
 
 
-def test_ignorar_la_oferta_no_afecta_el_pedido(client, app, monkeypatch):
+def test_ignorar_la_oferta_no_afecta_el_pedido(client, app):
     token = token_de(comprar(client, {1: 1}))
-    pagar(client, app, monkeypatch, token)
+    pagar(client, app, token)
     with app.app_context():
         comprador = Usuario.query.filter_by(email_usuario="laura@correo.com").one()
         assert comprador.k_rol == "CLIENTE"
@@ -70,9 +66,9 @@ def test_ignorar_la_oferta_no_afecta_el_pedido(client, app, monkeypatch):
     assert "¡Pago confirmado!" in otro_navegador.get(f"/pedido/{token}").get_data(as_text=True)
 
 
-def test_crear_contrasena_desde_el_correo_y_ver_pedidos(client, app, monkeypatch):
+def test_crear_contrasena_desde_el_correo_y_ver_pedidos(client, app):
     token = token_de(comprar(client, {1: 1}))
-    pagar(client, app, monkeypatch, token)
+    pagar(client, app, token)
     activacion = enlace_activacion(correos(app)[0])
 
     nuevo = app.test_client()
@@ -90,17 +86,17 @@ def test_crear_contrasena_desde_el_correo_y_ver_pedidos(client, app, monkeypatch
     assert otro.get("/account").status_code == 200
 
 
-def test_enlace_de_activacion_no_se_muestra_en_pantalla(client, app, monkeypatch):
+def test_enlace_de_activacion_no_se_muestra_en_pantalla(client, app):
     token = token_de(comprar(client, {1: 1}))
-    pagar(client, app, monkeypatch, token)
+    pagar(client, app, token)
     activacion = enlace_activacion(correos(app)[0])
     assert activacion not in client.get(f"/pedido/{token}").get_data(as_text=True)
     assert "/activar/" not in client.get(f"/pedido/{token}").get_data(as_text=True)
 
 
-def test_enlace_de_activacion_alterado_o_vencido_no_sirve(client, app, monkeypatch):
+def test_enlace_de_activacion_alterado_o_vencido_no_sirve(client, app):
     token = token_de(comprar(client, {1: 1}))
-    pagar(client, app, monkeypatch, token)
+    pagar(client, app, token)
     activacion = enlace_activacion(correos(app)[0])
     assert client.get(f"/activar/{activacion[:-2]}xx").status_code == 400
     assert client.get("/activar/inventado").status_code == 400
@@ -108,10 +104,10 @@ def test_enlace_de_activacion_alterado_o_vencido_no_sirve(client, app, monkeypat
     assert client.get(f"/activar/{activacion}").status_code == 400
 
 
-def test_registrarse_con_correo_ajeno_no_da_acceso_a_sus_pedidos(client, app, monkeypatch):
+def test_registrarse_con_correo_ajeno_no_da_acceso_a_sus_pedidos(client, app):
     #la víctima compró sin cuenta; el atacante intenta registrarse con su correo
     token = token_de(comprar(client, {1: 1}))
-    pagar(client, app, monkeypatch, token)
+    pagar(client, app, token)
     atacante = app.test_client()
     resp = atacante.post("/signup", data={"name": "X", "lastname": "Y", "email_usuario": "laura@correo.com", "pwd_usuario": "hackeo123"})
     assert resp.status_code == 302
@@ -125,10 +121,10 @@ def test_registrarse_con_correo_ajeno_no_da_acceso_a_sus_pedidos(client, app, mo
     assert "Crea tu contraseña" in correos(app)[-1]["Subject"]
 
 
-def test_usuario_con_cuenta_no_recibe_oferta_de_contrasena(client, app, monkeypatch):
+def test_usuario_con_cuenta_no_recibe_oferta_de_contrasena(client, app):
     client.post("/login", data={"email_usuario": "ana@cuenta.com", "pwd_usuario": "clave"})
     token = token_de(comprar(client, {1: 1}, dict(DATOS_ENVIO, email="ana@cuenta.com")))
-    pagar(client, app, monkeypatch, token)
+    pagar(client, app, token)
     assert enlace_activacion(correos(app)[0]) is None
 
 

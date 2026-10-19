@@ -18,7 +18,7 @@ def app(tmp_path):
     class TestConfig(DevelopmentConfig):
         TESTING = True
         WTF_CSRF_ENABLED = False
-        EPAYCO_SIMULACION = False
+        SIMULACION_PAGO = False
         MAIL_BACKEND = "memoria"
         SQLALCHEMY_DATABASE_URI = "sqlite:///" + str(tmp_path / "test.sqlite3").replace("\\", "/")
 
@@ -61,4 +61,18 @@ def comprar(client, carrito, datos=None):
     for k_producto, cantidad in carrito.items():
         client.post("/purchase/addtocart", data={"product_id": str(k_producto), "quantity": str(cantidad)},
                     headers={"Referer": "/products/"})
-    return client.post("/purchase/checkout", data=datos or DATOS_ENVIO)
+    return client.post("/purchase/process_checkout", data=datos or DATOS_ENVIO)
+
+
+def simular_pago(client, app, token, resultado="aprobado"):
+    """Confirma (o rechaza) el pago por el mismo camino que usa MercadoPago en producción.
+
+    /pedido/<token>/simular existe solo en desarrollo, pero por dentro llama a confirmar_pago()
+    igual que el webhook real, así que sirve para probar el descuento de stock, el correo y la
+    idempotencia sin hablar con MercadoPago."""
+    antes = app.config.get("SIMULACION_PAGO")
+    app.config["SIMULACION_PAGO"] = True
+    try:
+        return client.post(f"/pedido/{token}/simular", data={"resultado": resultado})
+    finally:
+        app.config["SIMULACION_PAGO"] = antes

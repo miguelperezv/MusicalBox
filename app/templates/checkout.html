@@ -28,7 +28,7 @@
         <div class="col-lg-7">
             <form id="form-checkout" class="mb-panel p-4" method="POST" action="{{ accion or url_for('purchase.checkout') }}" novalidate>
                 {% if previos %}
-                <div class="alert alert-info small"><i class="bi bi-arrow-repeat me-1"></i>Llenamos el formulario con los datos de tu compra anterior. Revisa que sigan correctos y continúa.</div>
+                <div class="alert alert-info small"><i class="bi bi-arrow-repeat me-1"></i>Ya llenamos el formulario con los datos que tenemos tuyos. Revisa que sigan correctos y continúa.</div>
                 {% endif %}
                 {{ form.hidden_tag() }}
                 <h2 class="h5 mb-3"><i class="bi bi-person me-2 text-primary"></i>Tus datos</h2>

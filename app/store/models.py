@@ -726,8 +726,12 @@ def get_user_by_email(email):
     return u
 
 def get_purchases_by_user(email):
-    # Get invoices directly by email, no need to get user object
-    invoices = Invoice.query.filter_by(k_usuario = email).all()
+    #los pedidos de su cuenta y los que hizo como invitado con ese mismo correo
+    user = get_usuario_por_email(email)
+    filtro = db.func.lower(Invoice.email_envio) == (email or '').lower()
+    if user:
+        filtro = db.or_(Invoice.k_usuario == user.id, filtro)
+    invoices = Invoice.query.filter(filtro).order_by(db.desc(Invoice.f_compra)).all()
     facturas = []
     for i in invoices:
         items = get_items_by_id_factura(i.id)
