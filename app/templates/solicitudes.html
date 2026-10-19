@@ -1,11 +1,11 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div>
-        <h1 class="h3 mb-0">Pedidos a la medida</h1>
-        <div class="small text-body-secondary">Cotiza cada ítem, genera el enlace y envíaselo por WhatsApp.</div>
+        <h1 class="h3 mb-0">Solicitudes</h1>
+        <div class="small text-body-secondary">Pedidos a la medida: cotiza cada ítem, genera el enlace y envíaselo por WhatsApp.</div>
     </div>
     <div class="d-flex gap-2 flex-wrap">
         <input class="form-control form-control-sm" style="width: 240px" type="search" id="filtro-solicitudes" placeholder="Filtrar por producto, contacto...">
-        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-nuevo-medida"><i class="bi bi-plus-lg me-1"></i>Nuevo pedido a la medida</button>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-nuevo-medida"><i class="bi bi-plus-lg me-1"></i>Nueva solicitud</button>
     </div>
 </div>
 <div class="d-flex flex-wrap gap-2 mb-3" data-grupo-solicitudes>
@@ -16,7 +16,7 @@
     <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="solicitudes" data-filtro="COMPRADA">Compradas</button>
     <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="solicitudes" data-filtro="CANCELADO">Canceladas</button>
 </div>
-<p class="small text-body-secondary">El precio es obligatorio; el producto del catálogo y el lanzamiento son opcionales (el lanzamiento da la portada en el mensaje y en la orden). Puedes escribir el disco a mano o buscarlo: si no existe, se crea.</p>
+<p class="small text-body-secondary">El precio es obligatorio; el producto del catálogo y el lanzamiento son opcionales (el lanzamiento da la portada en el mensaje y en el pedido). Puedes escribir el disco a mano o buscarlo: si no existe, se crea.</p>
 <div class="mb-panel p-0">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0" id="tabla-solicitudes">
@@ -64,7 +64,7 @@
                     </td>
                     <td class="pe-3">
                         {% if s.pedido %}
-                        <a href="#" class="text-decoration-none" data-load="{{ url_for('dashboard.invoices', busca=s.pedido.id) }}" title="Ver la orden"><i class="bi bi-box me-1"></i>Orden #{{ s.pedido.id }}</a>
+                        <a href="#" class="text-decoration-none" data-load="{{ url_for('dashboard.invoices', busca=s.pedido.id) }}" title="Ver el pedido"><i class="bi bi-box me-1"></i>Pedido #{{ s.pedido.id }}</a>
                         <div class="small mt-1"><span class="mb-estado mb-estado-{{ s.pedido.estado }}">{{ s.pedido.estado }}</span> · {{ s.pedido.total|cop }}</div>
                         {% elif s.estado in ['ACTIVO', 'EN PROCESO', 'COTIZADA'] %}
                         {% if s.total_cotizado %}<div class="small mb-1">Total <strong>{{ s.total_cotizado|cop }}</strong>{% if s.d_cotizacion %} · <span class="text-body-secondary">{{ s.d_cotizacion }}</span>{% endif %}</div>{% endif %}
@@ -158,7 +158,7 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header py-2">
-                <h5 class="modal-title h6"><i class="bi bi-plus-circle me-2 text-primary"></i>Nuevo pedido a la medida</h5>
+                <h5 class="modal-title h6"><i class="bi bi-plus-circle me-2 text-primary"></i>Nueva solicitud</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
             </div>
             <div class="modal-body">
@@ -241,7 +241,7 @@
             .fail(function () { select.addClass('is-invalid'); });
     });
 
-    //mini-form "nuevo pedido a la medida" (modal): registra y, si hay precio, deja el whatsapp listo para enviar
+    //mini-form "nueva solicitud" (modal): registra y, si hay precio, deja el whatsapp listo para enviar
     $('#form-mini-pedido').on('submit', function (e) {
         e.preventDefault();
         var form = this, salida = document.getElementById('mini-pedido-respuesta');

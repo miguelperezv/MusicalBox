@@ -1,7 +1,8 @@
-<h1 class="h3 mb-4">Órdenes de compra</h1>
+<h1 class="h3 mb-0">Pedidos</h1>
+<p class="small text-body-secondary mb-4">Las compras de la tienda: revisa el pago, prepara el envío y guarda la guía.</p>
 
 <!-- Filtros chips reorganizados: prioridad a lo que requiere acción -->
-<div class="d-flex flex-wrap gap-2 mb-3" data-grupo-ordenes data-filtro-actual="prioridad" role="group" aria-label="Filtrar órdenes">
+<div class="d-flex flex-wrap gap-2 mb-3" data-grupo-ordenes data-filtro-actual="prioridad" role="group" aria-label="Filtrar pedidos">
     <input class="form-control form-control-sm" style="max-width: 220px" type="search" id="buscador-ordenes" value="{{ busca }}"
            placeholder="Buscar por número, comprador, teléfono...">
     <button type="button" class="chip-filtro btn btn-sm btn-success active" data-filtra="ordenes" data-filtro="prioridad">✅ Requieren envío <span class="badge text-bg-light text-dark">{{ conteos.prioridad or 0 }}</span></button>
