@@ -342,7 +342,7 @@
             const data = await r.json();
             console.log("[MP] process_payment status:", r.status, "body:", data);
             
-            const mpStatus = data.mp_response?.status;
+            const mpStatus = data.status || data.mp_response?.status;
             const paymentMethod = formData.payment_method_id;
             
             if (r.ok && mpStatus === "approved") {

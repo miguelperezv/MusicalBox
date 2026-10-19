@@ -165,6 +165,10 @@ def process_payment():
                     return jsonify({
                         "mp_status": 200,
                         "mp_response": mp_body,
+                        # el navegador solo necesita el id y el estado, sin hurgar dentro de mp_response
+                        "payment_id": inv.mp_payment_id,
+                        "status": mp_status,
+                        "status_detail": mp_body.get("status_detail"),
                         "redirect_url": external_url,
                         "reused": True
                     }), 200
@@ -185,7 +189,9 @@ def process_payment():
                     except Exception as e:
                         current_app.logger.exception(f"[MP] Fallo envío de email para pedido {inv.id}: {e}")
                     aviso_pago_aprobado(p, token_pedido)
-                return jsonify({"mp_status": 200, "mp_response": mp_body, "approved": True}), 200
+                return jsonify({"mp_status": 200, "mp_response": mp_body, "payment_id": inv.mp_payment_id,
+                                "status": mp_status, "status_detail": mp_body.get("status_detail"),
+                                "approved": True}), 200
             elif mp_status in ("rejected", "cancelled", "expired"):
                 # Pago fallido: limpiar para crear uno nuevo
                 current_app.logger.info(f"[MP] Pago previo {mp_status}, creando uno nuevo")
@@ -449,6 +455,10 @@ def process_payment():
     resp = {
         "mp_status": mp_http_status,
         "mp_response": mp_body,
+        # el navegador no tiene que adivinar: el id y el estado van arriba, ya extraídos
+        "payment_id": str(mp_body.get("id") or "") or None,
+        "status": mp_body.get("status"),
+        "status_detail": mp_body.get("status_detail"),
     }
     # Para PSE in_process/pending, incluir URL de redirección al banco
     if payment_method_id == "pse" and mp_body.get("status") in ("in_process", "pending"):

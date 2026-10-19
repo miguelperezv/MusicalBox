@@ -81,6 +81,10 @@ def test_pse_manda_el_banco_y_devuelve_la_url_del_banco(client, app, monkeypatch
     datos = r.get_json()
     #la respuesta que el navegador usa para redirigir al banco
     assert datos["redirect_url"] == pago_pse_pendiente()["transaction_details"]["external_resource_url"]
+    #y el id y el estado van arriba, sin tener que mirar dentro de mp_response
+    assert datos["payment_id"] == "123456"
+    assert datos["status"] == "pending"
+    assert datos["status_detail"] == "pending_waiting_transfer"
 
     creado = sdk.creado
     assert creado["transaction_amount"] == esperado           #monto del pedido, no del navegador
@@ -120,6 +124,7 @@ def test_pse_reutiliza_el_pago_pendiente_al_volver_del_banco(client, app, monkey
     r = client.post("/mercadopago/process_payment", json=dict(PAYLOAD_PSE, token_hash=token, intento=2))
     assert r.status_code == 200 and r.get_json()["reused"] is True
     assert r.get_json()["redirect_url"].endswith("/bank_transfer")
+    assert r.get_json()["payment_id"] == "123456"
 
 
 def test_pse_sin_banco_lo_dice_claro(client, app, monkeypatch):
