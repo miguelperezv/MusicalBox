@@ -234,6 +234,10 @@
       <button id="btnCloseMp" type="button" aria-label="Cerrar">&times;</button>
     </div>
     <div id="paymentBrick_container"></div>
+    <div id="statusScreen_container" style="display:none;"></div>
+    <div id="estadoRespaldo" style="display:none;" class="text-center small text-body-secondary mt-2">
+      <p class="mb-0">¿No te llevó solo? <a id="irAlBanco" href="#">Entrá al banco ahora</a>.</p>
+    </div>
   </div>
 </div>
 
@@ -254,6 +258,7 @@
   const TOKEN_HASH = "{{ token }}";
   const MP_PUBLIC_KEY = "{{ config.MERCADOPAGO_PUBLIC_KEY }}";
   let brickController = null;
+  let statusController = null;
   
   // Función para obtener el contexto de pago
   async function getPaymentContext(token) {
@@ -352,11 +357,9 @@
               return;
             }
             
-            // PSE: redirigir al banco si hay redirect_url
-            if (paymentMethod === "pse" && data.redirect_url) {
-              closeMpModal();
-              // Redirigir al portal del banco para autorizar
-              window.location.href = data.redirect_url;
+            // PSE: MercadoPago pide mostrar la pantalla de estado, que es la que lleva al banco
+            if (paymentMethod === "pse" && data.redirect_url && data.payment_id) {
+              mostrarEstadoDelPago(bricksBuilder, data.payment_id, data.redirect_url);
               return;
             }
             
@@ -379,6 +382,7 @@
             }
             
             // El servidor explica qué pasó (PSE caído, banco sin elegir, etc.)
+            // Si no se creó el pago no hay pantalla de estado posible: solo queda el error
             if (!r.ok || data.error) {
               Swal.fire({
                 title: "No se pudo iniciar el pago",
@@ -386,6 +390,12 @@
                 icon: "error",
                 confirmButtonText: "Entendido"
               });
+              return;
+            }
+            
+            // Tarjeta en proceso o rechazada: la pantalla de estado dice en qué quedó
+            if (data.payment_id) {
+              mostrarEstadoDelPago(bricksBuilder, data.payment_id, null);
               return;
             }
             
@@ -424,6 +434,53 @@
     }
   }
   
+  // Pantalla de estado del pago (Status Screen Brick). Es el componente que MercadoPago pide
+  // después de crear el pago: en PSE avisa que te lleva al banco y redirige sola a los pocos
+  // segundos; en tarjeta muestra si quedó aprobada, en proceso o rechazada.
+  // urlBanco solo llega en PSE: sin él no hay a dónde ir.
+  async function mostrarEstadoDelPago(bricksBuilder, paymentId, urlBanco) {
+    const cajaPago = document.getElementById("paymentBrick_container");
+    const cajaEstado = document.getElementById("statusScreen_container");
+    //si no hay dónde dibujarla, volvemos a lo de antes: al banco o a la página del pedido
+    function respaldo() {
+      window.location.href = urlBanco ? urlBanco : `/pedido/${TOKEN_HASH}`;
+    }
+    if (!cajaEstado) { respaldo(); return; }
+
+    if (cajaPago) cajaPago.style.display = "none";
+    cajaEstado.style.display = "block";
+
+    if (urlBanco) {
+      document.getElementById("irAlBanco").href = urlBanco;
+      //si la pantalla de estado no redirige sola, el comprador no se queda colgado esperando
+      setTimeout(function () {
+        const aviso = document.getElementById("estadoRespaldo");
+        //solo si seguimos en la pantalla de estado (pueden haber cerrado el modal)
+        if (aviso && cajaEstado.style.display !== "none") {
+          aviso.style.display = "block";
+        }
+      }, 8000);
+    }
+
+    try {
+      statusController = await bricksBuilder.create("statusScreen", "statusScreen_container", {
+        initialization: { paymentId: paymentId },
+        callbacks: {
+          onReady: () => {
+            console.log("[MP] Status Screen Brick listo");
+          },
+          onError: (error) => {
+            console.error("[MP] Error en el Status Screen Brick:", error);
+            respaldo();   //mejor el banco (o el pedido) que dejar al comprador sin pagar
+          },
+        },
+      });
+    } catch (e) {
+      console.error("[MP] No se pudo mostrar la pantalla de estado:", e);
+      respaldo();
+    }
+  }
+
 // Función para cerrar el modal
   async function closeMpModal() {
     const modal = document.getElementById("mpModal");
@@ -436,6 +493,17 @@
       await brickController.unmount();
     }
     brickController = null;
+    if (statusController && typeof statusController.unmount === 'function') {
+      await statusController.unmount();
+    }
+    statusController = null;
+    //dejar el modal como estaba: vuelve el formulario y se esconde la pantalla de estado
+    const cajaPago = document.getElementById("paymentBrick_container");
+    const cajaEstado = document.getElementById("statusScreen_container");
+    const avisoRespaldo = document.getElementById("estadoRespaldo");
+    if (cajaPago) cajaPago.style.display = "";
+    if (cajaEstado) cajaEstado.style.display = "none";
+    if (avisoRespaldo) avisoRespaldo.style.display = "none";
     // Re-habilitar botón de pago
     const btn = document.getElementById("btnOpenMp");
     if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-wallet2 me-2"></i>Pagar con MercadoPago'; }
