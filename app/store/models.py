@@ -1324,7 +1324,8 @@ def get_productos_mas_vendidos(limit=10, dias=30):
     col_unidades = db.func.sum(Item.cant_item).label("u")
     filas = (db.session.query(Item.k_producto, col_unidades)
              .join(Invoice, Invoice.id == Item.k_factura)
-             .filter(Invoice.estado == 'PAGADO', Invoice.f_compra >= desde)
+             #los ítems sin producto (k_producto nulo) no entran: no se pueden mostrar ni sumar
+             .filter(Invoice.estado == 'PAGADO', Invoice.f_compra >= desde, Item.k_producto.isnot(None))
              .group_by(Item.k_producto)
              .order_by(col_unidades.desc())
              .limit(limit).all())
@@ -1520,7 +1521,8 @@ def get_admin_stats(dias=30):
     col_unidades = db.func.sum(Item.cant_item).label("u")
     filas_top = (db.session.query(Item.k_producto, col_unidades)
                  .join(Invoice, Invoice.id == Item.k_factura)
-                 .filter(Invoice.estado == 'PAGADO', Invoice.f_compra >= hace_30)
+                 #los ítems sin producto (k_producto nulo) no entran: no se pueden mostrar ni sumar
+                 .filter(Invoice.estado == 'PAGADO', Invoice.f_compra >= hace_30, Item.k_producto.isnot(None))
                  .group_by(Item.k_producto).order_by(col_unidades.desc()).limit(5).all())
     top5 = []
     for k_prod, unidades in filas_top:
