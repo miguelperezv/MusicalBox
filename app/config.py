@@ -14,6 +14,8 @@ class Config(object):
     #MercadoPago (llaves de pruebas por defecto; en producción van en variables de entorno)
     MERCADOPAGO_PUBLIC_KEY = os.getenv("MERCADOPAGO_PUBLIC_KEY", "YOUR_PUBLIC_KEY")
     MERCADOPAGO_ACCESS_TOKEN = os.getenv("MERCADOPAGO_ACCESS_TOKEN", "YOUR_ACCESS_TOKEN")
+    #firma del webhook de MercadoPago (Panel de MP > Webhooks > clave secreta); si está, se exige
+    MP_WEBHOOK_SECRET = os.getenv("MP_WEBHOOK_SECRET", "")
     #Spotify (client credentials; buscar/refrescar metadatos de lanzamientos, ver app/store/musicapi.py)
     SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
     SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")

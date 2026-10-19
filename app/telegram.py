@@ -24,13 +24,18 @@ Flujo guiado por botones (estado en memoria, un proceso):
   (el lanzamiento sí queda guardado y asociado al ítem).
 
 Solo responde al chat TG_ADMIN_CHAT_ID; si se configura TG_WEBHOOK_SECRET, exige ese
-secret_token en el webhook (segundo candado).
+secret_token (llega en la cabecera X-Telegram-Bot-Api-Secret-Token) como segundo candado.
+Cada update se atiende una sola vez (Telegram reenvía si tarda la respuesta).
 
 Nunca lanza excepciones: si un aviso falla, se registra y la operación que lo pidió sigue adelante.
+Los envíos reintentan 3 veces (el proxy saliente de PythonAnywhere devuelve 503 de vez en cuando)
+y los mensajes largos se parten, porque Telegram rechaza los que pasan de 4096 caracteres.
 """
+import hmac
 import logging
 import os
 import time
+from collections import deque
 from datetime import datetime
 
 import requests
@@ -48,6 +53,8 @@ _guiado = {}
 _ctx = {}  #contexto guiado por chat: {"k", "ext" (spotify), "prod" (producto), "nota"}
 #albumes de la busqueda mas reciente: external_id -> item (para los botones opt:<k>:<ext>)
 _albumes = {}
+#ultimos update_id atendidos (Telegram reenvia si tarda la respuesta; ver _ya_visto)
+_vistos = deque(maxlen=200)
 
 
 def _ck(chat_id):
@@ -63,13 +70,50 @@ def _markup(botones):
         if b.get("url"):
             filas.append([{"text": b["texto"], "url": b["url"]}])
         elif b.get("copy_text"):
-            txt = b["copy_text"]["text"]
-            if len(txt) > 256:
-                txt = txt[-256:]  # mantener la cola (link + total)
-            filas.append([{"type": "copy_text", "text": b["texto"], "copy_text": {"text": txt}}])
+            filas.append([{"type": "copy_text", "text": b["texto"],
+                           "copy_text": {"text": _recortar(b["copy_text"]["text"], 256)}}])
         else:
             filas.append([{"text": b["texto"], "callback_data": b["callback"]}])
     return {"inline_keyboard": filas} if filas else None
+
+
+def _recortar(texto, limite):
+    #Telegram rechaza lo que pase del límite; se conserva la cola (enlace de pago y total)
+    texto = str(texto or "")
+    return texto if len(texto) <= limite else texto[-limite:]
+
+
+def _partes(texto, limite=4000):
+    #Telegram rechaza los mensajes de más de 4096 caracteres: se parten por líneas para no perder
+    #el final (ahí van los enlaces de pago y el seguimiento). El tope se deja en 4000 por margen.
+    partes, actual = [], ""
+    for linea in str(texto or "").split("\n"):
+        if actual and len(actual) + 1 + len(linea) > limite:
+            partes.append(actual)
+            actual = linea
+        else:
+            actual = f"{actual}\n{linea}" if actual else linea
+    partes.append(actual)
+    return partes
+
+
+def _post_telegram(url, payload, etiqueta, intentos=3):
+    #el proxy saliente de PythonAnywhere falla con 503 de vez en cuando: reintentar suele pasar
+    if not (payload.get("text") or payload.get("caption") or "").strip():
+        log.warning(f"{etiqueta}: mensaje vacío, no se envía")
+        return False
+    for intento in range(1, intentos + 1):
+        try:
+            r = requests.post(url, json=payload, timeout=10)
+            if r.status_code == 200:
+                return True
+            log.warning(f"{etiqueta} falló (intento {intento}): HTTP {r.status_code} {r.text[:150]}")
+        except Exception as e:
+            log.warning(f"{etiqueta} falló (intento {intento}): {e}")
+        if intento < intentos:
+            time.sleep(1.5)
+    log.warning(f"{etiqueta}: se descartó el mensaje tras {intentos} intentos")
+    return False
 
 
 def enviar_admin(mensaje, botones=None):
@@ -77,12 +121,12 @@ def enviar_admin(mensaje, botones=None):
     token = (cfg.get("TG_BOT_TOKEN") or "").strip()
     admins_str = (cfg.get("TG_ADMIN_CHAT_ID") or "").strip()
     backend = (cfg.get("TG_BACKEND") or "real").lower()
-    
+
     # Obtener todos los chat_id de administradores
     admins = [a.strip() for a in admins_str.split(",") if a.strip()]
     if not token or not admins:
         backend = "consola"
-    
+
     try:
         if backend == "off":
             return True
@@ -90,24 +134,22 @@ def enviar_admin(mensaje, botones=None):
             current_app.extensions.setdefault("telegram_enviados", []).append(mensaje)
             return True
         if backend == "real":
-            log.info(f"Enviando aviso a {len(admins)} administradores: {admins}")
+            markup = _markup(botones)
+            partes = _partes(mensaje)
             enviado_a = []
             for chat_id in admins:
-                cuerpo = {"chat_id": chat_id, "text": mensaje, "parse_mode": "HTML",
-                         "disable_web_page_preview": True}
-                markup = _markup(botones)
-                if markup:
-                    cuerpo["reply_markup"] = markup
-                r = requests.post(
-                    f"https://api.telegram.org/bot{token}/sendMessage",
-                    json=cuerpo,
-                    timeout=10,
-                )
-                if r.status_code == 200:
+                ok = True
+                for i, parte in enumerate(partes):
+                    cuerpo = {"chat_id": chat_id, "text": parte, "parse_mode": "HTML",
+                              "disable_web_page_preview": True}
+                    if markup and i == len(partes) - 1:  #los botones van con el último pedazo
+                        cuerpo["reply_markup"] = markup
+                    ok = _post_telegram(f"https://api.telegram.org/bot{token}/sendMessage",
+                                        cuerpo, f"aviso a {chat_id}") and ok
+                if ok:
                     enviado_a.append(chat_id)
-                else:
-                    log.warning(f"aviso falló para admin {chat_id}: HTTP {r.status_code} {r.text[:200]}")
-            log.info(f"aviso enviado (real) a {len(enviado_a)}/{len(admins)} admins · {len(mensaje)} chars · {len(botones or [])} botones")
+            log.info(f"aviso enviado (real) a {len(enviado_a)}/{len(admins)} admins · "
+                     f"{len(mensaje)} chars en {len(partes)} mensaje(s) · {len(botones or [])} botones")
             return len(enviado_a) > 0
         carpeta = os.path.join(current_app.instance_path, "telegram")
         os.makedirs(carpeta, exist_ok=True)
@@ -125,39 +167,36 @@ def remitir(chat_id, texto, copiar=None, botones=None, foto=None):
     #envío directo del bot (sin HTML); `copiar` añade botón de copiar y `foto` (url) va con el texto
     token = (current_app.config.get("TG_BOT_TOKEN") or "").strip()
     if not token:
-        log.warning(f"remitir sin TG_BOT_TOKEN: {texto[:60]!r}")
+        log.warning(f"remitir sin TG_BOT_TOKEN: {str(texto)[:60]!r}")
         return False
     es_foto = bool(foto and str(foto).startswith("http"))
-    if es_foto:  #con foto va por sendPhoto (caption + botones); sin foto, texto plano
-        payload = {"chat_id": chat_id, "photo": str(foto), "caption": texto}
-    else:
-        payload = {"chat_id": chat_id, "text": texto, "disable_web_page_preview": True}
     filas = []
     if copiar:
-        #copy_text solo permite 256 caracteres; si el mensaje es más largo, se copia la cola
-        #(queda el enlace de pago y el total; el texto completo sigue visible arriba)
-        if len(copiar) > 256:
-            copiar = copiar[-256:]
-        filas.append([{"type": "copy_text", "text": "📋 Copiar", "copy_text": {"text": copiar}}])
+        filas.append([{"type": "copy_text", "text": "📋 Copiar", "copy_text": {"text": _recortar(copiar, 256)}}])
     markup = _markup(botones)
     if markup:
         filas.extend(markup["inline_keyboard"])
-    if filas:
-        payload["reply_markup"] = {"inline_keyboard": filas}
-    log.info(f"bot responde a {chat_id} · {texto[:50]!r} · copiar={bool(copiar)} · botones={len(botones or [])} · foto={bool(foto)}")
-    url = f"https://api.telegram.org/bot{token}/{'sendPhoto' if es_foto else 'sendMessage'}"
-    for intento in (1, 2, 3):  #el proxy saliente de PA falla con 503 de vez en cuando; reintentar suele pasar
-        try:
-            r = requests.post(url, json=payload, timeout=10)
-            if r.status_code == 200:
-                return True
-            log.warning(f"bot falló (intento {intento}): HTTP {r.status_code} {r.text[:150]}")
-        except Exception as e:
-            log.warning(f"bot falló (intento {intento}): {e}")
-        if intento < 3:
-            time.sleep(1.5)
-    log.warning(f"bot: se descartó el mensaje tras 3 intentos: {texto[:60]!r}")
-    return False
+    base = {"chat_id": chat_id, "disable_web_page_preview": True}
+    if es_foto:
+        #el pie de foto tiene su propio tope (1024)
+        partes = [_recortar(texto, 1024)]
+        url = f"https://api.telegram.org/bot{token}/sendPhoto"
+    else:
+        partes = _partes(texto)
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+    log.info(f"bot responde a {chat_id} · {str(texto)[:50]!r} · copiar={bool(copiar)} · "
+             f"botones={len(botones or [])} · foto={es_foto} · {len(partes)} mensaje(s)")
+    ok = True
+    for i, parte in enumerate(partes):
+        cuerpo = dict(base)
+        if es_foto:
+            cuerpo.update({"photo": str(foto), "caption": parte})
+        else:
+            cuerpo["text"] = parte
+        if filas and i == len(partes) - 1:
+            cuerpo["reply_markup"] = {"inline_keyboard": filas}
+        ok = _post_telegram(url, cuerpo, f"bot a {chat_id}") and ok
+    return ok
 
 
 def _cop_bot(total):
@@ -729,18 +768,37 @@ def _responder_callback(cb):
         _guiado[_ck(chat_id)] = {"espera": "nota", "k": k}
         return remitir(chat_id, f"Escribe la nota para el cliente de la solicitud #{k} (tiempos, edición...).\nMáx. 300; va en el mensaje de la cotización.")
 
+def _secreto_ok():
+    #Telegram manda el secret_token en la cabecera X-Telegram-Bot-Api-Secret-Token
+    #(el query param se acepta solo para pruebas manuales)
+    esperado = (current_app.config.get("TG_WEBHOOK_SECRET") or "").strip()
+    if not esperado:
+        return True
+    recibido = (request.headers.get("X-Telegram-Bot-Api-Secret-Token")
+                or request.args.get("secret_token") or "").strip()
+    return hmac.compare_digest(recibido, esperado)
+
+
+def _ya_visto(update_id):
+    #Telegram reenvía el update si no le contestamos rápido: sin esto, un mensaje repetido
+    #volvería a cotizar (y a mandar el mensaje) dos veces
+    if update_id is None:
+        return False
+    if update_id in _vistos:
+        return True
+    _vistos.append(update_id)
+    return False
+
+
 @telegram_bp.route("/webhook", methods=["POST"])
 def webhook():
     datos = request.get_json(silent=True) or {}
-    #LOG TEMPORAL PARA VER CHAT_ID DE NUEVOS USUARIOS:
-    import logging
-    logging.info(f"Webhook recibido: {datos}")
-    #FIN LOG TEMPORAL
-    #Solo el chat del admin; el secret_token (si se configura) actúa como segundo candado
-    esperado = (current_app.config.get("TG_WEBHOOK_SECRET") or "").strip()
-    if esperado and request.args.get("secret_token") != esperado:
+    if not _secreto_ok():
         log.warning(f"403: secreto inválido (UA: {request.headers.get('User-Agent')})")
         return jsonify({"ok": False}), 403
+    if _ya_visto(datos.get("update_id")):
+        log.info(f"update repetido ignorado: {datos.get('update_id')}")
+        return jsonify({"ok": True}), 200
     cb = datos.get("callback_query")
     if cb:
         remitente = (cb.get("from") or {}).get("id")

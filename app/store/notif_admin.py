@@ -95,6 +95,17 @@ def _cuerpo(p, estado_texto, accion, token=None, enlace=None):
     return "\n\n".join(bloques)
 
 
+def _url_pedido(token):
+    #los enlaces para el cliente llevan el dominio real (PUBLIC_BASE_URL), no el host del request
+    from flask import current_app
+    base = (current_app.config.get("PUBLIC_BASE_URL") or "").rstrip("/")
+    return f"{base}/pedido/{token}" if base else url_for('pedido.ver', token=token, _external=True)
+
+
+def _url_admin(p):
+    return url_for('home.admin', pedido=p.id, _external=True)
+
+
 def aviso_solicitud(s):
     items = []
     for it in s.items:
@@ -128,10 +139,7 @@ def aviso_pedido_creado(p, token=None):
     from .redes import Configuracion
     if (Configuracion.query.get('avisos.pedido_creado') or '0') != '1':
         return
-    from flask import url_for, current_app
-    url_admin = url_for('home.admin', pedido=p.id, _external=True)
-    base = current_app.config.get("PUBLIC_BASE_URL", "").rstrip("/")
-    url_pedido = f"{base}/pedido/{token}" if base else url_for('pedido.ver', token=token, _external=True)
+    url_pedido = _url_pedido(token)
     msg_cliente = (
         "Musical Box: recibimos tu pedido #{p_id}. "
         "Paga aquí: {url_pedido}. ¡Gracias!"
@@ -140,18 +148,14 @@ def aviso_pedido_creado(p, token=None):
                  + _cuerpo(p, "PENDIENTE DE PAGO", "El cliente aún no paga; el stock queda reservado 30 min.",
                            token, "Pago"),
                  botones=[
-                     {"texto": "🔗 Ir al pedido", "url": url_admin},
+                     {"texto": "🔗 Ir al pedido", "url": _url_admin(p)},
                      {"texto": "📋 Copiar mensaje para el cliente", "copy_text": {"text": msg_cliente}},
                  ])
 
 
 def aviso_pago_aprobado(p, token=None):
     estado = "PAGADO" + (f" · envío {p.estado_envio.lower()}" if p.estado_envio else "")
-    from flask import url_for, current_app
-    url_admin = url_for('home.admin', pedido=p.id, _external=True)
-    # Links de cliente: usan PUBLIC_BASE_URL (dominio real), no host actual
-    base = current_app.config.get("PUBLIC_BASE_URL", "").rstrip("/")
-    url_pedido = f"{base}/pedido/{token}" if base else url_for('pedido.ver', token=token, _external=True)
+    url_pedido = _url_pedido(token)
     total = p.total + (p.p_envio or 0)
     msg_cliente = (
         "Musical Box: pago aprobado ✅ Pedido #{p_id}. "
@@ -160,7 +164,7 @@ def aviso_pago_aprobado(p, token=None):
     enviar_admin(f"<b>PAGO APROBADO · PEDIDO #{p.id}</b>\n\n"
                  + _cuerpo(p, estado, "Prepara el pedido.", token, "Seguimiento"),
                  botones=[
-                     {"texto": "🔗 Ir al pedido", "url": url_admin},
+                     {"texto": "🔗 Ir al pedido", "url": _url_admin(p)},
                      {"texto": "📋 Copiar mensaje para el cliente", "copy_text": {"text": msg_cliente}},
                  ])
 
@@ -170,17 +174,22 @@ def aviso_pago_rechazado(p, token=None):
     from .redes import Configuracion
     if (Configuracion.query.get('avisos.pago_rechazado') or '0') != '1':
         return
-    from flask import url_for, current_app
-    url_admin = url_for('home.admin', pedido=p.id, _external=True)
-    base = current_app.config.get("PUBLIC_BASE_URL", "").rstrip("/")
-    url_pedido = f"{base}/pedido/{token}" if base else url_for('pedido.ver', token=token, _external=True)
     msg_cliente = (
         "Musical Box: pago rechazado ❌ Pedido #{p_id}. "
         "Reintenta: {url_pedido}. ¿Dudas? Escríbenos."
-    ).format(p_id=p.id, url_pedido=url_pedido)
+    ).format(p_id=p.id, url_pedido=_url_pedido(token))
     enviar_admin(f"<b>PAGO RECHAZADO · PEDIDO #{p.id}</b>\n\n"
                  + _cuerpo(p, "RECHAZADO", "El cliente puede reintentar el pago.", token, "Reintento"),
                  botones=[
-                     {"texto": "🔗 Ir al pedido", "url": url_admin},
+                     {"texto": "🔗 Ir al pedido", "url": _url_admin(p)},
                      {"texto": "📋 Copiar mensaje para el cliente", "copy_text": {"text": msg_cliente}},
                  ])
+
+
+def aviso_pago_de_otro_monto(p, monto, esperado):
+    #un pago aprobado por un monto que no es el del pedido: no se confirma nada y hay que mirarlo a mano
+    enviar_admin(f"<b>⚠️ PAGO CON MONTO DISTINTO · PEDIDO #{p.id}</b>\n\n"
+                 + _cuerpo(p, f"PAGADO {_cop(monto)} (el pedido vale {_cop(esperado)})",
+                           "No se confirmó el pedido: revisa el pago en MercadoPago antes de prepararlo.",
+                           None))
+

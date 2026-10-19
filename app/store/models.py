@@ -1946,10 +1946,18 @@ def get_pedido_por_token(token):
     return pedido_de_token_firmado(token)
 
 def confirmar_pago(pedido, ref_payco, id_factura_payco=None, franquicia=None):
-    #idempotente: el stock se descuenta una sola vez, en el paso a PAGADO. Devuelve (pedido, pago_nuevo)
+    #idempotente y "el que llega primero gana": el paso a PAGADO se hace con un UPDATE condicional
+    #para que dos avisos del mismo pago (el webhook y el navegador, que llegan casi juntos) no
+    #descuenten el stock dos veces. Devuelve (pedido, pago_nuevo)
     if pedido.estado == 'PAGADO':
         return pedido, False
-    
+    gano = (db.session.query(Invoice)
+            .filter(Invoice.id == pedido.id, Invoice.estado != 'PAGADO')
+            .update({'estado': 'PAGADO'}, synchronize_session=False))
+    if not gano:  #otro proceso lo confirmó primero
+        db.session.expire(pedido)
+        return pedido, False
+
     # Si el stock ya estaba reservado, simplemente marcamos el pedido como pagado
     # y eliminamos las reservas (el stock ya fue descontado al crear el pedido)
     if pedido.stock_reservado:
@@ -1987,13 +1995,16 @@ def confirmar_pago(pedido, ref_payco, id_factura_payco=None, franquicia=None):
     return pedido, True
 
 def rechazar_pago(pedido, ref_payco):
-    if pedido.estado != 'PAGADO':
-        pedido.estado = 'RECHAZADO'
-        pedido.ref_payco = ref_payco
-        # Liberar la reserva de stock si existe
-        if pedido.stock_reservado:
-            liberar_reserva_stock(pedido.id)
-        db.session.commit()
+    #un rechazo nunca puede pisar un pago ya confirmado (mismo candado que confirmar_pago)
+    if pedido.estado == 'PAGADO':
+        return pedido
+    db.session.query(Invoice).filter(Invoice.id == pedido.id, Invoice.estado != 'PAGADO').update(
+        {'estado': 'RECHAZADO', 'ref_payco': ref_payco}, synchronize_session=False)
+    db.session.expire(pedido)
+    # Liberar la reserva de stock si existe (idempotente: si ya se liberó, no hay nada que liberar)
+    if pedido.stock_reservado:
+        liberar_reserva_stock(pedido.id)
+    db.session.commit()
     return pedido
 
 

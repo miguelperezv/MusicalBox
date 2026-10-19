@@ -83,6 +83,24 @@ def test_pago_aceptado_confirma_y_descuenta_stock_una_sola_vez(client, app):
         assert db.session.get(Producto, 1).stock == 3
 
 
+def sdk_falso(pago):
+    """Un SDK de MercadoPago de mentira: devuelve el pago que le pasemos (o captura lo que se crea)."""
+    class SDK:
+        creado = None
+
+        def payment(self):
+            return self
+
+        def get(self, _id):
+            #igual que la API real: HTTP 200 con el pago dentro de "response"
+            return {"status": 200, "response": pago}
+
+        def create(self, payment_data, request_options=None):
+            SDK.creado = payment_data
+            return {"status": 200, "response": {"id": "888", "status": "pending"}}
+    return SDK()
+
+
 def test_el_webhook_no_confirma_si_el_monto_no_es_el_del_pedido(client, app, monkeypatch):
     #antes sólo se miraba el estado del pago: un pago por menos plata confirmaba el pedido
     from app.store.mercadopago import views as mp_views
@@ -93,30 +111,102 @@ def test_el_webhook_no_confirma_si_el_monto_no_es_el_del_pedido(client, app, mon
         referencia = pedido.token_hash  #MercadoPago manda el token_hash como referencia
         monto_del_pedido = pedido.total + (pedido.p_envio or 0)
 
-    def pago_falso(monto):
-        class SDK:
-            def payment(self):
-                return self
+    def pago(monto):
+        return {"id": "999", "status": "approved", "payment_method_id": "pse",
+                "external_reference": referencia, "transaction_amount": monto}
 
-            def get(self, _id):
-                return {"response": {"id": "999", "status": "approved", "payment_method_id": "pse",
-                                     "external_reference": referencia, "transaction_amount": monto}}
-        return SDK()
-
-    monkeypatch.setattr(mp_views, "get_mp_sdk", lambda: pago_falso(1000))
+    monkeypatch.setattr(mp_views, "get_mp_sdk", lambda: sdk_falso(pago(1000)))
     resp = client.post("/mercadopago/webhook", json={"type": "payment", "data": {"id": "999"}})
-    assert resp.status_code == 409
+    #200 para que MercadoPago no reintente un pago que no va a cuadrar nunca
+    assert resp.status_code == 200 and resp.get_json()["status"] == "monto_incorrecto"
     with app.app_context():
         assert Invoice.query.one().estado == "PENDIENTE"  #no se confirmó
         assert db.session.get(Producto, 1).stock == 4  #sigue reservado por el pedido pendiente
+    #y queda el aviso para el admin (hay que mirarlo a mano)
+    avisos = [a for a in app.extensions.get("telegram_enviados", []) if "MONTO DISTINTO" in a]
+    assert len(avisos) == 1 and "PEDIDO #" in avisos[0]
 
     #y con el monto correcto sí confirma (una sola vez)
-    monkeypatch.setattr(mp_views, "get_mp_sdk", lambda: pago_falso(monto_del_pedido))
+    monkeypatch.setattr(mp_views, "get_mp_sdk", lambda: sdk_falso(pago(monto_del_pedido)))
     for _ in range(2):
         assert client.post("/mercadopago/webhook", json={"type": "payment", "data": {"id": "999"}}).status_code == 200
     with app.app_context():
         assert Invoice.query.one().estado == "PAGADO"
         assert db.session.get(Producto, 1).stock == 4
+
+
+def test_el_webhook_exige_la_firma_cuando_hay_clave_secreta(client, app, monkeypatch):
+    import hashlib as _hashlib
+    import hmac as _hmac
+
+    from app.store.mercadopago import views as mp_views
+
+    app.config["MP_WEBHOOK_SECRET"] = "clave-del-panel"
+    token_de(comprar(client, {1: 1}))
+    with app.app_context():
+        pedido = Invoice.query.one()
+        pago = {"id": "999", "status": "approved", "payment_method_id": "pse",
+                "external_reference": pedido.token_hash, "transaction_amount": pedido.total + (pedido.p_envio or 0)}
+    monkeypatch.setattr(mp_views, "get_mp_sdk", lambda: sdk_falso(pago))
+    notificacion = {"type": "payment", "data": {"id": "999"}}
+
+    #sin firma: no se procesa
+    assert client.post("/mercadopago/webhook", json=notificacion).status_code == 401
+    #con firma mal calculada: tampoco
+    assert client.post("/mercadopago/webhook", json=notificacion, headers={
+        "x-signature": "ts=123,v1=deadbeef", "x-request-id": "req-1"}).status_code == 401
+    #con la firma del panel (HMAC del manifiesto de MercadoPago): sí
+    manifiesto = "id:999;request-id:req-1;ts:123;"
+    firma = _hmac.new(b"clave-del-panel", manifiesto.encode(), _hashlib.sha256).hexdigest()
+    r = client.post("/mercadopago/webhook", json=notificacion, headers={
+        "x-signature": f"ts=123,v1={firma}", "x-request-id": "req-1"})
+    assert r.status_code == 200 and r.get_json()["status"] == "processed"
+    with app.app_context():
+        assert Invoice.query.one().estado == "PAGADO"
+
+
+def test_el_webhook_aguanta_cuerpos_raros(client):
+    assert client.post("/mercadopago/webhook", data="no soy json").status_code == 400
+    assert client.post("/mercadopago/webhook", json=[]).status_code == 400
+    assert client.post("/mercadopago/webhook", json={"type": "payment"}).status_code == 400
+
+
+def test_el_navegador_no_puede_cambiar_el_monto_ni_el_pedido(client, app, monkeypatch):
+    #el pago se arma con el monto y la referencia del pedido en la BD, no con lo que mande el navegador
+    from app.store.mercadopago import views as mp_views
+
+    token = token_de(comprar(client, {1: 1}))
+    with app.app_context():
+        pedido = Invoice.query.one()
+        esperado = pedido.total + (pedido.p_envio or 0)
+        referencia = pedido.token_hash
+    sdk = sdk_falso({})
+    monkeypatch.setattr(mp_views, "get_mp_sdk", lambda: sdk)
+    r = client.post("/mercadopago/process_payment", json={
+        "token_hash": token, "payment_method_id": "ticket",
+        "transaction_amount": 1, "external_reference": "otro-pedido", "description": "hackeado"})
+    assert r.status_code == 200
+    assert sdk.creado["transaction_amount"] == esperado
+    assert sdk.creado["external_reference"] == referencia
+    assert "hackeado" not in sdk.creado["description"]
+
+
+def test_el_pago_pse_ya_aprobado_no_se_confirma_si_el_monto_no_cuadra(client, app, monkeypatch):
+    from app.store.mercadopago import views as mp_views
+
+    token = token_de(comprar(client, {1: 1}))
+    with app.app_context():
+        pedido = Invoice.query.one()
+        pedido.mp_payment_id = "777"  #pago PSE pendiente de antes
+        db.session.commit()
+        referencia = pedido.token_hash
+    monkeypatch.setattr(mp_views, "get_mp_sdk", lambda: sdk_falso({
+        "id": "777", "status": "approved", "payment_method_id": "pse",
+        "external_reference": referencia, "transaction_amount": 1000}))
+    r = client.post("/mercadopago/process_payment", json={"token_hash": token, "payment_method_id": "pse"})
+    assert r.status_code == 409
+    with app.app_context():
+        assert Invoice.query.one().estado == "PENDIENTE"
 
 
 def test_pago_rechazado_no_toca_stock_y_permite_reintentar(client, app):
