@@ -93,6 +93,12 @@ def test_pse_manda_el_banco_y_devuelve_la_url_del_banco(client, app, monkeypatch
     assert creado["additional_info"]["ip_address"]              #PSE lo exige
     assert creado["payer"]["entity_type"] == "individual"
     assert creado["payer"]["address"]["zip_code"] == "110111"
+    #los largos que exige el doc de PSE (los campos tienen que caber)
+    assert len(creado["payer"]["phone"]["area_code"]) == 3       #exactamente 3
+    assert len(creado["payer"]["phone"]["number"]) == 5          #de 1 a 5
+    assert len(creado["payer"]["identification"]["number"]) <= 15
+    assert len(creado["payer"]["first_name"]) <= 32
+    assert len(creado["payer"]["address"]["city"]) <= 18
     assert sdk.cabeceras()["x-test-token"] == "true"            #solo en modo pruebas
 
     with app.app_context():
@@ -123,6 +129,16 @@ def test_pse_sin_banco_lo_dice_claro(client, app, monkeypatch):
         "payer": PAYLOAD_PSE["payer"]})
     assert r.status_code == 400 and "banco" in r.get_json()["error"].lower()
     assert sdk.creado is None  #ni se molesta a MercadoPago
+
+
+def test_pse_con_documento_invalido_lo_dice_claro(client, app, monkeypatch):
+    sdk, token, _ = preparar(client, app, monkeypatch, pago_pse_pendiente())
+    r = client.post("/mercadopago/process_payment", json={
+        "payment_method_id": "pse", "token_hash": token,
+        "payer": {"identification": {"type": "CC", "number": "1" * 20}},  #el doc admite 1 a 15
+        "transaction_details": {"financial_institution": "1052"}})
+    assert r.status_code == 400 and "documento" in r.get_json()["error"].lower()
+    assert sdk.creado is None
 
 
 def test_pse_caido_no_revienta_avisa_al_admin_y_no_toca_el_stock(client, app, monkeypatch):

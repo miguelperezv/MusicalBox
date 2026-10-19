@@ -208,9 +208,10 @@ def process_payment():
         pse_payer = payload.get("payer") or {}
         ident = pse_payer.get("identification") or {}
         id_type, id_number = ident.get("type"), ident.get("number")
-        if not id_type or not id_number:
-            current_app.logger.error("[MP] faltan payer.identification.type/number para PSE")
-            return jsonify({"error": "Falta payer.identification.type/number para PSE"}), 400
+        #el doc de PSE pide tipo y un número de 1 a 15 posiciones
+        if not id_type or not id_number or not 1 <= len(str(id_number)) <= 15:
+            current_app.logger.error("[MP] payer.identification inválida para PSE: %r / %r", id_type, id_number)
+            return jsonify({"error": "El documento del comprador no es válido para pagar con PSE"}), 400
 
         # El banco lo elige el comprador en el Brick: viaja en transaction_details.financial_institution.
         # MercadoPago lo exige anidado (en la raíz responde 400 "the name of the parameters is wrong").
@@ -226,10 +227,10 @@ def process_payment():
         first_name = (partes[0] or "Cliente")[:32]
         last_name = (partes[1] if len(partes) > 1 else "MusicalBox")[:32]
 
-        # teléfono: 3 dígitos de área + hasta 7 del número, como los valida PSE
+        # teléfono: 3 dígitos de área y hasta 5 del número (el doc de PSE pide exactamente 3 y de 1 a 5)
         digitos = "".join(c for c in (inv.tel_envio or "") if c.isdigit()) or "3000000000"
         area_code = digitos[:3].ljust(3, "0")
-        number = (digitos[3:10] or "0000000").ljust(7, "0")
+        number = (digitos[3:8] or "00000").ljust(5, "0")
 
         # Campos que exige PSE; el monto y la referencia salen del pedido en la BD, no del navegador
         payment_data = {
