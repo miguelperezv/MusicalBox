@@ -325,8 +325,11 @@ def process_payment():
     idempotency_key = hashlib.sha256(idem_base.encode()).hexdigest()[:32]
     request_options = mp_config.RequestOptions()
     request_options.custom_headers = {"X-Idempotency-Key": idempotency_key}
-    # PSE en sandbox requiere x-test-token
-    if payment_method_id == "pse" and current_app.config.get("SIMULACION_PAGO"):
+    # PSE en pruebas exige x-test-token; en producción (credenciales APP_USR-) no se manda.
+    # Depende de las credenciales y no de SIMULACION_PAGO: se puede estar probando con
+    # credenciales TEST- sin tener la simulación encendida.
+    token_mp = str(current_app.config.get("MERCADOPAGO_ACCESS_TOKEN") or "")
+    if payment_method_id == "pse" and (token_mp.startswith("TEST-") or current_app.config.get("SIMULACION_PAGO")):
         request_options.custom_headers["x-test-token"] = "true"
     
     # Track checkout start

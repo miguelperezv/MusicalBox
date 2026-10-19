@@ -103,7 +103,7 @@ def test_pse_manda_el_banco_y_devuelve_la_url_del_banco(client, app, monkeypatch
     assert len(creado["payer"]["identification"]["number"]) <= 15
     assert len(creado["payer"]["first_name"]) <= 32
     assert len(creado["payer"]["address"]["city"]) <= 18
-    assert sdk.cabeceras()["x-test-token"] == "true"            #solo en modo pruebas
+    assert sdk.cabeceras()["x-test-token"] == "true"            #solo con credenciales de prueba
 
     with app.app_context():
         pedido = Invoice.query.one()
@@ -144,6 +144,26 @@ def test_pse_con_documento_invalido_lo_dice_claro(client, app, monkeypatch):
         "transaction_details": {"financial_institution": "1052"}})
     assert r.status_code == 400 and "documento" in r.get_json()["error"].lower()
     assert sdk.creado is None
+
+
+def test_el_header_de_pruebas_sigue_a_las_credenciales(client, app, monkeypatch):
+    #con credenciales TEST- el header va aunque la simulación esté apagada: son dos cosas distintas
+    sdk, token, _ = preparar(client, app, monkeypatch, pago_pse_pendiente())
+    app.config["SIMULACION_PAGO"] = False
+    app.config["MERCADOPAGO_ACCESS_TOKEN"] = "TEST-1234"
+
+    assert client.post("/mercadopago/process_payment", json=dict(PAYLOAD_PSE, token_hash=token)).status_code == 201
+    assert sdk.cabeceras()["x-test-token"] == "true"
+
+
+def test_con_credenciales_de_produccion_no_se_manda_el_header_de_pruebas(client, app, monkeypatch):
+    sdk, token, _ = preparar(client, app, monkeypatch, pago_pse_pendiente())
+    app.config["SIMULACION_PAGO"] = False
+    app.config["MERCADOPAGO_ACCESS_TOKEN"] = "APP_USR-1234"
+
+    assert client.post("/mercadopago/process_payment", json=dict(PAYLOAD_PSE, token_hash=token)).status_code == 201
+    assert "x-test-token" not in sdk.cabeceras()
+    assert "X-Idempotency-Key" in sdk.cabeceras()        #el de idempotencia va siempre
 
 
 def test_pse_caido_no_revienta_avisa_al_admin_y_no_toca_el_stock(client, app, monkeypatch):
