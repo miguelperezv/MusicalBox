@@ -144,7 +144,8 @@ def test_pse_con_documento_invalido_lo_dice_claro(client, app, monkeypatch):
 def test_pse_caido_no_revienta_avisa_al_admin_y_no_toca_el_stock(client, app, monkeypatch):
     from app.store.mercadopago import views as mp_views
 
-    error_mp = {"status": 424, "cause": [{"code": 9032, "description": "BankTransfers Api fail"}]}
+    error_mp = {"status": 424, "cause": [{"code": 9032, "description": "BankTransfers Api fail",
+                                          "data": "19-10-2026T02:35:55UTC;17e6d14d"}]}
     _sdk, token, _ = preparar(client, app, monkeypatch, error_mp, http=424)
     monkeypatch.setattr(mp_views.time, "sleep", lambda _s: None)  #los reintentos no esperan de verdad
 
@@ -157,6 +158,8 @@ def test_pse_caido_no_revienta_avisa_al_admin_y_no_toca_el_stock(client, app, mo
         assert db.session.get(Producto, 1).stock == 4  #la reserva sigue en pie para reintentar
     avisos = [a for a in app.extensions.get("telegram_enviados", []) if "PAGO NO INICIADO" in a]
     assert len(avisos) == 1 and "error 424" in avisos[0]
+    #el código y el rastro de MercadoPago quedan en el aviso: son los que pide su soporte
+    assert "9032" in avisos[0] and "17e6d14d" in avisos[0]
 
 
 def test_pse_no_pierde_la_ip_ni_el_nombre_del_pedido(client, app, monkeypatch):

@@ -399,9 +399,10 @@ def process_payment():
         aviso_pago_rechazado(inv, token_pedido)
     elif mp_http_status == 424:
         # Error específico de BankTransfers Api fail: el pedido queda PENDIENTE para reintentar
-        current_app.logger.error("[MP] error 424 (BankTransfers Api fail) en el pedido %s · %s",
-                                 inv.id, str(mp_body.get("cause"))[:200])
-        aviso_pago_no_creado(inv, "MercadoPago no pudo iniciar el pago PSE (error 424 · BankTransfers Api fail)", token_pedido)
+        causa = _detalle_causa(mp_body)
+        current_app.logger.error("[MP] error 424 en el pedido %s · %s", inv.id, causa)
+        #el código y el rastro van también al aviso: es lo que pide el soporte de MercadoPago
+        aviso_pago_no_creado(inv, f"MercadoPago no pudo iniciar el pago PSE (error 424 · {causa})", token_pedido)
         return jsonify({
             "error": "No pudimos iniciar el pago con PSE. Intenta de nuevo en unos minutos o paga con tarjeta.",
             "mp_status": mp_http_status,
@@ -410,9 +411,9 @@ def process_payment():
         }), 424
     elif mp_http_status == 500:
         # Error interno de MercadoPago (común en sandbox)
-        current_app.logger.error("[MP] error 500 (internal_error) en el pedido %s · %s",
-                                 inv.id, str(mp_body.get("cause"))[:200])
-        aviso_pago_no_creado(inv, "MercadoPago devolvió un error interno (500)", token_pedido)
+        causa = _detalle_causa(mp_body)
+        current_app.logger.error("[MP] error 500 (internal_error) en el pedido %s · %s", inv.id, causa)
+        aviso_pago_no_creado(inv, f"MercadoPago devolvió un error interno (500 · {causa})", token_pedido)
         return jsonify({
             "error": "MercadoPago está fallando ahora mismo. Intenta de nuevo en unos minutos.",
             "mp_status": mp_http_status,
@@ -455,6 +456,22 @@ def process_payment():
         if external_url:
             resp["redirect_url"] = external_url
     return jsonify(resp), mp_http_status
+
+
+def _detalle_causa(mp_body):
+    """Código, texto y rastro de la primera causa que devuelve MercadoPago.
+
+    MercadoPago manda las causas como lista: [{'code': 9032, 'description': 'BankTransfers Api fail',
+    'data': '19-10-2026T02:35:55UTC;17e6d14d-...'}]. Ese `data` es el rastro que pide su soporte
+    para investigar el 424, así que el log y el aviso al admin lo llevan tal cual.
+    """
+    causa = mp_body.get("cause") or {}
+    if isinstance(causa, list):
+        causa = causa[0] if causa else {}
+    if not isinstance(causa, dict):
+        return str(causa)[:200] or "sin detalle"
+    partes = [str(d) for d in (causa.get("code"), causa.get("description"), causa.get("data")) if d]
+    return " · ".join(partes) or "sin detalle"
 
 
 def _firma_ok(data):
