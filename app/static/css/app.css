@@ -84,6 +84,70 @@ h1, h2, h3, .h1, .h2, .h3 { font-weight: 800; letter-spacing: -.02em; }
 .mb-search .form-control:focus + .bi-search { color: var(--mb-muted); }
 .mb-cart { position: relative; color: #fff; font-size: 1.1rem; padding: .2rem .4rem; }
 .mb-cart .badge { position: absolute; top: -2px; right: -6px; background: var(--mb-yellow); color: var(--mb-ink); font-size: .6rem; border-radius: 999px; }
+
+/* aviso de "agregado al carrito": sobrio, con portada y acceso al carrito */
+.mb-cart-toast {
+    position: fixed; right: 1rem; bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    z-index: 1080; width: min(360px, calc(100vw - 2rem));
+    display: flex; align-items: flex-start; gap: .7rem;
+    padding: .8rem .85rem; background: #fff; color: var(--mb-ink);
+    border: 1px solid #e6ecf0; border-radius: 14px; overflow: hidden;
+    box-shadow: 0 16px 40px rgba(15, 28, 36, .18);
+    opacity: 0; transform: translateY(12px) scale(.98);
+    transition: opacity .22s ease, transform .22s ease;
+}
+.mb-cart-toast.mb-cart-toast-in { opacity: 1; transform: translateY(0) scale(1); }
+.mb-cart-toast.mb-cart-toast-out { opacity: 0; transform: translateY(10px) scale(.98); }
+.mb-cart-toast-img {
+    width: 52px; height: 52px; flex: 0 0 52px; object-fit: cover;
+    border-radius: 10px; background: var(--mb-surface);
+}
+.mb-cart-toast-body { flex: 1; min-width: 0; }
+.mb-cart-toast-title { display: flex; align-items: center; gap: .35rem; font-size: .84rem; font-weight: 700; }
+.mb-cart-toast-title .bi { color: #1a9e5c; font-size: 1rem; }
+.mb-cart-toast-warn .mb-cart-toast-title .bi { color: #c47f00; }
+.mb-cart-toast-name {
+    margin-top: .15rem; font-size: .78rem; line-height: 1.3; color: var(--mb-muted);
+    overflow: hidden; text-overflow: ellipsis;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.mb-cart-toast-link {
+    display: inline-block; margin-top: .35rem; font-size: .76rem; font-weight: 600;
+    color: var(--mb-ink); text-decoration: underline; text-underline-offset: 2px;
+}
+.mb-cart-toast-link:hover { opacity: .7; }
+.mb-cart-toast-close {
+    border: 0; background: transparent; color: var(--mb-muted);
+    font-size: 1.15rem; line-height: 1; padding: 0 .1rem; cursor: pointer;
+}
+.mb-cart-toast-bar {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+    background: #eef2f5; overflow: hidden;
+}
+.mb-cart-toast-bar::after {
+    content: ""; display: block; height: 100%; background: var(--mb-yellow);
+    transform-origin: left; animation: mb-cart-toast-bar 4.2s linear forwards;
+}
+.mb-cart-toast-warn .mb-cart-toast-bar::after { background: #f0b429; }
+.mb-cart-toast:hover .mb-cart-toast-bar::after { animation-play-state: paused; }
+@keyframes mb-cart-toast-bar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+/* microinteracción de la bolsa y su contador */
+.mb-cart-bump { animation: mb-cart-bump .6s ease; }
+@keyframes mb-cart-bump {
+    0%, 100% { transform: scale(1); }
+    35% { transform: scale(1.3); }
+    60% { transform: scale(.94); }
+}
+.mb-cart .badge.mb-badge-bump { animation: mb-badge-bump .55s ease; }
+@keyframes mb-badge-bump {
+    0%, 100% { transform: scale(1); }
+    40% { transform: scale(1.5); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .mb-cart-toast { transition: none; }
+    .mb-cart-toast-bar::after, .mb-cart-bump, .mb-cart .badge.mb-badge-bump { animation: none; }
+}
 .mb-navbar .dropdown-menu { border: 0; box-shadow: var(--mb-shadow-hover); border-radius: 10px; }
 
 /* ---------- hero ---------- */

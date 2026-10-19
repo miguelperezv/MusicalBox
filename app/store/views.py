@@ -1159,6 +1159,15 @@ def addtocart():
     k_variante = request.form.get("variante_id", type=int)
     cantidad = request.form.get("quantity", default=1, type=int) or 1
     session["purchase"], mensaje, categoria = carrito.agregar(session.get("purchase"), k_producto, k_variante, cantidad)
+    # El navbar actualiza el carrito sin recargar: el JS pide JSON para animar el logo
+    # hasta la bolsa. Sin JS, sigue el POST normal con su aviso de siempre.
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({
+            "ok": categoria in ("success", "info"),
+            "mensaje": mensaje,
+            "categoria": categoria,
+            "cantidad": len(session.get("purchase") or {}),
+        })
     flash(mensaje, categoria)
     return redirect(request.referrer or url_for('purchase.summary'))
 

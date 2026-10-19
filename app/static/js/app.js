@@ -846,3 +846,196 @@ document.addEventListener('change', function (e) {
             });
     });
 })();
+
+/* ---------- agregar al carrito sin recargar ----------
+   Al agregar, mostramos un aviso breve con la portada del producto, la bolsa hace
+   un pulso y el contador se actualiza. Sin fetch, el formulario sigue funcionando
+   como siempre (POST + aviso). */
+(function () {
+    function bolsa() { return document.querySelector('.mb-cart'); }
+
+    function urlCarrito() {
+        var cart = bolsa();
+        return cart ? cart.href : '/purchase/';
+    }
+
+    function logoUrl() {
+        var img = document.querySelector('.navbar-brand img');
+        return img ? img.src : '/static/imgs/musicalbox.png';
+    }
+
+    function actualizarContador(n) {
+        var cart = bolsa();
+        if (!cart) return;
+        var badge = cart.querySelector('.badge');
+        if (!n) { if (badge) badge.remove(); return; }
+        if (!badge) {
+            badge = document.createElement('span');
+            badge.className = 'badge';
+            cart.appendChild(badge);
+        }
+        badge.textContent = n;
+        badge.classList.remove('mb-badge-bump');
+        void badge.offsetWidth;
+        badge.classList.add('mb-badge-bump');
+    }
+
+    function pulsoBolsa() {
+        var cart = bolsa();
+        if (!cart) return;
+        cart.classList.remove('mb-cart-bump');
+        void cart.offsetWidth;
+        cart.classList.add('mb-cart-bump');
+        window.setTimeout(function () { cart.classList.remove('mb-cart-bump'); }, 650);
+    }
+
+    // La portada y el nombre salen de la tarjeta o de la ficha que contiene el botón.
+    function datosProducto(origen) {
+        var cont = origen && origen.closest
+            ? (origen.closest('article.mb-card') || origen.closest('.mb-detalle') || origen.closest('.modal'))
+            : null;
+        var img = cont ? cont.querySelector('.cover img, .mb-detalle img, img') : null;
+        var nombre = cont ? cont.querySelector('.title, h1, h2') : null;
+        return {
+            imagen: img ? img.src : logoUrl(),
+            nombre: nombre ? nombre.textContent.trim() : ''
+        };
+    }
+
+    function cerrarAviso(aviso) {
+        if (!aviso || aviso.dataset.saliendo) return;
+        aviso.dataset.saliendo = '1';
+        aviso.classList.remove('mb-cart-toast-in');
+        aviso.classList.add('mb-cart-toast-out');
+        window.setTimeout(function () { aviso.remove(); }, 260);
+    }
+
+    function mostrarAviso(datos) {
+        var anterior = document.querySelector('.mb-cart-toast');
+        if (anterior) anterior.remove();
+
+        var aviso = document.createElement('div');
+        aviso.className = 'mb-cart-toast' + (datos.ok ? '' : ' mb-cart-toast-warn');
+        aviso.setAttribute('role', 'status');
+        aviso.setAttribute('aria-live', 'polite');
+
+        var foto = document.createElement('img');
+        foto.className = 'mb-cart-toast-img';
+        foto.src = datos.imagen || logoUrl();
+        foto.alt = '';
+        foto.addEventListener('error', function () { foto.src = logoUrl(); }, { once: true });
+
+        var cuerpo = document.createElement('div');
+        cuerpo.className = 'mb-cart-toast-body';
+
+        var titulo = document.createElement('div');
+        titulo.className = 'mb-cart-toast-title';
+        titulo.innerHTML = '<i class="bi ' + (datos.ok ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill') + '"></i>';
+        titulo.appendChild(document.createTextNode(datos.titulo || ''));
+        cuerpo.appendChild(titulo);
+
+        var texto = document.createElement('div');
+        texto.className = 'mb-cart-toast-name';
+        texto.textContent = datos.mensaje || '';
+        cuerpo.appendChild(texto);
+
+        if (datos.ok) {
+            var enlace = document.createElement('a');
+            enlace.className = 'mb-cart-toast-link';
+            enlace.href = urlCarrito();
+            enlace.textContent = 'Ver carrito';
+            cuerpo.appendChild(enlace);
+        }
+
+        var cerrar = document.createElement('button');
+        cerrar.type = 'button';
+        cerrar.className = 'mb-cart-toast-close';
+        cerrar.setAttribute('aria-label', 'Cerrar');
+        cerrar.innerHTML = '&times;';
+        cerrar.addEventListener('click', function () { cerrarAviso(aviso); });
+
+        var barra = document.createElement('div');
+        barra.className = 'mb-cart-toast-bar';
+        barra.style.animationDuration = (datos.ok ? 4.2 : 5.2) + 's';
+
+        aviso.appendChild(foto);
+        aviso.appendChild(cuerpo);
+        aviso.appendChild(cerrar);
+        aviso.appendChild(barra);
+        document.body.appendChild(aviso);
+
+        // Pequeño reflow para que la entrada se anime.
+        void aviso.offsetWidth;
+        aviso.classList.add('mb-cart-toast-in');
+
+        var temporizador = window.setTimeout(function () { cerrarAviso(aviso); }, datos.ok ? 4200 : 5200);
+        aviso.addEventListener('mouseenter', function () { window.clearTimeout(temporizador); });
+        aviso.addEventListener('mouseleave', function () {
+            temporizador = window.setTimeout(function () { cerrarAviso(aviso); }, 1800);
+        });
+    }
+
+    document.addEventListener('submit', function (e) {
+        var form = e.target;
+        if (!form || !form.matches || !form.matches('form[action*="/addtocart"]')) return;
+        if (!window.fetch || !window.FormData) return; // sin fetch, POST normal
+        if (typeof form.reportValidity === 'function' && !form.reportValidity()) return;
+
+        e.preventDefault();
+        var btn = e.submitter || form.querySelector('button[type="submit"], button:not([type])');
+        var origen = btn || form;
+        var datos = datosProducto(origen);
+        var htmlOriginal = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>Agregando…';
+        }
+
+        fetch(form.action, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+            credentials: 'same-origin'
+        })
+            .then(function (r) {
+                return r.json().then(function (body) { return { ok: r.ok, body: body || {} }; });
+            })
+            .then(function (res) {
+                var body = res.body;
+                if (body.ok) {
+                    pulsoBolsa();
+                    actualizarContador(body.cantidad || 0);
+                    mostrarAviso({
+                        ok: true,
+                        titulo: 'Agregado al carrito',
+                        mensaje: body.categoria === 'info' ? body.mensaje : (datos.nombre || 'Producto agregado'),
+                        imagen: datos.imagen
+                    });
+                    if (btn) {
+                        btn.innerHTML = '<i class="bi bi-check2 me-1"></i>Agregado';
+                        window.setTimeout(function () {
+                            btn.disabled = false;
+                            btn.innerHTML = htmlOriginal;
+                        }, 1400);
+                    }
+                } else {
+                    if (btn) { btn.disabled = false; btn.innerHTML = htmlOriginal; }
+                    mostrarAviso({
+                        ok: false,
+                        titulo: 'No se agregó',
+                        mensaje: body.mensaje || 'No se pudo agregar al carrito',
+                        imagen: datos.imagen
+                    });
+                }
+            })
+            .catch(function () {
+                if (btn) { btn.disabled = false; btn.innerHTML = htmlOriginal; }
+                mostrarAviso({
+                    ok: false,
+                    titulo: 'No se agregó',
+                    mensaje: 'No se pudo agregar al carrito. Inténtalo de nuevo.',
+                    imagen: datos.imagen
+                });
+            });
+    });
+})();
