@@ -25,7 +25,7 @@
     </header>
 
     <div class="row g-4">
-        <div class="col-lg-7">
+        <div class="col-lg-7 order-2 order-lg-1">
             <form id="form-checkout" class="mb-panel p-4" method="POST" action="{{ accion or url_for('purchase.checkout') }}" novalidate>
                 {% if previos %}
                 <div class="alert alert-info small"><i class="bi bi-arrow-repeat me-1"></i>Ya llenamos el formulario con los datos que tenemos tuyos. Revisa que sigan correctos y continúa.</div>
@@ -75,7 +75,7 @@
             </form>
         </div>
 
-        <div class="col-lg-5">
+        <div class="col-lg-5 order-1 order-lg-2">
             <div class="mb-panel mb-sticky">
                 <h2 class="h5 mb-1">Tu pedido</h2>
                 {% if solicitud %}<p class="small text-body-secondary mb-2">Puedes ajustar la cantidad de cada ítem; el precio por unidad es el que cotizamos.</p>{% endif %}
