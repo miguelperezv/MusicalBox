@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_macros.html" import product_cover, barra_confianza %}
+{% from "_cards.html" import product_card with context %}
 
 {% block title %}Mi carrito{% endblock %}
 
@@ -18,6 +19,18 @@
         <p>Explora los lanzamientos y agrega tus favoritos.</p>
         <a class="btn btn-primary" href="{{ url_for('releases.home_releases') }}">Ver lanzamientos</a>
     </div>
+    {% set recomendados = productos_recomendados(4) %}
+    {% if recomendados %}
+    <section class="mt-5">
+        <div class="mb-section-title">
+            <div><span class="mb-eyebrow">Quizá te guste</span><h2>Los más vendidos</h2></div>
+            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('products.home_products', orden='vendidos') }}">Ver todos <i class="bi bi-arrow-right"></i></a>
+        </div>
+        <div class="row row-cols-2 row-cols-md-4 g-3 g-lg-4">
+            {% for r in recomendados %}<div class="col">{{ product_card(r) }}</div>{% endfor %}
+        </div>
+    </section>
+    {% endif %}
     {% else %}
     {% if errores %}
     <div class="alert alert-warning">

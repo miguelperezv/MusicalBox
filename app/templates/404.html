@@ -1,20 +1,36 @@
 {% extends "base.html" %}
+{% from "_cards.html" import product_card with context %}
 {% block title %}No encontrado{% endblock %}
 {% block contenido %}
-<div class="container mb-empty py-5" style="max-width: 560px">
-    <i class="bi bi-vinyl"></i>
-    <h1 class="h3 text-body">Esta página no está en nuestra colección</h1>
-    <p class="text-body-secondary">Puede que el enlace esté mal escrito o que ese disco ya no exista.</p>
-    <form class="mb-search mx-auto my-4" style="max-width: 340px" action="{{ url_for('home.buscar') }}" method="get" role="search" data-mb-suggest-url="{{ url_for('home.sugerencias') }}">
-        <input class="form-control" type="search" name="q" id="mbSearch404" placeholder="Busca artistas, discos, géneros..." aria-label="Buscar" aria-autocomplete="list" aria-controls="mbSuggest404" aria-expanded="false" autocomplete="off">
-        <i class="bi bi-search"></i>
-        <div class="mb-suggest" id="mbSuggest404" role="listbox" aria-label="Sugerencias de búsqueda" hidden></div>
-    </form>
-    <div class="d-flex flex-wrap justify-content-center gap-2">
-        <a class="btn btn-primary" href="{{ url_for('home.index') }}">Volver al inicio</a>
-        <a class="btn btn-outline-secondary" href="{{ url_for('releases.home_releases') }}">Ver lanzamientos</a>
-        <a class="btn btn-outline-secondary" href="{{ url_for('products.home_products') }}">Ver productos</a>
+<div class="container py-5">
+    <div class="mb-empty mx-auto" style="max-width: 560px">
+        <i class="bi bi-vinyl"></i>
+        <h1 class="h3 text-body">Esta página no está en nuestra colección</h1>
+        <p class="text-body-secondary">Puede que el enlace esté mal escrito o que ese disco ya no exista.</p>
+        <form class="mb-search mx-auto my-4" style="max-width: 340px" action="{{ url_for('home.buscar') }}" method="get" role="search" data-mb-suggest-url="{{ url_for('home.sugerencias') }}">
+            <input class="form-control" type="search" name="q" id="mbSearch404" placeholder="Busca artistas, discos, géneros..." aria-label="Buscar" aria-autocomplete="list" aria-controls="mbSuggest404" aria-expanded="false" autocomplete="off">
+            <i class="bi bi-search"></i>
+            <div class="mb-suggest" id="mbSuggest404" role="listbox" aria-label="Sugerencias de búsqueda" hidden></div>
+        </form>
+        <div class="d-flex flex-wrap justify-content-center gap-2">
+            <a class="btn btn-primary" href="{{ url_for('home.index') }}">Volver al inicio</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('releases.home_releases') }}">Ver lanzamientos</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('products.home_products') }}">Ver productos</a>
+        </div>
+        <p class="mt-4 text-body-secondary small mb-0">¿No encuentras el disco que buscas? <a href="{{ url_for('solicitud.nueva') }}">Pídelo y lo conseguimos</a>.</p>
     </div>
-    <p class="mt-4 text-body-secondary small mb-0">¿No encuentras el disco que buscas? <a href="{{ url_for('solicitud.nueva') }}">Pídelo y lo conseguimos</a>.</p>
+
+    {% set recomendados = productos_recomendados(4) %}
+    {% if recomendados %}
+    <section class="mt-5">
+        <div class="mb-section-title">
+            <div><span class="mb-eyebrow">Quizá te guste</span><h2>Los más vendidos</h2></div>
+            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('products.home_products', orden='vendidos') }}">Ver todos <i class="bi bi-arrow-right"></i></a>
+        </div>
+        <div class="row row-cols-2 row-cols-md-4 g-3 g-lg-4">
+            {% for r in recomendados %}<div class="col">{{ product_card(r) }}</div>{% endfor %}
+        </div>
+    </section>
+    {% endif %}
 </div>
 {% endblock %}

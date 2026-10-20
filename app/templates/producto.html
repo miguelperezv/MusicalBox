@@ -55,6 +55,19 @@
         </div>
     </section>
     {% endif %}
+
+    <section class="mb-4" id="mbRecientes" hidden
+             data-id="{{ p.id }}"
+             data-nombre="{{ p.nombre }}"
+             data-url="{{ url_for_product(p) }}"
+             data-imagen="{{ url_for('products.image', k_producto=p.id, w=600) }}"
+             data-precio="{{ p.precio|cop }}"
+             data-fallback="{{ url_for('static', filename='imgs/musicalbox.png') }}">
+        <div class="mb-section-title">
+            <div><span class="mb-eyebrow">Tu historial</span><h2 class="h5">Vistos recientemente</h2></div>
+        </div>
+        <div class="row row-cols-2 row-cols-md-3 row-cols-lg-6 g-3" id="mbRecientesGrid"></div>
+    </section>
 </div>
 {% endblock %}
 

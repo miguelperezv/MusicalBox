@@ -126,6 +126,15 @@ def create_app(config=None):
         from .store.envio import envio_gratis_texto
         return envio_gratis_texto()
 
+    @app.template_global('productos_recomendados')
+    def _global_productos_recomendados(limit=4):
+        #tarjetas para el carrito vacío y el 404; solo se consultan si la plantilla las pide
+        from .store.models import get_products_cards
+        try:
+            return get_products_cards(orden='vendidos', limit=limit)
+        except Exception:
+            return []
+
     @app.template_global('minutos_reserva')
     def _global_minutos_reserva():
         #minutos reales de la reserva de stock (una sola fuente: app/store/models.py)
