@@ -847,6 +847,37 @@ document.addEventListener('change', function (e) {
     });
 })();
 
+/* ---------- compra rápida en móvil (ficha de producto) ----------
+   La barra aparece cuando el formulario de compra no está a la vista y lleva
+   al formulario (o enfoca la talla) sin obligar a buscar el botón. */
+(function () {
+    var barra = document.querySelector('.mb-pdp-sticky');
+    if (!barra) return;
+    var form = document.querySelector('.mb-detalle form[action*="/addtocart"]');
+    var boton = barra.querySelector('[data-mb-pdp-cta]');
+    if (boton && form) {
+        boton.addEventListener('click', function () {
+            if (form.scrollIntoView) form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            var select = form.querySelector('select[name="variante_id"]');
+            var input = form.querySelector('input[name="quantity"]');
+            window.setTimeout(function () {
+                if (select) select.focus();
+                else if (input) input.focus();
+            }, 350);
+        });
+    }
+    if (form && 'IntersectionObserver' in window) {
+        var obs = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+                barra.classList.toggle('mb-pdp-sticky-visible', !entry.isIntersecting);
+            });
+        }, { threshold: 0.2 });
+        obs.observe(form);
+    } else {
+        barra.classList.add('mb-pdp-sticky-visible');
+    }
+})();
+
 /* ---------- buscador móvil ----------
    Al abrir el panel, el foco va directo al campo para escribir sin otro toque. */
 (function () {

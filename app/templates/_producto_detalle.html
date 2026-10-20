@@ -100,3 +100,19 @@
         </div>
     </div>
 </div>
+
+{% if not modal %}
+<div class="mb-pdp-sticky d-lg-none" role="region" aria-label="Compra rápida">
+    <div class="mb-pdp-sticky-info">
+        <div class="mb-pdp-sticky-price">{{ p.precio|cop }}</div>
+        <div class="mb-pdp-sticky-name">{{ p.nombre }}</div>
+    </div>
+    {% if agotado and not pre %}
+    <a class="btn btn-outline-secondary" href="{{ url_for('solicitud.nueva') }}"><i class="bi bi-bell me-1"></i>Pedirlo</a>
+    {% else %}
+    <button class="btn btn-primary" type="button" data-mb-pdp-cta>
+        <i class="bi {{ 'bi-hourglass-split' if pre else 'bi-bag-plus' }} me-1"></i>{{ 'Preordenar' if pre else 'Agregar' }}
+    </button>
+    {% endif %}
+</div>
+{% endif %}
