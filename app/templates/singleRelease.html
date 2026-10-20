@@ -6,7 +6,7 @@
 {% block description %}{{ artista.n_artista|titulo if artista }} - {{ lanzamiento.n_lanzamiento|titulo }}: merch, vinilos y ediciones en Musical Box.{% endblock %}
 {% block og_title %}{{ artista.n_artista|titulo ~ ' – ' if artista }}{{ lanzamiento.n_lanzamiento|titulo }} · Musical Box{% endblock %}
 {% block og_description %}{{ artista.n_artista|titulo if artista }} - {{ lanzamiento.n_lanzamiento|titulo }}: merch, vinilos y ediciones en Musical Box.{% endblock %}
-{% if lanzamiento.i_lanzamiento %}{% block og_image %}{{ lanzamiento.i_lanzamiento }}{% endblock %}{% endif %}
+{% block og_image %}{{ lanzamiento.i_lanzamiento or url_for('static', filename='imgs/musicalbox.png', _external=True) }}{% endblock %}
 {% block head %}
 <script type="application/ld+json">
 {% set crumbs = [
@@ -28,6 +28,18 @@
 {% endblock %}
 
 {% block contenido %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb small mb-0">
+            <li class="breadcrumb-item"><a href="{{ url_for('home.index') }}">Inicio</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('releases.home_releases') }}">Lanzamientos</a></li>
+            {% if artista %}
+            <li class="breadcrumb-item"><a href="{{ url_for_artist(artista) }}">{{ artista.n_artista|titulo }}</a></li>
+            {% endif %}
+            <li class="breadcrumb-item active" aria-current="page">{{ lanzamiento.n_lanzamiento|titulo }}</li>
+        </ol>
+    </nav>
+</div>
 <section class="mb-release-band">
     <div class="container py-4">
         <div class="d-flex align-items-center gap-3 gap-md-4">

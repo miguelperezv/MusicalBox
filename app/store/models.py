@@ -1289,7 +1289,7 @@ def get_releases_cards(q=None, k_artista=None, limit=None, genero=None, categori
         if categoria and categoria not in categorias:
             continue
         fecha = _fecha(lanz.f_lanzamiento)
-        if dias is not None and not (fecha and (datetime.now().date() - fecha).days < dias):
+        if dias is not None and not (fecha and 0 <= (datetime.now().date() - fecha).days < dias):
             continue
         cards.append({
             "id": lanz.id,

@@ -97,7 +97,7 @@
             <div class="col">{{ release_card(r) }}</div>
             {% endfor %}
             {% for r in releases %}
-            <div class="col" aria-hidden="true">{{ release_card(r) }}</div>
+            <div class="col" aria-hidden="true" inert>{{ release_card(r) }}</div>
             {% endfor %}
         </div>
         {% else %}
@@ -247,11 +247,25 @@
             }
             requestAnimationFrame(paso);
         }
+        function reanudar() {
+            clearTimeout(tRes);
+            sincronizar();
+            auto = true;
+        }
+        // los clones solo existen para el bucle visual: fuera del foco y de la accesibilidad
+        Array.prototype.forEach.call(tira.querySelectorAll('[aria-hidden="true"] a, [aria-hidden="true"] button, [aria-hidden="true"] [tabindex]'), function (el) {
+            el.setAttribute('tabindex', '-1');
+        });
         tira.addEventListener('mouseenter', function () { pausa(null); });
-        tira.addEventListener('mouseleave', function () { clearTimeout(tRes); sincronizar(); auto = true; });
+        tira.addEventListener('mouseleave', reanudar);
+        tira.addEventListener('focusin', function () { pausa(null); });
+        tira.addEventListener('focusout', reanudar);
         tira.addEventListener('wheel', function (e) {
+            // solo tomamos el gesto horizontal (trackpad) o Shift+rueda;
+            // la rueda vertical normal sigue desplazando la página
+            if (!e.shiftKey && Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
             e.preventDefault();
-            tira.scrollBy({ left: e.deltaY });
+            tira.scrollBy({ left: e.deltaX || e.deltaY });
             pausa(3000);
         }, { passive: false });
         tira.addEventListener('touchstart', function () { pausa(4000); }, { passive: true });

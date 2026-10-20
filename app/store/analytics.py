@@ -20,7 +20,7 @@ def track_event(event_name, payload=None, user_id=None):
             event_name=event_name,
             session_id=session.get('session_id'),
             user_id=user_id or getattr(g, 'user_id', None),
-            page_url=request.referrer or request.url,
+            page_url=request.url,
             referrer=request.headers.get('Referer'),
             user_agent=request.headers.get('User-Agent'),
             ip_hash=hashlib.sha256(ip.encode()).hexdigest()[:16] if ip else None,
