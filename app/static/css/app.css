@@ -778,10 +778,19 @@ body.mb-tema-amor_amistad .hero-meta .hero-artist { color: #a4486b; }
 .mb-mp-cobrand { display: flex; align-items: center; justify-content: flex-start; gap: .55rem; min-width: 0; }
 .mb-mp-brand-mb { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 3px; background: #fff; border-radius: 50%; flex: 0 0 auto; }
 .mb-mp-brand-mb img { width: 30px; height: 30px; border-radius: 50%; display: block; }
+.mb-mp-checkout-btn:hover .mb-mp-brand-mb img,
+.mb-mp-checkout-btn:focus-visible .mb-mp-brand-mb img { animation: mb-spin 1.6s linear infinite; }
+.mb-mp-checkout-btn.mb-mp-is-processing .mb-mp-brand-mb img { animation: mb-spin .9s linear infinite; }
 .mb-mp-brand-mp { display: inline-flex; align-items: center; background: #fff; border-radius: 6px; padding: .18rem .5rem; box-shadow: inset 0 0 0 1px rgba(15, 28, 36, .06); flex: 0 0 auto; }
 .mb-mp-brand-mp img { display: block; height: 24px; width: auto; }
 .mb-mp-checkout-cta { display: flex; align-items: center; justify-content: center; gap: .45rem; font-size: .95rem; white-space: nowrap; color: var(--mb-ink); }
 .mb-mp-checkout-btn:hover .mb-mp-checkout-cta { color: #fff; }
+@media (prefers-reduced-motion: reduce) {
+    .mb-mp-checkout-btn:hover .mb-mp-brand-mb img,
+    .mb-mp-checkout-btn:focus-visible .mb-mp-brand-mb img,
+    .mb-mp-checkout-btn.mb-mp-is-processing .mb-mp-brand-mb img,
+    .modal-mp.is-processing .modal-mp-logo { animation: none; }
+}
 @media (max-width: 380px) {
     .mb-mp-checkout-btn { gap: .45rem; padding-inline: .7rem; }
     .mb-mp-brand-mb { width: 32px; height: 32px; }

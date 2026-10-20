@@ -302,7 +302,10 @@
 <div id="mpModal" class="modal-mp" style="display:none;">
   <div class="modal-mp-dialog">
     <div class="modal-mp-header">
-      <h3 style="margin:0;">Elegí tu medio de pago</h3>
+      <div class="d-flex align-items-center gap-2">
+        <img class="modal-mp-logo" src="{{ url_for('static', filename='imgs/musicalbox.png') }}" alt="Musical Box" width="30" height="30">
+        <h3 style="margin:0;">Elegí tu medio de pago</h3>
+      </div>
       <button id="btnCloseMp" type="button" aria-label="Cerrar">&times;</button>
     </div>
     <div id="paymentBrick_container"></div>
@@ -335,6 +338,24 @@
   // El botón solo existe cuando el pedido tiene un pago pendiente.
   const btnOpenMp = document.getElementById("btnOpenMp");
   const BTN_OPEN_HTML = btnOpenMp ? btnOpenMp.innerHTML : "";
+
+  function setBotonProcesando(activo) {
+    if (!btnOpenMp) return;
+    btnOpenMp.classList.toggle("mb-mp-is-processing", !!activo);
+    btnOpenMp.disabled = !!activo;
+    btnOpenMp.setAttribute("aria-busy", activo ? "true" : "false");
+    if (activo) {
+      const cta = btnOpenMp.querySelector(".mb-mp-checkout-cta");
+      if (cta) cta.textContent = 'Abriendo pago…';
+    } else {
+      btnOpenMp.innerHTML = BTN_OPEN_HTML;
+    }
+  }
+
+  function setModalProcesando(activo) {
+    const modal = document.getElementById("mpModal");
+    if (modal) modal.classList.toggle("is-processing", !!activo);
+  }
   
   // Función para obtener el contexto de pago
   async function getPaymentContext(token) {
@@ -397,9 +418,12 @@
         callbacks: {
           onReady: () => {
             // Callback llamado cuando el Brick está listo
+            setModalProcesando(false);
             console.log("[MP] Payment Brick listo");
           },
           onSubmit: async ({ formData }) => {
+            setModalProcesando(true);
+            try {
             // Loguear el formData para ver qué campos trae PSE
             console.log("[MP] formData recibido:", formData);
             // Contador de intentos para idempotencia estable
@@ -472,10 +496,14 @@
             }
             
             alert("Pago no aprobado. Estado: " + (mpStatus || "sin status"));
+            } finally {
+              setModalProcesando(false);
+            }
           },
           onError: (e) => {
             // Callback llamado para todos los casos de error de Brick
             console.error("[MP] Error en Payment Brick:", e);
+            setModalProcesando(false);
             alert("Error en el proceso de pago. Por favor, inténtalo nuevamente.");
           },
         },
@@ -503,7 +531,7 @@
       alert("Error al abrir el modal de pago: " + error.message);
       closeMpModal();
       // Re-habilitar botón en caso de error
-      if (btnOpenMp) { btnOpenMp.disabled = false; btnOpenMp.innerHTML = BTN_OPEN_HTML; }
+      setBotonProcesando(false);
     }
   }
   
@@ -577,8 +605,9 @@
     if (cajaPago) cajaPago.style.display = "";
     if (cajaEstado) cajaEstado.style.display = "none";
     if (avisoRespaldo) avisoRespaldo.style.display = "none";
-    // Re-habilitar botón de pago
-    if (btnOpenMp) { btnOpenMp.disabled = false; btnOpenMp.innerHTML = BTN_OPEN_HTML; }
+    // Re-habilitar botón de pago y detener el giro del logo
+    setBotonProcesando(false);
+    setModalProcesando(false);
   }
   
   // Función para abrir el modal
@@ -599,9 +628,9 @@
         alert('Error al cargar el SDK de MercadoPago. Por favor, recargue la página.');
         return;
       }
-      // Deshabilitar botón para evitar doble clic
-      btnOpenMp.disabled = true;
-      btnOpenMp.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span><span>Abriendo pago…</span>';
+      // Deshabilitar botón y girar el logo mientras se prepara el pago
+      setBotonProcesando(true);
+      setModalProcesando(true);
       showMpModal();
       openMpModal();
     });
@@ -655,6 +684,8 @@
   padding: 16px 20px; border-bottom: 1px solid #eee;
 }
 .modal-mp-header h3 { margin: 0; font-size: 1.1rem; }
+.modal-mp-logo { display: block; width: 30px; height: 30px; border-radius: 50%; flex: 0 0 auto; }
+.modal-mp.is-processing .modal-mp-logo { animation: mb-spin 1s linear infinite; }
 .modal-mp-header button {
   background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;
   padding: 4px 8px; line-height: 1;
