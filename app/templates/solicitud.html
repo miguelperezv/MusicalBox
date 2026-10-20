@@ -105,7 +105,7 @@
             fila.querySelector('.campo-producto-id').value = p ? p.id : '';
             info.innerHTML = !input.value ? '' :
                 p ? (p.stock > 0 ? '<i class="bi bi-check-circle text-success"></i> En catálogo: ' + p.stock + ' disponibles'
-                                 : '<i class="bi bi-hourglass-split"></i> En catálogo, agotado: lo conseguimos para ti')
+                                 : '<i class="bi bi-search"></i> En catálogo, agotado: lo conseguimos para ti')
                   : '<i class="bi bi-stars"></i> Pedido especial: lo buscaremos para ti';
             var cat = fila.querySelector('.campo-categoria');
             if (p && p.categoria && [...cat.options].some(o => o.value === p.categoria)) cat.value = p.categoria;

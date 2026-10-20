@@ -462,6 +462,17 @@ body.mb-tema-amor_amistad .hero-meta .hero-artist { color: #a4486b; }
 .mb-estado-ENTREGADO { background: #e5f6ea; color: #1f7a3c; }
 .mb-estado-CANCELADO { background: #fde8e8; color: #b42318; }
 
+/* estado público del pedido: badge sobrio, sin iconos */
+.mb-pedido-estado { display: inline-flex; align-items: center; padding: .35rem .65rem; border-radius: 999px; font-size: .78rem; font-weight: 700; line-height: 1; white-space: nowrap; }
+.mb-pedido-estado--pendiente { background: #fff6d6; color: #8a6d00; }
+.mb-pedido-estado--pagado, .mb-pedido-estado--abono, .mb-pedido-estado--entregado { background: #e5f6ea; color: #1f7a3c; }
+.mb-pedido-estado--preparando { background: #e8eefe; color: #3553b8; }
+.mb-pedido-estado--camino { background: #e7f5f8; color: #126b7c; }
+.mb-pedido-estado--rechazado { background: #fde8e8; color: #b42318; }
+
+/* preorden: etiqueta simple para el comprador */
+.mb-badge-preorder { background: #e7f5f8; color: #126b7c; border: 1px solid rgba(58, 183, 205, .22); font-size: .65rem; font-weight: 700; padding: .22rem .5rem; border-radius: 999px; white-space: normal; text-align: left; vertical-align: .05em; }
+
 /* ---------- footer ---------- */
 .mb-footer { background: var(--mb-ink); color: rgba(255, 255, 255, .7); margin-top: 3rem; font-size: 0.8rem; }
 .mb-footer a { color: rgba(255, 255, 255, .7); }

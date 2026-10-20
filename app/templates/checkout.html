@@ -115,7 +115,7 @@
                         {% if l.producto and not solicitud %}
                         <div class="mt-1 d-flex align-items-center gap-2 flex-wrap">
                             {% if l.preorden %}
-                            <span class="badge bg-primary-subtle text-primary-emphasis small"><i class="bi bi-hourglass-split me-1"></i>Preorden{% if l.producto.porcentaje_abono %} · abono del {{ l.producto.porcentaje_abono|int }}%{% else %}: paga hoy y llega con la tirada{% endif %}</span>
+                            <span class="badge mb-badge-preorder">Preorden{% if l.producto.porcentaje_abono %} · abono del {{ l.producto.porcentaje_abono|int }}%{% else %}: paga hoy y llega con la tirada{% endif %}</span>
                             {% else %}
                             {% set stock = l.disponible if l.disponible is defined else (l.producto.stock|default(0)) %}
                             {% if stock > 0 %}
