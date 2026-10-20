@@ -1229,6 +1229,36 @@ def summary():
     for l in lineas:
         cat = l["producto"].k_categoria or "OTRO"
         cats[cat] = cats.get(cat, 0) + int(l["cantidad"])
+    #cross-sell del carrito: primero productos del mismo lanzamiento y luego los más vendidos
+    recomendados_carrito = []
+    if lineas:
+        en_carrito = {str(l["producto"].id) for l in lineas}
+        vistos = set()
+        for l in lineas:
+            lanz = l["producto"].lanzamiento
+            if not lanz:
+                continue
+            for c in get_products_cards(k_lanzamiento=lanz.id):
+                if len(recomendados_carrito) >= 4:
+                    break
+                if str(c["id"]) in en_carrito or str(c["id"]) in vistos:
+                    continue
+                if int(c.get("stock") or 0) <= 0 and not c.get("preorden"):
+                    continue
+                recomendados_carrito.append(c)
+                vistos.add(str(c["id"]))
+            if len(recomendados_carrito) >= 4:
+                break
+        if len(recomendados_carrito) < 4:
+            for c in get_products_cards(orden='vendidos', limit=12):
+                if len(recomendados_carrito) >= 4:
+                    break
+                if str(c["id"]) in en_carrito or str(c["id"]) in vistos:
+                    continue
+                if int(c.get("stock") or 0) <= 0 and not c.get("preorden"):
+                    continue
+                recomendados_carrito.append(c)
+                vistos.add(str(c["id"]))
     from .envio import aviso_envio_gratis
     envio_aviso = aviso_envio_gratis([(l["producto"], l["variante"], int(l["cantidad"])) for l in lineas], total)
     from .models import calcular_abono
@@ -1236,7 +1266,8 @@ def summary():
                             for l in lineas], total)
     return render_template("purchase.html", lineas=lineas, total=total, errores=errores,
                            cats="|".join(f"{k}:{v}" for k, v in sorted(cats.items())),
-                           envio_aviso=envio_aviso, abono=abono)
+                           envio_aviso=envio_aviso, abono=abono,
+                           recomendados_carrito=recomendados_carrito)
 
 
 @purchase.route("/addtocart" ,methods=["POST"])

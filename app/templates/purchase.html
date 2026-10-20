@@ -84,6 +84,12 @@
                     <i class="bi bi-check-circle-fill me-1"></i><strong>Envío gratis</strong> en este pedido
                     {% else %}
                     <i class="bi bi-truck me-1"></i>Te faltan <strong>{{ envio_aviso.falta|cop }}</strong> para el envío gratis ({{ envio_aviso.umbral|cop }} o más)
+                    {% if envio_aviso.umbral %}
+                    {% set pct = ((total / envio_aviso.umbral) * 100)|round(0, 'floor')|int %}
+                    <div class="progress mt-2" style="height: .4rem" role="progressbar" aria-label="Progreso para envío gratis" aria-valuemin="0" aria-valuemax="{{ envio_aviso.umbral|int }}" aria-valuenow="{{ total|int }}" aria-valuetext="Te faltan {{ envio_aviso.falta|cop }} para el envío gratis">
+                        <div class="progress-bar bg-success" style="width: {{ [pct, 100]|min }}%"></div>
+                    </div>
+                    {% endif %}
                     {% endif %}
                 </div>
                 {% endif %}
@@ -109,6 +115,18 @@
             </div>
         </div>
     </div>
+
+    {% if recomendados_carrito %}
+    <section class="mt-5">
+        <div class="mb-section-title">
+            <div><span class="mb-eyebrow">Antes de pagar</span><h2>También te puede gustar</h2></div>
+            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('products.home_products') }}">Ver productos <i class="bi bi-arrow-right"></i></a>
+        </div>
+        <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3 g-lg-4">
+            {% for r in recomendados_carrito %}<div class="col">{{ product_card(r) }}</div>{% endfor %}
+        </div>
+    </section>
+    {% endif %}
     {% endif %}
 </div>
 {% endblock %}
