@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Espera un momento{% endblock %}
+
+{% block contenido %}
+<div class="container">
+    <div class="mb-auth text-center">
+        <img src="{{ url_for('static', filename='imgs/musicalbox.png') }}" width="56" height="56" alt="">
+        <h1 class="h3 mt-3 mb-2">Demasiados intentos seguidos</h1>
+        <p class="text-body-secondary">Por seguridad, espera unos minutos y vuelve a intentarlo.</p>
+        <a class="btn btn-primary mt-2" href="{{ url_for('home.index') }}">Volver a la tienda</a>
+    </div>
+</div>
+{% endblock %}

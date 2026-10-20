@@ -1,0 +1,41 @@
+<h1 class="h3 mb-4">Cambios y devoluciones</h1>
+<p class="small text-body-secondary mb-4">Edita la página pública que explica los cambios, devoluciones y garantías. Los clientes la ven en <a href="{{ url_for('home.devoluciones') }}" target="_blank" rel="noopener">/cambios-devoluciones</a>.</p>
+
+<form class="mb-panel mb-4" style="max-width: 900px" method="POST" action="{{ url_for('dashboard.devoluciones_admin') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="mb-3">
+        <label class="form-label" for="dev-titulo">Título</label>
+        <input class="form-control" id="dev-titulo" name="titulo" maxlength="120" required value="{{ dev.titulo }}">
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label" for="dev-intro">Introducción</label>
+        <textarea class="form-control" id="dev-intro" name="intro" rows="3" maxlength="1000">{{ dev.intro }}</textarea>
+        <div class="form-text">Una frase corta para abrir la página. Puede quedar vacía.</div>
+    </div>
+
+    <div class="mb-2">
+        <label class="form-label" for="dev-texto">Contenido</label>
+        <textarea class="form-control font-monospace" id="dev-texto" name="texto" rows="20" required>{{ dev.texto }}</textarea>
+        <div class="form-text">
+            Separa los párrafos con una línea en blanco. Para una sección usa <code>## Título</code>;
+            para una lista, empieza cada línea con <code>- </code>. No necesitas escribir HTML.
+        </div>
+    </div>
+
+    <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+        <button class="btn btn-primary" type="submit"><i class="bi bi-save me-1"></i>Guardar cambios</button>
+        <a class="btn btn-outline-secondary" href="{{ url_for('home.devoluciones') }}" target="_blank" rel="noopener">Ver página pública</a>
+        <span class="small text-body-secondary ms-auto">Última actualización: {{ dev.actualizado }}</span>
+    </div>
+</form>
+
+<div class="mb-panel" style="max-width: 900px">
+    <h2 class="h6 mb-2">Vista previa</h2>
+    <p class="small text-body-secondary">Así se verá el contenido ahora. Los cambios aparecen al guardar.</p>
+    <div class="border rounded p-3 bg-body-tertiary">
+        {% if dev.intro %}<p class="lead fs-6">{{ dev.intro }}</p>{% endif %}
+        {{ dev.contenido_html }}
+    </div>
+</div>

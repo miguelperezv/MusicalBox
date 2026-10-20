@@ -69,6 +69,14 @@
         <button type="button" class="btn btn-sm btn-outline-danger mt-1 ms-1" data-eliminar data-id="{{ i.id }}"
             data-url="{{ url_for('dashboard.invoice_eliminar', id=i.id) }}" title="Eliminar pedido pendiente"><i class="bi bi-trash me-1"></i>Eliminar</button>
         {% endif %}
+        {% if i.estado in ('PENDIENTE', 'PENDIENTE_ABONO', 'RECHAZADO') %}
+        {% set tel_pago = i.tel_envio or (i.usuario.cel_usuario if i.usuario) %}
+        {% if tel_pago %}
+        <a class="btn btn-sm btn-outline-success mt-1" target="_blank" rel="noopener"
+           href="{{ whatsapp_enlace(tel_pago, 'Musical Box: tu pedido #' ~ i.id ~ ' quedó pendiente de pago. Puedes completarlo aquí: ' ~ url_for('pedido.ver', token=token_pedido(i), _external=True)) }}"
+           title="Recordar el pago por WhatsApp"><i class="bi bi-whatsapp me-1"></i>Recordar pago</a>
+        {% endif %}
+        {% endif %}
         {% set saldo = i.saldo_total if i.abono and i.abono.estado_abono == 'PAGADO' and i.abono.estado_saldo != 'PAGADO' else None %}
         {% if saldo %}
         {% set tel = i.tel_envio or (i.usuario.cel_usuario if i.usuario) %}

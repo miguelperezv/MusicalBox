@@ -5,6 +5,7 @@ from datetime import datetime
 from flask import flash, redirect, render_template, request, url_for, abort
 
 from ..db import db
+from ..limiter import limiter
 from .forms import SuscriptorForm
 from .views import home, dashboard, render_seccion
 
@@ -50,6 +51,7 @@ def listar(busca=''):
 
 
 @home.route("/suscribir", methods=["POST"])
+@limiter.limit("20 per hour", methods=["POST"])
 def suscribir_correo():
     #el form del footer va en el contexto (ver app/__init__.py); el resultado se avisa con flash
     form = SuscriptorForm()

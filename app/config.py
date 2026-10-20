@@ -54,6 +54,9 @@ class Config(object):
     #los administradores quedan con la sesión abierta; se renueva con cada visita.
     #Para cambiarla: ADMIN_SESSION_DIAS=30 en el entorno (0 o negativo no se recomienda).
     PERMANENT_SESSION_LIFETIME = timedelta(days=int(os.getenv("ADMIN_SESSION_DIAS", "7")))
+    #límites de intentos en login y formularios públicos (ver app/limiter.py)
+    RATELIMIT_STORAGE_URI = os.getenv("RATELIMIT_STORAGE_URI", "memory://")
+    RATELIMIT_HEADERS_ENABLED = True
     #avisos al admin por Telegram (ver app/telegram.py): sin credenciales cae a consola
     TG_BACKEND = os.getenv("TG_BACKEND", "real")
     TG_BOT_TOKEN = os.getenv("TG_BOT_TOKEN", "")

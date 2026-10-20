@@ -22,6 +22,7 @@ from . import carrito
 from .imagenes import imagen_producto
 from .redes import seleccion_para_inicio, leer_url
 from ..db import db
+from ..limiter import limiter
 from .notificaciones import correo_activacion, usuario_de_token
 from .notif_admin import aviso_pedido_creado
 from .musicapi import buscar_albumes_spotify, detalles_album_spotify
@@ -253,6 +254,7 @@ def sitemap():
         (url_for('products.home_products', _external=True), None),
         (url_for('solicitud.nueva', _external=True), None),
         (url_for('home.politica_envios', _external=True), None),
+        (url_for('home.devoluciones', _external=True), None),
         (url_for('home.terminos', _external=True), None),
         (url_for('home.privacidad', _external=True), None),
     ]
@@ -315,6 +317,7 @@ self.addEventListener('fetch', (e) => {
                     headers={"Cache-Control": "no-cache"})
 
 @home.route("/login", methods=["GET", 'POST'])
+@limiter.limit("10 per 15 minutes", methods=["POST"])
 def login():
     from .seguridad import check_password, hash_password
     form_login = LoginUsuarioForm()

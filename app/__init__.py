@@ -20,10 +20,12 @@ from .store.pedidos import pedido
 from .store.mercadopago import views as mercadopago_views
 from .store import catalogo_admin  # noqa: F401 (rutas de tallas y packs en el panel)
 from .store import envios_admin  # noqa: F401 (sección "Envíos" del panel y costo por orden)
+from .store import devoluciones  # noqa: F401 (política pública y su edición en el panel)
 from .store import suscriptores  # noqa: F401 (suscriptores de drops: form del footer y lista del panel)
 from .store.promocion import promo
 from .telegram import telegram_bp
 from .store.seguimiento import seguimiento
+from .limiter import limiter
 
 import logging
 logging.getLogger("mb.tgbot").setLevel(logging.INFO)  #logs del bot para el error log (ver app/telegram.py)
@@ -42,6 +44,11 @@ def create_app(config=None):
         #el repositorio es público: con esa clave cualquiera puede firmar una sesión y entrar como admin
         raise RuntimeError("La SECRET_KEY está publicada en el repositorio. Genera una nueva: "
                            "python -c \"import secrets; print(secrets.token_urlsafe(48))\"")
+
+    # En pruebas no se aplican límites (evita que varios tests seguidos agoten el cupo).
+    if app.config.get("TESTING"):
+        app.config["RATELIMIT_ENABLED"] = False
+    limiter.init_app(app)
 
     # Inicializar protección CSRF
     csrf = CSRFProtect()
@@ -63,6 +70,10 @@ def create_app(config=None):
     csrf.exempt(mercadopago_views.mercadopago_bp)
     csrf.exempt(telegram_bp)
     # el resto del panel usa tokens CSRF: {{ form.csrf_token }} / hidden input / header X-CSRFToken
+
+    @app.errorhandler(429)
+    def _demasiados_intentos(_error):
+        return render_template("429.html"), 429
 
     @app.cli.command("crear-admin")
     @click.argument("email")
