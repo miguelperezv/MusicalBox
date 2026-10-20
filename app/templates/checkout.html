@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import field, product_cover, barra_confianza %}
+{% from "_macros.html" import field, product_cover, barra_confianza, medios_pago %}
 
 {% block title %}Finalizar compra{% endblock %}
 
@@ -69,6 +69,7 @@
                 {% endif %}
 
 <p class="small text-body-secondary mt-3"><i class="bi bi-shield-lock me-1"></i>Al confirmar, elegirá su medio de pago (tarjetas, PSE y más) en la ventana segura de MercadoPago.</p>
+{{ medios_pago('mt-2') }}
 <p class="small text-body-secondary mt-2"><i class="bi bi-info-circle me-1"></i>Tus datos de tarjeta los procesa <strong>MercadoPago (certificado PCI DSS Nivel 1)</strong>. MusicalBox nunca ve tu número de tarjeta.</p>
 
 <button type="submit" class="btn btn-primary btn-lg w-100 mt-2">Confirmar y pagar <i class="bi bi-lock ms-1"></i></button>

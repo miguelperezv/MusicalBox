@@ -95,3 +95,31 @@
     {% endif %}
 </div>
 {% endmacro %}
+
+{# botones de compartir de producto y lanzamiento: WhatsApp, compartir nativo y copiar #}
+{% macro botones_compartir(titulo, url=None, clase='') %}
+{% set enlace = url or request.url %}
+<div class="mb-share {{ clase }}" data-mb-share data-share-title="{{ titulo }}" data-share-url="{{ enlace }}">
+    <span class="mb-share-label">Compartir</span>
+    <a class="btn btn-sm btn-outline-secondary" href="https://wa.me/?text={{ (titulo ~ ' ' ~ enlace)|urlencode }}" target="_blank" rel="noopener" aria-label="Compartir por WhatsApp">
+        <i class="bi bi-whatsapp"></i><span class="d-none d-sm-inline ms-1">WhatsApp</span>
+    </a>
+    <button class="btn btn-sm btn-outline-secondary" type="button" data-mb-share-native aria-label="Compartir">
+        <i class="bi bi-share"></i><span class="d-none d-sm-inline ms-1">Compartir</span>
+    </button>
+    <button class="btn btn-sm btn-outline-secondary" type="button" data-mb-share-copy aria-label="Copiar enlace">
+        <i class="bi bi-link-45deg"></i><span class="d-none d-sm-inline ms-1">Copiar enlace</span>
+    </button>
+    <span class="mb-share-status" role="status" aria-live="polite"></span>
+</div>
+{% endmacro %}
+
+{# medios de pago: badges de confianza para el pie y el checkout #}
+{% macro medios_pago(clase='') %}
+<div class="mb-pay-row {{ clase }}" aria-label="Medios de pago disponibles">
+    <span class="mb-pay mb-pay-visa">VISA</span>
+    <span class="mb-pay mb-pay-mc"><span class="mb-pay-dots" aria-hidden="true"><i></i><i></i></span>Mastercard</span>
+    <span class="mb-pay mb-pay-pse">PSE</span>
+    <span class="mb-pay mb-pay-mp"><i class="bi bi-credit-card-2-front-fill me-1"></i>MercadoPago</span>
+</div>
+{% endmacro %}

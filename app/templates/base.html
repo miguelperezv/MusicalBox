@@ -138,6 +138,7 @@
     </main>
 
     {% block footer %}
+    {% from "_macros.html" import medios_pago with context %}
     <footer class="mb-footer pt-5 pb-4">
         <div class="container">
             <div class="mb-footer-drops mb-5 p-4">
@@ -203,6 +204,13 @@
                         <li><a href="https://www.instagram.com/musicalboxcol/">Escríbenos por Instagram</a></li>
                     </ul>
                 </div>
+            </div>
+            <div class="mb-payment-row mt-4 pt-4 border-top border-secondary">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <span class="mb-payment-title"><i class="bi bi-shield-lock me-1"></i>Pagos seguros con</span>
+                    {{ medios_pago() }}
+                </div>
+                <p class="small mb-0 mt-2 mb-payment-note">Tarjetas, PSE y más. El pago se procesa en la ventana segura de MercadoPago.</p>
             </div>
             <hr class="border-secondary my-4">
             <small>© {{ g.datetime.now().year if g.datetime else '' }} Musical Box · Bogotá, Colombia</small>

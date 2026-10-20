@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "_cards.html" import product_card with context %}
 {% from "_macros.html" import badge_original %}
+{% from "_macros.html" import botones_compartir with context %}
 
 {% block title %}{{ lanzamiento.n_lanzamiento|titulo }}{% endblock %}
 {% block description %}{{ artista.n_artista|titulo if artista }} - {{ lanzamiento.n_lanzamiento|titulo }}: merch, vinilos y ediciones en Musical Box.{% endblock %}
@@ -73,6 +74,8 @@
 </section>
 
 <div class="container mt-4">
+    {% set titulo_compartir = (artista.n_artista|titulo ~ ' – ' if artista else '') ~ lanzamiento.n_lanzamiento|titulo %}
+    <div class="d-flex justify-content-end mb-2">{{ botones_compartir(titulo_compartir, seo_canonical or request.url) }}</div>
 {% if lanzamiento.preorden %}
     <div class="alert alert-warning border-0 rounded-3 d-flex align-items-center gap-3 mb-4">
         <i class="bi bi-hourglass-split fs-4 text-warning flex-shrink-0"></i>

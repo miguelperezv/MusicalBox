@@ -1034,6 +1034,148 @@ document.addEventListener('change', function (e) {
     Array.prototype.forEach.call(formularios, iniciar);
 })();
 
+/* ---------- compartir producto/lanzamiento ----------
+   WhatsApp funciona sin JS; aquí resolvemos el compartir nativo y el copiar enlace. */
+(function () {
+    var bloques = document.querySelectorAll('[data-mb-share]');
+    if (!bloques.length) return;
+
+    function copiar(texto) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            return navigator.clipboard.writeText(texto);
+        }
+        return new Promise(function (resolve, reject) {
+            var area = document.createElement('textarea');
+            area.value = texto;
+            area.setAttribute('readonly', '');
+            area.style.position = 'fixed';
+            area.style.opacity = '0';
+            document.body.appendChild(area);
+            area.select();
+            try {
+                if (document.execCommand('copy')) resolve(); else reject(new Error('copy'));
+            } catch (e) {
+                reject(e);
+            } finally {
+                document.body.removeChild(area);
+            }
+        });
+    }
+
+    function avisar(bloque, texto) {
+        var status = bloque.querySelector('.mb-share-status');
+        if (!status) return;
+        status.textContent = texto;
+        clearTimeout(status._timer);
+        status._timer = setTimeout(function () { status.textContent = ''; }, 2200);
+    }
+
+    Array.prototype.forEach.call(bloques, function (bloque) {
+        var titulo = bloque.getAttribute('data-share-title') || document.title;
+        var url = bloque.getAttribute('data-share-url') || window.location.href;
+        try { url = new URL(url, window.location.href).href; } catch (e) {}
+        var nativo = bloque.querySelector('[data-mb-share-native]');
+        var copia = bloque.querySelector('[data-mb-share-copy]');
+
+        function copiarEnlace() {
+            copiar(url).then(function () {
+                avisar(bloque, 'Enlace copiado');
+            }).catch(function () {
+                avisar(bloque, 'No se pudo copiar');
+            });
+        }
+
+        if (nativo) {
+            nativo.addEventListener('click', function () {
+                if (navigator.share) {
+                    navigator.share({ title: titulo, url: url }).catch(function () {});
+                } else {
+                    copiarEnlace();
+                }
+            });
+        }
+        if (copia) copia.addEventListener('click', copiarEnlace);
+    });
+})();
+
+/* ---------- vistos recientemente ----------
+   Guardamos la ficha actual en localStorage y mostramos las anteriores en la PDP. */
+(function () {
+    var seccion = document.getElementById('mbRecientes');
+    if (!seccion) return;
+    try { if (!window.localStorage) return; } catch (e) { return; }
+    var grid = document.getElementById('mbRecientesGrid');
+    if (!grid) return;
+    var CLAVE = 'mb_recientes_v1', MAX = 8, VISIBLES = 6;
+    var FALLBACK = seccion.getAttribute('data-fallback') || '';
+
+    function urlPermitida(valor) {
+        if (typeof valor !== 'string') return '';
+        if (valor.charAt(0) === '/' || /^https?:\/\//i.test(valor)) return valor;
+        return '';
+    }
+    function leer() {
+        try {
+            var datos = JSON.parse(localStorage.getItem(CLAVE) || '[]');
+            return Array.isArray(datos) ? datos.filter(function (x) {
+                return x && x.id && x.nombre && urlPermitida(x.url);
+            }) : [];
+        } catch (e) { return []; }
+    }
+    function guardar(lista) {
+        try { localStorage.setItem(CLAVE, JSON.stringify(lista)); } catch (e) {}
+    }
+    function tarjeta(item) {
+        var col = document.createElement('div');
+        col.className = 'col';
+        var article = document.createElement('article');
+        article.className = 'mb-card';
+        var enlace = document.createElement('a');
+        enlace.className = 'cover';
+        enlace.href = urlPermitida(item.url) || '#';
+        var img = document.createElement('img');
+        img.src = urlPermitida(item.imagen) || FALLBACK;
+        img.alt = 'Portada de ' + item.nombre;
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        img.onerror = function () {
+            this.onerror = null;
+            if (FALLBACK) this.src = FALLBACK;
+        };
+        enlace.appendChild(img);
+        var body = document.createElement('div');
+        body.className = 'body';
+        var titulo = document.createElement('a');
+        titulo.className = 'title';
+        titulo.href = enlace.href;
+        titulo.textContent = item.nombre;
+        body.appendChild(titulo);
+        if (item.precio) {
+            var precio = document.createElement('small');
+            precio.className = 'text-body-secondary';
+            precio.textContent = item.precio;
+            body.appendChild(precio);
+        }
+        article.appendChild(enlace);
+        article.appendChild(body);
+        col.appendChild(article);
+        return col;
+    }
+
+    var actual = {
+        id: seccion.getAttribute('data-id'),
+        nombre: seccion.getAttribute('data-nombre'),
+        url: seccion.getAttribute('data-url'),
+        imagen: seccion.getAttribute('data-imagen'),
+        precio: seccion.getAttribute('data-precio')
+    };
+    if (!actual.id || !actual.nombre || !urlPermitida(actual.url)) return;
+    var previos = leer().filter(function (x) { return String(x.id) !== String(actual.id); });
+    previos.slice(0, VISIBLES).forEach(function (item) { grid.appendChild(tarjeta(item)); });
+    if (previos.length) seccion.hidden = false;
+    guardar([actual].concat(previos).slice(0, MAX));
+})();
+
 /* ---------- agregar al carrito sin recargar ----------
    Al agregar, mostramos un aviso breve con la portada del producto, la bolsa hace
    un pulso y el contador se actualiza. Sin fetch, el formulario sigue funcionando
