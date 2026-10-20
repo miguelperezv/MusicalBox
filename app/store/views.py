@@ -171,9 +171,15 @@ def buscar():
         lanzamientos = get_releases_cards(q=q)
         productos = get_products_cards(q=q)
         track_event(Events.SEARCH, {"q": q, "lanzamientos": len(lanzamientos), "productos": len(productos)})
+    #si no hay coincidencias, la búsqueda sigue siendo una oportunidad de descubrir catálogo
+    sugeridos, lanzamientos_sugeridos = [], []
+    if q and not lanzamientos and not productos:
+        sugeridos = get_products_cards(orden='vendidos', limit=4)
+        lanzamientos_sugeridos = get_releases_cards(limit=4)
     return render_template("buscar.html", q=q,
                            lanzamientos=lanzamientos[:12], productos=productos[:12],
-                           total_lanzamientos=len(lanzamientos), total_productos=len(productos))
+                           total_lanzamientos=len(lanzamientos), total_productos=len(productos),
+                           sugeridos=sugeridos, lanzamientos_sugeridos=lanzamientos_sugeridos)
 
 @home.route("/buscar/sugerencias")
 def sugerencias():
