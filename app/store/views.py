@@ -1307,19 +1307,12 @@ def thankyou():
 
 @products.route("/image_<int:k_producto>")
 def image(k_producto): 
-    # Obtener el parámetro de orden si existe
+    # La foto se sirve redimensionada (WebP + caché), también cuando se pide por orden.
     orden = request.args.get("orden", type=int)
-    
-    if orden is not None:
-        # Obtener imagen específica por orden
-        imagen = Imagen.query.filter_by(k_producto=k_producto, orden=orden).first()
-        if imagen:
-            return Response(imagen.img, mimetype=imagen.mimetype)
-        else:
-           pass
-    
-    # Comportamiento original: obtener la primera imagen
-    respuesta = imagen_producto(k_producto, request.args.get("w", default=600, type=int))
+    ancho = request.args.get("w", default=600, type=int)
+    respuesta = imagen_producto(k_producto, ancho, orden=orden)
+    if not respuesta and orden is not None:
+        respuesta = imagen_producto(k_producto, ancho)
     if respuesta:
         return respuesta
     #sin foto subida: URL externa del producto (Drive/CDN) o portada del lanzamiento o logo

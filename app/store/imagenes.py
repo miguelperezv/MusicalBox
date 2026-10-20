@@ -18,8 +18,11 @@ ANCHOS = (300, 600, 1200)
 UN_DIA = 86400
 
 
-def imagen_producto(k_producto, ancho=600):
-    img = Imagen.query.filter_by(k_producto=k_producto).first()
+def imagen_producto(k_producto, ancho=600, orden=None):
+    if orden is None:
+        img = Imagen.query.filter_by(k_producto=k_producto).first()
+    else:
+        img = Imagen.query.filter_by(k_producto=k_producto, orden=orden).first()
     if not img or not img.img:
         return None
     ancho = min(ANCHOS, key=lambda a: abs(a - (ancho or 600)))
