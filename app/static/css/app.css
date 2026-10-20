@@ -764,6 +764,30 @@ body.mb-tema-amor_amistad .hero-meta .hero-artist { color: #a4486b; }
 .mb-mp-logo { display: block; height: 18px; width: auto; }
 .mb-mp-btn-chip { display: inline-flex; align-items: center; background: #fff; border-radius: 5px; padding: .12rem .4rem; }
 .mb-mp-btn-chip img { display: block; height: 16px; width: auto; }
+.mb-mp-checkout { border: 1px solid #e3edf1; border-radius: 12px; padding: 1rem; background: linear-gradient(180deg, #fff 0%, #f7fbfc 100%); box-shadow: 0 1px 2px rgba(15, 28, 36, .04); }
+.mb-mp-checkout-btn {
+    display: flex; flex-direction: column; align-items: stretch; justify-content: center; gap: .55rem;
+    min-height: 88px; padding: .75rem 1rem; font-weight: 600; letter-spacing: .01em;
+    --bs-btn-bg: var(--mb-ink); --bs-btn-border-color: var(--mb-ink); --bs-btn-color: #fff;
+    --bs-btn-hover-bg: var(--mb-ink-2); --bs-btn-hover-border-color: var(--mb-ink-2); --bs-btn-hover-color: #fff;
+    --bs-btn-active-bg: #0a151c; --bs-btn-active-border-color: #0a151c; --bs-btn-active-color: #fff;
+    --bs-btn-disabled-bg: var(--mb-ink); --bs-btn-disabled-border-color: var(--mb-ink); --bs-btn-disabled-color: #fff;
+    box-shadow: 0 8px 22px rgba(15, 28, 36, .18);
+}
+.mb-mp-checkout-btn:hover { box-shadow: 0 10px 26px rgba(15, 28, 36, .24); }
+.mb-mp-cobrand { display: flex; align-items: center; justify-content: center; gap: .65rem; min-width: 0; }
+.mb-mp-brand-mb { display: inline-flex; align-items: center; gap: .45rem; color: var(--mb-yellow); font-size: 1rem; font-weight: 700; line-height: 1; white-space: nowrap; }
+.mb-mp-brand-mb img { width: 28px; height: 28px; border-radius: 50%; flex: 0 0 auto; }
+.mb-mp-cobrand-sep { width: 1px; height: 26px; background: rgba(255, 255, 255, .22); flex: 0 0 auto; }
+.mb-mp-brand-mp { display: inline-flex; align-items: center; background: #fff; border-radius: 6px; padding: .2rem .5rem; box-shadow: inset 0 0 0 1px rgba(15, 28, 36, .06); flex: 0 0 auto; }
+.mb-mp-brand-mp img { display: block; height: 26px; width: auto; }
+.mb-mp-checkout-cta { display: flex; align-items: center; justify-content: center; gap: .45rem; padding-top: .5rem; border-top: 1px solid rgba(255, 255, 255, .14); font-size: 1rem; white-space: nowrap; }
+@media (max-width: 380px) {
+    .mb-mp-brand-mb { font-size: .9rem; gap: .35rem; }
+    .mb-mp-brand-mb img { width: 24px; height: 24px; }
+    .mb-mp-brand-mp img { height: 22px; }
+    .mb-mp-cobrand { gap: .45rem; }
+}
 .mb-payment-title { font-size: .72rem; font-weight: 600; color: rgba(255, 255, 255, .85); }
 .mb-payment-note { color: rgba(255, 255, 255, .55); }
 

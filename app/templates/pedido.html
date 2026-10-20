@@ -264,16 +264,34 @@
                     Si no la terminaste, vuelve a intentarlo con el botón de abajo.
                 </div>
                 {% endif %}
-                <h2 class="h5 mb-2">{{ 'Pagar el abono' if abono_pendiente else ('Pagar el saldo' if saldo_pendiente else 'Pagar') }} {{ pedido.monto_pago|cop }}</h2>
-
-                <!-- Botón de pago MercadoPago -->
-                <div class="mb-3">
-                    <h4 class="h6 mb-1">Pagar con MercadoPago</h4>
-                    <button id="btnOpenMp" class="btn btn-primary w-100" type="button">
-                        <i class="bi bi-wallet2 me-2"></i>Pagar con MercadoPago
+                <div class="mb-mp-checkout mb-3">
+                    <div>
+                        <span class="mb-eyebrow">Pago seguro</span>
+                        <h2 class="h5 mb-1 mt-1">Pagar {{ pedido.monto_pago|cop }}</h2>
+                        <p class="small text-body-secondary mb-0">
+                            {% if abono_pendiente %}Abono del {{ ab.porcentaje_abono|int }}% para reservar tu preorden.
+                            {% elif saldo_pendiente %}Saldo pendiente para completar tu preorden.
+                            {% else %}Total del pedido.{% endif %}
+                        </p>
+                    </div>
+                    <button id="btnOpenMp" class="btn btn-primary w-100 mt-3 mb-mp-checkout-btn" type="button" aria-label="Pagar con MercadoPago">
+                        <span class="mb-mp-cobrand">
+                            <span class="mb-mp-brand-mb">
+                                <img src="{{ url_for('static', filename='imgs/musicalbox.png') }}" alt="" width="26" height="26">
+                                <span class="font-brand">musical box</span>
+                            </span>
+                            <span class="mb-mp-cobrand-sep" aria-hidden="true"></span>
+                            <span class="mb-mp-brand-mp">
+                                <img src="{{ url_for('static', filename='imgs/pagos/mercadopago.svg') }}" alt="MercadoPago" decoding="async">
+                            </span>
+                        </span>
+                        <span class="mb-mp-checkout-cta">Pagar ahora <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
                     </button>
-                    <p class="small text-body-secondary mt-1 mb-0">Tarjetas de crédito, débito, efectivo y más.</p>
-                    <p class="small text-body-secondary mt-2"><i class="bi bi-info-circle me-1"></i>Tus datos de tarjeta los procesa <strong>MercadoPago (certificado PCI DSS Nivel 1)</strong>. MusicalBox nunca ve tu número de tarjeta.</p>
+                    <div class="d-flex align-items-center justify-content-center gap-1 small text-body-secondary mt-2">
+                        <i class="bi bi-shield-lock-fill" aria-hidden="true"></i>
+                        <span>Pago protegido · PCI DSS Nivel 1</span>
+                    </div>
+                    <p class="small text-body-secondary mt-2 mb-0">Se abrirá la ventana segura de MercadoPago. Aceptamos tarjetas de crédito y débito, PSE y efectivo; Musical Box nunca ve los datos de tu tarjeta.</p>
                 </div>
                 {% endif %}
                 {% endif %}
@@ -316,6 +334,9 @@
   let bricksBuilder = null;  // se inicializa una sola vez y se reutiliza
   let brickController = null;
   let statusController = null;
+  // El botón solo existe cuando el pedido tiene un pago pendiente.
+  const btnOpenMp = document.getElementById("btnOpenMp");
+  const BTN_OPEN_HTML = btnOpenMp ? btnOpenMp.innerHTML : "";
   
   // Función para obtener el contexto de pago
   async function getPaymentContext(token) {
@@ -484,8 +505,7 @@
       alert("Error al abrir el modal de pago: " + error.message);
       closeMpModal();
       // Re-habilitar botón en caso de error
-      const btn = document.getElementById("btnOpenMp");
-      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-wallet2 me-2"></i>Pagar con MercadoPago'; }
+      if (btnOpenMp) { btnOpenMp.disabled = false; btnOpenMp.innerHTML = BTN_OPEN_HTML; }
     }
   }
   
@@ -560,8 +580,7 @@
     if (cajaEstado) cajaEstado.style.display = "none";
     if (avisoRespaldo) avisoRespaldo.style.display = "none";
     // Re-habilitar botón de pago
-    const btn = document.getElementById("btnOpenMp");
-    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-wallet2 me-2"></i>Pagar con MercadoPago'; }
+    if (btnOpenMp) { btnOpenMp.disabled = false; btnOpenMp.innerHTML = BTN_OPEN_HTML; }
   }
   
   // Función para abrir el modal
@@ -575,18 +594,20 @@
   }
   
   // Event listeners
-  document.getElementById("btnOpenMp").addEventListener("click", function() {
-    if (typeof MercadoPago === 'undefined') {
-      console.error('[MP] SDK de MercadoPago no se cargó correctamente');
-      alert('Error al cargar el SDK de MercadoPago. Por favor, recargue la página.');
-      return;
-    }
-    // Deshabilitar botón para evitar doble clic
-    this.disabled = true;
-    this.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Procesando...';
-    showMpModal();
-    openMpModal();
-  });
+  if (btnOpenMp) {
+    btnOpenMp.addEventListener("click", function() {
+      if (typeof MercadoPago === 'undefined') {
+        console.error('[MP] SDK de MercadoPago no se cargó correctamente');
+        alert('Error al cargar el SDK de MercadoPago. Por favor, recargue la página.');
+        return;
+      }
+      // Deshabilitar botón para evitar doble clic
+      btnOpenMp.disabled = true;
+      btnOpenMp.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span><span>Abriendo pago…</span>';
+      showMpModal();
+      openMpModal();
+    });
+  }
   document.getElementById("btnCloseMp").addEventListener("click", closeMpModal);
   // Cerrar al click fuera
   document.getElementById("mpModal").addEventListener("click", function(e) {
