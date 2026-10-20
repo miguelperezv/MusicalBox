@@ -760,7 +760,10 @@ body.mb-tema-amor_amistad .hero-meta .hero-artist { color: #a4486b; }
 .mb-pay-dots i:first-child { left: 0; background: #eb001b; }
 .mb-pay-dots i:last-child { right: 0; background: #f79e1b; opacity: .9; }
 .mb-pay-pse { color: #0b7a3b; }
-.mb-pay-mp { color: #009ee3; }
+.mb-pay-mp { padding-inline: .5rem; }
+.mb-mp-logo { display: block; height: 18px; width: auto; }
+.mb-mp-btn-chip { display: inline-flex; align-items: center; background: #fff; border-radius: 5px; padding: .12rem .4rem; }
+.mb-mp-btn-chip img { display: block; height: 16px; width: auto; }
 .mb-payment-title { font-size: .72rem; font-weight: 600; color: rgba(255, 255, 255, .85); }
 .mb-payment-note { color: rgba(255, 255, 255, .55); }
 
