@@ -7,7 +7,8 @@ from dotenv import load_dotenv
 
 # Cargar variables de entorno desde .env ANTES de importar config
 # Esto asegura que las variables de entorno (incluyendo MERCADOPAGO_PUBLIC_KEY) estén disponibles
-env_path = '/Users/migue/Documents/MusicalBox/.env'
+# Ruta relativa al repo: app/__init__.py -> app/ -> raíz (funciona en local y en producción)
+env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
 if os.path.exists(env_path):
     load_dotenv(dotenv_path=env_path, override=True)
 
