@@ -1228,9 +1228,12 @@ def checkout():
                             "disponible": l["disponible"], "preorden": l["preorden"]})
 
     from .models import calcular_abono
+    from .envio import aviso_envio_gratis
     abono = calcular_abono([(l["producto"], l["variante"], int(l["cantidad"]), l["producto"].p_producto)
                             for l in lineas], total)
+    envio_aviso = aviso_envio_gratis([(l["producto"], l["variante"], int(l["cantidad"])) for l in lineas], total)
     return render_template("checkout.html", form=form, lineas=linea_vista, total=total, abono=abono,
+                           envio_aviso=envio_aviso,
                            accion=url_for('purchase.process_checkout'),
                            previos=bool(fuente) and not intento, solicitud=None,
                            cats="|".join(f"{k}:{v}" for k, v in sorted(cats.items())))
