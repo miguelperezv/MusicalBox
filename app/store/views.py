@@ -244,6 +244,8 @@ def sitemap():
         (url_for('products.home_products', _external=True), None),
         (url_for('solicitud.nueva', _external=True), None),
         (url_for('home.politica_envios', _external=True), None),
+        (url_for('home.terminos', _external=True), None),
+        (url_for('home.privacidad', _external=True), None),
     ]
     for r in Lanzamiento.query.all():
         entradas.append((url_for('releases.release', k_lanzamiento=r.id, _external=True), r.f_lanzamiento))
@@ -472,6 +474,18 @@ def politica_envios():
     from .models import ReglaEnvio
     reglas = ReglaEnvio.query.filter_by(activo=True).order_by(ReglaEnvio.orden, ReglaEnvio.id).all()
     return render_template("politica_envios.html", reglas_activas=reglas)
+
+
+@home.route("/terminos")
+def terminos():
+    #condiciones de compra y uso del sitio
+    return render_template("terminos.html")
+
+
+@home.route("/privacidad")
+def privacidad():
+    #tratamiento de datos personales (Ley 1581 de 2012)
+    return render_template("privacidad.html")
 
 
 @home.route("/colombia", methods=["GET"])
