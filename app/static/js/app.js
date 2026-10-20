@@ -847,6 +847,17 @@ document.addEventListener('change', function (e) {
     });
 })();
 
+/* ---------- buscador móvil ----------
+   Al abrir el panel, el foco va directo al campo para escribir sin otro toque. */
+(function () {
+    var panel = document.getElementById('mbSearchMobile');
+    if (!panel) return;
+    panel.addEventListener('shown.bs.collapse', function () {
+        var input = panel.querySelector('input[type="search"]');
+        if (input) input.focus();
+    });
+})();
+
 /* ---------- agregar al carrito sin recargar ----------
    Al agregar, mostramos un aviso breve con la portada del producto, la bolsa hace
    un pulso y el contador se actualiza. Sin fetch, el formulario sigue funcionando
