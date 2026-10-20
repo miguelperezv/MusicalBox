@@ -1334,7 +1334,7 @@ def get_generos():
 def get_categorias():
     return [r[0] for r in db.session.query(Producto.k_categoria).distinct().filter(Producto.k_categoria.isnot(None)).order_by(Producto.k_categoria).all()]
 
-def get_products_cards(limit=None, k_lanzamiento=None, categoria=None, orden='recientes'):
+def get_products_cards(limit=None, k_lanzamiento=None, categoria=None, orden='recientes', q=None):
     query = Producto.query
     if k_lanzamiento:
         query = query.filter_by(k_lanzamiento=k_lanzamiento)
@@ -1349,6 +1349,18 @@ def get_products_cards(limit=None, k_lanzamiento=None, categoria=None, orden='re
     else:
         query = query.order_by(db.desc(Producto.f_producto))
     productos = query.all()
+    if q:
+        q = q.strip().lower()
+        def coincide(p):
+            artista = get_artist_by_release(p.k_lanzamiento) if p.k_lanzamiento else None
+            texto = " ".join([
+                p.n_producto or "",
+                p.lanzamiento.n_lanzamiento if p.lanzamiento else "",
+                artista.n_artista if artista else "",
+                p.k_categoria or "",
+            ]).lower()
+            return q in texto
+        productos = [p for p in productos if coincide(p)]
     if orden == 'vendidos':
         #unidades vendidas por producto en pedidos PAGADOS (limite se aplica después de ordenar)
         filas = (db.session.query(Item.k_producto, db.func.sum(Item.cant_item))

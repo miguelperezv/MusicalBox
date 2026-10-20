@@ -161,6 +161,19 @@ def index():
                            categorias=[(c, _etiqueta_categoria(c)) for c in get_categorias()],
                            redes=seleccion_para_inicio())
 
+@home.route("/buscar")
+def buscar():
+    #buscador global: lanzamientos y productos en una sola página
+    q = (request.args.get("q") or "").strip()
+    lanzamientos, productos = [], []
+    if q:
+        lanzamientos = get_releases_cards(q=q)
+        productos = get_products_cards(q=q)
+        track_event(Events.SEARCH, {"q": q, "lanzamientos": len(lanzamientos), "productos": len(productos)})
+    return render_template("buscar.html", q=q,
+                           lanzamientos=lanzamientos[:12], productos=productos[:12],
+                           total_lanzamientos=len(lanzamientos), total_productos=len(productos))
+
 @home.route("/robots.txt")
 def robots():
     #seo: permite todo y senala el sitemap
@@ -1373,6 +1386,7 @@ def analytics():
 @products.route("/", methods=["POST", "GET"])
 def home_products():
     categoria = (request.args.get("categoria") or "").strip()
+    q = (request.args.get("q") or "").strip()
     orden = request.args.get("orden") or "recientes"
     if orden not in ("recientes", "precio_asc", "precio_desc", "nombre", "vendidos"):
         orden = "recientes"
@@ -1380,13 +1394,13 @@ def home_products():
         page = max(1, int(request.args.get("page") or 1))
     except ValueError:
         page = 1
-    cards = get_products_cards(categoria=categoria or None, orden=orden)
+    cards = get_products_cards(categoria=categoria or None, orden=orden, q=q or None)
     per_page = 24
     total = len(cards)
     pages = max(1, (total + per_page - 1) // per_page)
     page = min(page, pages)
     return render_template("products.html",
                            productos=cards[(page - 1) * per_page:page * per_page],
-                           categoria=categoria, orden=orden,
+                           categoria=categoria, q=q, orden=orden,
                            page=page, pages=pages, total=total,
                            categorias=get_categorias())

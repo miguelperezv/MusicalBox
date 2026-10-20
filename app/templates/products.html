@@ -15,6 +15,13 @@
   {{ url_for('products.home_products', **f) }}
 {%- endmacro %}
 
+{% macro search_url() -%}
+  {%- set f = request.args.to_dict() -%}
+  {%- set _ = f.pop('q', none) -%}
+  {%- set _ = f.pop('page', none) -%}
+  {{ url_for('products.home_products', **f) }}
+{%- endmacro %}
+
 {% block title %}Productos{% endblock %}
 
 {% block contenido %}
@@ -23,11 +30,20 @@
         <div>
             <span class="mb-eyebrow">Tienda</span>
             <h1 class="mt-1">Productos</h1>
-            <p class="text-body-secondary mb-md-0">Todas las ediciones disponibles para comprar hoy · {{ total }} en total · <a href="{{ url_for('home.politica_envios') }}">envíos: Bogotá {{ envio_cfg.bogota }} · hasta {{ envio_cfg.resto }}</a></p>
+            <p class="text-body-secondary mb-md-0">
+                {% if q %}Resultados para “{{ q }}” · {% endif %}Todas las ediciones disponibles para comprar hoy · {{ total }} en total · <a href="{{ url_for('home.politica_envios') }}">envíos: Bogotá {{ envio_cfg.bogota }} · hasta {{ envio_cfg.resto }}</a>
+            </p>
         </div>
     </header>
 
     <div class="d-flex flex-wrap gap-2 align-items-center mb-4">
+        <form method="get" action="{{ url_for('products.home_products') }}" class="d-flex gap-2 me-auto" role="search" aria-label="Buscar productos">
+            <input type="search" class="form-control form-control-sm" style="min-width: 13rem" name="q" value="{{ q }}" placeholder="Buscar producto, artista o disco" aria-label="Buscar producto">
+            {% if categoria %}<input type="hidden" name="categoria" value="{{ categoria }}">{% endif %}
+            <input type="hidden" name="orden" value="{{ orden }}">
+            <button class="btn btn-sm btn-outline-primary" type="submit"><i class="bi bi-search"></i></button>
+        </form>
+        {% if q %}<a class="btn btn-sm btn-outline-secondary" href="{{ search_url() }}"><i class="bi bi-x-lg me-1"></i>Limpiar</a>{% endif %}
         {% if categorias %}
         <div class="btn-group flex-wrap me-2" role="group" aria-label="Filtrar por categoría">
             <a class="btn btn-sm {{ 'btn-primary' if not categoria else 'btn-outline-primary' }}" href="{{ cat_url(none) }}">Todo</a>
@@ -38,6 +54,7 @@
         {% endif %}
         <form method="get" action="{{ url_for('products.home_products') }}" class="d-flex gap-2" aria-label="Ordenar">
             <input type="hidden" name="categoria" value="{{ categoria }}">
+            <input type="hidden" name="q" value="{{ q }}">
             <select class="form-select form-select-sm w-auto" name="orden" aria-label="Ordenar por" onchange="this.form.submit()">
                 <option value="recientes" {{ 'selected' if orden == 'recientes' else '' }}>Más recientes</option>
                 <option value="precio_asc" {{ 'selected' if orden == 'precio_asc' else '' }}>Precio (menor primero)</option>
@@ -52,7 +69,7 @@
         {% for p in productos %}
         <div class="col">{{ product_card(p) }}</div>
         {% else %}
-        <div class="col-12 mb-empty"><i class="bi bi-bag"></i>No hay productos{% if categoria %} en “{{ categoria }}”{% endif %} todavía.<br><a class="btn btn-primary mt-3" href="{{ url_for('solicitud.nueva') }}">¿Lo buscas? Pídelo a la medida</a></div>
+        <div class="col-12 mb-empty"><i class="bi bi-bag"></i>No hay productos{% if q %} para “{{ q }}”{% elif categoria %} en “{{ categoria }}”{% endif %} todavía.<br><a class="btn btn-primary mt-3" href="{{ url_for('solicitud.nueva') }}">¿Lo buscas? Pídelo a la medida</a></div>
         {% endfor %}
     </div>
 

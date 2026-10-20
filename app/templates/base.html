@@ -14,7 +14,7 @@
     <meta property="og:url" content="{{ seo_canonical or request.url }}">
     <meta property="og:image" content="{% block og_image %}{{ url_for('static', filename='imgs/musicalbox.png', _external=True) }}{% endblock %}">
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Musical Box","url":"{{ request.host_url }}","logo":"{{ url_for('static', filename='imgs/musicalbox.png', _external=True) }}","sameAs":["https://facebook.com/musicalboxcol/","https://www.instagram.com/musicalboxcol/","https://twitter.com/musicalboxcol","https://tiktok.com/@musicalboxcol"]}</script>
-    <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"Musical Box","url":"{{ request.host_url }}","potentialAction":{"@type":"SearchAction","target":"{{ request.host_url }}releases/?q={search_term_string}","query-input":"required name=search_term_string"}}</script>
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"Musical Box","url":"{{ request.host_url }}","potentialAction":{"@type":"SearchAction","target":"{{ request.host_url }}buscar?q={search_term_string}","query-input":"required name=search_term_string"}}</script>
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='imgs/musicalbox.png') }}">
     <link rel="manifest" href="{{ url_for('home.manifest') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='pwa/icon-192.png') }}">
@@ -82,8 +82,8 @@
                     <li class="nav-item"><a class="nav-link {{ 'active' if ep.startswith('products.') }}" href="{{ url_for('products.home_products') }}">Productos</a></li>
                     <li class="nav-item"><a class="nav-link {{ 'active' if ep == 'solicitud.nueva' }}" href="{{ url_for('solicitud.nueva') }}">Pide tu disco</a></li>
                 </ul>
-                <form class="mb-search d-none d-lg-flex flex-lg-grow-1 my-lg-0 mx-lg-3" style="max-width: 420px" action="{{ url_for('releases.home_releases') }}" method="get" role="search">
-                    <input class="form-control" type="search" name="q" value="{{ request.args.get('q', '') }}" placeholder="Artistas, discos, géneros..." aria-label="Buscar">
+                <form class="mb-search d-none d-lg-flex flex-lg-grow-1 my-lg-0 mx-lg-3" style="max-width: 420px" action="{{ url_for('home.buscar') }}" method="get" role="search">
+                    <input class="form-control" type="search" name="q" value="{{ request.args.get('q', '') }}" placeholder="Discos, productos, artistas..." aria-label="Buscar">
                     <i class="bi bi-search"></i>
                 </form>
                 <div class="d-lg-none border-top border-secondary pt-3 pb-2">
@@ -102,8 +102,8 @@
                 </div>
             </div>
             <div class="collapse d-lg-none" id="mbSearchMobile">
-                <form class="mb-search my-3" action="{{ url_for('releases.home_releases') }}" method="get" role="search">
-                    <input class="form-control" type="search" name="q" value="{{ request.args.get('q', '') }}" placeholder="Artistas, discos, géneros..." aria-label="Buscar">
+                <form class="mb-search my-3" action="{{ url_for('home.buscar') }}" method="get" role="search">
+                    <input class="form-control" type="search" name="q" value="{{ request.args.get('q', '') }}" placeholder="Discos, productos, artistas..." aria-label="Buscar">
                     <i class="bi bi-search"></i>
                 </form>
             </div>

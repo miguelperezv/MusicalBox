@@ -5,7 +5,7 @@
     <i class="bi bi-vinyl"></i>
     <h1 class="h3 text-body">Esta página no está en nuestra colección</h1>
     <p class="text-body-secondary">Puede que el enlace esté mal escrito o que ese disco ya no exista.</p>
-    <form class="mb-search mx-auto my-4" style="max-width: 340px" action="{{ url_for('releases.home_releases') }}" method="get" role="search">
+    <form class="mb-search mx-auto my-4" style="max-width: 340px" action="{{ url_for('home.buscar') }}" method="get" role="search">
         <input class="form-control" type="search" name="q" placeholder="Busca artistas, discos, géneros..." aria-label="Buscar">
         <i class="bi bi-search"></i>
     </form>

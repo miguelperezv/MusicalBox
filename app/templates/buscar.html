@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% from "_cards.html" import release_card, product_card with context %}
+
+{% block title %}Buscar{% if q %} · {{ q }}{% endif %}{% endblock %}
+{% block head %}<meta name="robots" content="noindex, follow">{% endblock %}
+
+{% block contenido %}
+<div class="container">
+    <header class="mb-page-header">
+        <span class="mb-eyebrow">Buscar</span>
+        <h1 class="mt-1">{% if q %}Resultados para “{{ q }}”{% else %}¿Qué buscas?{% endif %}</h1>
+        <form class="mb-search mt-3" style="max-width: 520px" action="{{ url_for('home.buscar') }}" method="get" role="search">
+            <input class="form-control" type="search" name="q" value="{{ q }}" placeholder="Discos, productos, artistas..." aria-label="Buscar">
+            <i class="bi bi-search"></i>
+        </form>
+    </header>
+
+    {% if q %}
+        {% if not lanzamientos and not productos %}
+        <div class="mb-panel mb-empty">
+            <i class="bi bi-search"></i>
+            <h2 class="h4 text-body">No encontramos “{{ q }}”</h2>
+            <p>Prueba con otro nombre o pídelo a la medida.</p>
+            <a class="btn btn-primary" href="{{ url_for('solicitud.nueva') }}">Pídelo y lo conseguimos</a>
+        </div>
+        {% else %}
+        {% if lanzamientos %}
+        <section class="mb-5">
+            <div class="mb-section-title">
+                <div>
+                    <span class="mb-eyebrow">Lanzamientos</span>
+                    <h2 class="h5">{{ total_lanzamientos }} resultado{{ 's' if total_lanzamientos != 1 }}</h2>
+                </div>
+                {% if total_lanzamientos > lanzamientos|length %}
+                <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('releases.home_releases', q=q) }}">Ver todos <i class="bi bi-arrow-right"></i></a>
+                {% endif %}
+            </div>
+            <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-xl-5 g-3">
+                {% for r in lanzamientos %}<div class="col">{{ release_card(r) }}</div>{% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        {% if productos %}
+        <section class="mb-5">
+            <div class="mb-section-title">
+                <div>
+                    <span class="mb-eyebrow">Productos</span>
+                    <h2 class="h5">{{ total_productos }} resultado{{ 's' if total_productos != 1 }}</h2>
+                </div>
+                {% if total_productos > productos|length %}
+                <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('products.home_products', q=q) }}">Ver todos <i class="bi bi-arrow-right"></i></a>
+                {% endif %}
+            </div>
+            <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3 g-lg-4">
+                {% for p in productos %}<div class="col">{{ product_card(p) }}</div>{% endfor %}
+            </div>
+        </section>
+        {% endif %}
+        {% endif %}
+    {% else %}
+    <div class="mb-panel mb-empty">
+        <i class="bi bi-search"></i>
+        <h2 class="h4 text-body">Busca en todo el catálogo</h2>
+        <p>Escribe el nombre de un disco, un artista, una categoría o un producto.</p>
+        <div class="d-flex flex-wrap justify-content-center gap-2">
+            <a class="btn btn-primary" href="{{ url_for('releases.home_releases') }}">Ver lanzamientos</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('products.home_products') }}">Ver productos</a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
