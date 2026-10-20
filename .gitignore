@@ -137,3 +137,15 @@ instance/cache_img/
 # configuracion local de opencode
 opencode.json
 opencode.jsonc
+
+# archivos temporales de macOS y copias de seguridad locales
+.DS_Store
+*.bak
+*.bak-*
+*.backup
+*.backup2
+*.final
+*.fixed
+*.orig
+*.rej
+enlace_seguimiento.txt
