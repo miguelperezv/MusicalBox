@@ -44,6 +44,9 @@ products = Blueprint("products", __name__, url_prefix="/products")
 def before_request():
     if "user" in session:
         g.user = session["user"]
+        #si la sesión del admin venía de antes del cambio, se vuelve persistente al primer acceso
+        if g.user.get("k_rol") == "ADMIN" and not session.permanent:
+            session.permanent = True
     else:
         g.user = None
     if "purchase" in session:
@@ -338,6 +341,9 @@ def login():
                 return redirect(url_for('home.login'))
             flash("Bienvenido " + user['n_usuario'])
             user.pop('pwd_usuario', None)  # la clave no viaja en la cookie de sesion
+            #el admin conserva la sesión entre visitas (7 días por defecto, ver config.py);
+            #los clientes siguen con sesión de navegador para no dejarla abierta en equipos compartidos
+            session.permanent = user['k_rol'] == 'ADMIN'
             session["user"] = user
             # Normalizar diccionario de usuario para vistas posteriores
             session["user"].setdefault("id", user.get("id"))
@@ -411,6 +417,7 @@ def activar(token):
 
 @home.route("/logout", methods=["GET", "POST"])
 def logout():
+    session.permanent = False
     session.pop("user", None)
     session.pop("purchase", None)
     session.pop("ultimo_carrito", None)

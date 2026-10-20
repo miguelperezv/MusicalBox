@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 
 UPLOAD_FOLDER = os.path.abspath("./uploads/")
 
@@ -50,6 +51,9 @@ class Config(object):
     MAIL_FROM = os.getenv("MAIL_FROM", "Musical Box <pedidos@musicalbox.local>")
     #vigencia del enlace para crear contraseña que llega por correo
     ACTIVACION_MAX_DIAS = 7
+    #los administradores quedan con la sesión abierta; se renueva con cada visita.
+    #Para cambiarla: ADMIN_SESSION_DIAS=30 en el entorno (0 o negativo no se recomienda).
+    PERMANENT_SESSION_LIFETIME = timedelta(days=int(os.getenv("ADMIN_SESSION_DIAS", "7")))
     #avisos al admin por Telegram (ver app/telegram.py): sin credenciales cae a consola
     TG_BACKEND = os.getenv("TG_BACKEND", "real")
     TG_BOT_TOKEN = os.getenv("TG_BOT_TOKEN", "")
