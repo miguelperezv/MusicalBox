@@ -8,12 +8,10 @@ bloques separados por una línea en blanco crean párrafos.
 import re
 from datetime import datetime
 
-from flask import flash, redirect, render_template, request, url_for
 from markupsafe import Markup, escape
 
 from .models import MESES
 from .redes import Configuracion, get_config, set_config
-from .views import dashboard, home, render_seccion
 from ..db import db
 
 
@@ -97,23 +95,3 @@ def guardar_devoluciones(titulo, intro, texto):
         "devoluciones.intro": (intro or "").strip()[:1000],
         "devoluciones.texto": (texto or "").strip()[:30000],
     })
-
-
-@home.route("/cambios-devoluciones")
-def devoluciones():
-    return render_template("devoluciones.html", dev=obtener_devoluciones())
-
-
-@dashboard.route("/devoluciones", methods=["GET", "POST"])
-def devoluciones_admin():
-    if request.method == "POST":
-        titulo = (request.form.get("titulo") or "").strip()
-        intro = (request.form.get("intro") or "").strip()
-        texto = (request.form.get("texto") or "").strip()
-        if not titulo or not texto:
-            flash("El título y el contenido no pueden quedar vacíos", "warning")
-        else:
-            guardar_devoluciones(titulo, intro, texto)
-            flash("Política de cambios y devoluciones actualizada", "success")
-        return redirect(url_for("dashboard.devoluciones_admin"))
-    return render_seccion("devoluciones_admin.html", dev=obtener_devoluciones())

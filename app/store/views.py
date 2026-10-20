@@ -492,6 +492,13 @@ def politica_envios():
     return render_template("politica_envios.html", reglas_activas=reglas)
 
 
+@home.route("/cambios-devoluciones")
+def devoluciones():
+    #el contenido lo edita el admin en /dashboard/devoluciones (ver app/store/devoluciones.py)
+    from .devoluciones import obtener_devoluciones
+    return render_template("devoluciones.html", dev=obtener_devoluciones())
+
+
 @home.route("/terminos")
 def terminos():
     #condiciones de compra y uso del sitio
@@ -716,6 +723,25 @@ def newadmin():
             return redirect(url_for("home.admin"))
         
     return render_seccion("newAdmin.html", form = form_new_admin)
+
+
+@dashboard.route("/devoluciones", methods=["GET", "POST"])
+def devoluciones_admin():
+    #la lógica de texto vive en app/store/devoluciones.py; las rutas se registran acá
+    #para que el endpoint exista siempre, incluso si el módulo auxiliar no se importa.
+    from .devoluciones import guardar_devoluciones, obtener_devoluciones
+    if request.method == "POST":
+        titulo = (request.form.get("titulo") or "").strip()
+        intro = (request.form.get("intro") or "").strip()
+        texto = (request.form.get("texto") or "").strip()
+        if not titulo or not texto:
+            flash("El título y el contenido no pueden quedar vacíos", "warning")
+        else:
+            guardar_devoluciones(titulo, intro, texto)
+            flash("Política de cambios y devoluciones actualizada", "success")
+        return redirect(url_for("dashboard.devoluciones_admin"))
+    return render_seccion("devoluciones_admin.html", dev=obtener_devoluciones())
+
 
 @dashboard.route("/invoices", methods=["GET", "POST"])
 def invoices():

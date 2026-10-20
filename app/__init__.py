@@ -20,7 +20,6 @@ from .store.pedidos import pedido
 from .store.mercadopago import views as mercadopago_views
 from .store import catalogo_admin  # noqa: F401 (rutas de tallas y packs en el panel)
 from .store import envios_admin  # noqa: F401 (sección "Envíos" del panel y costo por orden)
-from .store import devoluciones  # noqa: F401 (política pública y su edición en el panel)
 from .store import suscriptores  # noqa: F401 (suscriptores de drops: form del footer y lista del panel)
 from .store.promocion import promo
 from .telegram import telegram_bp
