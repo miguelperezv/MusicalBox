@@ -28,7 +28,9 @@
             <div class="mb-panel mb-3">
                 <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
                     <div>
-                        <div class="fw-bold">Pedido #{{ factura.id }}</div>
+                        <div class="fw-bold">Pedido #{{ factura.id }}
+                            <a class="small fw-normal ms-2 text-decoration-none" href="{{ url_for('pedido.ver', token=token_pedido(factura)) }}">Ver pedido <i class="bi bi-arrow-right"></i></a>
+                        </div>
                         <small class="text-body-secondary">{{ factura.f_compra|fecha_co('%d/%m/%Y %H:%M') if factura.f_compra }}{% if factura.id_factura_payco %} · Ref. {{ factura.id_factura_payco }}{% endif %}</small>
                     </div>
                     <div class="text-end">
