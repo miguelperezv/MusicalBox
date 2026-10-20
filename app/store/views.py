@@ -63,6 +63,7 @@ def before_request():
     # Track page views automatically for analytics
     # Skip tracking for static files, favicons, and certain endpoints
     if (request.endpoint and 
+        request.endpoint not in ('home.sugerencias', 'products.image') and
         not request.endpoint.startswith('static') and
         not '/favicon' in request.url and
         not request.endpoint.endswith('_static')):
@@ -173,6 +174,58 @@ def buscar():
     return render_template("buscar.html", q=q,
                            lanzamientos=lanzamientos[:12], productos=productos[:12],
                            total_lanzamientos=len(lanzamientos), total_productos=len(productos))
+
+@home.route("/buscar/sugerencias")
+def sugerencias():
+    #autocompletado: grupos cortos para el desplegable; no reemplaza la página /buscar
+    q = (request.args.get("q") or "").strip()
+    if not q:
+        return jsonify({"q": q, "lanzamientos": [], "productos": [], "artistas": [], "ver_todos": ""})
+
+    lanzamientos = [{
+        "titulo": r.get("nombre") or "",
+        "subtitulo": r["artista"].n_artista if r.get("artista") else "",
+        "url": url_for("releases.release", k_lanzamiento=r["id"]),
+        "imagen": r.get("portada") or "",
+        "icono": "bi-vinyl",
+    } for r in get_releases_cards(q=q, limit=5)]
+
+    productos = []
+    for p in get_products_cards(q=q, limit=5):
+        lanz = p.get("lanzamiento")
+        artista = p.get("artista")
+        subtitulo = " · ".join(x for x in [
+            artista.n_artista if artista else "",
+            lanz.n_lanzamiento if lanz else "",
+        ] if x)
+        productos.append({
+            "titulo": p.get("nombre") or "",
+            "subtitulo": subtitulo,
+            "url": url_for("products.detalle", k_producto=p["id"]),
+            "imagen": url_for("products.image", k_producto=p["id"], w=300),
+            "icono": "bi-bag",
+        })
+
+    from .models import Artista
+    artistas = (Artista.query
+                .filter(Artista.n_artista.ilike(f"%{q}%"))
+                .order_by(Artista.n_artista)
+                .limit(5).all())
+    artistas = [{
+        "titulo": a.n_artista,
+        "subtitulo": a.pais_artista or "Artista",
+        "url": url_for("artists.artist", k_artista=a.id),
+        "imagen": "",
+        "icono": "bi-person",
+    } for a in artistas]
+
+    return jsonify({
+        "q": q,
+        "lanzamientos": lanzamientos,
+        "productos": productos,
+        "artistas": artistas,
+        "ver_todos": url_for("home.buscar", q=q),
+    })
 
 @home.route("/robots.txt")
 def robots():

@@ -82,9 +82,10 @@
                     <li class="nav-item"><a class="nav-link {{ 'active' if ep.startswith('products.') }}" href="{{ url_for('products.home_products') }}">Productos</a></li>
                     <li class="nav-item"><a class="nav-link {{ 'active' if ep == 'solicitud.nueva' }}" href="{{ url_for('solicitud.nueva') }}">Pide tu disco</a></li>
                 </ul>
-                <form class="mb-search d-none d-lg-flex flex-lg-grow-1 my-lg-0 mx-lg-3" style="max-width: 420px" action="{{ url_for('home.buscar') }}" method="get" role="search">
-                    <input class="form-control" type="search" name="q" value="{{ request.args.get('q', '') }}" placeholder="Discos, productos, artistas..." aria-label="Buscar">
+                <form class="mb-search d-none d-lg-flex flex-lg-grow-1 my-lg-0 mx-lg-3" style="max-width: 420px" action="{{ url_for('home.buscar') }}" method="get" role="search" data-mb-suggest-url="{{ url_for('home.sugerencias') }}">
+                    <input class="form-control" type="search" name="q" id="mbSearchDesktop" value="{{ request.args.get('q', '') }}" placeholder="Discos, productos, artistas..." aria-label="Buscar" aria-autocomplete="list" aria-controls="mbSuggestDesktop" aria-expanded="false" autocomplete="off">
                     <i class="bi bi-search"></i>
+                    <div class="mb-suggest" id="mbSuggestDesktop" role="listbox" aria-label="Sugerencias de búsqueda" hidden></div>
                 </form>
                 <div class="d-lg-none border-top border-secondary pt-3 pb-2">
                     {% if not user %}
@@ -102,9 +103,10 @@
                 </div>
             </div>
             <div class="collapse d-lg-none" id="mbSearchMobile">
-                <form class="mb-search my-3" action="{{ url_for('home.buscar') }}" method="get" role="search">
-                    <input class="form-control" type="search" name="q" value="{{ request.args.get('q', '') }}" placeholder="Discos, productos, artistas..." aria-label="Buscar">
+                <form class="mb-search my-3" action="{{ url_for('home.buscar') }}" method="get" role="search" data-mb-suggest-url="{{ url_for('home.sugerencias') }}">
+                    <input class="form-control" type="search" name="q" id="mbSearchMobileInput" value="{{ request.args.get('q', '') }}" placeholder="Discos, productos, artistas..." aria-label="Buscar" aria-autocomplete="list" aria-controls="mbSuggestMobile" aria-expanded="false" autocomplete="off">
                     <i class="bi bi-search"></i>
+                    <div class="mb-suggest" id="mbSuggestMobile" role="listbox" aria-label="Sugerencias de búsqueda" hidden></div>
                 </form>
             </div>
         </div>

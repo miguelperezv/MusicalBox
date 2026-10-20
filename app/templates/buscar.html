@@ -9,9 +9,10 @@
     <header class="mb-page-header">
         <span class="mb-eyebrow">Buscar</span>
         <h1 class="mt-1">{% if q %}Resultados para “{{ q }}”{% else %}¿Qué buscas?{% endif %}</h1>
-        <form class="mb-search mt-3" style="max-width: 520px" action="{{ url_for('home.buscar') }}" method="get" role="search">
-            <input class="form-control" type="search" name="q" value="{{ q }}" placeholder="Discos, productos, artistas..." aria-label="Buscar">
+        <form class="mb-search mt-3" style="max-width: 520px" action="{{ url_for('home.buscar') }}" method="get" role="search" data-mb-suggest-url="{{ url_for('home.sugerencias') }}">
+            <input class="form-control" type="search" name="q" id="mbSearchPage" value="{{ q }}" placeholder="Discos, productos, artistas..." aria-label="Buscar" aria-autocomplete="list" aria-controls="mbSuggestPage" aria-expanded="false" autocomplete="off">
             <i class="bi bi-search"></i>
+            <div class="mb-suggest" id="mbSuggestPage" role="listbox" aria-label="Sugerencias de búsqueda" hidden></div>
         </form>
     </header>
 

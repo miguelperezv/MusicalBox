@@ -889,6 +889,151 @@ document.addEventListener('change', function (e) {
     });
 })();
 
+/* ---------- sugerencias del buscador ----------
+   Mientras se escribe, muestra lanzamientos, productos y artistas. El endpoint
+   devuelve los grupos ya armados; aquí solo se pintan y se navega con teclado. */
+(function () {
+    if (!window.fetch) return;
+    var formularios = document.querySelectorAll('form[data-mb-suggest-url]');
+    if (!formularios.length) return;
+
+    function escapar(texto) {
+        var div = document.createElement('div');
+        div.textContent = texto == null ? '' : String(texto);
+        return div.innerHTML;
+    }
+
+    function iniciar(form) {
+        var input = form.querySelector('input[type="search"]');
+        var panel = form.querySelector('.mb-suggest');
+        if (!input || !panel) return;
+        var url = form.getAttribute('data-mb-suggest-url');
+        var timer = null, controlador = null, items = [], activo = -1, ultima = '', token = 0;
+
+        function cerrar() {
+            token++;
+            clearTimeout(timer);
+            panel.hidden = true;
+            panel.innerHTML = '';
+            input.setAttribute('aria-expanded', 'false');
+            input.removeAttribute('aria-activedescendant');
+            items = [];
+            activo = -1;
+            ultima = '';
+        }
+
+        function abrir() {
+            panel.hidden = false;
+            input.setAttribute('aria-expanded', 'true');
+        }
+
+        function mover(delta) {
+            if (!items.length) return;
+            if (activo < 0) {
+                activo = delta > 0 ? 0 : items.length - 1;
+            } else {
+                activo = (activo + delta + items.length) % items.length;
+            }
+            items.forEach(function (item, i) {
+                item.classList.toggle('mb-suggest-active', i === activo);
+                item.setAttribute('aria-selected', i === activo ? 'true' : 'false');
+            });
+            input.setAttribute('aria-activedescendant', items[activo].id);
+            items[activo].scrollIntoView({ block: 'nearest' });
+        }
+
+        function itemHtml(item, indice) {
+            var foto = item.imagen
+                ? '<img src="' + escapar(item.imagen) + '" alt="" loading="lazy">'
+                : '<span class="mb-suggest-icon"><i class="bi ' + escapar(item.icono || 'bi-search') + '"></i></span>';
+            return '<a class="mb-suggest-item" id="' + panel.id + '-item-' + indice + '" role="option" aria-selected="false" href="' + escapar(item.url) + '">' +
+                foto +
+                '<span><strong>' + escapar(item.titulo) + '</strong>' +
+                (item.subtitulo ? '<small>' + escapar(item.subtitulo) + '</small>' : '') +
+                '</span></a>';
+        }
+
+        function pintar(data) {
+            var grupos = [
+                ['Lanzamientos', data.lanzamientos],
+                ['Productos', data.productos],
+                ['Artistas', data.artistas]
+            ];
+            var html = '', indice = 0;
+            grupos.forEach(function (grupo) {
+                if (!grupo[1] || !grupo[1].length) return;
+                html += '<div class="mb-suggest-group" role="group" aria-label="' + escapar(grupo[0]) + '">' +
+                    '<div class="mb-suggest-title">' + escapar(grupo[0]) + '</div>';
+                grupo[1].forEach(function (item) {
+                    html += itemHtml(item, indice++);
+                });
+                html += '</div>';
+            });
+            if (!html) {
+                html = '<div class="mb-suggest-empty">Sin resultados. Presiona Enter para buscar en todo el catálogo.</div>';
+            } else if (data.ver_todos) {
+                html += '<a class="mb-suggest-all" href="' + escapar(data.ver_todos) + '">Ver todos los resultados</a>';
+            }
+            panel.innerHTML = html;
+            items = Array.prototype.slice.call(panel.querySelectorAll('.mb-suggest-item'));
+            activo = -1;
+            abrir();
+        }
+
+        function buscar() {
+            var q = input.value.trim();
+            if (!q) { cerrar(); return; }
+            if (q === ultima) return;
+            ultima = q;
+            var actual = ++token;
+            if (controlador) controlador.abort();
+            controlador = ('AbortController' in window) ? new AbortController() : null;
+            fetch(url + '?q=' + encodeURIComponent(q), {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin',
+                signal: controlador ? controlador.signal : undefined
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (actual !== token) return;
+                    if (input.value.trim() !== data.q) return;
+                    pintar(data);
+                })
+                .catch(function (e) {
+                    if (actual !== token) return;
+                    if (!e || e.name !== 'AbortError') cerrar();
+                });
+        }
+
+        input.addEventListener('input', function () {
+            clearTimeout(timer);
+            if (!input.value.trim()) { cerrar(); return; }
+            timer = setTimeout(buscar, 180);
+        });
+        input.addEventListener('focus', function () {
+            if (input.value.trim() && panel.hidden) {
+                ultima = '';
+                buscar();
+            }
+        });
+        input.addEventListener('keydown', function (e) {
+            if (panel.hidden) return;
+            if (e.key === 'ArrowDown') { e.preventDefault(); mover(1); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); mover(-1); }
+            else if (e.key === 'Escape') { cerrar(); }
+            else if (e.key === 'Enter' && activo >= 0 && items[activo]) {
+                e.preventDefault();
+                window.location.href = items[activo].href;
+            }
+        });
+        document.addEventListener('click', function (e) {
+            if (!form.contains(e.target)) cerrar();
+        });
+    }
+
+    Array.prototype.forEach.call(formularios, iniciar);
+})();
+
 /* ---------- agregar al carrito sin recargar ----------
    Al agregar, mostramos un aviso breve con la portada del producto, la bolsa hace
    un pulso y el contador se actualiza. Sin fetch, el formulario sigue funcionando
