@@ -11,6 +11,12 @@
     <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="ordenes" data-filtro="todas">Todas <span class="badge text-bg-secondary">{{ invoices|length }}</span></button>
 </div>
 
+<div class="mb-panel p-2 mb-3 d-flex flex-wrap align-items-center gap-2" id="mbOrdenBarra" data-rotulos-url="{{ url_for('dashboard.pedidos_rotulos') }}">
+    <span class="small text-body-secondary px-1"><span id="mbOrdenSeleccion">0</span> seleccionados</span>
+    <button type="button" class="btn btn-sm btn-outline-primary" id="mbMarcarEnviado" disabled><i class="bi bi-truck me-1"></i>Marcar enviado</button>
+    <button type="button" class="btn btn-sm btn-outline-secondary" id="mbImprimirRotulos" disabled><i class="bi bi-printer me-1"></i>Imprimir rótulos</button>
+</div>
+
 {% if conteos['ABONADO'] %}
 <form method="POST" action="{{ url_for('dashboard.recordar_saldo') }}" class="mb-3">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -31,13 +37,12 @@
         <table class="table table-hover mb-0" id="tabla-prioridad">
             <thead class="table-light">
                 <tr>
-                    <th class="ps-3">#</th>
+                    <th class="ps-3"><input class="form-check-input mb-orden-todas" type="checkbox" id="mbOrdenTodas" aria-label="Seleccionar todos los pedidos visibles"></th>
+                    <th>#</th>
                     <th>Fecha</th>
-                    <th>Estado envío</th>
-                    <th>Comprador y envío</th>
-                    <th>Productos</th>
+                    <th>Comprador</th>
+                    <th>Estado</th>
                     <th class="text-end">Total</th>
-                    <th style="min-width: 150px">Envío</th>
                     <th class="pe-3">Acciones</th>
                 </tr>
             </thead>
@@ -45,7 +50,7 @@
                 {% for i in invoices if i.estado == 'PAGADO' and i.estado_envio in ['POR PREPARAR', 'EN PREPARACION', 'ENVIADO'] %}
                 {% include 'invoices/_fila_invoice.html' %}
                 {% else %}
-                <tr><td colspan="8" class="mb-empty text-center py-4"><i class="bi bi-check-circle-fill text-success fs-1"></i><br>¡Todo enviado! No hay pedidos pendientes de envío.</td></tr>
+                <tr><td colspan="7" class="mb-empty text-center py-4"><i class="bi bi-check-circle-fill text-success fs-1"></i><br>¡Todo enviado! No hay pedidos pendientes de envío.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -65,13 +70,12 @@
             <table class="table table-hover mb-0" id="tabla-entregados">
                 <thead class="table-light">
                     <tr>
-                        <th class="ps-3">#</th>
+                        <th class="ps-3"><input class="form-check-input mb-orden-todas" type="checkbox" aria-label="Seleccionar pedidos entregados"></th>
+                        <th>#</th>
                         <th>Fecha</th>
-                        <th>Estado envío</th>
-                        <th>Comprador y envío</th>
-                        <th>Productos</th>
+                        <th>Comprador</th>
+                        <th>Estado</th>
                         <th class="text-end">Total</th>
-                        <th style="min-width: 150px">Envío</th>
                         <th class="pe-3">Acciones</th>
                     </tr>
                 </thead>
@@ -79,7 +83,7 @@
                     {% for i in invoices if i.estado == 'PAGADO' and i.estado_envio == 'ENTREGADO' %}
                     {% include 'invoices/_fila_invoice.html' %}
                     {% else %}
-                    <tr><td colspan="8" class="mb-empty text-center py-4">Sin pedidos entregados.</td></tr>
+                    <tr><td colspan="7" class="mb-empty text-center py-4">Sin pedidos entregados.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -100,21 +104,20 @@
             <table class="table table-hover mb-0" id="tabla-pendientes">
                 <thead class="table-light">
                     <tr>
-                        <th class="ps-3">#</th>
+                        <th class="ps-3"><input class="form-check-input mb-orden-todas" type="checkbox" aria-label="Seleccionar pedidos pendientes"></th>
+                        <th>#</th>
                         <th>Fecha</th>
+                        <th>Comprador</th>
                         <th>Estado</th>
-                        <th>Comprador y envío</th>
-                        <th>Productos</th>
                         <th class="text-end">Total</th>
-                        <th style="min-width: 150px">Envío</th>
                         <th class="pe-3">Acciones</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="tbody-pendientes">
                     {% for i in invoices if i.estado in ['PENDIENTE', 'PENDIENTE_ABONO', 'ABONADO', 'RECHAZADO'] %}
                     {% include 'invoices/_fila_invoice.html' %}
                     {% else %}
-                    <tr><td colspan="8" class="mb-empty text-center py-4">Sin pedidos pendientes o rechazados.</td></tr>
+                    <tr><td colspan="7" class="mb-empty text-center py-4">Sin pedidos pendientes o rechazados.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -122,6 +125,16 @@
     </div>
 </div>
 
+<!-- Drawer de detalle: se llena por AJAX con /dashboard/invoices/<id>/detalle -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="mbOrdenDrawer" aria-labelledby="mbOrdenDrawerTitulo">
+    <div class="offcanvas-header">
+        <h2 class="offcanvas-title h5" id="mbOrdenDrawerTitulo">Pedido</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Cerrar"></button>
+    </div>
+    <div class="offcanvas-body" id="mbOrdenDetalle">
+        <div class="mb-loading"><div class="spinner-border" role="status"></div></div>
+    </div>
+</div>
 
 <script>
 // Filtro de chips para órdenes
@@ -129,25 +142,13 @@
     var grupo = document.querySelector('[data-grupo-ordenes]');
     if (!grupo) return;
     var chips = grupo.querySelectorAll('.chip-filtro');
-    var filas = document.querySelectorAll('#tabla-prioridad tbody tr, #tabla-entregados tbody tr, #tabla-pendientes tbody tr');
     var secciones = {
         'prioridad': document.getElementById('seccion-prioridad'),
         'entregados': document.getElementById('seccion-entregados'),
         'pendientes': document.getElementById('seccion-pendientes'),
     };
-    var tbodyMap = {
-        'prioridad': document.getElementById('tbody-prioridad'),
-        'entregados': document.getElementById('tbody-entregados'),
-        'pendientes': document.getElementById('tbody-pendientes'),
-    };
-    var emptyRows = {
-        'prioridad': document.querySelector('#tabla-prioridad tbody tr:only-child td[colspan]'),
-        'entregados': document.querySelector('#tabla-entregados tbody tr:only-child td[colspan]'),
-        'pendientes': document.querySelector('#tabla-pendientes tbody tr:only-child td[colspan]'),
-    };
 
     function aplicarFiltro(filtro) {
-        // Actualizar chips activos
         document.querySelectorAll('[data-grupo-ordenes] .chip-filtro').forEach(function (b) {
             var activo = b.dataset.filtro === filtro;
             b.classList.toggle('active', activo);
@@ -156,56 +157,150 @@
         });
         grupo.dataset.filtroActual = filtro;
 
-        // Mostrar/ocultar secciones
         Object.keys(secciones).forEach(function (key) {
             var sec = secciones[key];
             if (!sec) return;
             var mostrar = (filtro === 'todas') || (filtro === 'prioridad' && key === 'prioridad') ||
                           (filtro === 'entregados' && key === 'entregados') ||
-                          (filtro === 'pendientes' && key === 'pendientes') ||
-                          (filtro === 'pendientes' && key === 'entregados'); // pendientes muestra todo lo no-prioridad
-            if (mostrar) {
-                sec.style.display = '';
-            } else {
-                sec.style.display = 'none';
-            }
+                          ((filtro === 'pendientes' || filtro === 'rechazadas') && key === 'pendientes');
+            sec.style.display = mostrar ? '' : 'none';
         });
 
-        // Buscador de texto
         var q = document.getElementById('buscador-ordenes')?.value?.trim().toLowerCase() || '';
-        if (q) {
-            document.querySelectorAll('#tabla-ordenes tbody tr, #tabla-prioridad tbody tr, #tabla-entregados tbody tr, #tabla-pendientes tbody tr').forEach(function (tr) {
-                if (tr.querySelector('td[colspan]')) return; // saltar filas vacías
-                var ok = tr.textContent.toLowerCase().indexOf(q) !== -1;
-                tr.classList.toggle('d-none', !ok);
-            });
-        }
+        document.querySelectorAll('#tabla-prioridad tbody tr, #tabla-entregados tbody tr, #tabla-pendientes tbody tr').forEach(function (tr) {
+            if (tr.querySelector('td[colspan]')) return;
+            tr.classList.toggle('d-none', q && tr.textContent.toLowerCase().indexOf(q) === -1);
+        });
+        if (window.mbActualizarBarraOrdenes) window.mbActualizarBarraOrdenes();
     }
 
     chips.forEach(function (chip) {
-        chip.addEventListener('click', function () {
-            aplicarFiltro(chip.dataset.filtro);
-        });
+        chip.addEventListener('click', function () { aplicarFiltro(chip.dataset.filtro); });
     });
 
-    // Buscador de texto
     var buscador = document.getElementById('buscador-ordenes');
-    if (buscador) {
-        buscador.addEventListener('input', function () {
-            aplicarFiltro(grupo.dataset.filtroActual || 'prioridad');
-        });
-    }
+    if (buscador) buscador.addEventListener('input', function () {
+        aplicarFiltro(grupo.dataset.filtroActual || 'prioridad');
+    });
 
-    // Inicializar con 'prioridad'
     aplicarFiltro('prioridad');
 })();
 
-// Eliminar pedido pendiente
+// Drawer, selección y acciones masivas. El listener se registra una sola vez aunque la
+// sección se recargue por AJAX; siempre busca los elementos actuales por id.
+(function () {
+    if (window.mbOrdenDrawerInit) return;
+    window.mbOrdenDrawerInit = true;
+
+    function seleccionados() {
+        return Array.prototype.slice.call(document.querySelectorAll('.mb-orden-check:checked')).filter(function (c) {
+            var tr = c.closest('tr');
+            return tr && tr.offsetParent !== null;
+        });
+    }
+
+    window.mbActualizarBarraOrdenes = function () {
+        var total = seleccionados().length;
+        var contador = document.getElementById('mbOrdenSeleccion');
+        if (contador) contador.textContent = total;
+        var enviar = document.getElementById('mbMarcarEnviado');
+        var imprimir = document.getElementById('mbImprimirRotulos');
+        if (enviar) enviar.disabled = total === 0;
+        if (imprimir) imprimir.disabled = total === 0;
+    };
+
+    document.addEventListener('change', function (e) {
+        if (e.target.classList && e.target.classList.contains('mb-orden-check')) {
+            window.mbActualizarBarraOrdenes();
+        }
+        if (e.target.classList && e.target.classList.contains('mb-orden-todas')) {
+            var tabla = e.target.closest('table');
+            if (tabla) tabla.querySelectorAll('.mb-orden-check').forEach(function (c) { c.checked = e.target.checked; });
+            window.mbActualizarBarraOrdenes();
+        }
+    });
+
+    document.addEventListener('click', function (e) {
+        var b = e.target.closest && e.target.closest('[data-ver-orden]');
+        if (!b) return;
+        e.preventDefault();
+        var drawer = document.getElementById('mbOrdenDrawer');
+        var detalle = document.getElementById('mbOrdenDetalle');
+        if (!drawer || !detalle) return;
+        document.getElementById('mbOrdenDrawerTitulo').textContent = 'Pedido #' + b.dataset.ordenId;
+        detalle.innerHTML = '<div class="mb-loading"><div class="spinner-border" role="status"></div></div>';
+        bootstrap.Offcanvas.getOrCreateInstance(drawer).show();
+        $.get(b.dataset.url)
+            .done(function (html) { detalle.innerHTML = html; })
+            .fail(function () {
+                detalle.innerHTML = '<div class="alert alert-danger mb-0">No se pudo cargar el pedido. <a href="' + b.getAttribute('href') + '">Ábrelo en una página nueva</a>.</div>';
+            });
+    });
+
+    function cerrarDrawer() {
+        var drawer = document.getElementById('mbOrdenDrawer');
+        var inst = drawer && bootstrap.Offcanvas.getInstance(drawer);
+        if (inst) inst.hide();
+    }
+
+    document.addEventListener('click', function (e) {
+        var b = e.target.closest && e.target.closest('#mbMarcarEnviado');
+        if (!b) return;
+        var filas = seleccionados().map(function (c) { return c.closest('tr'); }).filter(function (tr) {
+            return tr && tr.dataset.estado === 'PAGADO' &&
+                   ['POR PREPARAR', 'EN PREPARACION'].indexOf(tr.dataset.envio) !== -1;
+        });
+        if (!filas.length) {
+            showAlert('Selecciona pedidos pagados que todavía estén por preparar o en preparación.', 'warning');
+            return;
+        }
+        var posts = filas.map(function (tr) {
+            return $.post(tr.dataset.envioUrl, { estado_envio: 'ENVIADO' });
+        });
+        b.disabled = true;
+        $.when.apply($, posts).done(function () {
+            showAlert('Pedidos marcados como enviados: ' + filas.length, 'success');
+            if (window.mbRecargarSeccion) window.mbRecargarSeccion();
+        }).fail(function (xhr) {
+            var error = xhr && xhr.responseJSON && xhr.responseJSON.error;
+            showAlert(error || 'No se pudieron actualizar todos los pedidos.', 'danger');
+        }).always(function () { b.disabled = false; });
+    });
+
+    document.addEventListener('click', function (e) {
+        var b = e.target.closest && e.target.closest('#mbImprimirRotulos');
+        if (!b) return;
+        var barra = document.getElementById('mbOrdenBarra');
+        var filas = seleccionados().map(function (c) { return c.closest('tr'); }).filter(function (tr) {
+            return tr && tr.dataset.rotuloUrl;
+        });
+        if (!filas.length) {
+            showAlert('Los pedidos seleccionados todavía no tienen rótulo. Primero marca el envío como EN PREPARACION o ENVIADO.', 'warning');
+            return;
+        }
+        var ids = filas.map(function (tr) { return tr.dataset.orden; }).join(',');
+        window.open(barra.dataset.rotulosUrl + '?ids=' + encodeURIComponent(ids), '_blank', 'noopener');
+    });
+
+    window.mbCerrarDetalleOrden = cerrarDrawer;
+})();
+
+// Eliminar pedido pendiente (se registra una sola vez aunque la sección se recargue)
+if (!window.mbOrdenEliminarInit) {
+window.mbOrdenEliminarInit = true;
 $(document).on('click', '[data-eliminar]', function () {
     var btn = $(this);
     if (!confirm('¿Eliminar este pedido PENDIENTE? Se liberará el stock reservado.')) return;
     $.post(btn.data('url'))
-        .done(function () { btn.closest('tr').fadeOut(); })
+        .done(function () {
+            var cont = btn.closest('[data-orden]');
+            if (cont && cont.tagName === 'TR') { cont.remove(); }
+            else {
+                if (window.mbCerrarDetalleOrden) window.mbCerrarDetalleOrden();
+                if (window.mbRecargarSeccion) window.mbRecargarSeccion();
+            }
+        })
         .fail(function (x) { alert((x.responseJSON || {}).error || 'No se pudo eliminar'); });
 });
+}
 </script>

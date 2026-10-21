@@ -773,6 +773,32 @@ def devoluciones_admin():
     return render_seccion("devoluciones_admin.html", dev=obtener_devoluciones())
 
 
+@dashboard.route("/invoices/<int:id>/detalle")
+def invoice_detalle(id):
+    #fragmento para el drawer de pedidos: no lleva el armazón del panel
+    from flask import abort
+    inv = db.session.get(Invoice, id) or abort(404)
+    return render_template("invoices/_detalle_invoice.html", i=inv,
+                           items=get_items_by_id_factura(id), estados_envio=ESTADOS_ENVIO,
+                           con_rotulo=ESTADOS_CON_ROTULO, token_pedido=token_pedido)
+
+
+@dashboard.route("/pedidos/rotulos")
+def pedidos_rotulos():
+    #impresión en lote: una página con los rótulos de los pedidos seleccionados
+    from flask import abort
+    ids = []
+    for parte in (request.args.get("ids") or "").split(","):
+        if parte.strip().isdigit():
+            ids.append(int(parte))
+    pedidos = (Invoice.query.filter(Invoice.id.in_(ids),
+                                    Invoice.estado_envio.in_(ESTADOS_CON_ROTULO))
+               .order_by(Invoice.id).all()) if ids else []
+    if not pedidos:
+        abort(404)
+    return render_template("rotulos_lote.html", pedidos=pedidos)
+
+
 @dashboard.route("/invoices", methods=["GET", "POST"])
 def invoices():
     #conteos para los chips de filtro: prioridad (pagados que requieren envío), pendientes, rechazadas, entregadas

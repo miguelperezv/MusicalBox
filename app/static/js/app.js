@@ -746,12 +746,15 @@ document.addEventListener('change', function (e) {
             if (!r.isConfirmed) return;
             $.post(b.dataset.url, {})
                 .done(function (res) {
-                    var tr = b.closest('tr');
-                    tr.dataset.estado = res.estado;
-                    var chip = tr.querySelector('.mb-estado');
-                    if (chip) chip.outerHTML = '<span class="mb-estado mb-estado-' + res.estado + '">' + res.estado + '</span>';
+                    var cont = b.closest('[data-orden]') || b.closest('tr');
+                    if (cont) {
+                        cont.dataset.estado = res.estado;
+                        var chip = cont.querySelector('.mb-estado');
+                        if (chip) chip.outerHTML = '<span class="mb-estado mb-estado-' + res.estado + '">' + res.estado + '</span>';
+                    }
                     b.remove();
                     //el pedido ya no está pendiente: se recarga la sección para que caiga en su grupo y se muevan los contadores
+                    if (cont && cont.tagName !== 'TR' && window.mbCerrarDetalleOrden) window.mbCerrarDetalleOrden();
                     if (window.mbRecargarSeccion) window.mbRecargarSeccion();
                 })
                 .fail(function (xhr) { showAlert((xhr.responseJSON && xhr.responseJSON.error) || 'No se pudo rechazar el pedido', 'danger'); });
@@ -769,27 +772,33 @@ document.addEventListener('change', function (e) {
     document.addEventListener('change', function (e) {
         var sel = e.target.closest && e.target.closest('select.estado-envio');
         if (!sel || sel.disabled) return;
-        var tr = sel.closest('tr');
+        var cont = sel.closest('[data-orden]') || sel.closest('tr');
         sel.disabled = true;
         $.post(sel.dataset.url, { estado_envio: sel.value })
             .done(function (r) {
-                tr.dataset.envio = r.estado_envio;
-                var rot = rotuloDe(tr);
+                if (cont) cont.dataset.envio = r.estado_envio;
+                var estadoOculto = cont ? cont.querySelector('form.envio-guia input[name="estado_envio"]') : null;
+                if (estadoOculto) estadoOculto.value = r.estado_envio;
+                var rot = cont ? rotuloDe(cont) : null;
                 if (rot) rot.classList.toggle('d-none', !r.rotulo);
                 //al quedar ENTREGADO deja de ser "requiere envío" y pasa al historial
-                if (r.estado_envio === 'ENTREGADO') {
+                if (r.estado_envio === 'ENTREGADO' && cont && cont.tagName === 'TR') {
                     var destino = document.querySelector('#tabla-entregados tbody');
-                    if (destino) destino.appendChild(tr);
+                    if (destino) destino.appendChild(cont);
                 }
                 if (r.estado_envio === 'ENVIADO') {
                     showAlert(r.aviso_enviado
                         ? 'Pedido marcado ENVIADO. Le avisamos al comprador por correo.'
                         : 'Pedido marcado ENVIADO, pero no se pudo enviar el correo de aviso: revisa el correo del comprador.',
                         r.aviso_enviado ? 'success' : 'warning');
+                } else if (cont && cont.tagName !== 'TR' && window.mbRecargarSeccion) {
+                    //en el drawer no hay fila que mover: se recarga la sección al cerrarlo
+                    if (window.mbCerrarDetalleOrden) window.mbCerrarDetalleOrden();
+                    window.mbRecargarSeccion();
                 }
             })
             .fail(function (xhr) {
-                sel.value = tr.dataset.envio || sel.value;
+                if (cont) sel.value = cont.dataset.envio || sel.value;
                 showAlert((xhr.responseJSON && xhr.responseJSON.error) || 'No se pudo cambiar el estado de envío', 'danger');
             })
             .always(function () { sel.disabled = false; });
@@ -801,7 +810,7 @@ document.addEventListener('change', function (e) {
         if (!form) return;
         e.preventDefault();
         if (form.dataset.enviado) return;
-        var tr = form.closest('tr');
+        var cont = form.closest('[data-orden]') || form.closest('tr');
         var boton = form.querySelector('button');
         function guardar(avisar) {
             form.dataset.enviado = '1';
@@ -821,7 +830,7 @@ document.addEventListener('change', function (e) {
                 .always(function () { boton.disabled = false; });
         }
         //si el pedido ya está ENVIADO, la guía se puede mandar al comprador en ese momento
-        if (tr && tr.dataset.envio === 'ENVIADO') {
+        if (cont && cont.dataset.envio === 'ENVIADO') {
             Swal.fire({
                 title: 'Guardar la guía',
                 text: 'El pedido ya está marcado ENVIADO. ¿Le avisamos al comprador por correo con esta guía?',
@@ -846,10 +855,10 @@ document.addEventListener('change', function (e) {
         form.dataset.enviado = '1';
         $.post(form.dataset.url, { p_envio: valor })
             .done(function (r) {
-                var tr = form.closest('tr');
-                var total = tr.querySelector('.total-pago');
+                var cont = form.closest('[data-orden]') || form.closest('tr');
+                var total = cont ? cont.querySelector('.total-pago') : null;
                 if (total) total.textContent = pesos(r.total_pago);
-                var detalle = tr.querySelector('.detalle-envio');
+                var detalle = cont ? cont.querySelector('.detalle-envio') : null;
                 if (detalle) detalle.innerHTML = '<i class="bi bi-pencil" title="Ajustado manualmente"></i> envío +' + pesos(r.p_envio);
                 showAlert('Costo de envío actualizado: ' + pesos(r.p_envio), 'success');
             })

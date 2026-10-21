@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Rótulos · Musical Box</title>
+    <style>
+        @font-face {
+            font-family: 'BerlinSansFBDemiBold';
+            src: url("{{ url_for('static', filename='fonts/Berlin Sans FB Demi Bold.ttf') }}");
+        }
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .rotulo {
+            width: 14cm;
+            border: 3px solid #3ab7cd;
+            border-radius: 8px;
+            padding: 16px 20px;
+        }
+        .rotulo header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 2px dashed #3ab7cd;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+            font-family: 'BerlinSansFBDemiBold', Arial, sans-serif;
+            font-size: 24px;
+            color: #3ab7cd;
+        }
+        .fila { margin: 6px 0; font-size: 15px; }
+        .fila b { display: inline-block; width: 90px; color: #555; }
+        .destino { font-size: 19px; font-weight: bold; }
+        .pie { margin-top: 12px; font-size: 12px; color: #777; }
+        .hoja { break-after: page; page-break-after: always; margin-bottom: 1cm; }
+        .hoja:last-child { break-after: auto; page-break-after: auto; margin-bottom: 0; }
+        @media print { .no-print { display: none; } body { margin: 0; } }
+    </style>
+</head>
+<body>
+    <button class="no-print" onclick="window.print()" style="margin-bottom: 12px;">Imprimir todos</button>
+    {% for pedido in pedidos %}
+    <div class="hoja">{% include "invoices/_rotulo_cuerpo.html" %}</div>
+    {% endfor %}
+</body>
+</html>

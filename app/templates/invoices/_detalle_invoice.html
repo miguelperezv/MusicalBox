@@ -1,0 +1,131 @@
+<div data-orden="{{ i.id }}" data-estado="{{ i.estado }}" data-envio="{{ i.estado_envio or '' }}">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+        <div>
+            <h2 class="h4 mb-1">Pedido #{{ i.id }}</h2>
+            <div class="small text-body-secondary">{{ i.f_compra|fecha_co('%d/%m/%Y %H:%M') if i.f_compra }}{% if i.mp_payment_id %} · MP {{ i.mp_payment_id }}{% endif %}</div>
+        </div>
+        <div class="text-end">
+            <span class="mb-estado mb-estado-{{ i.estado }}">{{ i.estado }}</span>
+            {% if i.estado == 'PAGADO' %}<br><small class="text-body-secondary">{{ i.estado_envio }}</small>{% endif %}
+            <div class="fs-5 fw-bold mt-1">{{ ((i.total or 0) + (i.p_envio or 0))|cop }}</div>
+        </div>
+    </div>
+
+    <div class="mb-panel mb-3">
+        <h3 class="h6 mb-3">Comprador y envío</h3>
+        <div class="small d-grid gap-2">
+            <div><span class="text-body-secondary">Nombre:</span> {{ i.n_envio or ((i.usuario.n_usuario ~ ' ' ~ i.usuario.ape_usuario) if i.usuario else 'Sin nombre') }}</div>
+            {% set correo = i.email_envio or (i.usuario.email_usuario if i.usuario) %}
+            {% if correo %}<div><span class="text-body-secondary">Correo:</span> <a href="mailto:{{ correo }}">{{ correo }}</a></div>{% endif %}
+            {% set tel = i.tel_envio or (i.usuario.cel_usuario if i.usuario) %}
+            {% if tel %}<div><span class="text-body-secondary">Teléfono:</span> <a href="https://wa.me/57{{ tel|replace(' ', '') }}" target="_blank" rel="noopener">{{ tel }}</a></div>{% endif %}
+            {% if i.dir_envio %}<div><span class="text-body-secondary">Dirección:</span> {{ i.dir_envio }}{% if i.barrio_envio %}, {{ i.barrio_envio }}{% endif %} · {{ i.lugar_envio }}</div>{% endif %}
+        </div>
+    </div>
+
+    <div class="mb-panel mb-3">
+        <h3 class="h6 mb-3">Productos</h3>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead><tr><th>Producto</th><th class="text-center">Cant.</th><th class="text-end">Precio</th></tr></thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>
+                            {{ (item.producto.lanzamiento.n_lanzamiento|titulo if item.producto and item.producto.lanzamiento) or (item.lanzamiento.n_lanzamiento|titulo if item.lanzamiento) or item.n_item }}
+                            <br><small class="text-body-secondary">{{ item.producto.n_producto if item.producto else item.n_item }}{% if item.variante %} ({{ item.variante.nombre }}){% endif %}</small>
+                        </td>
+                        <td class="text-center">{{ item.cant_item|int }}</td>
+                        <td class="text-end text-nowrap">{{ ((item.p_item or 0) * item.cant_item)|cop }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="3" class="text-body-secondary">Sin productos.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="d-flex justify-content-between border-top mt-2 pt-2 small">
+            <span class="text-body-secondary">Envío</span>
+            <span>{% if i.p_envio %}{{ i.p_envio|cop }}{% if i.envio_manual %} <i class="bi bi-pencil" title="Ajustado manualmente"></i>{% endif %}{% else %}—{% endif %}</span>
+        </div>
+    </div>
+
+    <div class="mb-panel mb-3">
+        <h3 class="h6 mb-3">Pago</h3>
+        <div class="small d-grid gap-2">
+            <div><span class="text-body-secondary">Método:</span> {{ i.metodo_pago or '—' }}</div>
+            <div><span class="text-body-secondary">Total:</span> {{ ((i.total or 0) + (i.p_envio or 0))|cop }}</div>
+            {% set ab = i.abono %}
+            {% if ab %}
+            <div><span class="text-body-secondary">Abono:</span> {{ 'pagado' if ab.estado_abono == 'PAGADO' else 'pendiente' }}{% if ab.estado_saldo != 'PAGADO' and ab.estado_abono == 'PAGADO' %} · saldo {{ i.saldo_total|cop }}{% endif %}</div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if i.estado == 'PAGADO' %}
+    <div class="mb-panel mb-3">
+        <h3 class="h6 mb-3">Envío</h3>
+        <select class="form-select form-select-sm estado-envio mb-2" data-url="{{ url_for('dashboard.pedido_envio', k_invoice=i.id) }}" aria-label="Estado de envío del pedido {{ i.id }}">
+            {% for e in estados_envio %}<option value="{{ e }}" {{ 'selected' if e == i.estado_envio }}>{{ e }}</option>{% endfor %}
+        </select>
+        <form class="envio-guia d-grid gap-2" data-url="{{ url_for('dashboard.pedido_envio', k_invoice=i.id) }}">
+            <input type="hidden" name="estado_envio" value="{{ i.estado_envio or 'POR PREPARAR' }}">
+            <input class="form-control form-control-sm" name="carrier" value="{{ i.envio_carrier or '' }}" placeholder="Transportadora" aria-label="Transportadora del pedido {{ i.id }}">
+            <div class="d-flex gap-2">
+                <input class="form-control form-control-sm" name="guia" value="{{ i.guia or '' }}" placeholder="Nro. de guía" aria-label="Número de guía del pedido {{ i.id }}">
+                <button class="btn btn-sm btn-outline-secondary" title="Guardar guía y transportadora"><i class="bi bi-save"></i></button>
+            </div>
+        </form>
+        <a class="btn btn-sm btn-outline-secondary mt-2 rotulo {{ '' if i.estado_envio in con_rotulo else 'd-none' }}" target="_blank"
+           href="{{ url_for('dashboard.pedido_rotulo', k_invoice=i.id) }}"><i class="bi bi-printer me-1"></i>Rótulo</a>
+    </div>
+    {% endif %}
+
+    <div class="mb-panel">
+        <h3 class="h6 mb-3">Acciones</h3>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-sm {{ 'btn-outline-warning text-warning' if i.nota else 'btn-outline-secondary' }}"
+                    data-nota data-id="{{ i.id }}" data-url="{{ url_for('dashboard.pedido_nota', k_invoice=i.id) }}" data-nota="{{ i.nota or '' }}"
+                    title="{{ i.nota or 'Agregar nota interna' }}">{% if i.nota %}<i class="bi bi-sticky-fill"></i> Ver nota{% else %}<i class="bi bi-sticky"></i> Nota{% endif %}</button>
+
+            {% if i.estado in ('PENDIENTE', 'PENDIENTE_ABONO') %}
+            <button type="button" class="btn btn-sm btn-outline-danger" data-rechazar data-id="{{ i.id }}"
+                    data-url="{{ url_for('dashboard.pedido_rechazar', k_invoice=i.id) }}"><i class="bi bi-x-lg me-1"></i>Rechazar</button>
+            <button type="button" class="btn btn-sm btn-outline-danger" data-eliminar data-id="{{ i.id }}"
+                    data-url="{{ url_for('dashboard.invoice_eliminar', id=i.id) }}" title="Eliminar pedido pendiente"><i class="bi bi-trash me-1"></i>Eliminar</button>
+            {% endif %}
+
+            {% if i.estado in ('PENDIENTE', 'PENDIENTE_ABONO', 'RECHAZADO') %}
+            {% set tel_pago = i.tel_envio or (i.usuario.cel_usuario if i.usuario) %}
+            {% if tel_pago %}
+            <a class="btn btn-sm btn-outline-success" target="_blank" rel="noopener"
+               href="{{ whatsapp_enlace(tel_pago, 'Musical Box: tu pedido #' ~ i.id ~ ' quedó pendiente de pago. Puedes completarlo aquí: ' ~ url_for('pedido.ver', token=token_pedido(i), _external=True)) }}"
+               title="Recordar el pago por WhatsApp"><i class="bi bi-whatsapp me-1"></i>Recordar pago</a>
+            {% endif %}
+            {% endif %}
+
+            {% set saldo = i.saldo_total if i.abono and i.abono.estado_abono == 'PAGADO' and i.abono.estado_saldo != 'PAGADO' else None %}
+            {% if saldo %}
+            {% set tel = i.tel_envio or (i.usuario.cel_usuario if i.usuario) %}
+            {% if tel %}
+            <a class="btn btn-sm btn-outline-success" target="_blank" rel="noopener"
+               href="{{ whatsapp_enlace(tel, 'Musical Box: tu pedido #' ~ i.id ~ ' está abonado y le queda un saldo de ' ~ (saldo|cop) ~ '. Puedes pagarlo aquí: ' ~ url_for('pedido.ver', token=token_pedido(i), _external=True)) }}"
+               title="Recordar el saldo por WhatsApp"><i class="bi bi-whatsapp me-1"></i>Saldo</a>
+            {% endif %}
+            <form method="POST" action="{{ url_for('dashboard.recordar_saldo') }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="k_invoice" value="{{ i.id }}">
+                <input type="hidden" name="metodo" value="email">
+                <button type="submit" class="btn btn-sm btn-outline-secondary" title="Recordar el saldo por correo"><i class="bi bi-envelope"></i></button>
+            </form>
+            {% endif %}
+
+            {% if i.estado in ('PENDIENTE', 'PAGADO') and i.estado_envio not in ('ENVIADO', 'ENTREGADO') %}
+            <form class="envio-override d-flex gap-1" data-url="{{ url_for('dashboard.pedido_costo_envio', k_invoice=i.id) }}">
+                <input class="form-control form-control-sm" type="number" name="p_envio" min="0" value="{{ i.p_envio|int if i.p_envio else 0 }}" style="width: 96px" aria-label="Costo de envío del pedido {{ i.id }}" title="Costo de envío">
+                <button class="btn btn-sm btn-outline-secondary" title="Actualizar el costo de envío"><i class="bi bi-pencil"></i></button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
