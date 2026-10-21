@@ -516,10 +516,24 @@ body.mb-tema-amor_amistad .hero-meta .hero-artist { color: #a4486b; }
 }
 
 /* ---------- admin ---------- */
-.mb-admin { display: flex; min-height: calc(100vh - 50px); }
+.mb-admin-body { background: var(--mb-surface); }
+.mb-admin { display: flex; flex-wrap: wrap; min-height: 100vh; }
+.mb-admin-topbar {
+    flex: 0 0 100%; display: flex; align-items: center; gap: .75rem;
+    min-height: 56px; padding: .5rem 1rem; background: var(--mb-ink); color: #fff;
+    position: sticky; top: 0; z-index: 1030;
+}
+.mb-admin-brand { color: var(--mb-yellow); font-size: 1.15rem; white-space: nowrap; }
+.mb-admin-brand:hover { color: var(--mb-yellow); text-decoration: none; }
+.mb-admin-title { font-size: .8rem; font-weight: 700; color: rgba(255, 255, 255, .7); border-left: 1px solid rgba(255, 255, 255, .2); padding-left: .75rem; }
+.mb-admin-search { position: relative; flex: 1 1 260px; max-width: 420px; margin-inline: auto; }
+.mb-admin-search .form-control { background: rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .16); color: #fff; border-radius: 999px; padding-left: 2rem; font-size: .78rem; }
+.mb-admin-search .form-control::placeholder { color: rgba(255, 255, 255, .55); }
+.mb-admin-search .form-control:focus { background: rgba(255, 255, 255, .16); color: #fff; border-color: var(--mb-aqua); box-shadow: 0 0 0 .2rem rgba(58, 183, 205, .25); }
+.mb-admin-search .bi { position: absolute; left: .7rem; top: 50%; transform: translateY(-50%); color: rgba(255, 255, 255, .55); font-size: .8rem; }
 .mb-sidebar { width: 220px; background: #fff; border-right: 1px solid #e6ecf0; flex-shrink: 0; }
 @media (min-width: 992px) {
-    .mb-sidebar.offcanvas-lg { position: sticky; top: 0; height: calc(100vh - 50px); overflow-y: auto; }
+    .mb-sidebar.offcanvas-lg { position: sticky; top: 56px; height: calc(100vh - 56px); overflow-y: auto; }
 }
 .mb-sidebar .nav-link { color: var(--mb-ink-2); border-radius: 8px; padding: .4rem .6rem; display: flex; align-items: center; gap: .5rem; font-weight: 500; font-size: 0.8rem; }
 .mb-sidebar .nav-link:hover { background: var(--mb-surface); }
@@ -531,6 +545,15 @@ body.mb-tema-amor_amistad .hero-meta .hero-artist { color: #a4486b; }
 .mb-stat .label { font-size: .7rem; color: var(--mb-muted); font-weight: 600; }
 .mb-stat .value { font-size: 1.6rem; font-weight: 800; line-height: 1.1; }
 .mb-stat .bi { font-size: 1.2rem; color: var(--mb-aqua-dark); }
+.mb-stat-accion { color: var(--mb-ink); transition: transform .15s ease, box-shadow .15s ease; }
+.mb-stat-accion:hover { color: var(--mb-ink); text-decoration: none; transform: translateY(-1px); box-shadow: var(--mb-shadow-hover); }
+.mb-stat-accion .hint { font-size: .68rem; color: var(--mb-muted); margin-top: .2rem; }
+.mb-stat-icon { width: 34px; height: 34px; border-radius: 10px; display: inline-grid; place-items: center; }
+.mb-stat-icon .bi { font-size: 1rem; color: inherit; }
+.mb-stat-icon-aqua { background: #e7f5f8; color: var(--mb-aqua-dark); }
+.mb-stat-icon-yellow { background: #fff8cc; color: #8a6d00; }
+.mb-stat-icon-sky { background: #eaf6ff; color: #2b6f9e; }
+.mb-stat-icon-danger { background: #fde8e8; color: #b42318; }
 .mb-loading { display: grid; place-items: center; padding: 3rem; color: var(--mb-muted); }
 .mb-thumb { width: 40px; height: 40px; border-radius: 6px; overflow: hidden; background: var(--mb-sky); }
 .mb-thumb img { width: 100%; height: 100%; object-fit: cover; }

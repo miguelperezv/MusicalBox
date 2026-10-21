@@ -1473,22 +1473,23 @@ def get_ventas_por_mes(meses=12):
 
 
 def get_estadisticas_inventario():
-    """Obtiene estadísticas generales del inventario"""
-    # Productos totales
-    total_productos = Producto.query.count()
-    
-    # Productos agotados
-    productos_agotados = Producto.query.filter(Producto.stock <= 0).count()
-    
-    # Productos con stock bajo (≤ 3 unidades)
-    productos_bajo_stock = Producto.query.filter(Producto.stock > 0, Producto.stock <= 3).count()
-    
-    # Productos con stock suficiente (> 3 unidades)
-    productos_stock_suficiente = Producto.query.filter(Producto.stock > 3).count()
-    
-    # Porcentaje de productos agotados
+    """Estadísticas de inventario usando la misma disponibilidad que la tienda.
+
+    No usa Producto.stock directo: los packs y las variantes descuentan de otra forma,
+    así que el panel y la ficha del producto deben coincidir con stock_disponible().
+    """
+    productos = Producto.query.all()
+    total_productos = len(productos)
+    productos_agotados = 0
+    productos_bajo_stock = 0
+    for p in productos:
+        disponible = stock_disponible(p)
+        if disponible <= 0:
+            productos_agotados += 1
+        elif disponible <= 3:
+            productos_bajo_stock += 1
+    productos_stock_suficiente = total_productos - productos_agotados - productos_bajo_stock
     porcentaje_agotados = (productos_agotados / total_productos * 100) if total_productos > 0 else 0
-    
     return {
         "total_productos": total_productos,
         "productos_agotados": productos_agotados,
@@ -1513,9 +1514,10 @@ def get_estadisticas_clientes():
     # Pedidos por cliente (promedio)
     total_pedidos = Invoice.query.filter_by(estado='PAGADO').count()
     pedidos_por_cliente = total_pedidos / total_clientes if total_clientes > 0 else 0
-    
-    # Ticket promedio
-    ventas_totales = sum((i.total or 0) for i in Invoice.query.filter_by(estado='PAGADO').all())
+
+    # Ticket promedio (una sola consulta, sin traer todas las facturas)
+    ventas_totales = float(db.session.query(db.func.coalesce(db.func.sum(Invoice.total), 0))
+                           .filter(Invoice.estado == 'PAGADO').scalar() or 0)
     ticket_promedio = ventas_totales / total_pedidos if total_pedidos > 0 else 0
     
     return {
@@ -1592,27 +1594,13 @@ def get_admin_stats(dias=30):
     ahora = datetime.now()
     inicio_mes = datetime(ahora.year, ahora.month, 1)
     inicio_prev = datetime(ahora.year - 1, 12, 1) if ahora.month == 1 else datetime(ahora.year, ahora.month - 1, 1)
-    hace_30 = ahora - timedelta(days=30)
     pagados_mes = Invoice.query.filter(Invoice.estado == 'PAGADO', Invoice.f_compra >= inicio_mes)
-    pagados_prev = Invoice.query.filter(Invoice.estado == 'PAGADO',
-                                       Invoice.f_compra >= inicio_prev, Invoice.f_compra < inicio_mes)
-    #top 5 de los últimos 30 días por unidades vendidas
-    col_unidades = db.func.sum(Item.cant_item).label("u")
-    filas_top = (db.session.query(Item.k_producto, col_unidades)
-                 .join(Invoice, Invoice.id == Item.k_factura)
-                 #los ítems sin producto (k_producto nulo) no entran: no se pueden mostrar ni sumar
-                 .filter(Invoice.estado == 'PAGADO', Invoice.f_compra >= hace_30, Item.k_producto.isnot(None))
-                 .group_by(Item.k_producto).order_by(col_unidades.desc()).limit(5).all())
-    top5 = []
-    for k_prod, unidades in filas_top:
-        p = db.session.get(Producto, k_prod)
-        if p:
-            top5.append({"nombre": p.n_producto or '(sin nombre)',
-                         "lanzamiento": titulo(p.lanzamiento.n_lanzamiento) if p.lanzamiento else '',
-                         "u": int(unidades)})
     stock_baja = []
+    agotados = 0
     for p in Producto.query.order_by(Producto.id).all():
         s = stock_disponible(p)
+        if s <= 0:
+            agotados += 1
         if s <= 3:
             stock_baja.append({"p": p, "stock": s})
     stock_baja.sort(key=lambda f: f["stock"])
@@ -1633,16 +1621,6 @@ def get_admin_stats(dias=30):
     preordenes_lista = [{"lanzamiento": titulo(n), "u": u} for n, u in preordenes.items()]
     preordenes_lista.sort(key=lambda f: -f["u"])
     
-    # Estados de pedidos
-    estados_pedido = {}
-    for estado in ['PENDIENTE', 'PAGADO', 'RECHAZADO']:
-        estados_pedido[estado] = Invoice.query.filter_by(estado=estado).count()
-    
-    # Estados de envío
-    estados_envio = {}
-    for estado in ESTADOS_ENVIO:
-        estados_envio[estado] = Invoice.query.filter(Invoice.estado == 'PAGADO', Invoice.estado_envio == estado).count()
-    
     # Crecimiento de ventas
     crecimiento_ventas = get_crecimiento_ventas(1)  # Último mes
     
@@ -1651,40 +1629,50 @@ def get_admin_stats(dias=30):
     
     # Estadísticas de clientes
     estadisticas_clientes = get_estadisticas_clientes()
-    
-    # Estadísticas de inventario
-    estadisticas_inventario = get_estadisticas_inventario()
-    
+    pendientes = Invoice.query.filter_by(estado='PENDIENTE').count()
+    pendientes_abono = Invoice.query.filter_by(estado='PENDIENTE_ABONO').count()
+    rechazados = Invoice.query.filter_by(estado='RECHAZADO').count()
+    productos_mas_vendidos = get_productos_mas_vendidos(10, dias)
+    top5 = [{"nombre": p["nombre"], "lanzamiento": p["lanzamiento"], "u": p["u"]}
+            for p in productos_mas_vendidos[:5]]
+    ventas_total = float(db.session.query(db.func.coalesce(db.func.sum(Invoice.total), 0))
+                         .filter(Invoice.estado == 'PAGADO').scalar() or 0)
+    ventas_mes = float(db.session.query(db.func.coalesce(db.func.sum(Invoice.total), 0))
+                       .filter(Invoice.estado == 'PAGADO', Invoice.f_compra >= inicio_mes).scalar() or 0)
+    ventas_prev = float(db.session.query(db.func.coalesce(db.func.sum(Invoice.total), 0))
+                        .filter(Invoice.estado == 'PAGADO', Invoice.f_compra >= inicio_prev,
+                                Invoice.f_compra < inicio_mes).scalar() or 0)
+
     return {
         "solicitudes_activas": Solicitud.query.filter(Solicitud.estado.in_(['ACTIVO', 'EN PROCESO'])).count(),
         "solicitudes_cotizadas": Solicitud.query.filter_by(estado='COTIZADA').count(),
         "ordenes": Invoice.query.filter_by(estado='PAGADO').count(),
-        "pendientes": Invoice.query.filter_by(estado='PENDIENTE').count(),
-        "ventas": sum((i.total or 0) for i in Invoice.query.filter_by(estado='PAGADO').all()),
-        "ventas_mes": float(sum((i.total or 0) for i in pagados_mes.all())),
+        "pendientes": pendientes,
+        "pendientes_abono": pendientes_abono,
+        "rechazados": rechazados,
+        #pagos que todavía se pueden recuperar: pendientes, abonos pendientes y rechazados
+        "pagos_pendientes": pendientes + pendientes_abono + rechazados,
+        "ventas": ventas_total,
+        "ventas_mes": ventas_mes,
         "ordenes_mes": pagados_mes.count(),
-        "ventas_prev": float(sum((i.total or 0) for i in pagados_prev.all())),
+        "ventas_prev": ventas_prev,
         "top5": top5,
         "stock_baja": stock_baja,
         "pendientes_envio": Invoice.query.filter(Invoice.estado == 'PAGADO',
                                                 Invoice.estado_envio.in_(['POR PREPARAR', 'EN PREPARACION'])).count(),
         "productos": Producto.query.count(),
-        "agotados": Producto.query.filter(Producto.stock <= 0).count(),
+        "agotados": agotados,
         "lanzamientos": Lanzamiento.query.count(),
         "clientes": Usuario.query.filter(Usuario.k_rol.in_(['USER', 'CLIENTE'])).count(),
         "ultimas_solicitudes": Solicitud.query.order_by(db.desc(Solicitud.f_solicitud)).limit(5).all(),
         "preordenes": preordenes_lista,
         "ultimas_ordenes": Invoice.query.order_by(db.desc(Invoice.f_compra)).limit(5).all(),
-        "rotulo_estados": ESTADOS_CON_ROTULO,
-        "estados_pedido": estados_pedido,
-        "estados_envio": estados_envio,
         "ventas_por_mes": get_ventas_por_mes(6),  # Últimos 6 meses
-        "productos_mas_vendidos": get_productos_mas_vendidos(10, dias),
+        "productos_mas_vendidos": productos_mas_vendidos,
         "dias": dias,
         "crecimiento_ventas": crecimiento_ventas,
         "ventas_por_categoria": ventas_por_categoria,
         "estadisticas_clientes": estadisticas_clientes,
-        "estadisticas_inventario": estadisticas_inventario,
     }
 
 

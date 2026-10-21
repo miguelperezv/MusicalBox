@@ -41,8 +41,10 @@
     <!-- Plausible Analytics -->
     <script defer data-domain="musicalbox.com" src="https://plausible.io/js/script.js"></script>
 </head>
-<body{% if tema %} class="mb-tema-{{ tema }}"{% endif %}>
+<body{% if tema %} class="mb-tema-{{ tema }}{% endif %}{% if request.path.startswith('/dashboard') %} mb-admin-body{% endif %}">
     {% set ep = request.endpoint or '' %}
+    {% set es_panel = request.path.startswith('/dashboard') %}
+    {% if not es_panel %}
     <nav class="navbar navbar-expand-lg navbar-dark mb-navbar">
         <div class="container">
             <a class="navbar-brand font-brand" href="{{ url_for('home.index') }}">
@@ -118,6 +120,7 @@
             </div>
         </div>
     </nav>
+    {% endif %}
 
     {% set alertas = {'error': 'danger', 'danger': 'danger', 'warning': 'warning', 'info': 'info'} %}
     {% with mensajes = get_flashed_messages(with_categories=true) %}

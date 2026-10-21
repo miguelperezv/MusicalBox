@@ -264,6 +264,11 @@ function mbAdminLoader() {
         });
     }
 
+    function actualizarTitulo(texto) {
+        var titulo = document.getElementById('mbAdminTitle');
+        if (titulo && texto) titulo.textContent = texto;
+    }
+
     function marcarActivo(link) {
         var enlaces = document.querySelectorAll('.mb-sidebar .nav-link');
         enlaces.forEach(function (l) { l.classList.remove('active'); });
@@ -276,7 +281,10 @@ function mbAdminLoader() {
         if (!activo) return;
         activo.classList.add('active');
         var titulo = (activo.textContent || '').trim();
-        if (titulo) document.title = titulo + ' · Musical Box';
+        if (titulo) {
+            document.title = titulo + ' · Musical Box';
+            actualizarTitulo(titulo);
+        }
     }
 
     function cargar(url, link) {
@@ -286,6 +294,8 @@ function mbAdminLoader() {
                 content.innerHTML = html;
                 ejecutarScripts(content);
                 mbAutocomplete(content);
+                var h1 = content.querySelector('h1');
+                if (h1) actualizarTitulo(h1.textContent.trim());
                 marcarActivo(link);
                 //la sección se trae con lo que traiga escrito su buscador (p. ej. #filtro-solicitudes)
                 var bus = content.querySelector('#filtro-solicitudes');
@@ -328,6 +338,9 @@ function mbAdminLoader() {
     window.mbRecargarSeccion = function () {
         cargar(location.pathname + location.search, null);
     };
+
+    var h1Inicial = content.querySelector('h1');
+    if (h1Inicial) actualizarTitulo(h1Inicial.textContent.trim());
 }
 
 document.addEventListener('DOMContentLoaded', function () {

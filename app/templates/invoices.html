@@ -5,7 +5,7 @@
 <div class="d-flex flex-wrap gap-2 mb-3" data-grupo-ordenes data-filtro-actual="prioridad" role="group" aria-label="Filtrar pedidos">
     <input class="form-control form-control-sm" style="max-width: 220px" type="search" id="buscador-ordenes" value="{{ busca }}"
            placeholder="Buscar por número, comprador, teléfono...">
-    <button type="button" class="chip-filtro btn btn-sm btn-success active" data-filtra="ordenes" data-filtro="prioridad">✅ Requieren envío <span class="badge text-bg-light text-dark">{{ conteos.prioridad or 0 }}</span></button>
+    <button type="button" class="chip-filtro btn btn-sm btn-success active" data-filtra="ordenes" data-filtro="prioridad"><i class="bi bi-truck me-1"></i>Requieren envío <span class="badge text-bg-light text-dark">{{ conteos.prioridad or 0 }}</span></button>
     <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="ordenes" data-filtro="pendientes">Pendientes <span class="badge text-bg-warning">{{ conteos['PENDIENTE'] }}</span></button>
     <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="ordenes" data-filtro="rechazadas">Rechazadas <span class="badge text-bg-danger">{{ conteos['RECHAZADO'] or 0 }}</span></button>
     <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="ordenes" data-filtro="todas">Todas <span class="badge text-bg-secondary">{{ invoices|length }}</span></button>
@@ -25,7 +25,7 @@
 <!-- PRIORIDAD 1: PAGADO - Requieren envío (POR PREPARAR, EN PREPARACION, ENVIADO) -->
 <div class="mb-panel p-0 mb-3" id="seccion-prioridad">
     <div class="mb-panel-header bg-success-subtle border-bottom">
-        <h2 class="h5 mb-0 p-3"><i class="bi bi-truck text-success me-2"></i>✅ Requieren envío <span class="badge text-bg-success text-dark">{{ conteos.prioridad or 0 }}</span> — Preparar y enviar</h2>
+        <h2 class="h5 mb-0 p-3"><i class="bi bi-truck text-success me-2"></i>Requieren envío <span class="badge text-bg-success text-dark">{{ conteos.prioridad or 0 }}</span> — Preparar y enviar</h2>
     </div>
     <div class="table-responsive">
         <table class="table table-hover mb-0" id="tabla-prioridad">

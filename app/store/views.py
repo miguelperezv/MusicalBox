@@ -480,6 +480,34 @@ def admin():
     sol = request.args.get("sol", type=int)  #deep-link /dashboard?sol=N (bot TG): abre esa solicitud
     return render_template("adminDashboard.html", stats=get_admin_stats(dias), periodo=dias, sol=sol)
 
+
+@dashboard.route("/buscar")
+def buscar_admin():
+    #buscador del topbar: pedidos, productos, clientes y solicitudes en una sola página
+    from .models import Usuario, Solicitud
+    q = (request.args.get("q") or "").strip()
+    pedidos, productos, clientes, solicitudes = [], [], [], []
+    if q:
+        like = f"%{q}%"
+        filtros_pedido = [Invoice.n_envio.ilike(like), Invoice.email_envio.ilike(like), Invoice.tel_envio.ilike(like)]
+        if q.isdigit():
+            filtros_pedido.append(Invoice.id == int(q))
+        pedidos = (Invoice.query.filter(db.or_(*filtros_pedido))
+                   .order_by(db.desc(Invoice.f_compra)).limit(8).all())
+        productos = (Producto.query.filter(Producto.n_producto.ilike(like))
+                     .order_by(Producto.n_producto).limit(8).all())
+        clientes = (Usuario.query.filter(db.or_(Usuario.n_usuario.ilike(like),
+                                                Usuario.ape_usuario.ilike(like),
+                                                Usuario.email_usuario.ilike(like)))
+                    .order_by(Usuario.n_usuario).limit(8).all())
+        solicitudes = (Solicitud.query.filter(db.or_(Solicitud.n_producto_solicitado.ilike(like),
+                                                     Solicitud.d_producto_solicitado.ilike(like),
+                                                     Solicitud.email_contacto.ilike(like),
+                                                     Solicitud.cel_contacto.ilike(like)))
+                       .order_by(db.desc(Solicitud.f_solicitud)).limit(8).all())
+    return render_seccion("admin_buscar.html", q=q, pedidos=pedidos, productos=productos,
+                          clientes=clientes, solicitudes=solicitudes, stock_disponible=stock_disponible)
+
 LOCALIDADES_BOGOTA = ["Usaquén", "Chapinero", "Santa Fe", "San Cristóbal", "Usme", "Tunjuelito", "Bosa", "Kennedy",
     "Fontibón", "Engativá", "Suba", "Barrios Unidos", "Teusaquillo", "Los Mártires", "Antonio Nariño", "Puente Aranda",
     "La Candelaria", "Rafael Uribe Uribe", "Ciudad Bolívar", "Sumapaz"]
@@ -552,9 +580,11 @@ def export_ventas():
         w.writerow([c["categoria"], "%.2f" % c["ventas"], "%.1f%%" % (c["ventas"] / total_cat * 100)])
     w.writerow([])
     w.writerow(["KPIs"])
+    from .models import get_estadisticas_inventario
+    inventario = get_estadisticas_inventario()
     w.writerow(["Ticket promedio", "%.2f" % stats["estadisticas_clientes"]["ticket_promedio"]])
     w.writerow(["Crecimiento de ventas (mes)", "%.1f%%" % stats["crecimiento_ventas"]["crecimiento"]])
-    w.writerow(["Productos agotados", stats["estadisticas_inventario"]["productos_agotados"]])
+    w.writerow(["Productos agotados", inventario["productos_agotados"]])
     w.writerow(["Clientes totales", stats["estadisticas_clientes"]["total_clientes"]])
     resp = Response(buf.getvalue().encode("utf-8-sig"), mimetype="text/csv")
     resp.headers["Content-Disposition"] = "attachment; filename=ventas_musicalbox_%s.csv" % datetime.datetime.now().strftime("%Y%m%d")

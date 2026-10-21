@@ -1,0 +1,96 @@
+<h1 class="h3 mb-0">Buscar</h1>
+<p class="small text-body-secondary mb-3">Pedidos, productos, clientes y solicitudes en un solo lugar.</p>
+
+<form class="mb-4" action="{{ url_for('dashboard.buscar_admin') }}" method="get" role="search">
+    <div class="input-group" style="max-width: 520px">
+        <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+        <input class="form-control" type="search" name="q" value="{{ q }}" placeholder="Número de pedido, nombre, correo o teléfono" aria-label="Buscar en el panel" autofocus>
+        <button class="btn btn-primary" type="submit">Buscar</button>
+    </div>
+</form>
+
+{% if not q %}
+<div class="mb-panel mb-empty">
+    <i class="bi bi-search"></i>
+    Escribe un número de pedido, un nombre, un correo o un teléfono en la barra superior.
+</div>
+{% else %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h2 class="h5 mb-0">Resultados para “{{ q }}”</h2>
+    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('home.admin') }}">Volver al resumen</a>
+</div>
+
+<div class="row g-3">
+    <div class="col-xl-6">
+        <div class="mb-panel h-100">
+            <h2 class="h6 mb-3"><i class="bi bi-receipt me-1"></i>Pedidos</h2>
+            {% for i in pedidos %}
+            <a class="d-flex justify-content-between align-items-center gap-2 py-2 border-bottom border-secondary-subtle text-decoration-none"
+               href="{{ url_for('dashboard.invoices', busca=i.id) }}" data-load="{{ url_for('dashboard.invoices', busca=i.id) }}">
+                <span class="min-w-0">
+                    <span class="fw-semibold">#{{ i.id }}</span>
+                    <span class="text-body-secondary">· {{ i.n_envio or ((i.usuario.n_usuario ~ ' ' ~ i.usuario.ape_usuario) if i.usuario else 'Sin nombre') }}</span>
+                    <br><small class="text-body-secondary">{{ i.f_compra|fecha_co('%d/%m/%Y') if i.f_compra }} · {{ i.estado }}</small>
+                </span>
+                <span class="fw-semibold text-nowrap">{{ ((i.total or 0) + (i.p_envio or 0))|cop }}</span>
+            </a>
+            {% else %}
+            <div class="small text-body-secondary">Sin pedidos.</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="col-xl-6">
+        <div class="mb-panel h-100">
+            <h2 class="h6 mb-3"><i class="bi bi-bag me-1"></i>Productos</h2>
+            {% for p in productos %}
+            <a class="d-flex justify-content-between align-items-center gap-2 py-2 border-bottom border-secondary-subtle text-decoration-none"
+               href="{{ url_for('dashboard.updateproduct', k_producto=p.id) }}" data-load="{{ url_for('dashboard.updateproduct', k_producto=p.id) }}">
+                <span class="min-w-0">
+                    <span class="fw-semibold">{{ p.n_producto or '(sin nombre)' }}</span>
+                    {% if p.lanzamiento %}<br><small class="text-body-secondary">{{ p.lanzamiento.n_lanzamiento|titulo }}</small>{% endif %}
+                </span>
+                <span class="small text-nowrap {{ 'text-danger' if stock_disponible(p) <= 0 else 'text-body-secondary' }}">{{ stock_disponible(p) }} disp.</span>
+            </a>
+            {% else %}
+            <div class="small text-body-secondary">Sin productos.</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="col-xl-6">
+        <div class="mb-panel h-100">
+            <h2 class="h6 mb-3"><i class="bi bi-people me-1"></i>Clientes</h2>
+            {% for c in clientes %}
+            <div class="d-flex justify-content-between align-items-center gap-2 py-2 border-bottom border-secondary-subtle">
+                <span class="min-w-0">
+                    <span class="fw-semibold">{{ c.n_usuario }} {{ c.ape_usuario or '' }}</span>
+                    <br><small class="text-body-secondary">{{ c.email_usuario }}{% if c.cel_usuario %} · {{ c.cel_usuario }}{% endif %}</small>
+                </span>
+                <span class="mb-chip">{{ c.k_rol }}</span>
+            </div>
+            {% else %}
+            <div class="small text-body-secondary">Sin clientes.</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="col-xl-6">
+        <div class="mb-panel h-100">
+            <h2 class="h6 mb-3"><i class="bi bi-send me-1"></i>Solicitudes</h2>
+            {% for s in solicitudes %}
+            <a class="d-flex justify-content-between align-items-center gap-2 py-2 border-bottom border-secondary-subtle text-decoration-none"
+               href="{{ url_for('solicitud.lista', sol=s.id) }}" data-load="{{ url_for('solicitud.lista', sol=s.id) }}">
+                <span class="min-w-0">
+                    <span class="fw-semibold">#{{ s.id }} · {{ s.n_resumen }}</span>
+                    <br><small class="text-body-secondary">{{ s.cel_contacto or '' }} · {{ s.f_solicitud|fecha_co('%d/%m/%Y') if s.f_solicitud }}</small>
+                </span>
+                <span class="mb-estado mb-estado-{{ s.estado|replace(' ', '-') }}">{{ s.estado }}</span>
+            </a>
+            {% else %}
+            <div class="small text-body-secondary">Sin solicitudes.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
