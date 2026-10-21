@@ -13,6 +13,7 @@ import requests
 from sqlalchemy.exc import IntegrityError
 from .seguridad import hash_password, check_password
 from .texto import titulo
+from .cache import cache_ttl, cache_clear
 
 MESES = {1: 'enero', 2: 'febrero', 3: 'marzo', 4: 'abril', 5: 'mayo', 6: 'junio',
          7: 'julio', 8: 'agosto', 9: 'septiembre', 10: 'octubre', 11: 'noviembre', 12: 'diciembre'}
@@ -521,7 +522,9 @@ def create_new_user(n_usuario, ape_usuario, email, password):
         return None
 
 def get_usuario_por_email(email):
-    return Usuario.query.filter(db.func.lower(Usuario.email_usuario) == (email or '').strip().lower()).first()
+    #compatibilidad: la implementación vive en services/user_service.py
+    from .services.user_service import get_usuario_por_email as _servicio
+    return _servicio(email)
     
 
 def create_new_artist(n_artista, pais_artista):
@@ -662,7 +665,7 @@ def create_new_product(k_lanzamiento, n_producto, p_producto, d_producto, stock,
     try:
         db.session.add(product)
         db.session.commit()
-        
+        cache_clear("categorias")
         db.session.flush
         return (product)
     except Exception as e:
@@ -708,6 +711,7 @@ def create_release_genre(k_lanzamiento, k_genero):
     try:
         db.session.add(r_g)
         db.session.commit()
+        cache_clear("generos")
         return (r_g)
     except:
         return None
@@ -792,17 +796,8 @@ def get_user_by_email(email):
     return u
 
 def get_purchases_by_user(email):
-    #los pedidos de su cuenta y los que hizo como invitado con ese mismo correo
-    user = get_usuario_por_email(email)
-    filtro = db.func.lower(Invoice.email_envio) == (email or '').lower()
-    if user:
-        filtro = db.or_(Invoice.k_usuario == user.id, filtro)
-    invoices = Invoice.query.filter(filtro).order_by(db.desc(Invoice.f_compra)).all()
-    facturas = []
-    for i in invoices:
-        items = get_items_by_id_factura(i.id)
-        facturas.append([i, items])
-    return facturas
+    from .services.user_service import get_purchases_by_user as _servicio
+    return _servicio(email)
 
 def get_items_by_id_factura(id):
     items = Item.query.filter_by(k_factura = id).all()
@@ -1158,20 +1153,8 @@ def edit_image(k_producto, image_file):
             return None
 
 def edit_user_by_email(email, nombre,apellido,ciudad,direccion, barrio=None, celular=None):
-    try:
-        user  = Usuario.query.filter_by(email_usuario = email).first()
-        user.n_usuario = nombre
-        user.ape_usuario = apellido
-        user.lugar_usuario = ciudad
-        user.dir_usuario = direccion
-        user.barrio_usuario = barrio
-        user.cel_usuario = celular
-        db.session.commit()
-        db.session.flush()
-        return user
-    except Exception as e:
-        db.session.rollback()
-        return None
+    from .services.user_service import edit_user_by_email as _servicio
+    return _servicio(email, nombre, apellido, ciudad, direccion, barrio, celular)
     
 
 #solicitudes de pedido (integrado desde musical_box_manager)
@@ -1227,12 +1210,8 @@ def get_all_solicitudes():
     return Solicitud.query.order_by(db.desc(Solicitud.f_solicitud)).all()
 
 def get_solicitudes_by_user(email):
-    #las del usuario y las que dejó solo con su correo de contacto
-    user = get_usuario_por_email(email)
-    filtro = db.func.lower(Solicitud.email_contacto) == (email or '').lower()
-    if user:
-        filtro = db.or_(Solicitud.k_usuario == user.id, filtro)
-    return Solicitud.query.filter(filtro).order_by(db.desc(Solicitud.f_solicitud)).all()
+    from .services.user_service import get_solicitudes_by_user as _servicio
+    return _servicio(email)
 
 def update_estado_solicitud(id, estado):
     solicitud = db.session.get(Solicitud, id)
@@ -1329,10 +1308,16 @@ def get_releases_cards(q=None, k_artista=None, limit=None, genero=None, categori
     return cards
 
 def get_generos():
-    return [r[0] for r in db.session.query(Lanzamiento_Genero.k_genero).distinct().order_by(Lanzamiento_Genero.k_genero).all()]
+    return cache_ttl("generos", 120, lambda: [
+        r[0] for r in db.session.query(Lanzamiento_Genero.k_genero).distinct()
+        .order_by(Lanzamiento_Genero.k_genero).all()
+    ])
 
 def get_categorias():
-    return [r[0] for r in db.session.query(Producto.k_categoria).distinct().filter(Producto.k_categoria.isnot(None)).order_by(Producto.k_categoria).all()]
+    return cache_ttl("categorias", 120, lambda: [
+        r[0] for r in db.session.query(Producto.k_categoria).distinct()
+        .filter(Producto.k_categoria.isnot(None)).order_by(Producto.k_categoria).all()
+    ])
 
 def get_products_cards(limit=None, k_lanzamiento=None, categoria=None, orden='recientes', q=None):
     query = Producto.query
@@ -1425,7 +1410,11 @@ def get_productos_mas_vendidos(limit=10, dias=30):
 
 
 def get_ventas_por_mes(meses=12):
-    """Obtiene las ventas totales por mes para los últimos N meses"""
+    """Ventas por mes, cacheadas un minuto (se recalculan al abrir el panel)."""
+    return cache_ttl("ventas_por_mes:%s" % meses, 60, lambda: _calcular_ventas_por_mes(meses))
+
+
+def _calcular_ventas_por_mes(meses=12):
     ahora = datetime.now()
     resultados = []
     
@@ -1473,6 +1462,10 @@ def get_ventas_por_mes(meses=12):
 
 
 def get_estadisticas_inventario():
+    return cache_ttl("estadisticas_inventario", 60, _calcular_estadisticas_inventario)
+
+
+def _calcular_estadisticas_inventario():
     """Estadísticas de inventario usando la misma disponibilidad que la tienda.
 
     No usa Producto.stock directo: los packs y las variantes descuentan de otra forma,
@@ -1500,6 +1493,10 @@ def get_estadisticas_inventario():
 
 
 def get_estadisticas_clientes():
+    return cache_ttl("estadisticas_clientes", 60, _calcular_estadisticas_clientes)
+
+
+def _calcular_estadisticas_clientes():
     """Obtiene estadísticas generales de clientes y pedidos"""
     # Clientes totales
     total_clientes = Usuario.query.filter(Usuario.k_rol.in_(['USER', 'CLIENTE'])).count()
@@ -1944,10 +1941,8 @@ def pago_ya_registrado(pedido, pago_id):
 
 
 def marcar_recordatorio(abono):
-    #el panel cuenta cuántos recordatorios de saldo se han mandado por pedido
-    abono.f_recordatorio = datetime.now()
-    abono.n_recordatorios = int(abono.n_recordatorios or 0) + 1
-    db.session.commit()
+    from .services.payment_service import marcar_recordatorio as _servicio
+    return _servicio(abono)
 
 
 def validar_carrito(cart):
@@ -2537,17 +2532,8 @@ def pasos_envio(pedido):
 
 
 def actualizar_envio(k_invoice, estado, guia=None, carrier=None):
-    p = db.session.get(Invoice, k_invoice)
-    if not p or p.estado != 'PAGADO' or estado not in ESTADOS_ENVIO:
-        return None
-    p.estado_envio = estado
-    #la guía y la transportadora se pueden corregir mientras el pedido no esté entregado
-    if guia is not None and estado != 'ENTREGADO':
-        p.guia = (guia or "").strip()[:60] or None
-    if carrier is not None and estado != 'ENTREGADO':
-        p.envio_carrier = (carrier or "").strip()[:30] or None
-    db.session.commit()
-    return p
+    from .services.order_service import actualizar_envio as _servicio
+    return _servicio(k_invoice, estado, guia, carrier)
 
 
 #merch original Musical Box

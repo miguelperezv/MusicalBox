@@ -1,3 +1,4 @@
+{% from "_paginacion.html" import paginacion %}
 <h1 class="h3 mb-0">Pedidos</h1>
 <p class="small text-body-secondary mb-4">Las compras de la tienda: revisa el pago, prepara el envío y guarda la guía.</p>
 
@@ -8,7 +9,7 @@
     <button type="button" class="chip-filtro btn btn-sm btn-success active" data-filtra="ordenes" data-filtro="prioridad"><i class="bi bi-truck me-1"></i>Requieren envío <span class="badge text-bg-light text-dark">{{ conteos.prioridad or 0 }}</span></button>
     <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="ordenes" data-filtro="pendientes">Pendientes <span class="badge text-bg-warning">{{ conteos['PENDIENTE'] }}</span></button>
     <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="ordenes" data-filtro="rechazadas">Rechazadas <span class="badge text-bg-danger">{{ conteos['RECHAZADO'] or 0 }}</span></button>
-    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="ordenes" data-filtro="todas">Todas <span class="badge text-bg-secondary">{{ invoices|length }}</span></button>
+    <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="ordenes" data-filtro="todas">Todas <span class="badge text-bg-secondary">{{ conteos['TODAS'] }}</span></button>
 </div>
 
 <div class="mb-panel p-2 mb-3 d-flex flex-wrap align-items-center gap-2" id="mbOrdenBarra" data-rotulos-url="{{ url_for('dashboard.pedidos_rotulos') }}">
@@ -47,7 +48,7 @@
                 </tr>
             </thead>
             <tbody id="tbody-prioridad">
-                {% for i in invoices if i.estado == 'PAGADO' and i.estado_envio in ['POR PREPARAR', 'EN PREPARACION', 'ENVIADO'] %}
+                {% for i in prioridad %}
                 {% include 'invoices/_fila_invoice.html' %}
                 {% else %}
                 <tr><td colspan="7" class="mb-empty text-center py-4"><i class="bi bi-check-circle-fill text-success fs-1"></i><br>¡Todo enviado! No hay pedidos pendientes de envío.</td></tr>
@@ -55,6 +56,7 @@
             </tbody>
         </table>
     </div>
+    {{ paginacion(pag_prioridad) }}
 </div>
 
 <!-- PRIORIDAD 2: PAGADO ENTREGADO - Historial -->
@@ -80,7 +82,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for i in invoices if i.estado == 'PAGADO' and i.estado_envio == 'ENTREGADO' %}
+                    {% for i in entregados %}
                     {% include 'invoices/_fila_invoice.html' %}
                     {% else %}
                     <tr><td colspan="7" class="mb-empty text-center py-4">Sin pedidos entregados.</td></tr>
@@ -88,6 +90,7 @@
                 </tbody>
             </table>
         </div>
+        {{ paginacion(pag_entregados) }}
     </div>
 </div>
 
@@ -114,7 +117,7 @@
                     </tr>
                 </thead>
                 <tbody id="tbody-pendientes">
-                    {% for i in invoices if i.estado in ['PENDIENTE', 'PENDIENTE_ABONO', 'ABONADO', 'RECHAZADO'] %}
+                    {% for i in pendientes %}
                     {% include 'invoices/_fila_invoice.html' %}
                     {% else %}
                     <tr><td colspan="7" class="mb-empty text-center py-4">Sin pedidos pendientes o rechazados.</td></tr>
@@ -122,6 +125,7 @@
                 </tbody>
             </table>
         </div>
+        {{ paginacion(pag_pendientes) }}
     </div>
 </div>
 

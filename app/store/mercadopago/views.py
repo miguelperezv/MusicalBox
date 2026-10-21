@@ -5,8 +5,8 @@ import hmac
 import time
 import mercadopago
 from mercadopago import config as mp_config
-from ..models import (Invoice, confirmar_pago, rechazar_pago, etapa_pago,
-                      estado_pagable, pago_ya_registrado)
+from ..models import Invoice, etapa_pago, estado_pagable, pago_ya_registrado
+from ..services.payment_service import confirmar_pago, rechazar_pago
 from ..notificaciones import notificar_pago_aprobado
 from ..notif_admin import (aviso_pago_rechazado,
                            aviso_pago_de_otro_monto, aviso_pago_no_creado)

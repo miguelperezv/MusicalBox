@@ -1,6 +1,6 @@
 #panel admin: tallas/colores de un producto y contenido de los packs (rutas del blueprint dashboard, ya protegido)
 from flask import abort, flash, redirect, render_template, request, url_for
-from .views import dashboard, render_seccion
+from .views import dashboard, render_seccion, datos_paginacion
 from .models import actualizar_variante, agregar_componente, crear_variante, eliminar_componente, eliminar_variante, db, Variante
 
 
@@ -61,7 +61,9 @@ def componente_eliminar(k_componente):
 
 #órdenes: estado de envío, rechazo manual, nota interna y rótulo (el rótulo es de la orden, con su copia de datos de envío)
 from flask import jsonify, render_template, abort
-from .models import ESTADOS_CON_ROTULO, Invoice, actualizar_envio, rechazar_pago
+from .models import ESTADOS_CON_ROTULO, Invoice
+from .services.order_service import actualizar_envio
+from .services.payment_service import rechazar_pago
 from .notificaciones import correo_pedido_enviado
 
 
@@ -104,7 +106,8 @@ def pedido_rechazar(k_invoice):
 def recordar_saldo():
     """Recordatorio del saldo de una preorden abonada: por correo (uno o masivo) o devuelve el
     enlace de WhatsApp para que el admin lo mande. El historial queda en abono_pago."""
-    from .models import AbonoPago, marcar_recordatorio, token_pedido
+    from .models import AbonoPago, token_pedido
+    from .services.payment_service import marcar_recordatorio
     from .notificaciones import correo_saldo_pendiente
     metodo = (request.form.get("metodo") or "email").strip().lower()
     if request.form.get("masivo"):
@@ -286,25 +289,47 @@ def productos_admin():
     f_categoria = request.args.get("categoria", "").strip()
     if f_categoria:
         q = q.filter_by(k_categoria=f_categoria)
-    filas = [{"p": p, "artista": get_artist_by_release(p.k_lanzamiento) if p.k_lanzamiento else None,
-              "stock": stock_disponible(p), "original": es_original(p),
-              "preorden": es_preorden(p)} for p in q.all()]
+
+    def fila(p):
+        return {"p": p, "artista": get_artist_by_release(p.k_lanzamiento) if p.k_lanzamiento else None,
+                "stock": stock_disponible(p), "original": es_original(p),
+                "preorden": es_preorden(p)}
+
     f_stock = request.args.get("stock", "").strip()
-    if f_stock == "agotado":
-        filas = [f for f in filas if f["stock"] <= 0]
-    elif f_stock == "bajo":
-        filas = [f for f in filas if f["stock"] <= 3]
+    page = request.args.get("page", 1, type=int)
+    per_page = 50
+    if f_stock:
+        #el stock se calcula (packs/variantes): hay que filtrar antes de paginar
+        filas = [fila(p) for p in q.all()]
+        if f_stock == "agotado":
+            filas = [f for f in filas if f["stock"] <= 0]
+        elif f_stock == "bajo":
+            filas = [f for f in filas if f["stock"] <= 3]
+        pag = datos_paginacion("dashboard.productos_admin", page, len(filas), per_page)
+        inicio = (pag["page"] - 1) * per_page
+        filas = filas[inicio:inicio + per_page]
+    else:
+        total = q.count()
+        pag = datos_paginacion("dashboard.productos_admin", page, total, per_page)
+        inicio = (pag["page"] - 1) * per_page
+        filas = [fila(p) for p in q.offset(inicio).limit(per_page).all()]
     categorias = sorted({p.k_categoria for p in Producto.query.all() if p.k_categoria})
     return render_seccion("productos_admin.html", filas=filas, categorias=categorias,
                            lanzamientos=Lanzamiento.query.order_by(Lanzamiento.n_lanzamiento).all(),
-                           f_lanzamiento=f_lanzamiento or "", f_categoria=f_categoria, f_stock=f_stock)
+                           f_lanzamiento=f_lanzamiento or "", f_categoria=f_categoria,
+                           f_stock=f_stock, pag=pag)
 
 
 @dashboard.route("/lanzamientos")
 def lanzamientos_admin():
-    filas = [{"l": l, "artista": get_artist_by_release(l.id), "productos": Producto.query.filter_by(k_lanzamiento=l.id).count()}
-             for l in Lanzamiento.query.order_by(db.desc(Lanzamiento.f_lanzamiento)).all()]
-    return render_seccion("lanzamientos_admin.html", filas=filas)
+    q = Lanzamiento.query.order_by(db.desc(Lanzamiento.f_lanzamiento))
+    per_page = 50
+    pag = datos_paginacion("dashboard.lanzamientos_admin", request.args.get("page", 1, type=int), q.count(), per_page)
+    inicio = (pag["page"] - 1) * per_page
+    filas = [{"l": l, "artista": get_artist_by_release(l.id),
+              "productos": Producto.query.filter_by(k_lanzamiento=l.id).count()}
+             for l in q.offset(inicio).limit(per_page).all()]
+    return render_seccion("lanzamientos_admin.html", filas=filas, pag=pag)
 
 
 #edición rápida desde los listados: stock/precio de producto y campos de lanzamiento,

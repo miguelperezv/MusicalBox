@@ -6,7 +6,10 @@ from flask import Blueprint, Response, current_app, flash, session, request, g, 
 #from app.store.models import create_new_user, get_all_artists, get_user_by_email, create_new_artist
 from .models import create_new_user, get_all_artists, get_user_by_email, create_new_artist, get_k_artist_by_name, obtener_artista, create_new_release, get_release_by_name, get_releases_with_artists, get_categories, create_new_product, get_k_release_by_name_artista, create_new_category, create_new_genre, create_release_genre, new_admin, get_all_releases, get_artist_by_release, get_categories_by_release, get_release_by_id, get_genres_by_release, get_products_by_release, get_product_by_id, get_artist_by_release, update_release, get_products_with_info, edit_product, create_new_image, get_rawimage_by_product, edit_image, get_items_by_id_factura, Imagen, Producto
 from .models import actualizar_lanzamiento_spotify, buscar_o_crear_lanzamiento
-from .models import producto_card, lanzamiento_tiene_original, ESTADOS_ENVIO, ESTADOS_CON_ROTULO, Invoice,opciones_componentes, stock_disponible, get_usuario_por_email, get_artist_by_id, get_releases_cards, get_products_cards, get_generos, get_categorias, get_admin_stats, edit_user_by_email, get_purchases_by_user, get_all_invoices, get_solicitudes_by_user, validar_carrito, crear_pedido, get_images_by_product, get_first_image_by_product, crear_variante, agregar_componente, normalizar_url_imagen, validar_url_imagen, Lanzamiento, get_eventos_analytics, token_pedido
+from .models import producto_card, lanzamiento_tiene_original, ESTADOS_ENVIO, ESTADOS_CON_ROTULO, Invoice,opciones_componentes, get_artist_by_id, get_releases_cards, get_products_cards, get_generos, get_categorias, get_admin_stats, get_images_by_product, get_first_image_by_product, crear_variante, agregar_componente, normalizar_url_imagen, validar_url_imagen, Lanzamiento, get_eventos_analytics, token_pedido
+from .services.user_service import get_usuario_por_email, edit_user_by_email, get_purchases_by_user, get_solicitudes_by_user
+from .services.order_service import validar_carrito, crear_pedido
+from .services.inventory_service import stock_disponible
 from .analytics import track_event, Events
 from .models import MESES, datos_envio_previos
 import csv
@@ -117,6 +120,39 @@ def render_seccion(template, **ctx):
     if es_ajax():
         return fragmento
     return render_template("adminDashboard.html", contenido_panel=fragmento, **ctx)
+
+
+def datos_paginacion(endpoint, page, total, per_page=50, param="page", **extra):
+    """Datos para el macro de paginación, conservando los filtros de la URL."""
+    pages = max(1, (total + per_page - 1) // per_page)
+    page = min(max(1, page or 1), pages)
+    args = request.args.to_dict()
+    args.pop(param, None)
+    args.update(extra)
+
+    def url(n):
+        valores = args.copy()
+        valores[param] = n
+        return url_for(endpoint, **valores)
+
+    numeros = list(range(1, pages + 1))
+    if pages > 7:
+        if page <= 4:
+            numeros = [1, 2, 3, 4, 5, None, pages]
+        elif page >= pages - 3:
+            numeros = [1, None] + list(range(pages - 4, pages + 1))
+        else:
+            numeros = [1, None, page - 1, page, page + 1, None, pages]
+    urls = [(n, None if n is None else url(n)) for n in numeros]
+    return {
+        "page": page,
+        "pages": pages,
+        "total": total,
+        "per_page": per_page,
+        "prev": url(max(1, page - 1)),
+        "next": url(min(pages, page + 1)),
+        "urls": urls,
+    }
 
 
 def admin_required(f):
@@ -465,8 +501,14 @@ def account():
 
         compras = get_purchases_by_user(session.get("user", {}).get("email_usuario", ""))
         solicitudes = get_solicitudes_by_user(session.get("user", {}).get("email_usuario", ""))
+        #resumen de la cuenta: solo compras pagadas/abonadas cuentan como dinero recibido
+        total_gastado = sum(((c[0].total or 0) + (c[0].p_envio or 0)) for c in compras
+                            if c[0].estado in ('PAGADO', 'ABONADO'))
+        #preórdenes y abonos con saldo pendiente (el abono manda sobre el estado de envío)
+        preordenes = [c for c in compras
+                      if c[0].abono and (c[0].abono.estado_abono == 'PENDIENTE' or c[0].abono.estado_saldo != 'PAGADO')]
 
-    return render_template("account.html",  user=g.user, purchase_cart = g.purchase, form = edit_usuario, compras = compras, solicitudes = solicitudes, get_product_by_id = get_product_by_id, get_release_by_id = get_release_by_id, token_pedido = token_pedido )
+    return render_template("account.html",  user=g.user, purchase_cart = g.purchase, form = edit_usuario, compras = compras, solicitudes = solicitudes, get_product_by_id = get_product_by_id, get_release_by_id = get_release_by_id, token_pedido = token_pedido, total_gastado=total_gastado, preordenes=preordenes )
 
 PERIODOS_DASHBOARD = [30, 90, 365]
 
@@ -580,7 +622,7 @@ def export_ventas():
         w.writerow([c["categoria"], "%.2f" % c["ventas"], "%.1f%%" % (c["ventas"] / total_cat * 100)])
     w.writerow([])
     w.writerow(["KPIs"])
-    from .models import get_estadisticas_inventario
+    from .services.inventory_service import get_estadisticas_inventario
     inventario = get_estadisticas_inventario()
     w.writerow(["Ticket promedio", "%.2f" % stats["estadisticas_clientes"]["ticket_promedio"]])
     w.writerow(["Crecimiento de ventas (mes)", "%.1f%%" % stats["crecimiento_ventas"]["crecimiento"]])
@@ -802,12 +844,22 @@ def pedidos_rotulos():
 @dashboard.route("/invoices", methods=["GET", "POST"])
 def invoices():
     #conteos para los chips de filtro: prioridad (pagados que requieren envío), pendientes, rechazadas, entregadas
-    prioridad = Invoice.query.filter(Invoice.estado == 'PAGADO', Invoice.estado_envio.in_(['POR PREPARAR', 'EN PREPARACION', 'ENVIADO'])).count()
+    q_prioridad = (Invoice.query
+                   .filter(Invoice.estado == 'PAGADO',
+                           Invoice.estado_envio.in_(['POR PREPARAR', 'EN PREPARACION', 'ENVIADO']))
+                   .order_by(db.desc(Invoice.f_compra)))
+    q_entregados = (Invoice.query
+                    .filter(Invoice.estado == 'PAGADO', Invoice.estado_envio == 'ENTREGADO')
+                    .order_by(db.desc(Invoice.f_compra)))
+    q_pendientes = (Invoice.query
+                    .filter(Invoice.estado.in_(['PENDIENTE', 'PENDIENTE_ABONO', 'ABONADO', 'RECHAZADO']))
+                    .order_by(db.desc(Invoice.f_compra)))
     pendientes = Invoice.query.filter_by(estado='PENDIENTE').count()
     pendientes_abono = Invoice.query.filter_by(estado='PENDIENTE_ABONO').count()
     abonados = Invoice.query.filter_by(estado='ABONADO').count()
     rechazadas = Invoice.query.filter_by(estado='RECHAZADO').count()
-    entregadas = Invoice.query.filter(Invoice.estado == 'PAGADO', Invoice.estado_envio == 'ENTREGADO').count()
+    entregadas = q_entregados.count()
+    prioridad = q_prioridad.count()
     conteos = {
         'prioridad': prioridad,
         'PENDIENTE': pendientes + pendientes_abono + abonados,
@@ -815,10 +867,24 @@ def invoices():
         'ABONADO': abonados,
         'RECHAZADO': rechazadas,
         'ENTREGADO': entregadas,
+        'TODAS': prioridad + entregadas + pendientes + pendientes_abono + abonados + rechazadas,
     }
     for e in ESTADOS_ENVIO:
         conteos[e] = Invoice.query.filter(Invoice.estado == 'PAGADO', Invoice.estado_envio == e).count()
-    return render_seccion("invoices.html", invoices=get_all_invoices(), get_items_by_id_factura=get_items_by_id_factura,
+    per_page = 50
+
+    def pagina(q, param):
+        p = datos_paginacion("dashboard.invoices", request.args.get(param, 1, type=int), q.count(), per_page, param)
+        inicio = (p["page"] - 1) * per_page
+        return q.offset(inicio).limit(per_page).all(), p
+
+    lista_prioridad, pag_prioridad = pagina(q_prioridad, "page_prioridad")
+    lista_entregados, pag_entregados = pagina(q_entregados, "page_entregados")
+    lista_pendientes, pag_pendientes = pagina(q_pendientes, "page_pendientes")
+    return render_seccion("invoices.html", prioridad=lista_prioridad, entregados=lista_entregados,
+                           pendientes=lista_pendientes, pag_prioridad=pag_prioridad,
+                           pag_entregados=pag_entregados, pag_pendientes=pag_pendientes,
+                           get_items_by_id_factura=get_items_by_id_factura,
                            estados_envio=ESTADOS_ENVIO, con_rotulo=ESTADOS_CON_ROTULO,
                            conteos=conteos, busca=request.args.get("busca", "").strip(),
                            token_pedido=token_pedido)

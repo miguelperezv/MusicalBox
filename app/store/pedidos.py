@@ -1,7 +1,8 @@
 #checkout sin cuenta y seguimiento de pedidos por enlace /pedido/<token>
 #el pago lo procesa el blueprint "mercadopago" (app/store/mercadopago/views.py)
 from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for, abort
-from .models import get_pedido_por_token, confirmar_pago, rechazar_pago, pasos_envio
+from .models import get_pedido_por_token, pasos_envio
+from .services.payment_service import confirmar_pago, rechazar_pago
 from .views import before_request
 from ..db import db
 from .notificaciones import notificar_pago_aprobado

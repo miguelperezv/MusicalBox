@@ -4,10 +4,12 @@ from urllib.parse import quote
 
 from flask import Blueprint, flash, request, g, render_template, redirect, url_for, jsonify, abort, session
 from .models import (create_solicitud, get_all_solicitudes, update_estado_solicitud, get_catalogo_solicitud, get_product_by_id,
-                     get_usuario_por_email, cotizar_solicitud, get_solicitud_por_token, datos_envio_previos, crear_pedido,
+                     cotizar_solicitud, get_solicitud_por_token, datos_envio_previos,
                      items_efectivos, get_categorias, get_all_releases, buscar_o_crear_lanzamiento,
                      buscar_o_crear_lanzamiento_spotify,
                      ESTADOS_SOLICITUD, Solicitud, SolicitudItem, Lanzamiento)
+from .services.user_service import get_usuario_por_email
+from .services.order_service import crear_pedido
 from .forms import RegistroSolicitudForm, CotizacionRapidaForm, CheckoutForm
 from .musicapi import buscar_albumes_spotify
 from .texto import titulo
