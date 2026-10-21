@@ -42,6 +42,7 @@ ACCIONES = {
     "lanzamiento.editado": ("Lanzamiento editado", "pencil", "primary"),
     "lanzamiento.preorden": ("Preorden de lanzamiento", "fire", "secondary"),
     "lanzamiento.campo": ("Dato del lanzamiento", "pencil", "secondary"),
+    "lanzamiento.mockup": ("Mockups generados", "images", "primary"),
     "catalogo.carga_masiva": ("Carga masiva", "file-earmark-arrow-up", "primary"),
     "catalogo.genero": ("Género creado", "tags", "success"),
     "catalogo.categoria": ("Categoría creada", "tags", "success"),

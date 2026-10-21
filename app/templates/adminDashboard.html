@@ -61,6 +61,7 @@
 
                 <div class="section">Marketing</div>
                 <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.redes_admin' }}" href="{{ url_for('dashboard.redes_admin') }}" data-load="{{ url_for('dashboard.redes_admin') }}"><i class="bi bi-camera-reels"></i>Redes en el inicio</a>
+                <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.mockups_admin' }}" href="{{ url_for('dashboard.mockups_admin') }}" data-load="{{ url_for('dashboard.mockups_admin') }}"><i class="bi bi-images"></i>Mockups de lanzamiento</a>
                 <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.tema_admin' }}" href="{{ url_for('dashboard.tema_admin') }}" data-load="{{ url_for('dashboard.tema_admin') }}"><i class="bi bi-magic"></i>Tema de temporada{% if tema_modo == 'forzado' %} <span class="badge text-bg-warning">Forzado</span>{% elif tema_modo == 'apagado' %} <span class="badge text-bg-secondary">Apagado</span>{% endif %}</a>
                 <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.promocion_admin' }}" href="{{ url_for('dashboard.promocion_admin') }}" data-load="{{ url_for('dashboard.promocion_admin') }}"><i class="bi bi-megaphone"></i>Salir en otras páginas</a>
                 <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.suscriptores_admin' }}" href="{{ url_for('dashboard.suscriptores_admin') }}" data-load="{{ url_for('dashboard.suscriptores_admin') }}"><i class="bi bi-envelope-paper"></i>Suscriptores (drops)</a>

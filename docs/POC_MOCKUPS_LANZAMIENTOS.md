@@ -9,11 +9,22 @@ Para un lanzamiento dado:
 1. **Mockup limpio** (`1400 × 1400`): portada + disco. Sirve para la ficha del lanzamiento, la galería o una publicación.
 2. **Pieza de preventa** (`1080 × 1350`): portada, artista, álbum, formato, precio, abono, fecha estimada y CTA. Si el lanzamiento no es preorden, el encabezado cambia a `A LA VENTA`.
 
-Los mockups se generan con Pillow a partir de la portada del lanzamiento. No se escribe nada en la base de datos.
+Los mockups se generan con Pillow a partir de la portada del lanzamiento. No se modifica el lanzamiento ni los productos; cuando se generan desde el panel, la bitácora registra la acción.
 
-## Cómo correrlo
+## Desde el panel
 
-Desde la raíz del proyecto:
+En el admin: **Marketing → Mockups de lanzamiento** (`/dashboard/mockups`).
+
+1. Elegí el lanzamiento.
+2. Marcá uno o varios estilos de vinilo.
+3. Elegí fondo claro (catálogo) u oscuro (estudio).
+4. Generá y mirá las piezas en la misma página; cada una se puede abrir o descargar.
+
+También podés entrar directo desde el ícono <i class="bi bi-images"></i> en la fila de **Lanzamientos**. Los archivos se guardan en `instance/mockups/admin/<id>/` y no se publican solos en la tienda.
+
+## Cómo correrlo por CLI
+
+La CLI sigue sirviendo para pruebas o para generar varias piezas sin abrir el navegador. Desde la raíz del proyecto:
 
 ```bash
 venv/bin/python scripts/poc_mockup_lanzamiento.py 2 --demo
@@ -77,8 +88,8 @@ El catálogo es deliberadamente corto. La idea es sumar variantes solo cuando el
 
 ## Límites de este POC
 
-- No hay pantalla en el admin todavía: se corre por CLI.
-- No guarda el mockup como `Imagen` ni lo asocia a un producto.
+- La pantalla del admin ya existe, pero todavía no guarda el mockup como `Imagen` ni lo asocia a un producto.
+- No hay historial de versiones: si regenerás con otro fondo, quedan los archivos anteriores en la carpeta.
 - Los presets son procedurales; si se necesita calidad fotográfica, el siguiente paso es usar presets PNG/PSD propios o un servicio de mockups con una plantilla de vinilo.
 - La tarjeta está pensada para `1080 × 1350`. Falta la variante `1080 × 1920` para historias.
 - La portada se descarga en cada corrida; falta caché local.

@@ -27,6 +27,7 @@
                     <td class="pe-3 text-end text-nowrap">
                         <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('releases.release', k_lanzamiento=l.id) }}" target="_blank" title="Ver en la tienda"><i class="bi bi-box-arrow-up-right"></i></a>
                         <a class="btn btn-sm btn-outline-primary" href="{{ url_for('dashboard.productos_admin') }}?lanzamiento={{ l.id }}" data-load="{{ url_for('dashboard.newproduct', lanzamiento=l.id) }}" title="Agregar producto a este lanzamiento"><i class="bi bi-bag-plus"></i></a>
+                        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('dashboard.mockups_admin', release=l.id) }}" data-load="{{ url_for('dashboard.mockups_admin', release=l.id) }}" title="Mockups y pieza de preventa"><i class="bi bi-images"></i></a>
                         <button class="btn btn-sm btn-outline-secondary" type="button" data-cambio="i_lanzamiento" data-id="{{ l.id }}" data-valor="{{ l.i_lanzamiento or '' }}" title="Portada (URL)"><i class="bi bi-image"></i></button>
                         <button class="btn btn-sm btn-outline-secondary" type="button" data-cambio="url_social" data-id="{{ l.id }}" data-valor="{{ l.url_social or '' }}" title="Post de Instagram/TikTok (URL)"><i class="bi bi-link-45deg"></i></button>
                         <button type="button" class="btn btn-sm {{ 'btn-outline-danger text-danger' if l.preorden else 'btn-outline-secondary' }}"
