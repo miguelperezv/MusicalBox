@@ -3,7 +3,12 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <h1 class="h3 mb-0">Productos</h1>
     <div class="d-flex gap-2">
-        <input class="form-control" style="max-width: 260px" type="search" id="filtro" placeholder="Buscar producto, disco, artista...">
+        <form method="get" action="{{ url_for('dashboard.productos_admin') }}" class="d-flex">
+            <input type="hidden" name="categoria" value="{{ f_categoria }}">
+            <input type="hidden" name="lanzamiento" value="{{ f_lanzamiento }}">
+            <input type="hidden" name="stock" value="{{ f_stock }}">
+            <input class="form-control" style="max-width: 260px" type="search" id="filtro" name="q" value="{{ q }}" placeholder="Buscar producto o disco... (Enter)">
+        </form>
         <a class="btn btn-primary text-nowrap" href="#" data-quickview="{{ url_for('dashboard.newproduct') }}"><i class="bi bi-plus-lg me-1"></i>Nuevo</a>
     </div>
 </div>
@@ -87,6 +92,8 @@
         if (l) p.set('lanzamiento', l);
         var s = document.querySelector('.chip-filtro-p.active');
         if (s && s.dataset.filtro) p.set('stock', s.dataset.filtro);
+        var texto = document.getElementById('filtro').value.trim();
+        if (texto) p.set('q', texto);
         var q = p.toString();
         location.href = '{{ url_for("dashboard.productos_admin") }}' + (q ? '?' + q : '');
     }

@@ -282,13 +282,19 @@ from .models import Producto, Lanzamiento, get_artist_by_release, stock_disponib
 
 @dashboard.route("/productos")
 def productos_admin():
-    q = Producto.query.order_by(Producto.k_lanzamiento, Producto.id)
+    q = Producto.query
     f_lanzamiento = request.args.get("lanzamiento", type=int)
     if f_lanzamiento:
         q = q.filter_by(k_lanzamiento=f_lanzamiento)
     f_categoria = request.args.get("categoria", "").strip()
     if f_categoria:
         q = q.filter_by(k_categoria=f_categoria)
+    qtext = request.args.get("q", "").strip()
+    if qtext:
+        like = f"%{qtext}%"
+        q = (q.outerjoin(Lanzamiento, Producto.k_lanzamiento == Lanzamiento.id)
+             .filter(db.or_(Producto.n_producto.ilike(like), Lanzamiento.n_lanzamiento.ilike(like))))
+    q = q.order_by(Producto.k_lanzamiento, Producto.id)
 
     def fila(p):
         return {"p": p, "artista": get_artist_by_release(p.k_lanzamiento) if p.k_lanzamiento else None,
@@ -317,19 +323,23 @@ def productos_admin():
     return render_seccion("productos_admin.html", filas=filas, categorias=categorias,
                            lanzamientos=Lanzamiento.query.order_by(Lanzamiento.n_lanzamiento).all(),
                            f_lanzamiento=f_lanzamiento or "", f_categoria=f_categoria,
-                           f_stock=f_stock, pag=pag)
+                           f_stock=f_stock, q=qtext, pag=pag)
 
 
 @dashboard.route("/lanzamientos")
 def lanzamientos_admin():
-    q = Lanzamiento.query.order_by(db.desc(Lanzamiento.f_lanzamiento))
+    qtext = request.args.get("q", "").strip()
+    q = Lanzamiento.query
+    if qtext:
+        q = q.filter(Lanzamiento.n_lanzamiento.ilike(f"%{qtext}%"))
+    q = q.order_by(db.desc(Lanzamiento.f_lanzamiento))
     per_page = 50
     pag = datos_paginacion("dashboard.lanzamientos_admin", request.args.get("page", 1, type=int), q.count(), per_page)
     inicio = (pag["page"] - 1) * per_page
     filas = [{"l": l, "artista": get_artist_by_release(l.id),
               "productos": Producto.query.filter_by(k_lanzamiento=l.id).count()}
              for l in q.offset(inicio).limit(per_page).all()]
-    return render_seccion("lanzamientos_admin.html", filas=filas, pag=pag)
+    return render_seccion("lanzamientos_admin.html", filas=filas, q=qtext, pag=pag)
 
 
 #edición rápida desde los listados: stock/precio de producto y campos de lanzamiento,
