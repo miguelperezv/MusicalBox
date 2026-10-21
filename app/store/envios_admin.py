@@ -4,6 +4,8 @@ from flask import flash, redirect, render_template, request, url_for, jsonify, a
 from .views import dashboard, render_seccion
 from .models import ReglaEnvio, Invoice, get_categorias
 from .redes import get_config, set_config
+from .auditoria import registrar_evento
+from .texto import pesos
 from ..db import db
 
 TIPOS_REGLA = {
@@ -53,6 +55,9 @@ def envios_config():
         'envio.zona_nacional': str(z_nacional),
         'envio.caja': (f.get("caja") or "31x30x5").strip(),
     })
+    registrar_evento("ajuste.envios", None, None,
+                     f"Envíos: {'activo' if f.get('habilitado') == '1' else 'desactivado'}, "
+                     f"criterio {criterio}, Bogotá {pesos(z_bogota)}, nacional {pesos(z_nacional)}")
     return _volver_envios(ok="Configuración de envíos guardada")
 
 
@@ -76,6 +81,8 @@ def regla_nueva():
                        orden=orden, activo=f.get("activo") == "1")
     db.session.add(regla)
     db.session.commit()
+    registrar_evento("ajuste.regla_envio", "regla_envio", regla.id,
+                     f"Regla creada: {TIPOS_REGLA.get(tipo, tipo)}")
     return _volver_envios(ok="Regla creada: los pedidos que la cumplan no pagan envío")
 
 
@@ -84,14 +91,18 @@ def regla_activo(k):
     regla = db.session.get(ReglaEnvio, k) or abort(404)
     regla.activo = not regla.activo
     db.session.commit()
+    registrar_evento("ajuste.regla_envio", "regla_envio", regla.id,
+                     f"Regla {regla.id} {'activada' if regla.activo else 'desactivada'}")
     return _volver_envios(ok="Regla " + ("activada" if regla.activo else "desactivada"))
 
 
 @dashboard.route("/envios/regla/<int:k>/eliminar", methods=["POST"])
 def regla_eliminar(k):
     regla = db.session.get(ReglaEnvio, k) or abort(404)
+    detalle = f"Regla eliminada: {TIPOS_REGLA.get(regla.tipo, regla.tipo)}"
     db.session.delete(regla)
     db.session.commit()
+    registrar_evento("ajuste.regla_envio", "regla_envio", k, detalle)
     return _volver_envios(ok="Regla eliminada")
 
 
@@ -107,8 +118,13 @@ def pedido_costo_envio(k_invoice):
         return jsonify({"error": "Escribe el costo en pesos, sin puntos"}), 400
     if p_envio < 0:
         return jsonify({"error": "El costo no puede ser negativo"}), 400
+    antes = p.p_envio or 0
     p.p_envio = p_envio
     p.envio_manual = True
     p.d_envio = (request.form.get("detalle") or "Ajuste manual del admin")[:100]
     db.session.commit()
+    if antes != p_envio:
+        registrar_evento("pedido.costo_envio", "pedido", p.id,
+                         f"Pedido #{p.id}: envío ${antes:,} → ${p_envio:,}".replace(",", "."),
+                         datos={"antes": int(antes), "despues": int(p_envio)})
     return jsonify({"p_envio": int(p.p_envio), "total_pago": int((p.total or 0) + p.p_envio), "d_envio": p.d_envio})

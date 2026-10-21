@@ -1,0 +1,97 @@
+{% from "_paginacion.html" import paginacion %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <h1 class="h3 mb-0">Bitácora</h1>
+        <p class="small text-body-secondary mb-0">Quién cambió qué en el panel. Se guardan acciones, no visitas.</p>
+    </div>
+    <span class="badge text-bg-light border">{{ total }} movimiento{{ '' if total == 1 else 's' }}</span>
+</div>
+
+<form class="mb-panel p-2 mb-3" method="get" action="{{ url_for('dashboard.bitacora') }}">
+    <div class="row g-2 align-items-end">
+        <div class="col-12 col-md-3">
+            <label class="form-label small mb-1" for="f-grupo">Tipo</label>
+            <select class="form-select form-select-sm" id="f-grupo" name="grupo">
+                <option value="">Todo</option>
+                {% for clave, info in grupos.items() %}
+                <option value="{{ clave }}" {{ 'selected' if grupo == clave }}>{{ info[0] }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-12 col-md-3">
+            <label class="form-label small mb-1" for="f-admin">Administrador</label>
+            <select class="form-select form-select-sm" id="f-admin" name="admin">
+                <option value="">Todos</option>
+                {% for a in admins %}
+                <option value="{{ a }}" {{ 'selected' if admin == a }}>{{ a }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-12 col-md-4">
+            <label class="form-label small mb-1" for="f-q">Buscar</label>
+            <input class="form-control form-control-sm" id="f-q" type="search" name="q" value="{{ q }}"
+                   placeholder="Pedido, producto, correo o detalle...">
+        </div>
+        <div class="col-12 col-md-2 d-flex gap-2">
+            <button class="btn btn-sm btn-primary flex-grow-1">Filtrar</button>
+            {% if grupo or admin or q %}
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('dashboard.bitacora') }}" data-load="{{ url_for('dashboard.bitacora') }}" title="Quitar filtros">Limpiar</a>
+            {% endif %}
+        </div>
+    </div>
+</form>
+
+<div class="mb-panel p-0">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th class="ps-3">Cuándo</th>
+                    <th>Quién</th>
+                    <th>Acción</th>
+                    <th>Detalle</th>
+                    <th class="pe-3"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in eventos %}
+                {% set meta = acciones.get(e.accion, ('Cambio', 'pencil', 'secondary')) %}
+                <tr>
+                    <td class="ps-3 text-nowrap small text-body-secondary">{{ e.created_at|fecha_co('%d/%m/%Y %H:%M') }}</td>
+                    <td class="small text-nowrap">{{ e.usuario_email }}</td>
+                    <td>
+                        <span class="badge text-bg-light border fw-normal">
+                            <i class="bi bi-{{ meta[1] }} text-{{ meta[2] }} me-1"></i>{{ meta[0] }}
+                        </span>
+                    </td>
+                    <td class="small">{{ e.detalle or '—' }}</td>
+                    <td class="pe-3 text-end text-nowrap">
+                        {% if e.entidad == 'pedido' and e.entidad_id %}
+                        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('dashboard.buscar_admin', q=e.entidad_id) }}" data-load="{{ url_for('dashboard.buscar_admin', q=e.entidad_id) }}">Ver pedido</a>
+                        {% elif e.entidad in ('producto', 'pack') and e.entidad_id %}
+                        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('dashboard.updateproduct', k_producto=e.entidad_id) }}">Ver producto</a>
+                        {% elif e.entidad == 'lanzamiento' and e.entidad_id %}
+                        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('dashboard.updaterelease', k_lanzamiento=e.entidad_id) }}">Ver disco</a>
+                        {% elif e.entidad == 'variante' and e.datos and e.datos.get('k_producto') %}
+                        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('dashboard.updateproduct', k_producto=e.datos.get('k_producto')) }}">Ver producto</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="mb-empty text-center py-4">
+                        <i class="bi bi-clock-history fs-3 d-block mb-2 text-body-secondary"></i>
+                        {% if grupo or admin or q %}
+                        No hay movimientos con esos filtros.
+                        {% else %}
+                        Todavía no hay movimientos. Los cambios que hagas en el panel aparecerán aquí.
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{{ paginacion(pag) }}

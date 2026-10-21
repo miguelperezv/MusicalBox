@@ -68,6 +68,7 @@
                 <div class="section">Ajustes</div>
                 <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.notificaciones_admin' }}" href="{{ url_for('dashboard.notificaciones_admin') }}" data-load="{{ url_for('dashboard.notificaciones_admin') }}"><i class="bi bi-bell"></i>Notificaciones</a>
                 <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.devoluciones_admin' }}" href="{{ url_for('dashboard.devoluciones_admin') }}" data-load="{{ url_for('dashboard.devoluciones_admin') }}"><i class="bi bi-arrow-repeat"></i>Cambios y devoluciones</a>
+                <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.bitacora' }}" href="{{ url_for('dashboard.bitacora') }}" data-load="{{ url_for('dashboard.bitacora') }}"><i class="bi bi-clock-history"></i>Bitácora</a>
                 <a class="nav-link {{ 'active' if request.endpoint == 'dashboard.newadmin' }}" href="{{ url_for('dashboard.newadmin') }}" data-load="{{ url_for('dashboard.newadmin') }}"><i class="bi bi-person-gear"></i>Nuevo administrador</a>
                 <a class="nav-link" href="{{ url_for('home.index') }}"><i class="bi bi-shop"></i>Ver tienda</a>
             </nav>

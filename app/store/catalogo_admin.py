@@ -2,6 +2,8 @@
 from flask import abort, flash, redirect, render_template, request, url_for
 from .views import dashboard, render_seccion, datos_paginacion
 from .models import actualizar_variante, agregar_componente, crear_variante, eliminar_componente, eliminar_variante, db, Variante
+from .auditoria import registrar_evento
+from .texto import pesos
 
 
 def _volver(k_producto, err=None, ok=None):
@@ -15,7 +17,12 @@ def _volver(k_producto, err=None, ok=None):
 @dashboard.route("/producto/<int:k_producto>/variantes", methods=["POST"])
 def variante_nueva(k_producto):
     f = request.form
-    _, err = crear_variante(k_producto, f.get("talla", "").strip(), f.get("color", "").strip(), f.get("sku", "").strip(), f.get("stock", type=int))
+    v, err = crear_variante(k_producto, f.get("talla", "").strip(), f.get("color", "").strip(), f.get("sku", "").strip(), f.get("stock", type=int))
+    if v:
+        registrar_evento("variante.creada", "variante", v.id,
+                         f"{v.producto.n_producto if v.producto else 'Producto'}: "
+                         f"{v.nombre or 'sin talla'} · stock {v.stock}",
+                         datos={"k_producto": k_producto})
     return _volver(k_producto, err, "Talla/color agregada")
 
 
@@ -23,7 +30,19 @@ def variante_nueva(k_producto):
 def variante_editar(k_variante):
     v = db.session.get(Variante, k_variante)
     k_producto = v.k_producto if v else None
+    antes = (v.stock if v else None, v.sku if v else None)
     _, err = actualizar_variante(k_variante, request.form.get("stock", type=int), request.form.get("sku", "").strip())
+    if v and not err:
+        partes = []
+        if v.stock != antes[0]:
+            partes.append(f"stock {antes[0]} → {v.stock}")
+        if (v.sku or None) != (antes[1] or None):
+            partes.append(f"SKU {antes[1] or '—'} → {v.sku or '—'}")
+        if partes:
+            registrar_evento("variante.editada", "variante", v.id,
+                             f"{v.producto.n_producto if v.producto else 'Producto'} / {v.nombre or 'sin talla'}: "
+                             + ", ".join(partes),
+                             datos={"k_producto": k_producto})
     return _volver(k_producto, err, "Stock actualizado")
 
 
@@ -34,8 +53,14 @@ def variante_stock(k_variante):
     valor = request.form.get("stock", type=int)
     if valor is None or not (0 <= valor <= 9999):
         return jsonify({"error": "Stock inválido"}), 400
+    antes = v.stock
     v.stock = valor
     db.session.commit()
+    if antes != valor:
+        registrar_evento("variante.editada", "variante", v.id,
+                         f"{v.producto.n_producto if v.producto else 'Producto'} / "
+                         f"{v.nombre or 'sin talla'}: stock {antes} → {valor}",
+                         datos={"k_producto": v.k_producto, "antes": antes, "despues": valor})
     return jsonify({"stock": int(v.stock), "total": int(stock_disponible(v.producto))})
 
 
@@ -43,19 +68,35 @@ def variante_stock(k_variante):
 def variante_eliminar(k_variante):
     v = db.session.get(Variante, k_variante)
     k_producto = v.k_producto if v else None
+    detalle = (f"{v.producto.n_producto if v and v.producto else 'Producto'} / "
+               f"{v.nombre or 'sin talla'}") if v else None
     _, err = eliminar_variante(k_variante)
+    if not err:
+        registrar_evento("variante.eliminada", "variante", k_variante,
+                         f"Talla/color eliminada: {detalle}",
+                         datos={"k_producto": k_producto})
     return _volver(k_producto, err, "Talla/color eliminada")
 
 
 @dashboard.route("/producto/<int:k_bundle>/componentes", methods=["POST"])
 def componente_nuevo(k_bundle):
-    _, err = agregar_componente(k_bundle, request.form.get("componente"), request.form.get("cantidad", type=int))
+    c, err = agregar_componente(k_bundle, request.form.get("componente"), request.form.get("cantidad", type=int))
+    if c:
+        registrar_evento("pack.actualizado", "pack", k_bundle,
+                         f"Pack: agregado {c.componente.n_producto if c.componente else 'producto'} "
+                         f"x{c.cantidad}")
     return _volver(k_bundle, err, "Producto agregado al pack")
 
 
 @dashboard.route("/componente/<int:k_componente>/eliminar", methods=["POST"])
 def componente_eliminar(k_componente):
+    from .models import ProductoComponente
+    c = db.session.get(ProductoComponente, k_componente)
+    detalle = (f"Pack: quitado {c.componente.n_producto if c and c.componente else 'producto'}"
+               if c else "Pack actualizado")
     k_bundle, err = eliminar_componente(k_componente)
+    if not err:
+        registrar_evento("pack.actualizado", "pack", k_bundle, detalle)
     return _volver(k_bundle or request.form.get("k_bundle", type=int), err, "Producto quitado del pack")
 
 
@@ -72,6 +113,8 @@ def pedido_envio(k_invoice):
     #el admin despacha: cambia el estado y, de paso, guarda guía y transportadora
     antes = db.session.get(Invoice, k_invoice)
     estado_antes = antes.estado_envio if antes else None
+    guia_antes = antes.guia if antes else None
+    carrier_antes = antes.envio_carrier if antes else None
     p = actualizar_envio(k_invoice, request.form.get("estado_envio"),
                          guia=request.form.get("guia"), carrier=request.form.get("carrier"))
     if not p:
@@ -81,6 +124,15 @@ def pedido_envio(k_invoice):
     aviso = False
     if p.estado_envio == 'ENVIADO' and (estado_antes != 'ENVIADO' or request.form.get("avisar") == "1"):
         aviso = correo_pedido_enviado(p)
+    if (p.estado_envio, p.guia, p.envio_carrier) != (estado_antes, guia_antes, carrier_antes):
+        partes = [f"Pedido #{p.id}: {estado_antes or 'sin estado'} → {p.estado_envio}"]
+        if p.guia:
+            partes.append(f"guía {p.guia}")
+        if p.envio_carrier:
+            partes.append(p.envio_carrier)
+        registrar_evento("pedido.envio", "pedido", p.id, " · ".join(partes),
+                         datos={"antes": estado_antes, "despues": p.estado_envio,
+                                "guia": p.guia, "carrier": p.envio_carrier})
     return jsonify({"estado_envio": p.estado_envio, "rotulo": p.estado_envio in ESTADOS_CON_ROTULO,
                     "guia": p.guia or "", "carrier": p.envio_carrier or "", "aviso_enviado": bool(aviso)})
 
@@ -99,6 +151,8 @@ def pedido_rechazar(k_invoice):
     if p.estado not in ('PENDIENTE', 'PENDIENTE_ABONO', 'ABONADO'):
         return jsonify({"error": "Solo se pueden rechazar los pedidos pendientes de pago"}), 400
     rechazar_pago(p, "rechazo manual")
+    registrar_evento("pedido.rechazado", "pedido", p.id,
+                     f"Pedido #{p.id} rechazado manualmente")
     return jsonify({"estado": p.estado})
 
 
@@ -119,6 +173,8 @@ def recordar_saldo():
             if p and correo_saldo_pendiente(p, ab):
                 marcar_recordatorio(ab)
                 enviados += 1
+        registrar_evento("pago.recordatorio_masivo", None, None,
+                         f"Recordatorios de saldo por correo: {enviados} enviados")
         flash(f"Recordatorios de saldo enviados: {enviados}", "success")
         return redirect(url_for('dashboard.invoices'))
     k_invoice = request.form.get("k_invoice", type=int)
@@ -137,9 +193,13 @@ def recordar_saldo():
                    f"${int(saldo_total):,}".replace(",", ".") +
                    f" (incluye envío). Puedes pagarlo aquí: {url_for('pedido.ver', token=token_pedido(p), _external=True)}")
         marcar_recordatorio(ab)
+        registrar_evento("pago.recordatorio", "pedido", p.id,
+                         f"Pedido #{p.id}: recordatorio de saldo por WhatsApp")
         return jsonify({"enlace": whatsapp_enlace(tel, mensaje), "saldo": float(saldo_total)})
     if correo_saldo_pendiente(p, ab):
         marcar_recordatorio(ab)
+        registrar_evento("pago.recordatorio", "pedido", p.id,
+                         f"Pedido #{p.id}: recordatorio de saldo por correo")
         flash(f"Recordatorio enviado a {p.email_envio}", "success")
     else:
         flash("No se pudo enviar el recordatorio (revisa el correo del pedido)", "warning")
@@ -149,8 +209,13 @@ def recordar_saldo():
 @dashboard.route("/pedido/<int:k_invoice>/nota", methods=["POST"])
 def pedido_nota(k_invoice):
     p = db.session.get(Invoice, k_invoice) or abort(404)
+    antes = p.nota
     p.nota = (request.form.get("nota") or "").strip() or None
     db.session.commit()
+    if (antes or None) != (p.nota or None):
+        registrar_evento("pedido.nota", "pedido", p.id,
+                         f"Pedido #{p.id}: nota interna {'actualizada' if p.nota else 'borrada'}",
+                         datos={"antes": antes, "despues": p.nota})
     return jsonify({"nota": p.nota or ""})
 
 
@@ -182,12 +247,18 @@ def redes_config():
     f = request.form
     por_plat = {p: (f.get(f"{p}_modo"), f.get(f"{p}_n", type=int), f.get(f"{p}_m", type=int)) for p in redes.PLATAFORMAS}
     err = redes.guardar_config_redes(f.get("activa") == "1", por_plat)
+    if not err:
+        registrar_evento("ajuste.redes", None, None,
+                         "Configuración de redes del inicio actualizada")
     return _volver_redes(err, "Configuración guardada")
 
 
 @dashboard.route("/redes/nueva", methods=["POST"])
 def redes_nueva():
     pub, err = redes.crear_publicacion(request.form.get("plataforma"), request.form.get("url"))
+    if pub:
+        registrar_evento("ajuste.redes", None, None,
+                         f"Publicación agregada: {pub.plataforma}")
     if pub and pub.error_embed:
         return _volver_redes(f"Guardada, pero no se mostrará: {pub.error_embed}")
     return _volver_redes(err, "Publicación agregada")
@@ -202,6 +273,8 @@ def redes_editar(k):
     pub.plataforma, pub.url, pub.id_externo = request.form.get("plataforma"), url, id_externo
     redes.verificar_embed(pub)
     db.session.commit()
+    registrar_evento("ajuste.redes", None, None,
+                     f"Publicación editada: {pub.plataforma}")
     return _volver_redes(pub.error_embed, "Publicación actualizada")
 
 
@@ -210,6 +283,8 @@ def redes_activo(k):
     pub = db.session.get(redes.PublicacionSocial, k) or abort(404)
     pub.activo = not pub.activo
     db.session.commit()
+    registrar_evento("ajuste.redes", None, None,
+                     f"Publicación {'activada' if pub.activo else 'desactivada'}: {pub.plataforma}")
     return _volver_redes(ok="Publicación " + ("activada" if pub.activo else "desactivada"))
 
 
@@ -273,6 +348,8 @@ def notificaciones_guardar():
             if row:
                 row.valor = '0'
     db.session.commit()
+    registrar_evento("ajuste.notificaciones", None, None,
+                     "Preferencias de avisos del panel actualizadas")
     return _volver_notif(ok="Configuración de notificaciones guardada")
 
 
@@ -355,8 +432,13 @@ def producto_stock(k_producto):
     valor = request.form.get("stock", type=int)
     if valor is None or not (0 <= valor <= 9999):
         return jsonify({"error": "Stock inválido"}), 400
+    antes = p.stock
     p.stock = valor
     db.session.commit()
+    if antes != valor:
+        registrar_evento("producto.stock", "producto", p.id,
+                         f"{p.n_producto}: stock {antes} → {valor}",
+                         datos={"antes": antes, "despues": valor})
     return jsonify({"stock": int(p.stock)})
 
 
@@ -366,8 +448,13 @@ def producto_precio(k_producto):
     valor = request.form.get("precio", type=int)
     if valor is None or not (1 <= valor <= 99999999):
         return jsonify({"error": "Precio inválido (en pesos, sin puntos)"}), 400
+    antes = p.p_producto or 0
     p.p_producto = valor
     db.session.commit()
+    if antes != valor:
+        registrar_evento("producto.precio", "producto", p.id,
+                         f"{p.n_producto}: {pesos(antes)} → {pesos(valor)}",
+                         datos={"antes": int(antes), "despues": valor})
     return jsonify({"precio": int(p.p_producto)})
 
 
@@ -385,6 +472,8 @@ def producto_preorden(k_producto):
         return jsonify({"error": "El preorden directo solo aplica a sueltos sin tallas"}), 400
     p.preorden = not p.preorden
     db.session.commit()
+    registrar_evento("producto.preorden", "producto", p.id,
+                     f"{p.n_producto}: preorden {'activada' if p.preorden else 'desactivada'}")
     return jsonify({"preorden": p.preorden, "es_preorden": es_preorden(p)})
 
 
@@ -393,6 +482,8 @@ def lanzamiento_preorden(k_lanzamiento):
     l = db.session.get(Lanzamiento, k_lanzamiento) or abort(404)
     l.preorden = not l.preorden
     db.session.commit()
+    registrar_evento("lanzamiento.preorden", "lanzamiento", l.id,
+                     f"{l.n_lanzamiento}: preorden {'activada' if l.preorden else 'desactivada'}")
     return jsonify({"preorden": l.preorden})
 
 
@@ -402,6 +493,7 @@ def lanzamiento_campo(k_lanzamiento, campo):
         abort(404)
     l = db.session.get(Lanzamiento, k_lanzamiento) or abort(404)
     valor = (request.form.get("valor") or "").strip()
+    antes = l.f_lanzamiento if campo == "f_lanzamiento" else getattr(l, campo)
     if campo == "f_lanzamiento":
         if valor:
             try:
@@ -413,6 +505,12 @@ def lanzamiento_campo(k_lanzamiento, campo):
     else:
         setattr(l, campo, valor or None)
     db.session.commit()
+    if campo == "f_lanzamiento":
+        detalle = f"{l.n_lanzamiento}: fecha {antes or '—'} → {l.f_lanzamiento or '—'}"
+    else:
+        detalle = f"{l.n_lanzamiento}: {CAMPOS_LANZAMIENTO[campo].lower()} actualizada"
+    registrar_evento("lanzamiento.campo", "lanzamiento", l.id, detalle,
+                     datos={"campo": campo, "antes": str(antes or ''), "despues": str(valor)})
     return jsonify({campo: (l.f_lanzamiento.isoformat() if campo == "f_lanzamiento" else getattr(l, campo) or "")})
 
 
@@ -448,6 +546,9 @@ def tema_admin():
 @dashboard.route("/tema/config", methods=["POST"])
 def tema_config():
     err = temporadas.guardar_config_tema(request.form.get("modo"), request.form.get("forzado"))
+    if not err:
+        registrar_evento("ajuste.tema", None, None,
+                         f"Tema de temporada: {request.form.get('modo') or 'sin modo'}")
     return _volver_tema(err, "Listo, quedó guardado")
 
 
@@ -459,12 +560,16 @@ def tema_marcar(clave):
     else:
         err = temporadas.guardar_config_tema("forzado", clave)
         ok = f"Listo: se muestra {temporadas.NOMBRES.get(clave, clave)} (míralo en la tienda)"
+    if not err:
+        registrar_evento("ajuste.tema", None, None,
+                         f"Tema: {temporadas.NOMBRES.get(clave, 'sin adornos')}")
     return _volver_tema(err, ok)
 
 
 @dashboard.route("/tema/auto", methods=["POST"])
 def tema_auto():
     temporadas.guardar_config_tema("auto")
+    registrar_evento("ajuste.tema", None, None, "Tema: automático por fecha")
     return _volver_tema(ok="Listo: vuelve a automático, según la fecha")
 
 

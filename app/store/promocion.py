@@ -23,6 +23,7 @@ from flask import Blueprint, Response, flash, g, redirect, render_template, requ
 from .models import Producto, get_artist_by_release, stock_disponible
 from .redes import get_config, set_config
 from .texto import TIPOS_CATEGORIA as TIPOS, categoria_legible, titulo
+from .auditoria import registrar_evento
 
 #el feed se sirve en /feed/productos.csv (ver ACTIVE_ENDPOINTS en app/__init__.py)
 promo = Blueprint("promo", __name__)
@@ -390,6 +391,9 @@ def promocion_admin():
 def promocion_negocio():
     guardar_datos_negocio(request.form.get("telefono"), request.form.get("direccion"),
                           request.form.get("ciudad"))
+    registrar_evento("ajuste.negocio", None, None,
+                     f"Datos del negocio actualizados: "
+                     f"{request.form.get('ciudad') or 'sin ciudad'}")
     flash("Datos del negocio guardados", "success")
     return redirect(url_for("dashboard.promocion_admin"))
 

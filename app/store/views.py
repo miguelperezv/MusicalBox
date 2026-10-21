@@ -29,6 +29,7 @@ from ..limiter import limiter
 from .notificaciones import correo_activacion, usuario_de_token
 from .notif_admin import aviso_pedido_creado
 from .musicapi import buscar_albumes_spotify, detalles_album_spotify
+from .auditoria import ACCIONES, GRUPOS, admins_con_registros, consultar_eventos, registrar_evento
 
 
 home = Blueprint('home', __name__)
@@ -656,6 +657,8 @@ def newrelease():
             db.session.commit()
             release_genre = create_release_genre(k_lanzamiento,  k_genero)
             if release_genre:
+                registrar_evento("lanzamiento.creado", "lanzamiento", k_lanzamiento,
+                                 f"Lanzamiento: {n_lanzamiento}")
                 flash("Lanzamiento Registrado! "+ str(n_lanzamiento) +" - "+ str(k_genero))
                 return redirect(url_for('home.admin'))
         else:
@@ -710,6 +713,8 @@ def newproduct():
             db.session.commit()
             if image_files:
                 create_multiple_images(product.id, image_files)
+            registrar_evento("producto.creado", "producto", product.id,
+                             f"Producto: {n_producto}")
             #a la edición, para configurar tallas/colores o el contenido del pack
             aviso = "Lanzamiento nuevo creado al vuelo · " if se_creo_lanzamiento else ""
             flash(aviso + "Producto creado: configura sus tallas o el contenido del pack si aplica", "success")
@@ -749,6 +754,7 @@ def newgenre():
         genre = form_cat_genre.genre.data.upper()
         result = create_new_genre(genre)
         if result:
+            registrar_evento("catalogo.genero", None, None, f"Género creado: {genre}")
             flash("Genero registrado!")
             return redirect(url_for('home.admin'))
         flash("No se agregó el género! Posiblemente ya exista ;)")
@@ -761,6 +767,7 @@ def newcategory():
         category = form_cat_genre.category.data.upper()
         result = create_new_category(category)
         if result:
+            registrar_evento("catalogo.categoria", None, None, f"Categoría creada: {category}")
             flash("Cateogría registrada!")
             return redirect(url_for('home.admin'))
         flash("No se agregó la categoría! Posiblemente ya exista ;)")
@@ -774,6 +781,7 @@ def newartist():
         country = form_cat_genre.country.data
         result = create_new_artist(artist, country)
         if result:
+            registrar_evento("catalogo.artista", None, None, f"Artista creado: {artist}")
             flash("Artista registrado!: " + artist)
             return redirect(url_for('home.admin'))
         flash("No se agregó el artista! Posiblemente ya exista ;)")
@@ -788,6 +796,8 @@ def newadmin():
         pwd = form_new_admin.pwd.data
         result = new_admin(email, pwd, session.get("user", {}).get("email_usuario", ""))
         if result:
+            registrar_evento("admin.creado", "admin", None,
+                             f"Permisos de administrador para {email}")
             flash("Nuevo administrador con el correo "+ email)
             return redirect(url_for("home.admin"))
         else:
@@ -810,6 +820,8 @@ def devoluciones_admin():
             flash("El título y el contenido no pueden quedar vacíos", "warning")
         else:
             guardar_devoluciones(titulo, intro, texto)
+            registrar_evento("ajuste.devoluciones", None, None,
+                             "Política de cambios y devoluciones actualizada")
             flash("Política de cambios y devoluciones actualizada", "success")
         return redirect(url_for("dashboard.devoluciones_admin"))
     return render_seccion("devoluciones_admin.html", dev=obtener_devoluciones())
@@ -899,13 +911,31 @@ def invoice_eliminar(id):
     # Solo permitir eliminar si todavía no entró ningún pago (ni abono)
     if inv.estado not in ('PENDIENTE', 'PENDIENTE_ABONO'):
         return jsonify({"error": "Solo se pueden eliminar pedidos sin pago confirmado"}), 400
+    estado = inv.estado
     # Liberar stock reservado si existe
     if inv.stock_reservado:
         from .models import liberar_reserva_stock
         liberar_reserva_stock(inv.id)
     db.session.delete(inv)
     db.session.commit()
+    registrar_evento("pedido.eliminado", "pedido", id,
+                     f"Pedido #{id} eliminado (estaba {estado}, sin pago confirmado)")
     return jsonify({"ok": True})
+
+
+@dashboard.route("/bitacora")
+def bitacora():
+    #historial de cambios del panel: quién movió stock, precios, pedidos o ajustes
+    grupo = (request.args.get("grupo") or "").strip()
+    admin = (request.args.get("admin") or "").strip().lower()
+    q = (request.args.get("q") or "").strip()
+    eventos, total, page = consultar_eventos(grupo, admin, q,
+                                             request.args.get("page", 1, type=int))
+    pag = datos_paginacion("dashboard.bitacora", page, total, 50)
+    return render_seccion("bitacora.html", eventos=eventos, total=total, pag=pag,
+                           grupo=grupo, admin=admin, q=q,
+                           acciones=ACCIONES, grupos=GRUPOS,
+                           admins=admins_con_registros())
 
 @dashboard.route("/editrelease", methods=["GET", "POST"])
 def editrelease():
@@ -947,6 +977,8 @@ def updaterelease(k_lanzamiento):
             guardar_url_social(k_lanzamiento, form_edit_release.url_social.data)
             db.session.get(Lanzamiento, k_lanzamiento).preorden = bool(form_edit_release.preorden.data)
             db.session.commit()
+            registrar_evento("lanzamiento.editado", "lanzamiento", k_lanzamiento,
+                             f"Lanzamiento: {n_lanzamiento}")
         if result:
             flash("Se actualizó el lanzamiento ["+str(k_lanzamiento)+"-"+str(n_lanzamiento)+"]")
         else:
@@ -976,6 +1008,8 @@ def updaterelease_spotify(k_lanzamiento):
         if datos.get("error"):
             flash(datos["error"], "error")
         elif actualizar_lanzamiento_spotify(k_lanzamiento, datos):
+            registrar_evento("lanzamiento.editado", "lanzamiento", k_lanzamiento,
+                             f"{l.n_lanzamiento}: datos actualizados desde Spotify")
             flash("Datos del disco actualizados")
         else:
             flash("No se pudieron actualizar los datos del disco", "error")
@@ -1058,6 +1092,8 @@ def updateproduct(k_producto):
             pct = form.porcentaje_abono.data
             prod.porcentaje_abono = pct if (prod.preorden and pct) else None
             db.session.commit()
+            registrar_evento("producto.editado", "producto", k_producto,
+                             f"Producto: {n_producto}")
         if result:
             flash("Se actualizó el producto")
 
@@ -1237,6 +1273,9 @@ def batch_upload():
             flash(f"Importación completada: {results['creados']} creados", "success")
             for error in results["errores"]:
                 flash(error, "warning")
+            registrar_evento("catalogo.carga_masiva", None, None,
+                             f"Carga masiva: {results['creados']} creados, "
+                             f"{len(results['errores'])} errores")
                 
         except Exception as e:
             flash(f"Error procesando archivo: {str(e)}", "error")

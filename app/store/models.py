@@ -2695,4 +2695,25 @@ class WebEvent(db.Model):
         return f'<WebEvent {self.event_name} {self.created_at}>'
 
 
+class AdminEvent(db.Model):
+    """Bitácora de cambios hechos desde el panel: quién, qué y sobre qué.
+    No guarda visitas ni lecturas: solo acciones que modifican datos.
+    El correo se copia para que el registro siga siendo legible si luego se borra el usuario.
+    """
+    __tablename__ = 'admin_event'
+
+    id = db.Column(db.Integer, primary_key=True)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=True)
+    usuario_email = db.Column(db.String(50), nullable=False, index=True)
+    accion = db.Column(db.String(40), nullable=False, index=True)
+    entidad = db.Column(db.String(20))
+    entidad_id = db.Column(db.Integer)
+    detalle = db.Column(db.String(300))
+    datos = db.Column(db.JSON)
+    created_at = db.Column(db.DateTime, default=datetime.now, index=True)
+
+    usuario = db.relationship('Usuario')
+
+    def __repr__(self):
+        return f'<AdminEvent {self.accion} {self.usuario_email} {self.created_at}>'
 
