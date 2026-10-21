@@ -8,12 +8,16 @@ La idea: para cada lanzamiento se generan dos piezas a partir de la misma portad
 Los "presets" son combinaciones de disco + efecto. En este POC se dibujan con
 Pillow para validar el flujo sin depender de una API externa. Si la calidad
 convence, el mismo contrato se puede cambiar por Dynamic Mockups/SudoMock.
+
+Además de los presets curados, `variantes.py` define un catálogo propio de 34
+colores base y varios acabados que se combinan sin copiar assets externos.
 """
 from __future__ import annotations
 
 import io
 import math
 import random
+import re
 from datetime import date
 from pathlib import Path
 from typing import Iterable
@@ -23,6 +27,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
 
 from .models import Lanzamiento, Producto, get_artist_by_release
 from .texto import titulo
+from .variantes import variante_por_slug
 
 
 RAIZ_APP = Path(__file__).resolve().parent.parent
@@ -34,7 +39,7 @@ VERDE = (183, 227, 109)
 BLANCO = (248, 247, 252)
 
 
-# preset -> cómo se ve el disco. "efecto" puede ser None, splatter, marble o picture.
+# preset -> cómo se ve el disco. El catálogo abierto vive en `variantes.py`.
 PRESETS = {
     "negro": {
         "nombre": "Vinilo negro estándar",
@@ -179,10 +184,74 @@ def _marble(tamano: int, radio: int, colores, lineas: int = 28,
     return capa.filter(ImageFilter.GaussianBlur(blur or max(2, tamano // 250)))
 
 
-def generar_disco(preset: str, tamano: int = 900, portada: Image.Image | None = None,
+def _swirl(tamano: int, radio: int, colores, semilla: int = 11) -> Image.Image:
+    """Espirales anchas desde el centro hacia el borde."""
+    capa = Image.new("RGBA", (tamano, tamano), (0, 0, 0, 0))
+    d = ImageDraw.Draw(capa)
+    rng = random.Random(semilla)
+    centro = tamano / 2
+    for i in range(22):
+        color = rng.choice(colores)
+        fase = rng.uniform(0, math.tau)
+        vueltas = rng.uniform(1.4, 3.2)
+        r0 = radio * rng.uniform(0.06, 0.20)
+        r1 = radio * rng.uniform(0.82, 1.0)
+        puntos = []
+        for paso in range(130):
+            t = paso / 129
+            angulo = fase + t * vueltas * math.tau
+            r = r0 + (r1 - r0) * t
+            puntos.append((centro + math.cos(angulo) * r,
+                           centro + math.sin(angulo) * r))
+        d.line(puntos, fill=(*color, rng.randint(60, 150)),
+               width=max(3, tamano // 90), joint="curve")
+    return capa.filter(ImageFilter.GaussianBlur(max(2, tamano // 250)))
+
+
+def _smoke(tamano: int, radio: int, colores, semilla: int = 73) -> Image.Image:
+    return _marble(tamano, radio, colores, lineas=34,
+                   ancho=max(6, tamano // 28), blur=max(8, tamano // 42),
+                   alpha_min=24, alpha_max=82, semilla=semilla)
+
+
+def _color_in_color(tamano: int, radio: int, colores, semilla: int = 19) -> Image.Image:
+    return _marble(tamano, radio, colores, lineas=18,
+                   ancho=max(10, tamano // 18), blur=max(5, tamano // 100),
+                   alpha_min=110, alpha_max=220, semilla=semilla)
+
+
+def _half_and_half(tamano: int, radio: int, colores) -> Image.Image:
+    capa = Image.new("RGBA", (tamano, tamano), (0, 0, 0, 0))
+    d = ImageDraw.Draw(capa)
+    centro = tamano / 2
+    color = colores[0] if colores else (245, 245, 245)
+    d.pieslice((centro - radio, centro - radio, centro + radio, centro + radio),
+               90, 270, fill=(*color, 245))
+    return capa
+
+
+def _pinwheel(tamano: int, radio: int, colores) -> Image.Image:
+    capa = Image.new("RGBA", (tamano, tamano), (0, 0, 0, 0))
+    d = ImageDraw.Draw(capa)
+    centro = tamano / 2
+    caja = (centro - radio, centro - radio, centro + radio, centro + radio)
+    for i in range(4):
+        color = colores[i % len(colores)] if colores else (245, 245, 245)
+        inicio = i * 90
+        d.pieslice(caja, inicio, inicio + 46, fill=(*color, 242))
+    return capa
+
+
+def _config_preset(preset) -> dict:
+    if isinstance(preset, dict):
+        return preset
+    return PRESETS.get(preset, PRESETS["negro"])
+
+
+def generar_disco(preset, tamano: int = 900, portada: Image.Image | None = None,
                   semilla: int = 11) -> Image.Image:
     """Dibuja un disco cuadrado con grooves, label y el efecto del preset."""
-    cfg = PRESETS.get(preset, PRESETS["negro"])
+    cfg = _config_preset(preset)
     S = max(600, tamano * 2)
     centro = S // 2
     radio = int(S * 0.47)
@@ -200,25 +269,42 @@ def generar_disco(preset: str, tamano: int = 900, portada: Image.Image | None = 
     disco = Image.new("RGBA", (S, S), (0, 0, 0, 0))
     disco.paste(base, (0, 0), mascara)
 
+    colores = cfg.get("colores", [])
     if cfg["efecto"] == "splatter":
-        capa = _splatter(S, radio, cfg.get("colores", []), semilla)
+        capa = _splatter(S, radio, colores, semilla)
+        disco.alpha_composite(_capa_recortada(capa, mascara))
+    elif cfg["efecto"] == "swirl":
+        capa = _swirl(S, radio, colores, semilla)
         disco.alpha_composite(_capa_recortada(capa, mascara))
     elif cfg["efecto"] == "marble":
-        capa = _marble(S, radio, cfg.get("colores", []))
+        capa = _marble(S, radio, colores)
+        disco.alpha_composite(_capa_recortada(capa, mascara))
+    elif cfg["efecto"] == "smoke":
+        capa = _smoke(S, radio, colores, semilla)
+        disco.alpha_composite(_capa_recortada(capa, mascara))
+    elif cfg["efecto"] == "color_in_color":
+        capa = _color_in_color(S, radio, colores, semilla)
+        disco.alpha_composite(_capa_recortada(capa, mascara))
+    elif cfg["efecto"] == "half_and_half":
+        capa = _half_and_half(S, radio, colores)
+        disco.alpha_composite(_capa_recortada(capa, mascara))
+    elif cfg["efecto"] == "pinwheel":
+        capa = _pinwheel(S, radio, colores)
         disco.alpha_composite(_capa_recortada(capa, mascara))
     elif cfg["efecto"] == "cherry":
         # dos capas: vetas anchas de glaze y vetas finas encima
-        capa = _marble(S, radio, cfg.get("colores", []), lineas=42,
+        capa = _marble(S, radio, colores, lineas=42,
                        ancho=max(4, S // 24), blur=max(3, S // 80),
                        alpha_min=32, alpha_max=92, semilla=23)
         disco.alpha_composite(_capa_recortada(capa, mascara))
-        capa = _marble(S, radio, cfg.get("colores", []), lineas=26,
+        capa = _marble(S, radio, colores, lineas=26,
                        ancho=max(2, S // 70), blur=max(2, S // 220),
                        alpha_min=45, alpha_max=110, semilla=41)
         disco.alpha_composite(_capa_recortada(capa, mascara))
 
-    d = ImageDraw.Draw(disco)
-    # grooves: círculos concéntricos finos, más claros hacia el borde
+    # grooves en una capa aparte: así no perforan la transparencia del clear.
+    grooves = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    dg = ImageDraw.Draw(grooves)
     for i in range(74):
         r = radio * (0.955 - i * 0.0072)
         if r < radio * 0.34:
@@ -226,8 +312,9 @@ def generar_disco(preset: str, tamano: int = 900, portada: Image.Image | None = 
         claro = cfg["brillo"]
         alpha = 18 if i % 3 else 30
         ancho = max(1, S // 900)
-        d.ellipse((centro - r, centro - r, centro + r, centro + r),
-                  outline=(*claro[:3], alpha), width=ancho)
+        dg.ellipse((centro - r, centro - r, centro + r, centro + r),
+                   outline=(*claro[:3], alpha), width=ancho)
+    disco.alpha_composite(_capa_recortada(grooves, mascara))
 
     # brillo lateral: un arco suave que simula la luz del estudio
     brillo = Image.new("RGBA", (S, S), (0, 0, 0, 0))
@@ -287,7 +374,7 @@ def _portada_cuadrada(portada: Image.Image, tamano: int) -> Image.Image:
     return ImageOps.fit(portada.convert("RGB"), (tamano, tamano), method=Image.Resampling.LANCZOS)
 
 
-def componer_mockup(portada: Image.Image, preset: str = "negro", tamano: int = 1400,
+def componer_mockup(portada: Image.Image, preset="negro", tamano: int = 1400,
                     fondo: str = "estudio") -> Image.Image:
     """Funda + disco. `fondo="transparente"` devuelve solo la composición con sombras."""
     S = tamano
@@ -452,7 +539,7 @@ def datos_preventa(lanzamiento: Lanzamiento, productos: Iterable[Producto] | Non
     }
 
 
-def generar_pieza_preventa(portada: Image.Image, datos: dict, preset: str = "negro",
+def generar_pieza_preventa(portada: Image.Image, datos: dict, preset="negro",
                            tamano=(1080, 1350)) -> Image.Image:
     W, H = tamano
     lienzo = _degradado((W, H), (44, 7, 70), (10, 4, 18))
@@ -563,6 +650,31 @@ def cargar_portada(lanzamiento: Lanzamiento, productos: Iterable[Producto] | Non
     return base.convert("RGB")
 
 
+def _slug_preset(preset) -> str:
+    if isinstance(preset, dict):
+        return preset.get("slug") or "variante"
+    return str(preset)
+
+
+_PREFIJO_ARCHIVO = re.compile(r"^lanzamiento_\d+_")
+
+
+def etiqueta_archivo(nombre: str) -> str:
+    """Nombre legible para la galería del panel a partir del PNG generado."""
+    base = Path(nombre).stem
+    if base.endswith("_preventa"):
+        return "Pieza de preventa"
+    if base.endswith("_claro"):
+        base = base[:-len("_claro")]
+    clave = _PREFIJO_ARCHIVO.sub("", base)
+    if clave in PRESETS:
+        return PRESETS[clave]["nombre"]
+    variante = variante_por_slug(clave)
+    if variante:
+        return variante["nombre"]
+    return clave.replace("_", " ").replace("-", " ").title()
+
+
 def guardar_poc(lanzamiento: Lanzamiento, salida: Path, presets=("negro", "color", "splatter", "picture"),
                 datos: dict | None = None, fondo: str = "estudio") -> list[Path]:
     """Genera las piezas del POC y devuelve las rutas."""
@@ -573,8 +685,9 @@ def guardar_poc(lanzamiento: Lanzamiento, salida: Path, presets=("negro", "color
     sufijo = "_claro" if fondo == "claro" else ""
     rutas = []
     for preset in presets:
+        slug = _slug_preset(preset)
         img = componer_mockup(portada, preset=preset, tamano=1400, fondo=fondo)
-        ruta = salida / f"lanzamiento_{lanzamiento.id}_{preset}{sufijo}.png"
+        ruta = salida / f"lanzamiento_{lanzamiento.id}_{slug}{sufijo}.png"
         img.convert("RGB").save(ruta, "PNG", optimize=True)
         rutas.append(ruta)
     card = generar_pieza_preventa(portada, datos, preset=presets[0])
