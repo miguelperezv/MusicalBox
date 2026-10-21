@@ -22,7 +22,7 @@
 <form class="mb-panel p-3 mb-3" method="POST" action="{{ url_for('dashboard.mockups_admin') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="row g-3 align-items-end">
-        <div class="col-12 col-lg-5">
+        <div class="col-12 col-lg-6">
             <label class="form-label small mb-1" for="mockup-release">Lanzamiento</label>
             <select class="form-select" id="mockup-release" name="release" required style="min-width: 0">
                 {% for o in opciones %}
@@ -39,12 +39,18 @@
                 <option value="estudio" {{ 'selected' if fondo_actual == 'estudio' }}>Estudio oscuro</option>
             </select>
         </div>
-        <div class="col-12 col-lg-5 d-flex justify-content-lg-end align-items-end">
-            <button class="btn btn-primary" type="submit"><i class="bi bi-magic me-1"></i>Generar piezas</button>
+        <div class="col-6 col-lg-4">
+            <div class="form-label small mb-1">Qué querés generar</div>
+            <div class="btn-group w-100" role="group" aria-label="Modo de generación">
+                <input class="btn-check" type="radio" name="modo" id="modo-presets" value="presets" autocomplete="off" {{ 'checked' if modo_actual != 'personalizada' }}>
+                <label class="btn btn-sm btn-outline-secondary" for="modo-presets">Estilos rápidos</label>
+                <input class="btn-check" type="radio" name="modo" id="modo-personalizada" value="personalizada" autocomplete="off" {{ 'checked' if modo_actual == 'personalizada' }}>
+                <label class="btn btn-sm btn-outline-secondary" for="modo-personalizada">Variante personalizada</label>
+            </div>
         </div>
     </div>
 
-    <div class="mt-3">
+    <section class="mt-3" data-modo="presets">
         <div class="form-label small mb-2">Estilos de vinilo</div>
         <div class="d-flex flex-wrap gap-2">
             {% for clave, cfg in presets.items() %}
@@ -52,7 +58,66 @@
             <label class="btn btn-sm btn-outline-secondary" for="preset-{{ clave }}">{{ cfg.nombre }}</label>
             {% endfor %}
         </div>
-    </div>
+        <div class="d-flex justify-content-between align-items-center gap-2 mt-3">
+            <span class="small text-body-secondary">Atajos curados para generar varias piezas de una vez.</span>
+            <button class="btn btn-primary" type="submit"><i class="bi bi-magic me-1"></i>Generar estilos</button>
+        </div>
+    </section>
+
+    <section class="mt-3" data-modo="personalizada">
+        <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-2">
+            <div>
+                <div class="form-label small mb-1">Color base <span class="badge text-bg-light border fw-normal">34 colores</span></div>
+                <div class="small text-body-secondary">Catálogo propio: 20 opacos, 5 translúcidos y 9 clear.</div>
+            </div>
+            <span class="small text-body-secondary">Sin usar imágenes de VinylMockup.</span>
+        </div>
+        <div class="row row-cols-2 row-cols-md-3 row-cols-xl-4 g-2">
+            {% for c in colores %}
+            <div class="col">
+                <input class="btn-check" type="radio" name="color_base" value="{{ c.slug }}" id="color-{{ c.slug }}" data-nombre="{{ c.nombre }}" autocomplete="off" {{ 'checked' if c.slug == color_actual }}>
+                <label class="btn btn-sm btn-outline-secondary w-100 text-start d-flex align-items-center gap-2" for="color-{{ c.slug }}" title="{{ c.nombre_en }} · {{ c.pms }}">
+                    <span class="d-inline-block rounded-circle border flex-shrink-0" style="width:16px;height:16px;background:{{ c.hex }}"></span>
+                    <span class="text-truncate">{{ c.nombre }}</span>
+                </label>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="mt-3">
+            <div class="form-label small mb-2">Acabado</div>
+            <div class="d-flex flex-wrap gap-2">
+                {% for clave, e in efectos.items() %}
+                <input class="btn-check" type="radio" name="efecto" value="{{ clave }}" id="efecto-{{ clave }}" data-nombre="{{ e.nombre }}" autocomplete="off" {{ 'checked' if clave == efecto_actual }}>
+                <label class="btn btn-sm btn-outline-secondary" for="efecto-{{ clave }}" title="{{ e.descripcion }}">{{ e.nombre }}</label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="mt-3" data-acentos>
+            <div class="form-label small mb-2">Colores de acento</div>
+            <div class="row g-2">
+                {% for n in (1, 2, 3) %}
+                {% set actual = acentos_actuales[n - 1] if acentos_actuales|length >= n else '' %}
+                <div class="col-12 col-sm-4">
+                    <label class="form-label small mb-1" for="acento-{{ n }}">Acento {{ n }}</label>
+                    <select class="form-select form-select-sm" id="acento-{{ n }}" name="acento_{{ n }}">
+                        <option value="">Automático</option>
+                        {% for c in colores %}
+                        <option value="{{ c.slug }}" {{ 'selected' if c.slug == actual }}>{{ c.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endfor %}
+            </div>
+            <p class="small text-body-secondary mb-0 mt-2">Si dejás “Automático”, se usan los acentos sugeridos para el acabado.</p>
+        </div>
+
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
+            <span class="small text-body-secondary">Vas a generar: <strong id="variante-nombre">{{ variante_actual.nombre }}</strong></span>
+            <button class="btn btn-primary" type="submit"><i class="bi bi-magic me-1"></i>Generar variante</button>
+        </div>
+    </section>
 
     {% if selected %}
     <details class="mt-3">
@@ -85,6 +150,7 @@
             {% else %}
             Este lanzamiento no tiene un vinilo cargado: la pieza mostrará precio y reserva por confirmar si los dejás vacíos.
             {% endif %}
+            {% if modo_actual == 'personalizada' %}En la variante personalizada, el formato toma el nombre del color y el acabado si lo dejás vacío.{% endif %}
             Los cambios de acá no modifican la base de datos.
         </p>
     </details>
@@ -129,10 +195,10 @@
     <div class="col">
         <div class="mb-panel p-2 h-100">
             <a href="{{ a.url }}" target="_blank" class="d-block rounded overflow-hidden bg-body-tertiary mb-2">
-                <img src="{{ a.url }}" alt="{{ a.nombre }}" loading="lazy" class="w-100 d-block">
+                <img src="{{ a.url }}" alt="{{ a.etiqueta }}" loading="lazy" class="w-100 d-block">
             </a>
             <div class="d-flex justify-content-between align-items-center gap-2 px-1 pb-1">
-                <span class="small text-body-secondary text-truncate">{{ a.nombre }}</span>
+                <span class="small text-body-secondary text-truncate" title="{{ a.nombre }}">{{ a.etiqueta }}</span>
                 <a class="btn btn-sm btn-outline-secondary flex-shrink-0" href="{{ a.url }}" download title="Descargar"><i class="bi bi-download"></i></a>
             </div>
         </div>
@@ -142,7 +208,7 @@
     <div class="col">
         <div class="mb-panel p-2 h-100">
             <a href="{{ tarjeta.url }}" target="_blank" class="d-block rounded overflow-hidden bg-body-tertiary mb-2">
-                <img src="{{ tarjeta.url }}" alt="{{ tarjeta.nombre }}" loading="lazy" class="w-100 d-block">
+                <img src="{{ tarjeta.url }}" alt="{{ tarjeta.etiqueta }}" loading="lazy" class="w-100 d-block">
             </a>
             <div class="d-flex justify-content-between align-items-center gap-2 px-1 pb-1">
                 <span class="small text-body-secondary text-truncate">Pieza de preventa</span>
@@ -155,7 +221,7 @@
 {% else %}
 <div class="mb-panel mb-empty">
     <i class="bi bi-images"></i>
-    Todavía no generaste piezas para este lanzamiento. Elegí los estilos y tocá “Generar piezas”.
+    Todavía no generaste piezas para este lanzamiento. Elegí estilos rápidos o armá una variante y tocá “Generar”.
 </div>
 {% endif %}
 {% endif %}
@@ -164,8 +230,58 @@
     (function () {
         var form = document.querySelector('form[action="{{ url_for('dashboard.mockups_admin') }}"]');
         if (!form) return;
-        form.addEventListener('submit', function () {
-            var boton = form.querySelector('button[type="submit"]');
+
+        var secciones = form.querySelectorAll('[data-modo]');
+        var radiosModo = form.querySelectorAll('input[name="modo"]');
+        function mostrarModo(modo) {
+            secciones.forEach(function (seccion) {
+                seccion.hidden = seccion.dataset.modo !== modo;
+            });
+        }
+        radiosModo.forEach(function (radio) {
+            radio.addEventListener('change', function () { mostrarModo(radio.value); });
+        });
+        var modoInicial = form.querySelector('input[name="modo"]:checked');
+        mostrarModo(modoInicial ? modoInicial.value : 'presets');
+
+        var acentos = form.querySelector('[data-acentos]');
+        var radiosEfecto = form.querySelectorAll('input[name="efecto"]');
+        function mostrarAcentos() {
+            if (!acentos) return;
+            var efecto = form.querySelector('input[name="efecto"]:checked');
+            var sinAcentos = !efecto || efecto.value === 'estandar' || efecto.value === 'picture';
+            acentos.hidden = sinAcentos;
+        }
+        radiosEfecto.forEach(function (radio) {
+            radio.addEventListener('change', function () {
+                mostrarAcentos();
+                actualizarNombre();
+            });
+        });
+        mostrarAcentos();
+
+        var nombre = document.getElementById('variante-nombre');
+        function actualizarNombre() {
+            if (!nombre) return;
+            var color = form.querySelector('input[name="color_base"]:checked');
+            var efecto = form.querySelector('input[name="efecto"]:checked');
+            if (efecto && efecto.value === 'picture') {
+                nombre.textContent = 'Picture disc';
+                return;
+            }
+            var colorNombre = color ? color.dataset.nombre : '';
+            var efectoNombre = efecto ? efecto.dataset.nombre : '';
+            nombre.textContent = (efecto && efecto.value === 'estandar')
+                ? colorNombre
+                : [colorNombre, efectoNombre].filter(Boolean).join(' · ');
+        }
+        form.querySelectorAll('input[name="color_base"]').forEach(function (radio) {
+            radio.addEventListener('change', actualizarNombre);
+        });
+        actualizarNombre();
+
+        form.addEventListener('submit', function (event) {
+            var boton = event.submitter || form.querySelector('button[type="submit"]');
             if (!boton) return;
             boton.disabled = true;
             boton.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Generando…';

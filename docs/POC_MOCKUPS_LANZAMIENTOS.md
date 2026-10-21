@@ -16,7 +16,7 @@ Los mockups se generan con Pillow a partir de la portada del lanzamiento. No se 
 En el admin: **Marketing → Mockups de lanzamiento** (`/dashboard/mockups`).
 
 1. Elegí el lanzamiento.
-2. Marcá uno o varios estilos de vinilo.
+2. Elegí **Estilos rápidos** para marcar varios presets, o **Variante personalizada** para combinar un color base con un acabado.
 3. Elegí fondo claro (catálogo) u oscuro (estudio).
 4. Generá y mirá las piezas en la misma página; cada una se puede abrir o descargar.
 
@@ -64,6 +64,16 @@ venv/bin/python scripts/poc_mockup_lanzamiento.py 2 \
 
 `--demo` solo existe para probar la pieza cuando el lanzamiento no tiene un vinilo cargado. En el caso del lanzamiento 2, sus productos reales son cachuchas; por eso el ejemplo visual usa precio/abono de demostración. Para un lanzamiento real, no se pasa `--demo`: el script toma el precio del producto de categoría `VINILO` (o con “vinilo” en el nombre).
 
+## Catálogo propio de variantes
+
+La variante personalizada usa un catálogo propio, sin copiar las texturas ni las imágenes de VinylMockup:
+
+- **34 colores base**: 20 opacos, 5 translúcidos y 9 clear. Los nombres comerciales y los PMS se tomaron del catálogo público de Citizen Vinyl; los RGB son una aproximación propia para el render.
+- **9 acabados**: estándar, splatter, swirl, mármol, humo, color en color, mitad y mitad, pinwheel y picture disc.
+- Cualquier color se puede combinar con cualquier acabado. Eso deja el catálogo abierto para sumar los estilos que aparezcan en el catálogo real, sin exponer cientos de opciones en la pantalla: se eligen color + acabado + hasta tres acentos.
+
+El render sigue siendo procedural con Pillow. Los archivos se generan con el nombre de la variante, por ejemplo `opaque-black-splatter.png` o `clear-blue-swirl.png`, y la tarjeta de preventa toma ese nombre como formato si no se escribe otro.
+
 ## Presets incluidos
 
 | Preset | Qué muestra |
@@ -76,7 +86,7 @@ venv/bin/python scripts/poc_mockup_lanzamiento.py 2 \
 | `clear` | Disco translúcido claro |
 | `picture` | La portada impresa en el disco, con label de papel |
 
-El catálogo es deliberadamente corto. La idea es sumar variantes solo cuando el catálogo real las necesite, no replicar un editor de mockups completo. `cherry` toma la idea de la página de VinylMockup que revisamos, pero no usa sus assets ni pretende ser una copia exacta: es una variante propia para validar el look.
+Los presets siguen siendo atajos curados para generar varias piezas de una vez. La variante personalizada es la que abre el catálogo de 34 colores y 9 acabados. `cherry` toma la idea de la página de VinylMockup que revisamos, pero no usa sus assets ni pretende ser una copia exacta: es una variante propia para validar el look.
 
 ## De dónde salen los datos
 
@@ -90,14 +100,14 @@ El catálogo es deliberadamente corto. La idea es sumar variantes solo cuando el
 
 - La pantalla del admin ya existe, pero todavía no guarda el mockup como `Imagen` ni lo asocia a un producto.
 - No hay historial de versiones: si regenerás con otro fondo, quedan los archivos anteriores en la carpeta.
-- Los presets son procedurales; si se necesita calidad fotográfica, el siguiente paso es usar presets PNG/PSD propios o un servicio de mockups con una plantilla de vinilo.
+- Los colores y acabados son procedurales; si se necesita calidad fotográfica, el siguiente paso es usar texturas PNG/PSD propias o un servicio de mockups con una plantilla de vinilo.
 - La tarjeta está pensada para `1080 × 1350`. Falta la variante `1080 × 1920` para historias.
 - La portada se descarga en cada corrida; falta caché local.
 - Algunas portadas externas pueden traer marcas de agua de su fuente. Para producción hay que usar el arte original en buena calidad.
 
 ## Siguiente paso recomendado
 
-1. Llevar esto a una ruta del admin: elegir lanzamiento, preset y previsualizar/descargar.
-2. Guardar el mockup limpio como `Imagen` del lanzamiento o del producto de vinilo.
-3. Reemplazar los presets procedurales por assets propios (foto/PSD) cuando estén disponibles.
-4. Agregar la variante de historia y un botón de “descargar las dos piezas”.
+1. Guardar el mockup limpio como `Imagen` del lanzamiento o del producto de vinilo.
+2. Sumar texturas propias (foto/PSD) para acercarse al look fotográfico de VinylMockup sin usar sus assets.
+3. Agregar la variante de historia y un botón de “descargar las dos piezas”.
+4. Si se quiere reutilizar el catálogo visual de otra prensadora, pedir licencia o permiso antes de copiar sus imágenes.
