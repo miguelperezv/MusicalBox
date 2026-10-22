@@ -162,6 +162,11 @@ def mockups_admin():
         plantilla = (request.form.get("plantilla") or "ficha").strip().lower()
         if plantilla not in ("ficha", "story"):
             plantilla = "ficha"
+        # La story solo tiene plantilla oficial de pre-orden. Si el título queda
+        # en automático, usamos esa variante para no caer en el render viejo.
+        if plantilla == "story" and preorden is None:
+            preorden = True
+            preorden_sel = "si"
         datos = datos_preventa(selected, productos, precio=precio,
                                abono=abono, formato=formato, eta=eta,
                                lps=lps, envio=envio, envio_incluido=envio_incluido,
@@ -323,6 +328,10 @@ def mockups_vm_usar(variant_id):
     preorden = None
     if preorden_sel in ("si", "no"):
         preorden = preorden_sel == "si"
+    # La story oficial es la de pre-orden: si no se indicó título, usamos esa.
+    if plantilla == "story" and preorden is None:
+        preorden = True
+        preorden_sel = "si"
     precio = request.args.get("precio", type=int)
     abono = request.args.get("abono", type=int)
     eta = (request.args.get("eta") or "").strip() or None

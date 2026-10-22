@@ -25,7 +25,7 @@ En el admin: **Marketing → Mockups de lanzamiento** (`/dashboard/mockups`).
 4. Elegí fondo claro (catálogo) u oscuro (estudio).
 5. Generá y mirá las piezas en la misma página; cada una se puede abrir o descargar.
 
-En **Ajustar datos de la pieza de preventa** también se eligen los discos del sticker (`1LP`/`2LP`), el costo de envío y si ese envío se suma al precio mostrado o se muestra aparte. El precio del formulario es siempre el precio base, sin envío. El título puede quedar automático (según el lanzamiento) o forzarse a `Pre-orden` / `A la venta`.
+En **Ajustar datos de la pieza de preventa** también se eligen los discos del sticker (`1LP`/`2LP`), el costo de envío y si ese envío se suma al precio mostrado o se muestra aparte. El precio del formulario es siempre el precio base, sin envío. El título puede quedar automático (según el lanzamiento) o forzarse a `Pre-orden` / `A la venta`. Si elegís **Story**, el modo automático usa pre-orden, porque es la única plantilla oficial disponible; para una story de venta hay que elegir explícitamente `A la venta` y se usa el render dibujado.
 
 También podés entrar directo desde el ícono <i class="bi bi-images"></i> en la fila de **Lanzamientos**. Los archivos se guardan en `instance/mockups/admin/<id>/` y no se publican solos en la tienda.
 
