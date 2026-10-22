@@ -29,12 +29,21 @@ def main() -> int:
     parser.add_argument("--salida", default="instance/mockups", help="Carpeta de salida")
     parser.add_argument("--fondo", choices=("estudio", "claro"), default="estudio",
                         help="Fondo del mockup: estudio oscuro o claro")
+    parser.add_argument("--plantilla", choices=("ficha", "story"), default="ficha",
+                        help="Plantilla de preventa: ficha 1080×1350 o story 1080×1920")
     parser.add_argument("--demo", action="store_true",
                         help="Usa precio/abono/fecha de ejemplo si el lanzamiento no tiene vinilo")
     parser.add_argument("--precio", type=float, help="Precio de venta para la pieza")
     parser.add_argument("--abono", type=float, help="Valor de la reserva")
     parser.add_argument("--formato", help="Texto del formato, ej. Vinilo negro estándar")
     parser.add_argument("--eta", help="Texto de llegada, ej. Diciembre 2026")
+    parser.add_argument("--lps", type=int, choices=(1, 2), default=None,
+                        help="Discos para el sticker: 1LP o 2LP (si se omite, se detecta)")
+    parser.add_argument("--envio", type=float, help="Costo de envío")
+    parser.add_argument("--envio-aparte", action="store_true",
+                        help="Muestra el envío aparte en vez de sumarlo al precio")
+    parser.add_argument("--preorden", choices=("auto", "si", "no"), default="auto",
+                        help="Título de la pieza: automático, pre-orden o a la venta")
     args = parser.parse_args()
 
     presets = tuple(p.strip() for p in args.presets.split(",") if p.strip())
@@ -63,9 +72,13 @@ def main() -> int:
             eta = eta or "Diciembre 2026"
 
         datos = datos_preventa(lanzamiento, productos, precio=precio, abono=abono,
-                               formato=formato, eta=eta)
+                               formato=formato, eta=eta, lps=args.lps,
+                               envio=args.envio,
+                               envio_incluido=False if args.envio_aparte else None,
+                               preorden={"si": True, "no": False}.get(args.preorden))
         salida = (RAIZ / args.salida).resolve()
-        rutas = guardar_poc(lanzamiento, salida, presets=presets, datos=datos, fondo=args.fondo)
+        rutas = guardar_poc(lanzamiento, salida, presets=presets, datos=datos, fondo=args.fondo,
+                            plantilla=args.plantilla)
 
         print(f"Lanzamiento: {datos['album']} · {datos['artista']}")
         for ruta in rutas:

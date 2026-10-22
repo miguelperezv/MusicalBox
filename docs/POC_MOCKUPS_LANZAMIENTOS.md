@@ -7,7 +7,11 @@ Esta prueba de concepto valida el flujo más importante de la feature: **partir 
 Para un lanzamiento dado:
 
 1. **Mockup limpio** (`1400 × 1400`): portada + disco. Sirve para la ficha del lanzamiento, la galería o una publicación.
-2. **Pieza de preventa** (`1080 × 1350`): portada, artista, álbum, formato, precio, abono, fecha estimada y CTA. Si el lanzamiento no es preorden, el encabezado cambia a `A LA VENTA`.
+2. **Pieza de preventa** (`1080 × 1350` o `1080 × 1920` en modo story): portada, artista, álbum, formato, precio, abono, fecha estimada y CTA. Si el lanzamiento no es preorden, el encabezado cambia a `A LA VENTA`.
+
+La story de **pre-orden** se monta sobre la plantilla oficial vacía (`app/static/img/preventa_story_preorden.png`, 3126 × 5556) y solo agrega los datos dinámicos: portada, disco, sticker `1LP`/`2LP`, artista, álbum, formato, precio, abono, llegada estimada y el parche de “envío aparte”. El título, los rayos, el contorno naranja, el separador, las estrellas, la pastilla, la banda y el CTA ya vienen en la base y no se redibujan. El sticker sale de `app/static/img/preventa_sticker.png` y el texto `1LP`/`2LP` se escribe en runtime.
+
+Los textos de acento usan Playfair Display (licencia SIL OFL, incluida en `app/static/fonts/` junto a `PlayfairDisplay-OFL.txt`) para conservar acentos y cursivas; artista, álbum, precio y abono usan Berlin Sans. La variante `A LA VENTA` todavía usa el render dibujado hasta contar con su plantilla oficial.
 
 Los mockups se generan con Pillow a partir de la portada del lanzamiento. No se modifica el lanzamiento ni los productos; cuando se generan desde el panel, la bitácora registra la acción.
 
@@ -17,8 +21,11 @@ En el admin: **Marketing → Mockups de lanzamiento** (`/dashboard/mockups`).
 
 1. Elegí el lanzamiento.
 2. Elegí **Estilos rápidos** para marcar varios presets, o **Variante personalizada** para combinar un color base con un acabado.
-3. Elegí fondo claro (catálogo) u oscuro (estudio).
-4. Generá y mirá las piezas en la misma página; cada una se puede abrir o descargar.
+3. Elegí plantilla **Ficha 1080×1350** o **Story 1080×1920**.
+4. Elegí fondo claro (catálogo) u oscuro (estudio).
+5. Generá y mirá las piezas en la misma página; cada una se puede abrir o descargar.
+
+En **Ajustar datos de la pieza de preventa** también se eligen los discos del sticker (`1LP`/`2LP`), el costo de envío y si ese envío se suma al precio mostrado o se muestra aparte. El precio del formulario es siempre el precio base, sin envío. El título puede quedar automático (según el lanzamiento) o forzarse a `Pre-orden` / `A la venta`.
 
 También podés entrar directo desde el ícono <i class="bi bi-images"></i> en la fila de **Lanzamientos**. Los archivos se guardan en `instance/mockups/admin/<id>/` y no se publican solos en la tienda.
 
@@ -28,6 +35,7 @@ La CLI sigue sirviendo para pruebas o para generar varias piezas sin abrir el na
 
 ```bash
 venv/bin/python scripts/poc_mockup_lanzamiento.py 2 --demo
+venv/bin/python scripts/poc_mockup_lanzamiento.py 2 --demo --plantilla story
 ```
 
 Salida:
@@ -54,6 +62,18 @@ venv/bin/python scripts/poc_mockup_lanzamiento.py 2 \
 venv/bin/python scripts/poc_mockup_lanzamiento.py 2 \
   --precio 150000 --abono 95000 \
   --formato "Vinilo negro estándar" --eta "Diciembre 2026"
+
+# Sticker 2LP y envío sumado al precio mostrado
+venv/bin/python scripts/poc_mockup_lanzamiento.py 2 --demo --plantilla story \
+  --lps 2 --envio 12000
+
+# Envío aparte (no se suma al precio)
+venv/bin/python scripts/poc_mockup_lanzamiento.py 2 --demo --plantilla story \
+  --envio 12000 --envio-aparte
+
+# Forzar el título de la plantilla
+venv/bin/python scripts/poc_mockup_lanzamiento.py 2 --demo --plantilla story \
+  --preorden si
 
 # Mockup limpio tipo fotografía de producto
 venv/bin/python scripts/poc_mockup_lanzamiento.py 2 \
@@ -93,15 +113,18 @@ Los presets siguen siendo atajos curados para generar varias piezas de una vez. 
 - **Portada**: `Lanzamiento.i_lanzamiento` (por ejemplo, la imagen de Spotify). Si no existe, usa la primera foto de un producto. Si tampoco hay, genera una portada abstracta con las iniciales.
 - **Artista y álbum**: relaciones del lanzamiento.
 - **Precio y abono**: solo de un producto `VINILO` simple. Si el lanzamiento no tiene vinilo, la pieza muestra “Precio y reserva por confirmar”.
+- **Discos (`1LP`/`2LP`)**: se eligen en el panel o con `--lps`; si no, se detectan del nombre del producto (`2LP`, “doble”).
+- **Envío**: `--envio` o el campo del panel. Si `envio_incluido` está activo, se suma al precio que muestra la pieza; si no, la pastilla dice “envío aparte”.
 - **Fecha**: `f_lanzamiento`.
-- **Preorden**: `Lanzamiento.preorden` o `Producto.preorden`.
+- **Preorden**: `Lanzamiento.preorden` o `Producto.preorden`; se puede forzar desde el panel o con `--preorden si|no`.
 
 ## Límites de este POC
 
 - La pantalla del admin ya existe, pero todavía no guarda el mockup como `Imagen` ni lo asocia a un producto.
 - No hay historial de versiones: si regenerás con otro fondo, quedan los archivos anteriores en la carpeta.
-- Los colores y acabados son procedurales; si se necesita calidad fotográfica, el siguiente paso es usar texturas PNG/PSD propias o un servicio de mockups con una plantilla de vinilo.
-- La tarjeta está pensada para `1080 × 1350`. Falta la variante `1080 × 1920` para historias.
+- Los colores y acabados de los discos son procedurales; si se necesita calidad fotográfica, el siguiente paso es usar texturas PNG/PSD propias o un servicio de mockups con una plantilla de vinilo.
+- La story de pre-orden usa la plantilla oficial y el sticker extraído de la referencia; si se cambia el arte base, hay que volver a comparar contra la plantilla original. La story de venta sigue con el render dibujado.
+- La plantilla y el sticker son assets de marca: conviene revisarlos antes de publicarlos.
 - La portada se descarga en cada corrida; falta caché local.
 - Algunas portadas externas pueden traer marcas de agua de su fuente. Para producción hay que usar el arte original en buena calidad.
 
