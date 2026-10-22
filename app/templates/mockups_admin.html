@@ -1,5 +1,12 @@
-{% set tarjeta = archivos|selectattr('preventa')|list|first %}
+{% set preventa = archivos|selectattr('preventa')|list %}
 {% set mockups = archivos|rejectattr('preventa')|list %}
+{% macro vm_url(page, variant_id='') -%}
+{% if variant_id %}
+{{ url_for('dashboard.mockups_admin', release=selected.id, modo=modo_actual, fondo=fondo_actual, color=color_actual, efecto=efecto_actual, acentos=acentos_actuales|join(','), presets=presets_marcados|join(','), vm_q=vm.q, vm_page=page, vm_id=variant_id) }}#vinylmockup-local
+{% else %}
+{{ url_for('dashboard.mockups_admin', release=selected.id, modo=modo_actual, fondo=fondo_actual, color=color_actual, efecto=efecto_actual, acentos=acentos_actuales|join(','), presets=presets_marcados|join(','), vm_q=vm.q, vm_page=page) }}#vinylmockup-local
+{% endif %}
+{%- endmacro %}
 <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
     <div>
         <h1 class="h3 mb-1">Mockups de lanzamiento</h1>
@@ -33,24 +40,42 @@
             </select>
         </div>
         <div class="col-6 col-lg-2">
-            <label class="form-label small mb-1" for="mockup-fondo">Fondo</label>
-            <select class="form-select" id="mockup-fondo" name="fondo">
+            <label class="form-label small mb-1" for="mockup-plantilla">Plantilla</label>
+            <select class="form-select" id="mockup-plantilla" name="plantilla">
+                <option value="ficha" {{ 'selected' if plantilla_actual == 'ficha' }}>Ficha 1080×1350</option>
+                <option value="story" {{ 'selected' if plantilla_actual == 'story' }}>Story 1080×1920</option>
+            </select>
+        </div>
+        <div class="col-6 col-lg-2">
+            <label class="form-label small mb-1" for="mockup-fondo">Fondo</label>            <select class="form-select" id="mockup-fondo" name="fondo">
                 <option value="claro" {{ 'selected' if fondo_actual == 'claro' }}>Claro / catálogo</option>
                 <option value="estudio" {{ 'selected' if fondo_actual == 'estudio' }}>Estudio oscuro</option>
             </select>
         </div>
-        <div class="col-6 col-lg-4">
+        <div class="col-12 col-lg-2">
+            <a class="btn btn-sm btn-outline-secondary w-100 text-start" href="#fallback-estilos"
+               title="Estilos rápidos del renderer propio (fallback)">
+                <i class="bi bi-gear me-1"></i>Fallback
+            </a>
+        </div>
+    </div>
+
+    <details class="mt-3" id="fallback-estilos">
+        <summary class="small text-body-secondary">
+            Fallback: estilos propios del renderer
+            <span class="text-body-secondary">(34 colores · 9 acabados · sin imágenes de VinylMockup)</span>
+        </summary>
+        <div class="mt-3">
             <div class="form-label small mb-1">Qué querés generar</div>
-            <div class="btn-group w-100" role="group" aria-label="Modo de generación">
+            <div class="btn-group" role="group" aria-label="Modo de generación">
                 <input class="btn-check" type="radio" name="modo" id="modo-presets" value="presets" autocomplete="off" {{ 'checked' if modo_actual != 'personalizada' }}>
                 <label class="btn btn-sm btn-outline-secondary" for="modo-presets">Estilos rápidos</label>
                 <input class="btn-check" type="radio" name="modo" id="modo-personalizada" value="personalizada" autocomplete="off" {{ 'checked' if modo_actual == 'personalizada' }}>
                 <label class="btn btn-sm btn-outline-secondary" for="modo-personalizada">Variante personalizada</label>
             </div>
         </div>
-    </div>
 
-    <section class="mt-3" data-modo="presets">
+        <section class="mt-3" data-modo="presets">
         <div class="form-label small mb-2">Estilos de vinilo</div>
         <div class="d-flex flex-wrap gap-2">
             {% for clave, cfg in presets.items() %}
@@ -117,16 +142,18 @@
             <span class="small text-body-secondary">Vas a generar: <strong id="variante-nombre">{{ variante_actual.nombre }}</strong></span>
             <button class="btn btn-primary" type="submit"><i class="bi bi-magic me-1"></i>Generar variante</button>
         </div>
-    </section>
+        </section>
+    </div>
+    </details>
 
     {% if selected %}
     <details class="mt-3">
         <summary class="small text-body-secondary">Ajustar datos de la pieza de preventa</summary>
         <div class="row g-2 mt-2">
             <div class="col-12 col-sm-6 col-lg-3">
-                <label class="form-label small mb-1" for="mockup-precio">Precio</label>
+                <label class="form-label small mb-1" for="mockup-precio">Precio (sin envío)</label>
                 <input class="form-control form-control-sm" id="mockup-precio" type="number" name="precio" min="0" step="1000"
-                       value="{{ datos.precio|int if datos.precio is not none else '' }}" placeholder="El del vinilo">
+                       value="{{ datos.precio_base|int if datos.precio_base is not none else '' }}" placeholder="El del vinilo">
             </div>
             <div class="col-12 col-sm-6 col-lg-3">
                 <label class="form-label small mb-1" for="mockup-abono">Reserva / abono</label>
@@ -142,6 +169,35 @@
                 <label class="form-label small mb-1" for="mockup-eta">Llegada estimada</label>
                 <input class="form-control form-control-sm" id="mockup-eta" type="text" name="eta"
                        value="{{ datos.eta or '' }}" placeholder="Diciembre 2026">
+            </div>
+            <div class="col-12 col-sm-6 col-lg-3">
+                <label class="form-label small mb-1" for="mockup-preorden">Título</label>
+                <select class="form-select form-select-sm" id="mockup-preorden" name="preorden">
+                    <option value="auto" {{ 'selected' if preorden_actual == 'auto' }}>Automático</option>
+                    <option value="si" {{ 'selected' if preorden_actual == 'si' }}>Pre-orden</option>
+                    <option value="no" {{ 'selected' if preorden_actual == 'no' }}>A la venta</option>
+                </select>
+            </div>
+            <div class="col-12 col-sm-6 col-lg-3">
+                <label class="form-label small mb-1" for="mockup-lps">Discos (sticker)</label>
+                <select class="form-select form-select-sm" id="mockup-lps" name="lps">
+                    <option value="1" {{ 'selected' if datos.lps == 1 }}>1LP</option>
+                    <option value="2" {{ 'selected' if datos.lps == 2 }}>2LP</option>
+                </select>
+            </div>
+            <div class="col-12 col-sm-6 col-lg-3">
+                <label class="form-label small mb-1" for="mockup-envio">Envío</label>
+                <input class="form-control form-control-sm" id="mockup-envio" type="number" name="envio" min="0" step="1000"
+                       value="{{ datos.envio|int if datos.envio is not none else '' }}" placeholder="Costo de envío">
+            </div>
+            <div class="col-12 col-sm-6 col-lg-6 d-flex align-items-end">
+                <div class="form-check mb-1">
+                    <input class="form-check-input" id="mockup-envio-incluido" type="checkbox" name="envio_incluido" value="1"
+                           {{ 'checked' if datos.envio_incluido }}>
+                    <label class="form-check-label small" for="mockup-envio-incluido">
+                        Sumar el envío al precio de la pieza (si no, se muestra aparte)
+                    </label>
+                </div>
             </div>
         </div>
         <p class="small text-body-secondary mb-0 mt-2">
@@ -185,39 +241,188 @@
     </div>
 </div>
 
-{% if archivos %}
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-    <h2 class="h5 mb-0">Piezas generadas</h2>
-    <span class="small text-body-secondary">Hacé clic en una imagen para abrirla en tamaño completo.</span>
-</div>
-<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3">
-    {% for a in mockups %}
-    <div class="col">
-        <div class="mb-panel p-2 h-100">
-            <a href="{{ a.url }}" target="_blank" class="d-block rounded overflow-hidden bg-body-tertiary mb-2">
-                <img src="{{ a.url }}" alt="{{ a.etiqueta }}" loading="lazy" class="w-100 d-block">
-            </a>
-            <div class="d-flex justify-content-between align-items-center gap-2 px-1 pb-1">
-                <span class="small text-body-secondary text-truncate" title="{{ a.nombre }}">{{ a.etiqueta }}</span>
-                <a class="btn btn-sm btn-outline-secondary flex-shrink-0" href="{{ a.url }}" download title="Descargar"><i class="bi bi-download"></i></a>
+{% if vm.activo %}
+<section class="mb-panel p-3 mb-3" id="vinylmockup-local">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+        <div>
+            <h2 class="h5 mb-1">Estilo de vinilo · VinylMockup <span class="badge text-bg-warning">solo local</span></h2>
+            <p class="small text-body-secondary mb-0">Con el lanzamiento elegido arriba, buscá el estilo del vinilo y generá la pieza. El fallback de estilos propios queda en el acordeón del formulario.</p>
+        </div>
+        <span class="badge text-bg-light border fw-normal">{{ vm.total }} variante{{ '' if vm.total == 1 else 's' }} en catálogo</span>
+    </div>
+    <div class="alert alert-warning small py-2 mb-3">
+        <i class="bi bi-exclamation-triangle me-1"></i>
+        Imágenes de VinylMockup y de las plantas de prensado. Es una prueba local: no usar en producción sin licencia.
+    </div>
+
+    <div class="row g-3 align-items-end" data-vm-buscador
+         data-sugerencias-tpl="{{ url_for('dashboard.mockups_vm_sugerencias') }}"
+         data-usar-tpl="{{ url_for('dashboard.mockups_vm_usar', variant_id='__ID__') }}">
+        <div class="col-12 col-lg-7 position-relative">
+            <label class="form-label small mb-1" for="vm-q">Estilo del vinilo (color, acabado o prensa)</label>
+            <input class="form-control" id="vm-q" autocomplete="off" value="{{ vm.q }}"
+                   placeholder="splatter, marble, clear, 2 color… al escribir aparecen sugerencias con miniatura">
+            <div class="list-group position-absolute shadow mt-1 w-100" id="vm-sugerencias"
+                 style="z-index: 20; display: none"></div>
+        </div>
+        <div class="col-12 col-lg-5">
+            <div id="vm-seleccion" class="d-flex align-items-center gap-3 p-2 rounded border"
+                 style="min-height: 128px">
+                {% if vm.variante %}
+                <img src="{{ vm.variante.image_url }}" alt="" width="120" height="120" loading="lazy"
+                     class="rounded object-fit-cover flex-shrink-0" referrerpolicy="no-referrer">
+                <div class="min-w-0">
+                    <div class="small fw-semibold">{{ vm.variante.name }}</div>
+                    <div class="small text-body-secondary">{{ vm.variante.press_name }}</div>
+                </div>
+                {% else %}
+                <span class="small text-body-secondary">Todavía no elegiste una variante. Escribí en la búsqueda y tocá la sugerencia.</span>
+                {% endif %}
             </div>
+            {% if vm.variante %}
+            <a id="vm-usar" class="btn btn-primary mt-2" data-variant-id="{{ vm.variante.id }}"
+               href="{{ url_for('dashboard.mockups_vm_usar', variant_id=vm.variante.id, release=selected.id, fondo=fondo_actual, plantilla=plantilla_actual, preorden=preorden_actual) }}">
+                <i class="bi bi-check2-circle me-1"></i>Usar en la plantilla
+            </a>
+            {% else %}
+            <a id="vm-usar" class="btn btn-primary disabled mt-2" href="#">
+                <i class="bi bi-check2-circle me-1"></i>Usar en la plantilla
+            </a>
+            {% endif %}
         </div>
     </div>
-    {% endfor %}
-    {% if tarjeta %}
-    <div class="col">
-        <div class="mb-panel p-2 h-100">
-            <a href="{{ tarjeta.url }}" target="_blank" class="d-block rounded overflow-hidden bg-body-tertiary mb-2">
-                <img src="{{ tarjeta.url }}" alt="{{ tarjeta.etiqueta }}" loading="lazy" class="w-100 d-block">
+
+    {% if vm.error %}
+    <div class="alert alert-danger small mt-3 mb-0">{{ vm.error }}</div>
+    {% endif %}
+
+    <details class="mt-4" {{ 'open' if (vm.q or vm.variante or vm.error) }}>
+        <summary class="small text-body-secondary">Explorar todo el catálogo (búsqueda literal, 20 por página)</summary>
+        <div class="mt-3">
+    <div class="small text-body-secondary mb-2">
+        Catálogo actual{% if vm.q %} · “{{ vm.q }}”
+        <a class="text-decoration-none" href="{{ url_for('dashboard.mockups_admin', release=selected.id, modo=modo_actual) }}#vinylmockup-local">(limpiar búsqueda)</a>{% endif %}
+        · 20 por página
+    </div>
+
+    {% if vm.error %}
+    <div class="alert alert-danger small mt-3 mb-0">{{ vm.error }}</div>
+    {% endif %}
+
+    {% if vm.variante %}
+    <div class="row g-3 align-items-center mt-1 mb-3">
+        <div class="col-12 col-md-4 col-xl-3">
+            <a href="{{ vm.variante.image_url }}" target="_blank" class="d-block rounded overflow-hidden bg-body-tertiary">
+                <img src="{{ vm.variante.image_url }}" alt="{{ vm.variante.name }}" class="w-100 d-block" loading="lazy" referrerpolicy="no-referrer">
             </a>
-            <div class="d-flex justify-content-between align-items-center gap-2 px-1 pb-1">
-                <span class="small text-body-secondary text-truncate">Pieza de preventa</span>
-                <a class="btn btn-sm btn-outline-secondary flex-shrink-0" href="{{ tarjeta.url }}" download title="Descargar"><i class="bi bi-download"></i></a>
+        </div>
+        <div class="col-12 col-md-8 col-xl-9">
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                <h3 class="h5 mb-0">{{ vm.variante.name }}</h3>
+                <span class="badge text-bg-light border fw-normal">{{ vm.variante.press_name }}</span>
+            </div>
+            <dl class="row small mb-2">
+                <dt class="col-sm-3">Tipo</dt><dd class="col-sm-9">{{ vm.variante.type or '—' }}</dd>
+                <dt class="col-sm-3">Estilo</dt><dd class="col-sm-9">{{ vm.variante.style or '—' }}</dd>
+                <dt class="col-sm-3">Colores</dt><dd class="col-sm-9">{{ vm.variante.colors|join(', ') or '—' }}</dd>
+                <dt class="col-sm-3">Imagen</dt><dd class="col-sm-9">{{ vm.variante.image_width }}×{{ vm.variante.image_height }} · {{ ((vm.variante.image_bytes or 0) / 1024)|round|int }} KB</dd>
+                <dt class="col-sm-3">Prensa ID</dt><dd class="col-sm-9"><code>{{ vm.variante.press_id }}</code></dd>
+            </dl>
+            <div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-sm btn-primary" href="{{ url_for('dashboard.mockups_vm_usar', variant_id=vm.variante.id, release=selected.id, fondo=fondo_actual, plantilla=plantilla_actual, preorden=preorden_actual) }}"><i class="bi bi-check2-circle me-1"></i>Usar en la plantilla</a>
+                <a class="btn btn-sm btn-outline-primary" href="{{ vm.variante.page_url }}" target="_blank"><i class="bi bi-box-arrow-up-right me-1"></i>Abrir en VinylMockup</a>
+                <a class="btn btn-sm btn-outline-secondary" href="{{ vm.variante.image_url }}" target="_blank">Ver imagen</a>
+                <a class="btn btn-sm btn-outline-secondary" href="{{ vm_url(vm.page) }}">Cerrar</a>
             </div>
         </div>
     </div>
     {% endif %}
+
+    {% if vm.resultados %}
+    <div class="row row-cols-2 row-cols-md-3 row-cols-xl-5 g-2 mt-2">
+        {% for v in vm.resultados %}
+        <div class="col">
+            <a class="d-block text-decoration-none" href="{{ vm_url(vm.page, v.id) }}">
+                <div class="p-2 rounded border {{ 'border-warning' if vm.variante and vm.variante.id == v.id else '' }}">
+                    <div class="ratio ratio-1x1 bg-body-tertiary rounded overflow-hidden mb-2">
+                        <img src="{{ v.thumb_url }}" alt="{{ v.name }}" loading="lazy" class="w-100 h-100 object-fit-cover" referrerpolicy="no-referrer">
+                    </div>
+                    <div class="small fw-semibold text-truncate" title="{{ v.name }}">{{ v.name }}</div>
+                    <div class="small text-body-secondary text-truncate" title="{{ v.press_name }}">{{ v.press_name }}</div>
+                </div>
+            </a>
+            <a class="btn btn-sm btn-primary w-100 mt-1"
+               href="{{ url_for('dashboard.mockups_vm_usar', variant_id=v.id, release=selected.id, fondo=fondo_actual, plantilla=plantilla_actual, preorden=preorden_actual, vm_q=vm.q, vm_page=vm.page) }}"
+               title="Generar la pieza del lanzamiento con esta variante (solo local)">
+                <i class="bi bi-check2-circle me-1"></i>Usar en la plantilla
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
+        <span class="small text-body-secondary">Página {{ vm.page }}{% if vm.total %} · {{ vm.total }} variantes{% endif %}</span>
+        <div class="d-flex gap-2">
+            {% if vm.page > 1 %}<a class="btn btn-sm btn-outline-secondary" href="{{ vm_url(vm.page - 1) }}"><i class="bi bi-arrow-left me-1"></i>Anterior</a>{% endif %}
+            {% if vm.has_next %}<a class="btn btn-sm btn-outline-secondary" href="{{ vm_url(vm.page + 1) }}">Siguiente<i class="bi bi-arrow-right ms-1"></i></a>{% endif %}
+        </div>
+    </div>
+    {% elif not vm.error %}
+    <p class="small text-body-secondary mt-3 mb-0">No hay variantes para esa búsqueda. Probá con “clear”, “splatter” o “marble”.</p>
+    {% endif %}
+        </div>
+    </details>
+</section>
+{% endif %}
+
+{% macro pieza_card(a, destacada=false) %}
+<div class="col">
+    <div class="mb-panel p-2 h-100">
+        <div class="d-flex justify-content-between align-items-center gap-2 mb-2 px-1">
+            <span class="badge text-bg-light border fw-normal">{{ a.tipo }}</span>
+            {% if destacada %}<span class="badge text-bg-success">Recién generada</span>{% endif %}
+        </div>
+        <a href="{{ a.url }}" target="_blank" class="d-block rounded overflow-hidden bg-body-tertiary mb-2">
+            <img src="{{ a.url }}" alt="{{ a.etiqueta }}" loading="lazy" class="w-100 d-block">
+        </a>
+        <div class="d-flex justify-content-between align-items-center gap-2 px-1 pb-1">
+            <span class="small text-body-secondary text-truncate" title="{{ a.nombre }}">{{ a.etiqueta }}</span>
+            <span class="d-flex gap-1 flex-shrink-0">
+                <a class="btn btn-sm btn-outline-secondary" href="{{ a.url }}" download title="Descargar"><i class="bi bi-download"></i></a>
+                <form method="POST" action="{{ url_for('dashboard.mockup_archivo_borrar', release_id=selected.id, filename=a.nombre) }}"
+                      onsubmit="return confirm('¿Borrar {{ a.nombre }}?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-sm btn-outline-danger" type="submit" title="Borrar pieza"><i class="bi bi-trash"></i></button>
+                </form>
+            </span>
+        </div>
+    </div>
 </div>
+{% endmacro %}
+
+{% if archivos %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2" id="piezas-generadas"
+     style="scroll-margin-top: 90px">
+    <h2 class="h5 mb-0">Piezas generadas</h2>
+    <span class="small text-body-secondary">La más reciente primero. Hacé clic en una imagen para abrirla en tamaño completo.</span>
+</div>
+
+{% if preventa %}
+<h3 class="h6 text-body-secondary mb-2">Piezas de preventa</h3>
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3">
+    {% for a in preventa %}
+    {{ pieza_card(a, loop.first) }}
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if mockups %}
+<h3 class="h6 text-body-secondary mt-4 mb-2">Mockups</h3>
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3">
+    {% for a in mockups %}
+    {{ pieza_card(a) }}
+    {% endfor %}
+</div>
+{% endif %}
 {% else %}
 <div class="mb-panel mb-empty">
     <i class="bi bi-images"></i>
@@ -286,5 +491,136 @@
             boton.disabled = true;
             boton.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Generando…';
         });
+    })();
+
+    (function () {
+        var buscador = document.querySelector('[data-vm-buscador]');
+        if (!buscador) return;
+        var input = document.getElementById('vm-q');
+        var caja = document.getElementById('vm-sugerencias');
+        var seleccion = document.getElementById('vm-seleccion');
+        var usar = document.getElementById('vm-usar');
+        var release = document.getElementById('mockup-release');
+        var fondoSel = document.getElementById('mockup-fondo');
+        var plantillaSel = document.getElementById('mockup-plantilla');
+        var lpsSel = document.getElementById('mockup-lps');
+        var envioInput = document.getElementById('mockup-envio');
+        var envioIncluido = document.getElementById('mockup-envio-incluido');
+        var preordenSel = document.getElementById('mockup-preorden');
+        var precioInput = document.getElementById('mockup-precio');
+        var abonoInput = document.getElementById('mockup-abono');
+        var etaInput = document.getElementById('mockup-eta');
+        var timer = null;
+
+        function esc(texto) {
+            return (texto || '').replace(/[&<>"']/g, function (c) {
+                return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c];
+            });
+        }
+
+        function urlUsar(id) {
+            var params = new URLSearchParams();
+            if (release && release.value) params.set('release', release.value);
+            if (fondoSel && fondoSel.value) params.set('fondo', fondoSel.value);
+            if (plantillaSel && plantillaSel.value) params.set('plantilla', plantillaSel.value);
+            if (lpsSel) params.set('lps', lpsSel.value);
+            if (envioInput && envioInput.value) params.set('envio', envioInput.value);
+            params.set('envio_incluido', envioIncluido && envioIncluido.checked ? '1' : '0');
+            if (preordenSel && preordenSel.value !== 'auto') params.set('preorden', preordenSel.value);
+            if (precioInput && precioInput.value) params.set('precio', precioInput.value);
+            if (abonoInput && abonoInput.value) params.set('abono', abonoInput.value);
+            if (etaInput && etaInput.value) params.set('eta', etaInput.value);
+            return buscador.dataset.usarTpl.replace('__ID__', encodeURIComponent(id))
+                + '?' + params.toString();
+        }
+
+        if (usar && usar.dataset.variantId) {
+            usar.href = urlUsar(usar.dataset.variantId);
+        }
+
+        function actualizarUsar() {
+            if (usar && usar.dataset.variantId) {
+                usar.href = urlUsar(usar.dataset.variantId);
+            }
+        }
+
+        ['mockup-lps', 'mockup-envio', 'mockup-envio-incluido', 'mockup-preorden',
+         'mockup-precio', 'mockup-abono', 'mockup-eta', 'mockup-fondo',
+         'mockup-plantilla'].forEach(function (id) {
+            var campo = document.getElementById(id);
+            if (campo) campo.addEventListener('change', actualizarUsar);
+        });
+
+        function elegir(item) {
+            seleccion.innerHTML =
+                '<img src="' + item.thumb_url + '" alt="" width="120" height="120"'
+                + ' class="rounded object-fit-cover flex-shrink-0" referrerpolicy="no-referrer">'
+                + '<div class="min-w-0"><div class="small fw-semibold">' + esc(item.name) + '</div>'
+                + '<div class="small text-body-secondary">' + esc(item.press_name) + '</div></div>';
+            usar.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Usar en la plantilla';
+            usar.dataset.variantId = item.id;
+            usar.href = urlUsar(item.id);
+            usar.classList.remove('disabled');
+        }
+
+        function mostrar(items) {
+            if (!items.length) {
+                caja.innerHTML = '<span class="list-group-item small text-body-secondary py-2 px-2">Sin resultados para esa búsqueda.</span>';
+            } else {
+                caja.innerHTML = items.map(function (item) {
+                    return '<a href="#" class="list-group-item list-group-item-action'
+                        + ' d-flex align-items-center gap-2 py-2 px-2" data-id="' + item.id + '">'
+                        + '<img src="' + item.thumb_url + '" alt="" width="56" height="56"'
+                        + ' class="rounded object-fit-cover flex-shrink-0" referrerpolicy="no-referrer">'
+                        + '<span class="min-w-0">'
+                        + '<span class="small fw-semibold d-block text-truncate">' + esc(item.name) + '</span>'
+                        + '<span class="small text-body-secondary d-block text-truncate">' + esc(item.press_name) + '</span>'
+                        + '</span></a>';
+                }).join('');
+                caja.querySelectorAll('a[data-id]').forEach(function (a) {
+                    a.addEventListener('click', function (event) {
+                        event.preventDefault();
+                        var item = items.find(function (i) { return i.id === a.dataset.id; });
+                        if (item) elegir(item);
+                    });
+                });
+            }
+            caja.style.display = 'block';
+        }
+
+        function pedir(texto) {
+            var url = buscador.dataset.sugerenciasTpl + '?q=' + encodeURIComponent(texto);
+            fetch(url, { headers: { 'Accept': 'application/json' } })
+                .then(function (r) { return r.json(); })
+                .then(function (data) { mostrar(data.items || []); })
+                .catch(function () { caja.style.display = 'none'; });
+        }
+
+        input.addEventListener('input', function () {
+            clearTimeout(timer);
+            var texto = input.value.trim();
+            if (texto.length < 2) { caja.style.display = 'none'; return; }
+            timer = setTimeout(function () { pedir(texto); }, 350);
+        });
+        input.addEventListener('focus', function () {
+            if (input.value.trim().length >= 2) pedir(input.value.trim());
+        });
+        input.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') caja.style.display = 'none';
+        });
+        document.addEventListener('click', function (event) {
+            if (!buscador.contains(event.target)) caja.style.display = 'none';
+        });
+
+        // al cambiar el lanzamiento, se recarga la vista conservando el estado
+        if (release) {
+            release.addEventListener('change', function () {
+                var u = new URL(window.location.href);
+                u.searchParams.set('release', release.value);
+                u.searchParams.delete('vm_id');
+                window.location.href = u.pathname + '?' + u.searchParams.toString()
+                    + '#vinylmockup-local';
+            });
+        }
     })();
 </script>

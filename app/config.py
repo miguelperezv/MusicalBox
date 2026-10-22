@@ -65,6 +65,9 @@ class Config(object):
     TG_WEBHOOK_SECRET = os.getenv("TG_WEBHOOK_SECRET", "")  #opcional: candado extra del webhook del bot
     #URL base pública para callbacks de pagos (PSE, etc.); en local usa tunnel (ngrok, cloudflared)
     PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "")
+    #VinylMockup: catálogo interno de solo lectura para probar variantes en el panel.
+    #Apagado por defecto; en desarrollo se enciende solo si no se pide lo contrario.
+    VINYLMOCKUP_SPIKE = os.getenv("VINYLMOCKUP_SPIKE", "0").lower() in ("1", "true", "yes", "si", "sí")
 
 
 
@@ -81,6 +84,8 @@ class ProductionConfig(Config):
 class DevelopmentConfig(Config):
     DEBUG = True
     SIMULACION_PAGO = True
+    #catálogo interno de VinylMockup para ver variantes en el panel local
+    VINYLMOCKUP_SPIKE = os.getenv("VINYLMOCKUP_SPIKE", "1").lower() in ("1", "true", "yes", "si", "sí")
     #la clave secreta se toma del entorno (SECRET_KEY), igual que en producción: ver docs/DEPLOY_PYTHONANYWHERE.md
 
 
