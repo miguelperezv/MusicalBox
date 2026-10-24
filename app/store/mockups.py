@@ -37,8 +37,7 @@ FUENTE_TEXTO = RAIZ_APP / "static" / "fonts" / "Smooth-Circulars.otf"
 FUENTE_ITALICA = RAIZ_APP / "static" / "fonts" / "PlayfairDisplay-Italic-VF.ttf"
 FUENTE_SERIF = RAIZ_APP / "static" / "fonts" / "PlayfairDisplay-VF.ttf"
 
-# Plantilla oficial 9:16 (3126×5556) y sticker recortado de la misma referencia.
-# El sticker conserva tallo y vetas para que se lea como calabaza.
+# Plantilla oficial 9:16 (3126×5556) y sticker de vinilo troquelado.
 # La story de pre-orden se monta sobre esta base para no reinventar la geometría.
 BASE_STORY_PREORDEN = RAIZ_APP / "static" / "img" / "preventa_story_preorden.png"
 STICKER_STORY = RAIZ_APP / "static" / "img" / "preventa_sticker.png"
@@ -921,7 +920,7 @@ def _story_dibujada(portada: Image.Image, datos: dict, preset="negro",
           -90, 90, fill=ARCO, width=stroke)
     d.line((cover_r, cover_b, cover_r, cover_b + notch), fill=ARCO, width=stroke)
 
-    # ---- sticker de discos (1lp / 2lp), tipo calabaza
+    # ---- sticker de discos (1lp / 2lp)
     lps = max(1, int(datos.get("lps", 1)))
     st_r = int(C * 0.128)
     st_cx, st_cy = cover_r - int(C * 0.034), cover_y + int(C * 0.60)
@@ -1081,14 +1080,10 @@ def _story_plantilla(portada: Image.Image, datos: dict, preset="negro",
     # ---- sticker 1lp / 2lp
     lps = max(1, int(datos.get("lps", 1)))
     if STICKER_STORY.exists():
-        # El PNG incluye 20 px de tallo arriba de la calabaza. Se pega más
-        # arriba para que el cuerpo quede en la misma posición de siempre y el
-        # tallo sobresalga sobre el disco.
-        tallo = 20
         with Image.open(STICKER_STORY) as sticker_img:
             sticker = sticker_img.convert("RGBA").resize(
-                (s(162), s(157 + tallo)), Image.Resampling.LANCZOS)
-        lienzo.alpha_composite(sticker, (s(684), s(601 - tallo)))
+                (s(162), s(162)), Image.Resampling.LANCZOS)
+        lienzo.alpha_composite(sticker, (s(684), s(599)))
         d = ImageDraw.Draw(lienzo)
         d.text((s(765), s(680)), f"{lps}lp",
                font=_fuente(FUENTE_TITULO, s(38)),
