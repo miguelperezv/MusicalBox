@@ -25,6 +25,7 @@ from . import carrito
 from .imagenes import imagen_producto
 from .redes import seleccion_para_inicio, leer_url
 from .secciones import SECCIONES, seccion_de, habilitada, mensaje_pronto, estado_secciones, guardar_secciones
+from .preview import spotify_destacado
 from ..db import db
 from ..limiter import limiter
 from .notificaciones import correo_activacion, usuario_de_token
@@ -82,7 +83,7 @@ def before_request():
         pronto_titulo, pronto_mensaje = mensaje_pronto()
         return render_template("proximamente.html", seccion_nombre=SECCIONES[slug]["nombre"],
                                portadas=portadas, pronto_titulo=pronto_titulo,
-                               pronto_mensaje=pronto_mensaje), 200
+                               pronto_mensaje=pronto_mensaje, spotify=spotify_destacado()), 200
 
     # Track page views automatically for analytics
     # Skip tracking for static files, favicons, and certain endpoints
