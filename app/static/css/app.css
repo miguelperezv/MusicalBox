@@ -870,6 +870,14 @@ body.mb-tema-amor_amistad .hero-meta .hero-artist { color: #a4486b; }
 .mb-paso-actual .mb-paso-marca { border-color: var(--bs-primary); color: var(--bs-primary); }
 .mb-paso-pendiente { color: var(--bs-secondary-color); }
 
+/* ---------- pedido a la medida (ver app/templates/solicitud.html) ---------- */
+.mb-solicitud-hero {
+    background: linear-gradient(180deg, #e8f5f9 0%, #f6fbfc 55%, var(--mb-surface) 100%);
+    border-bottom: 1px solid rgba(15, 28, 36, .06);
+}
+.mb-solicitud-hero h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); line-height: 1.05; }
+.mb-solicitud-pasos li { display: flex; gap: .75rem; align-items: flex-start; margin-bottom: .65rem; }
+
 /* ---------- página "Pronto" de una sección apagada (ver app/templates/proximamente.html) ---------- */
 .mb-pronto {
     position: relative; overflow: hidden; background: var(--mb-ink);

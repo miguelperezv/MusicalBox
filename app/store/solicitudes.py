@@ -5,7 +5,7 @@ from urllib.parse import quote
 from flask import Blueprint, flash, request, g, render_template, redirect, url_for, jsonify, abort, session
 from .models import (create_solicitud, get_all_solicitudes, update_estado_solicitud, get_catalogo_solicitud, get_product_by_id,
                      cotizar_solicitud, get_solicitud_por_token, datos_envio_previos,
-                     items_efectivos, get_categorias, get_all_releases, buscar_o_crear_lanzamiento,
+                     items_efectivos, get_all_releases, buscar_o_crear_lanzamiento,
                      buscar_o_crear_lanzamiento_spotify,
                      ESTADOS_SOLICITUD, Solicitud, SolicitudItem, Lanzamiento)
 from .services.user_service import get_usuario_por_email
@@ -34,6 +34,9 @@ solicitud = Blueprint('solicitud', __name__, url_prefix='/solicitud')
 solicitud.before_request(before_request)
 
 _ITEM_RE = re.compile(r"^items\[(\d+)\]\[(\w+)\]$")
+
+#solo estos formatos se piden a la medida; el valor es el código que ya usa el catálogo/envío
+FORMATOS_SOLICITUD = [("VINILO", "Vinilo"), ("CD", "CD"), ("CASSETTE", "Casete")]
 
 
 def _items_del_formulario():
@@ -89,7 +92,7 @@ def nueva():
     elif request.method == 'POST':
         flash("Revisa los campos del formulario", "warning")
 
-    return render_template('solicitud.html', form=form, categorias=(get_categorias() or []) + ['OTRO'])
+    return render_template('solicitud.html', form=form, formatos=FORMATOS_SOLICITUD)
 
 
 @solicitud.route("/recibida")

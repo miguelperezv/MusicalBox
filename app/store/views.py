@@ -579,10 +579,6 @@ def buscar_admin():
     return render_seccion("admin_buscar.html", q=q, pedidos=pedidos, productos=productos,
                           clientes=clientes, solicitudes=solicitudes, stock_disponible=stock_disponible)
 
-LOCALIDADES_BOGOTA = ["Usaquén", "Chapinero", "Santa Fe", "San Cristóbal", "Usme", "Tunjuelito", "Bosa", "Kennedy",
-    "Fontibón", "Engativá", "Suba", "Barrios Unidos", "Teusaquillo", "Los Mártires", "Antonio Nariño", "Puente Aranda",
-    "La Candelaria", "Rafael Uribe Uribe", "Ciudad Bolívar", "Sumapaz"]
-
 @home.route("/politica-envios")
 def politica_envios():
     #informacion publica de envios: costos, tiempos y promociones de envio gratis (reglas activas en vivo)
@@ -612,11 +608,12 @@ def privacidad():
 
 @home.route("/colombia", methods=["GET"])
 def colombia():
-    #municipios DIVIPOLA (datos.gov.co gdxc-w37w) guardados en static/data; Bogotá se reemplaza por sus localidades (del manager)
+    #municipios DIVIPOLA (datos.gov.co gdxc-w37w) guardados en static/data; Bogotá es un solo municipio
+    #(sin localidades: el envío se cotiza por municipio, no por localidad)
     with current_app.open_resource("static/data/municipios_colombia.json") as f:
         municipios = set(json.load(f))
     municipios.discard("Bogotá, D.C., Bogotá, D.C.")
-    municipios.update(l + ", Bogotá D.C." for l in LOCALIDADES_BOGOTA)
+    municipios.add("Bogotá D.C.")
     return jsonify(sorted(municipios))
 
 

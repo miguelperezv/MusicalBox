@@ -141,7 +141,7 @@ class RegistroSolicitudForm(FlaskForm):
     #contacto de la solicitud; los ítems (uno o más) se parsean en la vista desde items[N][...]
     celular = StringField('Celular (WhatsApp)', validators=[DataRequired(message="Déjanos tu celular"), Length(max=20)])
     email = EmailField('Correo', validators=[Optional(), Length(max=100), Regexp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", message="Revisa el correo")])
-    ciudad = StringField('Municipio / ciudad (opcional)', validators=[Optional(), Length(max=80)], filters=[_limpiar])
+    ciudad = StringField('Municipio / ciudad', validators=[DataRequired(message="Escribe tu municipio"), Length(max=80)], filters=[_limpiar])
 
 
 class CheckoutForm(FlaskForm):

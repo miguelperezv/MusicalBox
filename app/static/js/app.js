@@ -60,6 +60,7 @@ function mbAutocomplete(root) {
 
         var cache = null, timer = null, activo = -1, silencio = false, seq = 0, filaOps = [];
         var remoteUrl = input.getAttribute('data-remote') || '';
+        var vacio = input.getAttribute('data-ac-vacio') || 'Sin coincidencias';
         var csrfMeta = document.querySelector('meta[name="csrf-token"]');
         var csrf = csrfMeta ? csrfMeta.getAttribute('content') : '';
 
@@ -182,7 +183,7 @@ function mbAutocomplete(root) {
                 } else if (!listo) {
                     lista.innerHTML = '<div class="mb-ac-vacio">Buscando…</div>';
                 } else {
-                    lista.innerHTML = '<div class="mb-ac-vacio">' + (remoteUrl ? 'Buscando…' : 'Sin coincidencias') + '</div>';
+                    lista.innerHTML = '<div class="mb-ac-vacio">' + (remoteUrl ? 'Buscando…' : escapar(vacio)) + '</div>';
                 }
                 lista.style.display = 'block';
                 activo = -1;
@@ -198,7 +199,7 @@ function mbAutocomplete(root) {
                             }
                             var items = (d.items || []).slice(0, 6);
                             if (!items.length) {
-                                if (espera && !filaOps.length) espera.textContent = 'Sin coincidencias';
+                                if (espera && !filaOps.length) espera.textContent = vacio;
                                 return;
                             }
                             if (espera) espera.remove();
