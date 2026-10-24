@@ -25,7 +25,7 @@ from . import carrito
 from .imagenes import imagen_producto
 from .redes import seleccion_para_inicio, leer_url
 from .secciones import SECCIONES, seccion_de, habilitada, mensaje_pronto, estado_secciones, guardar_secciones
-from .preview import cancion_destacada
+from .preview import cancion_destacada, repertorio
 from ..db import db
 from ..limiter import limiter
 from .notificaciones import correo_activacion, usuario_de_token
@@ -641,10 +641,10 @@ def secciones_guardar():
 
 @dashboard.route("/preview/refrescar", methods=["POST"])
 def preview_refrescar():
-    #vuelve a elegir el adelanto (salta la caché de una semana) para probar el reproductor
-    datos = cancion_destacada(saltar_cache=True)
-    if datos:
-        flash(f"Adelanto elegido: {datos['titulo']} · {datos['artista']}", "success")
+    #vuelve a armar el repertorio (salta la caché de una semana) para probar el reproductor
+    temas = repertorio(saltar_cache=True)
+    if temas:
+        flash(f"Repertorio actualizado: {len(temas)} temas (se elige uno al azar en cada visita).", "success")
     else:
         flash("No se encontró un adelanto para los lanzamientos con Spotify.", "warning")
     return redirect(url_for("dashboard.secciones_admin"))

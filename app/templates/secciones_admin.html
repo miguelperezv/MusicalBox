@@ -39,12 +39,13 @@
 
 <div class="mb-panel mb-4" style="max-width: 760px">
     <h2 class="h6 mb-2">Adelanto musical</h2>
-    <p class="small text-body-secondary mb-3">La página “Pronto” intenta reproducir sola un adelanto
-       de 30 s de <strong>la canción más popular</strong> de tus lanzamientos con Spotify. Si cambiaste
-       lanzamientos o querés otra elección, volvé a elegirla.</p>
+    <p class="small text-body-secondary mb-3">La página “Pronto” reproduce sola un adelanto de 30 s
+       de un tema <strong>al azar entre los 10 más populares</strong> de tus lanzamientos con Spotify
+       (la popularidad y el audio salen de Deezer; Spotify ya no los expone). Si cambiaste lanzamientos,
+       volvé a armar el repertorio.</p>
     <form method="POST" action="{{ url_for('dashboard.preview_refrescar') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button class="btn btn-outline-dark btn-sm"><i class="bi bi-arrow-repeat me-1"></i>Volver a elegir el adelanto</button>
+        <button class="btn btn-outline-dark btn-sm"><i class="bi bi-arrow-repeat me-1"></i>Volver a armar el repertorio</button>
     </form>
 </div>
 
