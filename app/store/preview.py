@@ -84,8 +84,9 @@ def _deezer_url_fresca(deezer_id):
 
 
 def _armar_repertorio():
-    #un mismo álbum de Deezer puede salir por varios lanzamientos: se deja una vez por tema
-    vistos = {}
+    #un repertorio variado: se agrupa por álbum y se reparte (round-robin) para que no salgan
+    #ocho temas del mismo disco; dentro de cada álbum van ordenados por popularidad (rank)
+    por_album = {}
     for card in get_releases_cards(orden='vendidos')[:_MAX_ALBUMES]:
         lanz = db.session.get(Lanzamiento, card['id'])
         ext = (lanz.external_id or '').strip() if lanz else ''
@@ -93,13 +94,35 @@ def _armar_repertorio():
             continue
         nombre, artista = card.get('nombre') or '', (card['artista'].n_artista if card.get('artista') else '')
         sp = _spotify_urls(nombre, artista)
+        grupo = por_album.setdefault((artista.lower(), nombre.lower()), [])
         for t in _deezer_temas(nombre, artista):
             t["spotify"] = sp.get(_norm(t["titulo"]), "")
-            previo = vistos.get(t["deezer_id"])
+            t["album"] = nombre
+            grupo.append(t)
+    #ordenar cada álbum por rank y deduplicar sus temas
+    grupos = []
+    for grupo in por_album.values():
+        unicos = {}
+        for t in grupo:
+            previo = unicos.get(t["deezer_id"])
             if not previo or (t["spotify"] and not previo["spotify"]):
-                vistos[t["deezer_id"]] = t
-    temas = sorted(vistos.values(), key=lambda t: t["rank"], reverse=True)
-    return temas[:_TOP]
+                unicos[t["deezer_id"]] = t
+        ordenado = sorted(unicos.values(), key=lambda t: t["rank"], reverse=True)
+        if ordenado:
+            grupos.append(ordenado)
+    grupos.sort(key=lambda g: g[0]["rank"], reverse=True)
+    #round-robin entre álbumes, sin repetir temas
+    temas, ids = [], set()
+    i = 0
+    while len(temas) < _TOP and any(len(g) > i for g in grupos):
+        for g in grupos:
+            if len(g) > i and g[i]["deezer_id"] not in ids:
+                ids.add(g[i]["deezer_id"])
+                temas.append(g[i])
+                if len(temas) >= _TOP:
+                    break
+        i += 1
+    return temas
 
 
 def repertorio(saltar_cache=False):
