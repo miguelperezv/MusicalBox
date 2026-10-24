@@ -58,7 +58,10 @@ DEFAULTS = {'redes.activa': '0',
             'tema.modo': 'auto', 'tema.forzado': '',
             #datos del negocio para el schema.org Store del inicio (ver app/store/promocion.py);
             #vacíos = no se publica nada, no se inventa dirección ni teléfono
-            'negocio.telefono': '', 'negocio.direccion': '', 'negocio.ciudad': 'Bogotá'}
+            'negocio.telefono': '', 'negocio.direccion': '', 'negocio.ciudad': 'Bogotá',
+            #página "Pronto" de las secciones apagadas (ver app/store/secciones.py)
+            'seccion.titulo': '¡Pronto!',
+            'seccion.mensaje': 'Estamos afinando los últimos detalles. Muy pronto podrás explorar todo el catálogo por aquí.'}
 _PATRONES = {
     'tiktok': re.compile(r"^https?://(www\.|m\.)?tiktok\.com/@[\w.\-]+/(video|photo)/(\d{8,25})"),
     'instagram': re.compile(r"^https?://(www\.)?instagram\.com/(p|reel|tv)/([\w\-]{5,40})"),

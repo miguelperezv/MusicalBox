@@ -24,6 +24,7 @@ from functools import wraps
 from . import carrito
 from .imagenes import imagen_producto
 from .redes import seleccion_para_inicio, leer_url
+from .secciones import SECCIONES, seccion_de, habilitada, mensaje_pronto, estado_secciones, guardar_secciones
 from ..db import db
 from ..limiter import limiter
 from .notificaciones import correo_activacion, usuario_de_token
@@ -67,7 +68,22 @@ def before_request():
             g.purchase = None
     
     g.datetime = datetime.datetime
-    
+
+    #interruptores de sección (ver app/store/secciones.py): al visitante le sale la página "Pronto"
+    #en lo apagado; el admin pasa siempre, así puede preparar la tienda sin abrirla del todo.
+    if not is_admin():
+        slug = seccion_de(request.endpoint)
+        if slug and not habilitada(slug):
+            if request.endpoint == 'home.sugerencias':
+                #es JSON para el autocompletado: sin catálogo no sugiere nada
+                return jsonify({"q": request.args.get("q", ""), "lanzamientos": [],
+                                "productos": [], "artistas": [], "ver_todos": ""})
+            portadas = [r.get("portada") for r in get_releases_cards(limit=12) if r.get("portada")]
+            pronto_titulo, pronto_mensaje = mensaje_pronto()
+            return render_template("proximamente.html", seccion_nombre=SECCIONES[slug]["nombre"],
+                                   portadas=portadas, pronto_titulo=pronto_titulo,
+                                   pronto_mensaje=pronto_mensaje), 200
+
     # Track page views automatically for analytics
     # Skip tracking for static files, favicons, and certain endpoints
     if (request.endpoint and 
@@ -285,22 +301,26 @@ def sitemap():
     #seo: paginas estables + catalogo completo
     import html
     from .models import Artista, Lanzamiento
+    #no se declaran las secciones apagadas: evita indexar páginas que hoy muestran "Pronto"
     entradas = [
         (url_for('home.index', _external=True), None),
-        (url_for('releases.home_releases', _external=True), None),
-        (url_for('products.home_products', _external=True), None),
         (url_for('solicitud.nueva', _external=True), None),
         (url_for('home.politica_envios', _external=True), None),
         (url_for('home.devoluciones', _external=True), None),
         (url_for('home.terminos', _external=True), None),
         (url_for('home.privacidad', _external=True), None),
     ]
-    for r in Lanzamiento.query.all():
-        entradas.append((url_for('releases.release', k_lanzamiento=r.id, _external=True), r.f_lanzamiento))
-    for pr in Producto.query.all():
-        entradas.append((url_for('products.detalle', k_producto=pr.id, _external=True), pr.f_producto))
-    for a in Artista.query.all():
-        entradas.append((url_for('artists.artist', k_artista=a.id, _external=True), None))
+    if habilitada('lanzamientos'):
+        entradas.append((url_for('releases.home_releases', _external=True), None))
+        for r in Lanzamiento.query.all():
+            entradas.append((url_for('releases.release', k_lanzamiento=r.id, _external=True), r.f_lanzamiento))
+    if habilitada('productos'):
+        entradas.append((url_for('products.home_products', _external=True), None))
+        for pr in Producto.query.all():
+            entradas.append((url_for('products.detalle', k_producto=pr.id, _external=True), pr.f_producto))
+    if habilitada('artistas'):
+        for a in Artista.query.all():
+            entradas.append((url_for('artists.artist', k_artista=a.id, _external=True), None))
     lineas = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
     for loc, ultimo in entradas:
         lastmod = f'<lastmod>{ultimo.isoformat()[:10]}</lastmod>' if ultimo else ''
@@ -594,6 +614,23 @@ def colombia():
 
 
 #routes del panel de administración
+
+@dashboard.route("/secciones")
+def secciones_admin():
+    #interruptores de qué partes de la tienda ve el público (ver app/store/secciones.py)
+    pronto_titulo, pronto_mensaje = mensaje_pronto()
+    return render_seccion("secciones_admin.html", secciones=estado_secciones(),
+                          pronto_titulo=pronto_titulo, pronto_mensaje=pronto_mensaje)
+
+
+@dashboard.route("/secciones/guardar", methods=["POST"])
+def secciones_guardar():
+    estados = {s: request.form.get(f"seccion.{s}") for s in SECCIONES}
+    guardar_secciones(estados, request.form.get("titulo"), request.form.get("mensaje"))
+    registrar_evento("ajuste.secciones", detalle="Actualizó las secciones abiertas de la tienda")
+    flash("Secciones actualizadas.", "success")
+    return redirect(url_for("dashboard.secciones_admin"))
+
 
 @dashboard.route("/export/ventas")
 def export_ventas():

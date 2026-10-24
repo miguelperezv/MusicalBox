@@ -1,0 +1,49 @@
+{# Interruptores de qué partes de la tienda ve el público (ver app/store/secciones.py).
+   El admin siempre ve todo; acá se decide qué ve el visitante. #}
+<h1 class="h3 mb-1">Secciones de la tienda</h1>
+<p class="text-body-secondary">Decide qué partes del sitio están abiertas al público. Lo que apagues
+   muestra una página <strong>“Pronto”</strong> al visitante, pero <strong>vos seguís viendo todo</strong>
+   normal (tienda y panel), para ir preparando sin abrir la tienda del todo.</p>
+
+<form class="mb-panel mb-4" style="max-width: 760px" method="POST" action="{{ url_for('dashboard.secciones_guardar') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <h2 class="h6 mb-3">Qué está abierto</h2>
+    {% for slug, nombre, icono, abierta in secciones %}
+    <div class="form-check form-switch mb-2">
+        <input class="form-check-input" type="checkbox" role="switch" id="sec-{{ slug }}"
+               name="seccion.{{ slug }}" value="1" {{ 'checked' if abierta }}>
+        <label class="form-check-label" for="sec-{{ slug }}">
+            <i class="bi {{ icono }} me-1"></i>{{ nombre }}
+            {% if abierta %}<span class="badge text-bg-success ms-2">Abierta</span>
+            {% else %}<span class="badge text-bg-warning ms-2">Pronto</span>{% endif %}
+        </label>
+    </div>
+    {% endfor %}
+
+    <hr>
+
+    <h2 class="h6 mb-3">Aviso “Pronto”</h2>
+    <div class="mb-3">
+        <label class="form-label small" for="pronto-titulo">Título</label>
+        <input class="form-control" id="pronto-titulo" name="titulo" maxlength="60" value="{{ pronto_titulo }}">
+    </div>
+    <div class="mb-3">
+        <label class="form-label small" for="pronto-mensaje">Mensaje</label>
+        <textarea class="form-control" id="pronto-mensaje" name="mensaje" rows="3" maxlength="300">{{ pronto_mensaje }}</textarea>
+        <div class="form-text">Es el texto que lee el visitante en las páginas apagadas.</div>
+    </div>
+
+    <button class="btn btn-primary">Guardar</button>
+</form>
+
+<div class="mb-panel" style="max-width: 760px">
+    <h2 class="h6 mb-3">Ver cómo queda</h2>
+    <p class="small text-body-secondary mb-3">Abrí una sección apagada en la tienda para ver la página
+       “Pronto” tal como la ve el público. Si estás como admin vas a ver el catálogo normal: probala en
+       una ventana de incógnito (sin sesión) para ver el aviso.</p>
+    <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-outline-dark btn-sm" href="{{ url_for('releases.home_releases') }}"><i class="bi bi-vinyl me-1"></i>Lanzamientos</a>
+        <a class="btn btn-outline-dark btn-sm" href="{{ url_for('products.home_products') }}"><i class="bi bi-bag me-1"></i>Productos</a>
+    </div>
+</div>

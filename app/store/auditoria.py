@@ -53,6 +53,7 @@ ACCIONES = {
     "ajuste.envios": ("Configuración de envíos", "truck", "secondary"),
     "ajuste.regla_envio": ("Regla de envío", "truck", "secondary"),
     "ajuste.redes": ("Redes en el inicio", "camera-reels", "secondary"),
+    "ajuste.secciones": ("Secciones de la tienda", "toggles", "secondary"),
     "ajuste.tema": ("Tema de temporada", "magic", "secondary"),
     "ajuste.negocio": ("Datos del negocio", "shop", "secondary"),
 

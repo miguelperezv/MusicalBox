@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{# Página "Pronto" de una sección apagada (ver app/store/secciones.py).
+   Conserva la barra de arriba y el pie de base.html; el centro cambia por el aviso. #}
+{% block title %}{{ pronto_titulo }} · {{ seccion_nombre }}{% endblock %}
+{% block head %}<meta name="robots" content="noindex, follow">{% endblock %}
+
+{% block contenido %}
+<section class="mb-pronto">
+    {# collage de portadas de fondo, difuminado #}
+    <div class="mb-pronto-collage" aria-hidden="true">
+        {% for p in portadas %}<span style="background-image:url('{{ p }}')"></span>{% endfor %}
+        {% if not portadas %}
+        {% for i in range(9) %}<span class="mb-pronto-vinilo"></span>{% endfor %}
+        {% endif %}
+    </div>
+    <div class="mb-pronto-velo" aria-hidden="true"></div>
+
+    <div class="container mb-pronto-contenido text-center">
+        <img class="mb-pronto-logo" src="{{ url_for('static', filename='imgs/musicalbox.png') }}"
+             alt="Musical Box" width="220" height="220">
+        <p class="mb-pronto-etiqueta"><i class="bi bi-vinyl me-1"></i>{{ seccion_nombre }}</p>
+        <h1 class="mb-pronto-titulo">{{ pronto_titulo }}</h1>
+        <p class="mb-pronto-mensaje">{{ pronto_mensaje }}</p>
+
+        <div class="d-flex flex-wrap gap-2 justify-content-center mt-4">
+            <a class="btn btn-accent btn-lg" href="{{ url_for('solicitud.nueva') }}">
+                <i class="bi bi-vinyl-fill me-1"></i>Pide tu disco
+            </a>
+            <a class="btn btn-outline-light btn-lg" href="{{ url_for('seguimiento.buscar') }}">
+                <i class="bi bi-box-seam me-1"></i>Encuentra tu pedido
+            </a>
+        </div>
+        <p class="mb-pronto-nota">
+            Mientras tanto puedes pedir tu disco a la medida o revisar el estado de tu pedido.
+        </p>
+    </div>
+</section>
+{% endblock %}

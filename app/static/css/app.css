@@ -870,6 +870,34 @@ body.mb-tema-amor_amistad .hero-meta .hero-artist { color: #a4486b; }
 .mb-paso-actual .mb-paso-marca { border-color: var(--bs-primary); color: var(--bs-primary); }
 .mb-paso-pendiente { color: var(--bs-secondary-color); }
 
+/* ---------- página "Pronto" de una sección apagada (ver app/templates/proximamente.html) ---------- */
+.mb-pronto {
+    position: relative; overflow: hidden; background: var(--mb-ink);
+    min-height: min(78vh, 720px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 4rem 0;
+}
+/* collage: mosaico de portadas al fondo, difuminado */
+.mb-pronto-collage {
+    position: absolute; inset: 0; display: grid;
+    grid-template-columns: repeat(6, 1fr); grid-auto-rows: 1fr;
+    filter: blur(14px) saturate(.85); transform: scale(1.15);
+    opacity: .5; pointer-events: none;
+}
+.mb-pronto-collage span { display: block; background-size: cover; background-position: center; }
+.mb-pronto-vinilo { background: radial-gradient(circle at center, var(--mb-ink-2) 18%, #0b141a 19%, #14222b 45%, #0b141a 46%); }
+/* velo oscuro: el texto tiene que leerse sobre el collage */
+.mb-pronto-velo {
+    position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse at center, rgba(15, 28, 36, .72) 0%, rgba(15, 28, 36, .9) 70%, var(--mb-ink) 100%);
+}
+.mb-pronto-contenido { position: relative; z-index: 1; color: #fff; max-width: 720px; }
+.mb-pronto-logo { width: clamp(130px, 26vw, 220px); height: auto; margin-bottom: 1.25rem; filter: drop-shadow(0 12px 40px rgba(0, 0, 0, .5)); }
+.mb-pronto-etiqueta { text-transform: uppercase; letter-spacing: .18em; font-size: .78rem; font-weight: 700; color: var(--mb-sky); margin-bottom: .5rem; }
+.mb-pronto-titulo { font-family: 'Smooth-Circulars', var(--bs-body-font-family); font-weight: 800; font-size: clamp(2.4rem, 8vw, 4.5rem); line-height: 1.02; color: var(--mb-yellow); margin-bottom: 1rem; }
+.mb-pronto-mensaje { font-size: clamp(1rem, 2.4vw, 1.2rem); color: #e7eef2; margin-bottom: 0; }
+.mb-pronto-nota { margin-top: 1.25rem; font-size: .85rem; color: var(--mb-muted); }
+
 /* ---------- menos movimiento: todo quieto y nítido ---------- */
 /* Va al final a propósito: por orden de cascada tienen que ir después de las reglas de
    animación que anula (si no, la regla base gana y la animación sigue corriendo). */
