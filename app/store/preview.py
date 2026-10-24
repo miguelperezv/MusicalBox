@@ -24,8 +24,9 @@ from .models import Lanzamiento, get_releases_cards
 
 _SPOTIFY_ID = re.compile(r"^[A-Za-z0-9]{22}$")
 _VIGENCIA = 7 * 24 * 3600  #el repertorio (no la URL, que dura 15 min)
-_MAX_ALBUMES = 8           #álbumes que se recorren para armar el repertorio
-_TOP = 10                  #temas que entran al sorteo
+_MAX_LANZAMIENTOS = 16     #tope de lanzamientos que se revisan para juntar álbumes distintos
+_ALBUMES = 10              #álbumes que entran al repertorio (los más populares)
+_POR_ALBUM = 2             #temas por álbum
 
 
 def _norm(texto):
@@ -84,10 +85,10 @@ def _deezer_url_fresca(deezer_id):
 
 
 def _armar_repertorio():
-    #un repertorio variado: se agrupa por álbum y se reparte (round-robin) para que no salgan
-    #ocho temas del mismo disco; dentro de cada álbum van ordenados por popularidad (rank)
+    #un repertorio de los álbumes más populares: hasta _ALBUMES álbumes, con hasta _POR_ALBUM
+    #temas cada uno (los más populares), repartidos para que no salgan todos del mismo disco
     por_album = {}
-    for card in get_releases_cards(orden='vendidos')[:_MAX_ALBUMES]:
+    for card in get_releases_cards(orden='vendidos')[:_MAX_LANZAMIENTOS]:
         lanz = db.session.get(Lanzamiento, card['id'])
         ext = (lanz.external_id or '').strip() if lanz else ''
         if not _SPOTIFY_ID.match(ext):
@@ -110,18 +111,24 @@ def _armar_repertorio():
         ordenado = sorted(unicos.values(), key=lambda t: t["rank"], reverse=True)
         if ordenado:
             grupos.append(ordenado)
+    #los álbumes más populares (por su tema más popular)
     grupos.sort(key=lambda g: g[0]["rank"], reverse=True)
-    #round-robin entre álbumes, sin repetir temas
-    temas, ids = [], set()
-    i = 0
-    while len(temas) < _TOP and any(len(g) > i for g in grupos):
+    #round-robin: un tema por álbum, luego el segundo, sin repetir temas y sin pasar de _ALBUMES álbumes
+    temas, ids, usados = [], set(), set()
+    for i in range(_POR_ALBUM):
         for g in grupos:
-            if len(g) > i and g[i]["deezer_id"] not in ids:
-                ids.add(g[i]["deezer_id"])
-                temas.append(g[i])
-                if len(temas) >= _TOP:
-                    break
-        i += 1
+            if len(g) <= i:
+                continue
+            t = g[i]
+            if t["deezer_id"] in ids:
+                continue  #ya apareció (un single puede mapear al mismo álbum): no ocupa cupo
+            clave = (t["album"], t["artista"])
+            if clave not in usados:
+                if len(usados) >= _ALBUMES:
+                    continue
+                usados.add(clave)
+            ids.add(t["deezer_id"])
+            temas.append(t)
     return temas
 
 
