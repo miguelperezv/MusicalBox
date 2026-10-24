@@ -16,13 +16,13 @@
                 <h1 class="mt-2 mb-3">Vinilos, CD's y cassettes <span class="hl">originales</span></h1>
                 <p class="lead mb-4">Importamos lanzamientos y ediciones que no llegan al país. Si buscas un disco y no lo tenemos, lo conseguimos por ti.</p>
                 <div class="d-flex flex-wrap gap-2">
-                    <a class="btn btn-accent btn-lg" href="{{ url_for('releases.home_releases') }}">Ver lanzamientos</a>
-                    <a class="btn btn-outline-dark btn-lg" href="{{ url_for('solicitud.nueva') }}">Pide tu disco</a>
+                    {% if ver_releases %}<a class="btn btn-accent btn-lg" href="{{ url_for('releases.home_releases') }}">Ver lanzamientos</a>{% endif %}
+                    <a class="btn {{ 'btn-outline-dark' if ver_releases else 'btn-accent' }} btn-lg" href="{{ url_for('solicitud.nueva') }}">Pide tu disco</a>
                 </div>
                 {% if user %}<p class="mt-4 mb-0 text-body-secondary">¡Hola de nuevo, {{ user['n_usuario'] }}! 👋</p>{% endif %}
             </div>
             <div class="col-lg-6">
-                {% if hero %}
+                {% if hero and ver_releases %}
                 <div class="mb-hero-art" id="heroArt">
                     {% include "_vinilo.html" %}
                     {% for r in hero %}
@@ -39,6 +39,9 @@
                     <span class="hero-artist">{{ hero[0].artista.n_artista|titulo if hero[0].artista else 'Lanzamiento' }}</span>
                     <span class="hero-album">{{ hero[0].nombre|titulo }}</span>
                 </a>
+                {% elif not ver_releases %}
+                {# sin catálogo: se muestra solo el vinilo de marca (sin portadas que lleven a las secciones apagadas) #}
+                <div class="mb-hero-art">{% include "_vinilo.html" %}</div>
                 {% endif %}
             </div>
         </div>
@@ -46,7 +49,7 @@
 </section>
 
 <div class="container">
-    {% if categorias %}
+    {% if ver_productos and categorias %}
     <nav class="mb-cat-chips mb-4 mb-lg-5" aria-label="Explorar por categoría">
         <a class="mb-chip-link" href="{{ url_for('products.home_products') }}">Todo</a>
         {% for valor, label in categorias %}
@@ -55,7 +58,7 @@
     </nav>
     {% endif %}
 
-    {% if productos %}
+    {% if ver_productos and productos %}
     <section class="mb-5">
         <div class="mb-section-title">
             <div><span class="mb-eyebrow">Tienda</span><h2>Productos</h2></div>
@@ -69,7 +72,7 @@
     </section>
     {% endif %}
 
-    {% if destacados %}
+    {% if ver_productos and destacados %}
     <section class="mb-5">
         <div class="mb-section-title">
             <div><span class="mb-eyebrow">Destacados</span><h2>{% if destacados_marca %}<span class="mb-brand-tag"><img src="{{ url_for('static', filename='imgs/musicalbox.png') }}" alt="" class="mb-brand-tag-logo">Original <span class="font-brand">musical box</span></span>{% else %}{{ destacados_titulo }}<i class="bi {{ destacados_icono }} mb-title-disc" aria-hidden="true"></i>{% endif %}</h2></div>
@@ -83,6 +86,7 @@
     </section>
     {% endif %}
 
+    {% if ver_releases %}
     <section class="mb-5">
         <div class="mb-section-title">
             <div>
@@ -104,6 +108,7 @@
         <div class="mb-empty"><i class="bi bi-vinyl"></i>Muy pronto tendremos lanzamientos.</div>
         {% endif %}
     </section>
+    {% endif %}
 
     {% if redes %}
     <section class="mb-5" id="redes">
