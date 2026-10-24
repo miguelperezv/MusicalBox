@@ -71,18 +71,18 @@ def before_request():
 
     #interruptores de sección (ver app/store/secciones.py): al visitante le sale la página "Pronto"
     #en lo apagado; el admin pasa siempre, así puede preparar la tienda sin abrirla del todo.
-    if not is_admin():
-        slug = seccion_de(request.endpoint)
-        if slug and not habilitada(slug):
-            if request.endpoint == 'home.sugerencias':
-                #es JSON para el autocompletado: sin catálogo no sugiere nada
-                return jsonify({"q": request.args.get("q", ""), "lanzamientos": [],
-                                "productos": [], "artistas": [], "ver_todos": ""})
-            portadas = [r.get("portada") for r in get_releases_cards(limit=12) if r.get("portada")]
-            pronto_titulo, pronto_mensaje = mensaje_pronto()
-            return render_template("proximamente.html", seccion_nombre=SECCIONES[slug]["nombre"],
-                                   portadas=portadas, pronto_titulo=pronto_titulo,
-                                   pronto_mensaje=pronto_mensaje), 200
+    #El admin previsualiza el "Pronto" con ?pronto=1 aunque la sección esté abierta.
+    slug = seccion_de(request.endpoint)
+    if slug and ((not habilitada(slug) and not is_admin()) or (is_admin() and request.args.get("pronto"))):
+        if request.endpoint == 'home.sugerencias':
+            #es JSON para el autocompletado: sin catálogo no sugiere nada
+            return jsonify({"q": request.args.get("q", ""), "lanzamientos": [],
+                            "productos": [], "artistas": [], "ver_todos": ""})
+        portadas = [r.get("portada") for r in get_releases_cards(limit=16) if r.get("portada")]
+        pronto_titulo, pronto_mensaje = mensaje_pronto()
+        return render_template("proximamente.html", seccion_nombre=SECCIONES[slug]["nombre"],
+                               portadas=portadas, pronto_titulo=pronto_titulo,
+                               pronto_mensaje=pronto_mensaje), 200
 
     # Track page views automatically for analytics
     # Skip tracking for static files, favicons, and certain endpoints

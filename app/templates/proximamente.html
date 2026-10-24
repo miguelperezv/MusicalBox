@@ -1,23 +1,34 @@
 {% extends "base.html" %}
 {# Página "Pronto" de una sección apagada (ver app/store/secciones.py).
-   Conserva la barra de arriba y el pie de base.html; el centro cambia por el aviso. #}
+   Conserva la barra de arriba y el pie de base.html; el centro es un mosaico de portadas
+   que se enciende y se apaga. El admin la previsualiza con ?pronto=1 aunque la sección esté abierta. #}
 {% block title %}{{ pronto_titulo }} · {{ seccion_nombre }}{% endblock %}
-{% block head %}<meta name="robots" content="noindex, follow">{% endblock %}
+{% block head %}
+<meta name="robots" content="noindex, follow">
+<link rel="preconnect" href="https://i.scdn.co">
+{% endblock %}
 
 {% block contenido %}
 <section class="mb-pronto">
-    {# collage de portadas de fondo, difuminado #}
-    <div class="mb-pronto-collage" aria-hidden="true">
-        {% for p in portadas %}<span style="background-image:url('{{ p }}')"></span>{% endfor %}
-        {% if not portadas %}
-        {% for i in range(9) %}<span class="mb-pronto-vinilo"></span>{% endfor %}
+    {# mosaico de portadas de fondo: 48 fichas; el JS las va cambiando de a una #}
+    <div class="mb-pronto-collage" data-covers='{{ portadas | tojson }}' aria-hidden="true">
+        {% if portadas %}
+            {% for i in range(48) %}
+            <span class="mb-pronto-ficha" style="background-image:url('{{ portadas[i % (portadas | length)] }}'); animation-delay:{{ (i * 0.41) % 7 }}s"></span>
+            {% endfor %}
+        {% else %}
+            {% for i in range(48) %}
+            <span class="mb-pronto-ficha mb-pronto-ficha-vinilo" style="animation-delay:{{ (i * 0.41) % 7 }}s"></span>
+            {% endfor %}
         {% endif %}
     </div>
     <div class="mb-pronto-velo" aria-hidden="true"></div>
 
     <div class="container mb-pronto-contenido text-center">
-        <img class="mb-pronto-logo" src="{{ url_for('static', filename='imgs/musicalbox.png') }}"
-             alt="Musical Box" width="220" height="220">
+        <div class="mb-pronto-logo-caja">
+            <img class="mb-pronto-logo" src="{{ url_for('static', filename='imgs/musicalbox.png') }}"
+                 alt="Musical Box" width="220" height="220">
+        </div>
         <p class="mb-pronto-etiqueta"><i class="bi bi-vinyl me-1"></i>{{ seccion_nombre }}</p>
         <h1 class="mb-pronto-titulo">{{ pronto_titulo }}</h1>
         <p class="mb-pronto-mensaje">{{ pronto_mensaje }}</p>
@@ -35,4 +46,32 @@
         </p>
     </div>
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+//el mosaico va cambiando de a una ficha: apaga (funde a negro), cambia el cover y la vuelve a encender
+(function () {
+    var cont = document.querySelector('.mb-pronto-collage');
+    if (!cont) return;
+    var covers = [];
+    try { covers = JSON.parse(cont.getAttribute('data-covers') || '[]'); } catch (e) { return; }
+    if (covers.length < 2) return;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var fichas = [].slice.call(cont.querySelectorAll('.mb-pronto-ficha'));
+    if (!fichas.length) return;
+    var azar = function (n) { return Math.floor(Math.random() * n); };
+    function cambia() {
+        var f = fichas[azar(fichas.length)];
+        var n = covers[azar(covers.length)];
+        f.classList.add('mb-pronto-ficha-off');
+        setTimeout(function () {
+            f.style.backgroundImage = 'url("' + n + '")';
+            f.classList.remove('mb-pronto-ficha-off');
+        }, 850);
+        setTimeout(cambia, 260 + Math.random() * 900);
+    }
+    cambia();
+})();
+</script>
 {% endblock %}

@@ -39,11 +39,11 @@
 
 <div class="mb-panel" style="max-width: 760px">
     <h2 class="h6 mb-3">Ver cómo queda</h2>
-    <p class="small text-body-secondary mb-3">Abrí una sección apagada en la tienda para ver la página
-       “Pronto” tal como la ve el público. Si estás como admin vas a ver el catálogo normal: probala en
-       una ventana de incógnito (sin sesión) para ver el aviso.</p>
+    <p class="small text-body-secondary mb-3">Abrí la vista previa tal como la ve el público (aunque la
+       sección esté abierta). Se abre en una pestaña nueva.</p>
     <div class="d-flex flex-wrap gap-2">
-        <a class="btn btn-outline-dark btn-sm" href="{{ url_for('releases.home_releases') }}"><i class="bi bi-vinyl me-1"></i>Lanzamientos</a>
-        <a class="btn btn-outline-dark btn-sm" href="{{ url_for('products.home_products') }}"><i class="bi bi-bag me-1"></i>Productos</a>
+        <a class="btn btn-outline-dark btn-sm" target="_blank" rel="noopener" href="{{ url_for('releases.home_releases') }}?pronto=1"><i class="bi bi-vinyl me-1"></i>Pronto · Lanzamientos</a>
+        <a class="btn btn-outline-dark btn-sm" target="_blank" rel="noopener" href="{{ url_for('products.home_products') }}?pronto=1"><i class="bi bi-bag me-1"></i>Pronto · Productos</a>
+        <a class="btn btn-outline-dark btn-sm" target="_blank" rel="noopener" href="{{ url_for('solicitud.nueva') }}"><i class="bi bi-check2-circle me-1"></i>Ver “Pide tu disco” (abierta)</a>
     </div>
 </div>

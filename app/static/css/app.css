@@ -873,30 +873,62 @@ body.mb-tema-amor_amistad .hero-meta .hero-artist { color: #a4486b; }
 /* ---------- página "Pronto" de una sección apagada (ver app/templates/proximamente.html) ---------- */
 .mb-pronto {
     position: relative; overflow: hidden; background: var(--mb-ink);
-    min-height: min(78vh, 720px);
+    min-height: min(88vh, 820px);
     display: flex; align-items: center; justify-content: center;
     padding: 4rem 0;
 }
-/* collage: mosaico de portadas al fondo, difuminado */
+/* mosaico de portadas que se llena a pantalla (las fichas se encienden y se apagan) */
 .mb-pronto-collage {
     position: absolute; inset: 0; display: grid;
-    grid-template-columns: repeat(6, 1fr); grid-auto-rows: 1fr;
-    filter: blur(14px) saturate(.85); transform: scale(1.15);
-    opacity: .5; pointer-events: none;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    grid-auto-rows: minmax(140px, 1fr);
+    gap: 7px; padding: 7px;
+    filter: blur(1.5px) saturate(1.05);
 }
-.mb-pronto-collage span { display: block; background-size: cover; background-position: center; }
-.mb-pronto-vinilo { background: radial-gradient(circle at center, var(--mb-ink-2) 18%, #0b141a 19%, #14222b 45%, #0b141a 46%); }
-/* velo oscuro: el texto tiene que leerse sobre el collage */
+.mb-pronto-ficha {
+    display: block; background-size: cover; background-position: center; border-radius: 8px;
+    opacity: .7;                                  /* el latido va por brillo, no por opacidad */
+    animation: mb-pronto-late 7s ease-in-out infinite;
+    transition: opacity .8s ease;                 /* así el fundido de encendido/apagado sí se ve */
+}
+.mb-pronto-ficha-vinilo {
+    background: radial-gradient(circle at center, #2a3f4c 16%, #0e1a21 17%, #17272f 44%, #0e1a21 45%, #17272f 61%, #0e1a21 62%);
+}
+.mb-pronto-ficha-off { opacity: 0; }
+@keyframes mb-pronto-late {
+    0%, 100% { filter: brightness(.62) saturate(.95); transform: scale(1.02); }
+    50%      { filter: brightness(1.18) saturate(1.1); transform: scale(1.07); }
+}
+/* velo: oscurece el centro para que el texto se lea sobre el mosaico */
 .mb-pronto-velo {
-    position: absolute; inset: 0; pointer-events: none;
-    background: radial-gradient(ellipse at center, rgba(15, 28, 36, .72) 0%, rgba(15, 28, 36, .9) 70%, var(--mb-ink) 100%);
+    position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: radial-gradient(ellipse 72% 72% at 50% 45%,
+        rgba(15, 28, 36, .72) 0%, rgba(15, 28, 36, .52) 45%,
+        rgba(15, 28, 36, .85) 80%, var(--mb-ink) 100%);
 }
-.mb-pronto-contenido { position: relative; z-index: 1; color: #fff; max-width: 720px; }
-.mb-pronto-logo { width: clamp(130px, 26vw, 220px); height: auto; margin-bottom: 1.25rem; filter: drop-shadow(0 12px 40px rgba(0, 0, 0, .5)); }
-.mb-pronto-etiqueta { text-transform: uppercase; letter-spacing: .18em; font-size: .78rem; font-weight: 700; color: var(--mb-sky); margin-bottom: .5rem; }
-.mb-pronto-titulo { font-family: 'Smooth-Circulars', var(--bs-body-font-family); font-weight: 800; font-size: clamp(2.4rem, 8vw, 4.5rem); line-height: 1.02; color: var(--mb-yellow); margin-bottom: 1rem; }
-.mb-pronto-mensaje { font-size: clamp(1rem, 2.4vw, 1.2rem); color: #e7eef2; margin-bottom: 0; }
-.mb-pronto-nota { margin-top: 1.25rem; font-size: .85rem; color: var(--mb-muted); }
+.mb-pronto-contenido { position: relative; z-index: 2; color: #fff; max-width: 760px; }
+
+.mb-pronto-logo-caja {
+    width: clamp(140px, 24vw, 210px); height: clamp(140px, 24vw, 210px);
+    margin: 0 auto 1.4rem; border-radius: 50%; display: grid; place-items: center;
+    background: radial-gradient(circle at 50% 45%, rgba(58, 183, 205, .28), rgba(15, 28, 36, 0) 62%);
+}
+.mb-pronto-logo {
+    width: 100%; height: 100%; object-fit: contain;
+    filter: drop-shadow(0 14px 44px rgba(0, 0, 0, .55)) drop-shadow(0 0 26px rgba(255, 251, 37, .18));
+    animation: mb-pronto-flota 6s ease-in-out infinite;
+}
+@keyframes mb-pronto-flota { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+
+.mb-pronto-etiqueta { text-transform: uppercase; letter-spacing: .22em; font-size: .74rem; font-weight: 700; color: var(--mb-sky); margin-bottom: .6rem; opacity: .9; }
+.mb-pronto-titulo {
+    font-family: 'Smooth-Circulars', var(--bs-body-font-family);
+    font-weight: 800; font-size: clamp(2.6rem, 9vw, 5rem); line-height: 1; letter-spacing: -.02em;
+    margin-bottom: 1rem; color: var(--mb-yellow);
+    text-shadow: 0 2px 30px rgba(255, 251, 37, .28), 0 10px 40px rgba(0, 0, 0, .5);
+}
+.mb-pronto-mensaje { font-size: clamp(1rem, 2.4vw, 1.25rem); color: #e7eef2; margin: 0 auto; max-width: 34rem; }
+.mb-pronto-nota { margin-top: 1.4rem; font-size: .85rem; color: var(--mb-muted); }
 
 /* ---------- menos movimiento: todo quieto y nítido ---------- */
 /* Va al final a propósito: por orden de cascada tienen que ir después de las reglas de
@@ -911,4 +943,7 @@ body.mb-tema-amor_amistad .hero-meta .hero-artist { color: #a4486b; }
     .mb-tema-serpentina-trazo, .mb-tema-abanico { animation: none; }
     /* el estallido quedaría amontonado en el centro del disco: mejor no mostrarlo */
     .mb-tema-explota { animation: none; opacity: 0; }
+    /* el mosaico "Pronto" se queda quieto (pero visible) y el logo no flota */
+    .mb-pronto-logo { animation: none; }
+    .mb-pronto-ficha { animation: none; opacity: .6; }
 }
