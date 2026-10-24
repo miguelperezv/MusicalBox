@@ -38,7 +38,7 @@ FUENTE_ITALICA = RAIZ_APP / "static" / "fonts" / "PlayfairDisplay-Italic-VF.ttf"
 FUENTE_SERIF = RAIZ_APP / "static" / "fonts" / "PlayfairDisplay-VF.ttf"
 
 # Plantilla oficial 9:16 (3126×5556) y sticker recortado de la misma referencia.
-# El sticker conserva el tallo para que se lea como calabaza y no como un manchón.
+# El sticker conserva tallo y vetas para que se lea como calabaza.
 # La story de pre-orden se monta sobre esta base para no reinventar la geometría.
 BASE_STORY_PREORDEN = RAIZ_APP / "static" / "img" / "preventa_story_preorden.png"
 STICKER_STORY = RAIZ_APP / "static" / "img" / "preventa_sticker.png"
