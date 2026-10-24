@@ -11,6 +11,7 @@ from ..db import db
 from .models import Invoice, items_efectivos, pedidos_de, solicitudes_de, token_pedido, token_solicitud
 from .notificaciones import correo_enlaces_seguimiento
 from .views import before_request
+from ..limiter import limiter
 
 seguimiento = Blueprint("seguimiento", __name__, url_prefix="/seguimiento")
 seguimiento.before_request(before_request)
@@ -50,6 +51,7 @@ def _fila_solicitud(s):
 
 
 @seguimiento.route("/", methods=["GET", "POST"])
+@limiter.limit("10 per hour", methods=["POST"])
 def buscar():
     form = SeguimientoForm()
     if form.validate_on_submit():

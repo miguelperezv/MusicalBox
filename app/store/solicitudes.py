@@ -18,6 +18,7 @@ from ..db import db
 from .views import before_request, admin_required, render_seccion
 from .notif_admin import aviso_solicitud, aviso_pedido_creado
 from .notificaciones import correo_solicitud_recibida, correo_cotizacion_lista
+from ..limiter import limiter
 from .analytics import track_event, Events
 
 
@@ -60,6 +61,7 @@ def _items_del_formulario():
 
 
 @solicitud.route("/", methods=["GET", "POST"])
+@limiter.limit("20 per hour", methods=["POST"])
 def nueva():
     form = RegistroSolicitudForm()
     if request.method == 'GET' and g.user:
@@ -317,6 +319,7 @@ def cotizar(id):
 
 
 @solicitud.route("/confirmar/<token>", methods=["GET", "POST"])
+@limiter.limit("20 per hour", methods=["POST"])
 def confirmar(token):
     #paso 2 del flujo: el cliente ya recibió precio y tiempos; aquí se piden datos de envío y se paga
     s = get_solicitud_por_token(token)

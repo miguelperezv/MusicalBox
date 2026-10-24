@@ -12,7 +12,7 @@ LLAVES_PUBLICADAS = {
 
 
 class Config(object):
-    DEBUG = True
+    DEBUG = False
     #sin respaldo escrito aquí: la clave sale siempre del entorno (SECRET_KEY) y create_app
     #verifica que exista, así nunca queda en uso una clave que esté en el repositorio
     SECRET_KEY = os.getenv("SECRET_KEY")
@@ -22,6 +22,11 @@ class Config(object):
     #SQLALCHEMY_ECHO=True
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     UPLOAD_FOLDER = UPLOAD_FOLDER
+    #tamaño máximo por petición (subidas de imágenes/CSV): 16 MB; Flask responde 413 si se pasa
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024
+    #detrás de un proxy confiable (PythonAnywhere, Cloudflare Tunnel) se respeta X-Forwarded-For
+    #para el rate limiting; apagado por defecto para no confiar en cabeceras que envía el cliente
+    TRUST_PROXY = False
     #MercadoPago (llaves de pruebas por defecto; en producción van en variables de entorno)
     MERCADOPAGO_PUBLIC_KEY = os.getenv("MERCADOPAGO_PUBLIC_KEY", "YOUR_PUBLIC_KEY")
     MERCADOPAGO_ACCESS_TOKEN = os.getenv("MERCADOPAGO_ACCESS_TOKEN", "YOUR_ACCESS_TOKEN")
@@ -73,11 +78,16 @@ class Config(object):
 
 class ProductionConfig(Config):
     DEBUG = False
+    #en producción nunca se simula un pago: el endpoint /pedido/<token>/simular queda inerte
+    SIMULACION_PAGO = False
     #en producción la clave secreta es obligatoria y viene del entorno (create_app lo verifica)
     SECRET_KEY = os.getenv("SECRET_KEY")
     SESSION_COOKIE_SECURE = True
     SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
     PREFERRED_URL_SCHEME = "https"
+    #el servidor de producción está detrás del proxy de PythonAnywhere: confiar en X-Forwarded-*
+    TRUST_PROXY = True
     SQLALCHEMY_ENGINE_OPTIONS = {"pool_recycle": 299}
 
 

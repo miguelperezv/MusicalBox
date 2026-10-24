@@ -1,5 +1,6 @@
 from flask import Flask, g, render_template
 from flask_wtf.csrf import CSRFProtect
+from werkzeug.middleware.proxy_fix import ProxyFix
 from .db import db, ma, migrate
 import os
 
@@ -13,7 +14,7 @@ if os.path.exists(env_path):
     load_dotenv(dotenv_path=env_path, override=True)
 
 import click
-from .config import CONFIGS, DevelopmentConfig, LLAVES_PUBLICADAS
+from .config import CONFIGS, LLAVES_PUBLICADAS
 from .store.views import home, dashboard, releases, artists, purchase, products
 from .store.solicitudes import solicitud
 from .store.pedidos import pedido
@@ -35,8 +36,16 @@ ACTIVE_ENDPOINTS = [('/',home), ('/dashboard', dashboard), ('/releases', release
 def create_app(config=None):
     app = Flask(__name__)
 
-    #APP_CONFIG=production en el servidor (ver docs/DEPLOY_PYTHONANYWHERE.md); por defecto, desarrollo
-    config = config or CONFIGS.get(os.getenv("APP_CONFIG", "development"), DevelopmentConfig)
+    #APP_CONFIG=production en el servidor (ver docs/DEPLOY_PYTHONANYWHERE.md); por defecto, desarrollo.
+    #No hay respaldo silencioso: si APP_CONFIG trae un valor que no existe, se aborta el arranque en vez
+    #de caer en DevelopmentConfig (con DEBUG y SIMULACION_PAGO) por error de tipeo.
+    if config is None:
+        nombre_config = os.getenv("APP_CONFIG", "development").strip().lower()
+        if nombre_config not in CONFIGS:
+            raise RuntimeError(
+                f"APP_CONFIG='{nombre_config}' no es válido: usá 'production' o 'development'."
+            )
+        config = CONFIGS[nombre_config]
     app.config.from_object(config)
     if not app.config.get("SECRET_KEY"):
         raise RuntimeError("Falta SECRET_KEY: ponla en .env (local) o en las variables de entorno del servidor")
@@ -74,6 +83,22 @@ def create_app(config=None):
     @app.errorhandler(429)
     def _demasiados_intentos(_error):
         return render_template("429.html"), 429
+
+    # Detrás de un proxy confiable (PythonAnywhere) se usa X-Forwarded-For/Proto para que el
+    # rate limiting vea la IP real del cliente y las URLs salgan en https (ver config.TRUST_PROXY).
+    if app.config.get("TRUST_PROXY"):
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+    @app.after_request
+    def _cabeceras_seguridad(resp):
+        #cabeceras de seguridad base; no se toca CSP por los scripts inline del sitio
+        resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+        resp.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+        resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        if app.config.get("SESSION_COOKIE_SECURE"):
+            #solo sobre https (producción): fuerza el navegador a quedarse en https
+            resp.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        return resp
 
     @app.cli.command("crear-admin")
     @click.argument("email")

@@ -437,6 +437,7 @@ def signup():
     return redirect(url_for('home.index', user = g.user, purchase_cart = g.purchase))
 
 @home.route("/activar/<token>", methods=["GET", "POST"])
+@limiter.limit("20 per hour", methods=["POST"])
 def activar(token):
     #enlace que llega por correo para crear la contraseña de una cuenta CLIENTE (ver notificaciones.py)
     from .seguridad import hash_password
@@ -1566,6 +1567,7 @@ def costo_envio_vista():
 
 
 @purchase.route('/process_checkout', methods=["POST"])
+@limiter.limit("30 per 15 minutes", methods=["POST"])
 def process_checkout():
     # Obtener datos del formulario
     datos = {
