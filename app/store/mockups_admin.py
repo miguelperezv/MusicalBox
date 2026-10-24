@@ -60,13 +60,13 @@ def _producto_vinilo(productos):
 
 
 def _vinylmockup_local():
-    """VinylMockup para elegir una variante dentro del panel local.
+    """VinylMockup para elegir una variante dentro del panel.
 
     No se busca en el catálogo al cargar la página: el buscador pide las
     sugerencias por AJAX y solo se resuelve el detalle de la variante elegida.
     Así el panel no depende de la red ni muestra errores antes de buscar.
     """
-    if not current_app.debug or not current_app.config.get("VINYLMOCKUP_SPIKE"):
+    if not current_app.config.get("VINYLMOCKUP_SPIKE"):
         return {"activo": False}
 
     from .vinylmockup_api import VinylMockupError, obtener_variante
@@ -259,8 +259,8 @@ def mockups_admin():
 
 @dashboard.route("/mockups/vinylmockup/sugerencias.json")
 def mockups_vm_sugerencias():
-    """Autocompletado del buscador principal de variantes. Solo local."""
-    if not (current_app.debug and current_app.config.get("VINYLMOCKUP_SPIKE")):
+    """Autocompletado del buscador principal de variantes."""
+    if not current_app.config.get("VINYLMOCKUP_SPIKE"):
         abort(404)
     from .vinylmockup_api import VinylMockupError, buscar_variantes, miniatura_url
 
@@ -279,10 +279,9 @@ def mockups_vm_sugerencias():
 def mockups_vm_usar(variant_id):
     """Genera la pieza del lanzamiento usando la imagen de una variante VM.
 
-    Modo evaluación local: requiere debug + VINYLMOCKUP_SPIKE. Las imágenes son
-    hoja de VinylMockup/plantas; no se publican sin licencia.
+    Las imágenes son de VinylMockup/plantas; no se publican sin licencia.
     """
-    if not (current_app.debug and current_app.config.get("VINYLMOCKUP_SPIKE")):
+    if not current_app.config.get("VINYLMOCKUP_SPIKE"):
         abort(404)
     if not re.fullmatch(r"[A-Za-z0-9_-]{10,}", variant_id):
         abort(404)

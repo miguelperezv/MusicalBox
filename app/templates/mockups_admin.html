@@ -130,7 +130,6 @@
             <button class="btn btn-primary" type="submit"><i class="bi bi-magic me-1"></i>Generar story con esta variante</button>
         </div>
         </section>
-    </div>
     </details>
 
     {% if selected %}
@@ -236,11 +235,10 @@
             <h2 class="h5 mb-1">Elegí el vinilo</h2>
             <p class="small text-body-secondary mb-0">Buscá por color, acabado o prensa. Elegí una variante de la lista y usala en la story.</p>
         </div>
-        <span class="badge text-bg-warning">solo local</span>
     </div>
     <p class="small text-body-secondary mb-3">
         <i class="bi bi-info-circle me-1"></i>
-        Imágenes de VinylMockup y de las plantas de prensado. No publicar sin licencia.
+        Imágenes de VinylMockup y de las plantas de prensado.
     </p>
 
     <div data-vm-buscador
@@ -321,7 +319,22 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2" id="piezas-generadas"
      style="scroll-margin-top: 90px">
     <h2 class="h5 mb-0">Piezas generadas</h2>
-    <span class="small text-body-secondary">La más reciente primero. Hacé clic en una imagen para abrirla en tamaño completo.</span>
+    <div class="d-flex align-items-center gap-2">
+        {% if vm.variante %}
+        <form method="GET" action="{{ url_for('dashboard.mockups_vm_usar', variant_id=vm.variante.id) }}" class="d-inline">
+            <input type="hidden" name="release" value="{{ selected.id }}">
+            <input type="hidden" name="lps" value="{{ datos.lps }}">
+            <input type="hidden" name="envio" value="{{ datos.envio|int if datos.envio is not none else '' }}">
+            <input type="hidden" name="envio_incluido" value="{{ '1' if datos.envio_incluido else '0' }}">
+            <input type="hidden" name="preorden" value="{{ preorden_actual if preorden_actual in ('si', 'no') else 'si' }}">
+            <input type="hidden" name="eta" value="{{ datos.eta or '' }}">
+            <button type="submit" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-arrow-repeat me-1"></i>Regenerar con VinylMockup
+            </button>
+        </form>
+        {% endif %}
+        <span class="small text-body-secondary">La más reciente primero. Hacé clic en una imagen para abrirla en tamaño completo.</span>
+    </div>
 </div>
 
 {% if preventa %}
