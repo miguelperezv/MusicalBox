@@ -1,4 +1,4 @@
-from flask import Flask, g, render_template
+from flask import Flask, g, render_template, url_for
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.middleware.proxy_fix import ProxyFix
 from .db import db, ma, migrate
@@ -117,6 +117,17 @@ def create_app(config=None):
             accion = "creado"
         db.session.commit()
         click.echo(f"Administrador {email} {accion}.")
+
+    @app.template_global('asset')
+    def _global_asset(filename):
+        #cache-busting para CSS/JS: agrega ?v=<mtime> para que el navegador y el CDN (Cloudflare)
+        #no sirvan una versión vieja del mismo archivo. Al desplegar cambia el mtime y la URL.
+        ruta = os.path.join(app.static_folder, filename)
+        try:
+            version = int(os.path.getmtime(ruta))
+        except OSError:
+            version = 0
+        return f"{url_for('static', filename=filename)}?v={version}"
 
     @app.template_filter('cop')
     def cop(valor):
