@@ -4,51 +4,51 @@
 {% block head %}<meta name="robots" content="noindex, nofollow">{% endblock %}
 
 {% block contenido %}
-<div class="container">
-    <div class="row g-4 g-lg-5 py-4">
-        <div class="col-lg-7">
-            <span class="mb-eyebrow">Pedidos a la medida</span>
-            <h1 class="mt-1"><i class="bi bi-check-circle-fill text-success me-2"></i>¡Recibimos tu solicitud!</h1>
-            <p class="text-body-secondary">Ya la tenemos registrada. De aquí en adelante esto es lo que pasa:</p>
+<section class="mb-solicitud-hero">
+    <div class="container py-4 py-lg-5">
+        <div class="row g-4 g-lg-5">
+            <div class="col-lg-7">
+                <span class="mb-eyebrow">Pedidos a la medida</span>
+                <h1 class="mt-1 mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Recibimos tu solicitud</h1>
+                <p class="mb-4">Ya quedó registrada. Revisamos tu disco y te escribimos por WhatsApp con el precio.</p>
 
-            <ol class="list-unstyled d-grid gap-3 mt-4">
-                <li class="d-flex gap-3"><span class="mb-step mb-step-actual">1</span>
-                    <span><strong>Buscamos lo que pediste.</strong><br><small class="text-body-secondary">Revisamos stock y con quién conseguirlo.</small></span></li>
-                <li class="d-flex gap-3"><span class="mb-step">2</span>
-                    <span><strong>Te escribimos por WhatsApp{% if solicitud.cel_contacto %} al {{ solicitud.cel_contacto }}{% endif %}.</strong><br><small class="text-body-secondary">Con precio, tiempos y opciones. Usualmente en un día hábil.</small></span></li>
-                <li class="d-flex gap-3"><span class="mb-step">3</span>
-                    <span><strong>Si te sirve, pagas con un enlace.</strong><br><small class="text-body-secondary">Sin crear cuenta. Al pagar, te llega el seguimiento del envío a tu correo.</small></span></li>
-            </ol>
+                <ol class="mb-solicitud-pasos list-unstyled mb-0">
+                    <li><span class="mb-step mb-step-actual">1</span>
+                        <span>Revisamos disponibilidad y armamos la cotización.</span></li>
+                    <li><span class="mb-step">2</span>
+                        <span>Te escribimos por <strong>WhatsApp{% if solicitud.cel_contacto %} al {{ solicitud.cel_contacto }}{% endif %}</strong> con el precio y los tiempos.</span></li>
+                    <li><span class="mb-step">3</span>
+                        <span>Si la aceptas, pagas con un enlace seguro. Sin crear cuenta.</span></li>
+                </ol>
 
-            <div class="alert alert-info small mt-4">
-                <i class="bi bi-info-circle me-1"></i>{% if solicitud.email_contacto %}Revisa tu correo <strong>{{ solicitud.email_contacto }}</strong>: ahí queda la constancia de lo que pediste.{% else %}Guarda el WhatsApp que dejaste: por ahí te escribimos.{% endif %} Si no te contactamos en un día hábil, respóndenos el correo y lo miramos enseguida.
+                <div class="d-flex flex-wrap gap-2 mt-4">
+                    {% set negocio = negocio_datos() %}
+                    {% if negocio.telefono %}
+                    <a class="btn btn-accent" href="{{ whatsapp_enlace(negocio.telefono, 'Hola, soy quien pidió un disco a la medida') }}" target="_blank" rel="noopener">
+                        <i class="bi bi-whatsapp me-1"></i>Escríbenos por WhatsApp
+                    </a>
+                    {% endif %}
+                    <a class="btn btn-outline-dark" href="{{ url_for('solicitud.nueva') }}">Pedir otro disco</a>
+                </div>
             </div>
 
-            <div class="d-flex flex-wrap gap-2">
-                <a class="btn btn-primary" href="{{ url_for('releases.home_releases') }}">Seguir viendo lanzamientos</a>
-                <a class="btn btn-outline-secondary" href="{{ url_for('solicitud.nueva') }}">Pedir otro disco</a>
+            <div class="col-lg-5">
+                <div class="mb-panel">
+                    <h2 class="h6 mb-3">Lo que pediste</h2>
+                    <ul class="list-unstyled mb-0">
+                        {% for it in items %}
+                        <li class="py-2 {{ 'border-top' if not loop.first }}">
+                            <div class="fw-semibold">{{ it.cantidad|int }} × {{ it.nombre }}</div>
+                            {% if it.descripcion %}<small class="text-body-secondary">{{ it.descripcion }}</small>{% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                <p class="small text-body-secondary mt-3 mb-0">
+                    <i class="bi bi-whatsapp me-1"></i>Todo el seguimiento de esta solicitud es por WhatsApp.
+                </p>
             </div>
-        </div>
-
-        <div class="col-lg-5">
-            <div class="mb-panel">
-                <h2 class="h6 mb-3">Lo que pediste</h2>
-                <ul class="list-unstyled mb-0">
-                    {% for it in items %}
-                    <li class="py-2 {{ 'border-top' if not loop.first }}">
-                        <div class="fw-semibold">{{ it.cantidad|int }} × {{ it.nombre }}</div>
-                        {% if it.descripcion %}<small class="text-body-secondary">{{ it.descripcion }}</small>{% endif %}
-                    </li>
-                    {% endfor %}
-                </ul>
-            </div>
-            {% set negocio = negocio_datos() %}
-            {% if negocio.telefono %}
-            <a class="btn btn-outline-secondary w-100 mt-3" href="{{ whatsapp_enlace(negocio.telefono, 'Hola, soy quien pidió un disco a la medida') }}" target="_blank" rel="noopener">
-                <i class="bi bi-whatsapp me-1"></i>Escríbenos por WhatsApp
-            </a>
-            {% endif %}
         </div>
     </div>
-</div>
+</section>
 {% endblock %}
