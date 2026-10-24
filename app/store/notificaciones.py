@@ -114,7 +114,7 @@ def correo_solicitud_recibida(solicitud):
     if not solicitud.email_contacto:
         return False
     ctx = {"solicitud": solicitud, "items": items_efectivos(solicitud)}
-    return correo.enviar(solicitud.email_contacto, f"Recibimos tu solicitud #{solicitud.id} en Musical Box",
+    return correo.enviar(solicitud.email_contacto, "Recibimos tu solicitud en Musical Box",
                          render_template("correos/solicitud_recibida.txt", **ctx),
                          render_template("correos/solicitud_recibida.html", **ctx))
 
@@ -125,7 +125,7 @@ def correo_cotizacion_lista(solicitud, mensaje, enlace):
     if not solicitud.email_contacto:
         return False
     ctx = {"solicitud": solicitud, "mensaje": mensaje, "enlace": enlace}
-    return correo.enviar(solicitud.email_contacto, f"Tu cotización #{solicitud.id} está lista en Musical Box",
+    return correo.enviar(solicitud.email_contacto, "Tu cotización está lista en Musical Box",
                          render_template("correos/cotizacion_lista.txt", **ctx),
                          render_template("correos/cotizacion_lista.html", **ctx))
 

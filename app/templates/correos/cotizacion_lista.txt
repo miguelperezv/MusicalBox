@@ -1,6 +1,6 @@
 ¡Hola!
 
-Tu cotización de la solicitud #{{ solicitud.id }} está lista.
+Tu cotización está lista.
 
 {{ mensaje }}
 

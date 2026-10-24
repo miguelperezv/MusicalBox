@@ -1,6 +1,6 @@
 ¡Hola!
 
-Recibimos tu solicitud #{{ solicitud.id }} en Musical Box.
+Recibimos tu solicitud en Musical Box.
 
 Esto fue lo que nos pediste:
 {% for it in items %}- {{ it.cantidad|int }} x {{ it.nombre }}{% if it.descripcion %} ({{ it.descripcion }}){% endif %}
