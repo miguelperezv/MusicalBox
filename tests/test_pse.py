@@ -114,6 +114,8 @@ def test_pse_manda_el_banco_y_devuelve_la_url_del_banco(client, app, monkeypatch
     #y al volver del banco el pedido lo cuenta (no parece que "no pasó nada")
     html = client.get(f"/pedido/{token}").get_data(as_text=True)
     assert "Tu pago con PSE está en trámite" in html
+    #PSE sí puede reintentar: el pago pendiente se reutiliza, no se crea otro
+    assert '<button id="btnOpenMp"' in html
 
 
 def test_pse_reutiliza_el_pago_pendiente_al_volver_del_banco(client, app, monkeypatch):

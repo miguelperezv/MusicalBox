@@ -457,6 +457,13 @@ def process_payment():
         current_app.logger.info("[MP-PSE] pedido %s quedó en %s (no in_process/pending)",
                                 inv.id, mp_body.get("status"))
 
+    # El pedido recuerda el pago en cuanto MercadoPago lo crea, también si queda en proceso: así la
+    # página no vuelve a ofrecer pagar y el comprador no termina pagando dos veces. PSE ya lo guardó
+    # arriba (con su URL del banco); un pago rechazado no se guarda, porque el pedido queda RECHAZADO.
+    if not inv.mp_payment_id and mp_body.get("id") and mp_body.get("status") in ("in_process", "pending"):
+        inv.mp_payment_id = str(mp_body.get("id"))
+        db.session.commit()
+
     current_app.logger.info("[MP] fin · pedido %s · HTTP %s · %s", inv.id, mp_http_status, mp_body.get("status"))
     resp = {
         "mp_status": mp_http_status,

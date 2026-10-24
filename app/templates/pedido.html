@@ -261,7 +261,16 @@
                 </dl>
                 {% endif %}
                 {% if abono_pendiente or saldo_pendiente or pedido.estado in ['PENDIENTE', 'RECHAZADO'] %}
-                {% if pedido.mp_payment_id %}
+                {# un pago con tarjeta en proceso se resuelve solo (aprobado o rechazado): mientras
+                   tanto no se vuelve a ofrecer pagar, para que nadie termine pagando dos veces #}
+                {% set tarjeta_en_proceso = pedido.estado == 'PENDIENTE' and pedido.mp_payment_id and not pedido.mp_external_resource_url %}
+                {% if tarjeta_en_proceso %}
+                <div class="alert alert-info small mb-3" role="alert">
+                    <i class="bi bi-credit-card me-1"></i><strong>Tu pago con tarjeta está en proceso.</strong>
+                    MercadoPago lo está revisando y puede tardar hasta 2 días hábiles. Te avisamos por correo a
+                    <strong>{{ pedido.email_envio }}</strong> cuando se confirme. No necesitas pagar de nuevo.
+                </div>
+                {% elif pedido.mp_payment_id %}
                 {# volvió del banco: el pago PSE queda pendiente hasta que el banco lo confirme #}
                 <div class="alert alert-info small mb-3" role="alert">
                     <i class="bi bi-bank me-1"></i><strong>Tu pago con PSE está en trámite.</strong>
@@ -269,6 +278,7 @@
                     Si no la terminaste, vuelve a intentarlo con el botón de abajo.
                 </div>
                 {% endif %}
+                {% if not tarjeta_en_proceso %}
                 <div class="mb-mp-checkout mb-3">
                     <div>
                         <span class="mb-eyebrow">Pago seguro</span>
@@ -298,6 +308,7 @@
                 </div>
                 {% endif %}
                 {% endif %}
+                {% endif %}
             </div>
         </div>
     </div>
@@ -309,7 +320,7 @@
     <div class="modal-mp-header">
       <div class="d-flex align-items-center gap-2">
         <img class="modal-mp-logo" src="{{ url_for('static', filename='imgs/musicalbox.png') }}" alt="Musical Box" width="30" height="30">
-        <h3 style="margin:0;">Elegí tu medio de pago</h3>
+        <h3 id="mpModalTitulo" style="margin:0;">Elegí tu medio de pago</h3>
       </div>
       <button id="btnCloseMp" type="button" aria-label="Cerrar">&times;</button>
     </div>
@@ -555,6 +566,9 @@
 
     if (cajaPago) cajaPago.style.display = "none";
     cajaEstado.style.display = "block";
+    //el título del modal deja de hablar de elegir un medio: ahora muestra el estado
+    const titulo = document.getElementById("mpModalTitulo");
+    if (titulo) titulo.textContent = "Estado del pago";
 
     if (urlBanco) {
       document.getElementById("irAlBanco").href = urlBanco;
@@ -610,6 +624,8 @@
     if (cajaPago) cajaPago.style.display = "";
     if (cajaEstado) cajaEstado.style.display = "none";
     if (avisoRespaldo) avisoRespaldo.style.display = "none";
+    const titulo = document.getElementById("mpModalTitulo");
+    if (titulo) titulo.textContent = "Elegí tu medio de pago";
     // Re-habilitar botón de pago y detener el giro del logo
     setBotonProcesando(false);
     setModalProcesando(false);
