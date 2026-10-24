@@ -37,7 +37,7 @@ FUENTE_TEXTO = RAIZ_APP / "static" / "fonts" / "Smooth-Circulars.otf"
 FUENTE_ITALICA = RAIZ_APP / "static" / "fonts" / "PlayfairDisplay-Italic-VF.ttf"
 FUENTE_SERIF = RAIZ_APP / "static" / "fonts" / "PlayfairDisplay-VF.ttf"
 
-# Plantilla oficial 9:16 (3126×5556) y sticker de vinilo troquelado.
+# Plantilla oficial 9:16 (3126×5556) y sticker del vinilo del logotipo con aro metalizado.
 # La story de pre-orden se monta sobre esta base para no reinventar la geometría.
 BASE_STORY_PREORDEN = RAIZ_APP / "static" / "img" / "preventa_story_preorden.png"
 STICKER_STORY = RAIZ_APP / "static" / "img" / "preventa_sticker.png"
@@ -1087,7 +1087,7 @@ def _story_plantilla(portada: Image.Image, datos: dict, preset="negro",
         d = ImageDraw.Draw(lienzo)
         d.text((s(765), s(680)), f"{lps}lp",
                font=_fuente(FUENTE_TITULO, s(38)),
-               fill=(*TINTA_PLANTILLA, 255), anchor="mm")
+               fill=(*BLANCO, 255), anchor="mm")
     else:
         d = ImageDraw.Draw(lienzo)
         st_r = s(66)

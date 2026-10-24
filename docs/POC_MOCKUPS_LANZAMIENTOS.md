@@ -9,7 +9,7 @@ El panel genera únicamente la **story vertical de 1080 × 1920**. El CLI todav�
 1. **Mockup limpio** (`1400 × 1400`, solo CLI): portada + disco. Sirve para la ficha del lanzamiento, la galería o una publicación.
 2. **Story de preventa** (`1080 × 1920`): portada, artista, álbum, formato, precio, abono, fecha estimada y CTA. Si el lanzamiento no es preorden, el encabezado cambia a `A LA VENTA` y se usa el render dibujado.
 
-La story de **pre-orden** se monta sobre la plantilla oficial vacía (`app/static/img/preventa_story_preorden.png`, 3126 × 5556) y solo agrega los datos dinámicos: portada, disco, sticker `1LP`/`2LP`, artista, álbum, formato, precio, abono, llegada estimada y el parche de “envío aparte”. El título, los rayos, el contorno naranja, el separador, las estrellas, la pastilla, la banda y el CTA ya vienen en la base y no se redibujan. El sticker es un vinilo troquelado (`app/static/img/preventa_sticker.png`) y el texto `1LP`/`2LP` se escribe en runtime.
+La story de **pre-orden** se monta sobre la plantilla oficial vacía (`app/static/img/preventa_story_preorden.png`, 3126 × 5556) y solo agrega los datos dinámicos: portada, disco, sticker `1LP`/`2LP`, artista, álbum, formato, precio, abono, llegada estimada y el parche de “envío aparte”. El título, los rayos, el contorno naranja, el separador, las estrellas, la pastilla, la banda y el CTA ya vienen en la base y no se redibujan. El sticker es el vinilo amarillo del logotipo, con notas, aro metalizado y una sombra que lo despega apenas de la superficie (`app/static/img/preventa_sticker.png`); el texto `1LP`/`2LP` se escribe en runtime.
 
 Los textos de acento usan Playfair Display (licencia SIL OFL, incluida en `app/static/fonts/` junto a `PlayfairDisplay-OFL.txt`) para conservar acentos y cursivas; artista, álbum, precio y abono usan Berlin Sans. La variante `A LA VENTA` todavía usa el render dibujado hasta contar con su plantilla oficial.
 
@@ -125,7 +125,7 @@ En el panel, los presets son una alternativa de prueba: se elige uno y se dibuja
 - La pantalla del admin ya existe, pero todavía no guarda el mockup como `Imagen` ni lo asocia a un producto.
 - No hay historial de versiones: al regenerar la story se reemplaza el archivo; las piezas viejas con otro nombre quedan en la galería hasta borrarlas.
 - Los colores y acabados de los discos son procedurales; si se necesita calidad fotográfica, el siguiente paso es usar texturas PNG/PSD propias o un servicio de mockups con una plantilla de vinilo.
-- La story de pre-orden usa la plantilla oficial y un sticker de vinilo troquelado; si se cambia el arte base o el sticker, hay que volver a comparar contra la plantilla original. La story de venta sigue con el render dibujado.
+- La story de pre-orden usa la plantilla oficial y un sticker del vinilo del logotipo, con aro metalizado y sombra de relieve; si se cambia el arte base o el sticker, hay que volver a comparar contra la plantilla original. La story de venta sigue con el render dibujado.
 - La plantilla y el sticker son assets de marca: conviene revisarlos antes de publicarlos.
 - La portada se descarga en cada corrida; falta caché local.
 - Algunas portadas externas pueden traer marcas de agua de su fuente. Para producción hay que usar el arte original en buena calidad.
