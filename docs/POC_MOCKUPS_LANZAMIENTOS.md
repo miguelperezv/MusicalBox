@@ -1,13 +1,13 @@
 # POC: mockups y pieza de preventa por lanzamiento
 
-Esta prueba de concepto valida el flujo más importante de la feature: **partir de un lanzamiento**, no de un producto suelto, y obtener dos piezas listas para revisar.
+Esta prueba de concepto valida el flujo más importante de la feature: **partir de un lanzamiento**, no de un producto suelto, y obtener una pieza lista para revisar.
 
 ## Qué genera
 
-Para un lanzamiento dado:
+El panel genera únicamente la **story vertical de 1080 × 1920**. El CLI todavía puede generar el mockup limpio y la ficha de 1080 × 1350 para pruebas puntuales.
 
-1. **Mockup limpio** (`1400 × 1400`): portada + disco. Sirve para la ficha del lanzamiento, la galería o una publicación.
-2. **Pieza de preventa** (`1080 × 1350` o `1080 × 1920` en modo story): portada, artista, álbum, formato, precio, abono, fecha estimada y CTA. Si el lanzamiento no es preorden, el encabezado cambia a `A LA VENTA`.
+1. **Mockup limpio** (`1400 × 1400`, solo CLI): portada + disco. Sirve para la ficha del lanzamiento, la galería o una publicación.
+2. **Story de preventa** (`1080 × 1920`): portada, artista, álbum, formato, precio, abono, fecha estimada y CTA. Si el lanzamiento no es preorden, el encabezado cambia a `A LA VENTA` y se usa el render dibujado.
 
 La story de **pre-orden** se monta sobre la plantilla oficial vacía (`app/static/img/preventa_story_preorden.png`, 3126 × 5556) y solo agrega los datos dinámicos: portada, disco, sticker `1LP`/`2LP`, artista, álbum, formato, precio, abono, llegada estimada y el parche de “envío aparte”. El título, los rayos, el contorno naranja, el separador, las estrellas, la pastilla, la banda y el CTA ya vienen en la base y no se redibujan. El sticker sale de `app/static/img/preventa_sticker.png` y el texto `1LP`/`2LP` se escribe en runtime.
 
@@ -20,12 +20,14 @@ Los mockups se generan con Pillow a partir de la portada del lanzamiento. No se 
 En el admin: **Marketing → Mockups de lanzamiento** (`/dashboard/mockups`).
 
 1. Elegí el lanzamiento.
-2. Elegí **Estilos rápidos** para marcar varios presets, o **Variante personalizada** para combinar un color base con un acabado.
-3. Elegí plantilla **Ficha 1080×1350** o **Story 1080×1920**.
-4. Elegí fondo claro (catálogo) u oscuro (estudio).
-5. Generá y mirá las piezas en la misma página; cada una se puede abrir o descargar.
+2. Buscá el vinilo en **Elegí el vinilo** por color, acabado o prensa.
+3. Elegí una sugerencia de la lista y tocá **Usar este vinilo en la story**.
+4. Si no usás VinylMockup, abrí **Opciones sin VinylMockup** y elegí un vinilo de prueba.
+5. Generá y mirá la pieza en la misma página; se puede abrir o descargar.
 
-En **Ajustar datos de la pieza de preventa** también se eligen los discos del sticker (`1LP`/`2LP`), el costo de envío y si ese envío se suma al precio mostrado o se muestra aparte. El precio del formulario es siempre el precio base, sin envío. El título puede quedar automático (según el lanzamiento) o forzarse a `Pre-orden` / `A la venta`. Si elegís **Story**, el modo automático usa pre-orden, porque es la única plantilla oficial disponible; para una story de venta hay que elegir explícitamente `A la venta` y se usa el render dibujado.
+La story se genera siempre en 1080 × 1920 sobre la plantilla oficial de Halloween. El panel no genera la ficha de 1080 × 1350 ni el mockup con fondo claro; esas variantes quedaron disponibles desde el CLI.
+
+En **Ajustar datos de la pieza de preventa** también se eligen los discos del sticker (`1LP`/`2LP`), el costo de envío y si ese envío se suma al precio mostrado o se muestra aparte. El precio del formulario es siempre el precio base, sin envío. El título puede quedar automático (según el lanzamiento) o forzarse a `Pre-orden` / `A la venta`; el automático usa pre-orden para la plantilla oficial.
 
 También podés entrar directo desde el ícono <i class="bi bi-images"></i> en la fila de **Lanzamientos**. Los archivos se guardan en `instance/mockups/admin/<id>/` y no se publican solos en la tienda.
 
@@ -80,7 +82,7 @@ venv/bin/python scripts/poc_mockup_lanzamiento.py 2 \
   --demo --presets cherry --fondo claro
 ```
 
-`--fondo claro` genera el mockup sobre un fondo marfil, sin la tarjeta oscura. Es la variante más cercana a una foto de catálogo.
+`--fondo claro` es una opción del CLI para el mockup limpio: lo genera sobre un fondo marfil, sin la tarjeta oscura. El panel no la usa.
 
 `--demo` solo existe para probar la pieza cuando el lanzamiento no tiene un vinilo cargado. En el caso del lanzamiento 2, sus productos reales son cachuchas; por eso el ejemplo visual usa precio/abono de demostración. Para un lanzamiento real, no se pasa `--demo`: el script toma el precio del producto de categoría `VINILO` (o con “vinilo” en el nombre).
 
@@ -106,7 +108,7 @@ El render sigue siendo procedural con Pillow. Los archivos se generan con el nom
 | `clear` | Disco translúcido claro |
 | `picture` | La portada impresa en el disco, con label de papel |
 
-Los presets siguen siendo atajos curados para generar varias piezas de una vez. La variante personalizada es la que abre el catálogo de 34 colores y 9 acabados. `cherry` toma la idea de la página de VinylMockup que revisamos, pero no usa sus assets ni pretende ser una copia exacta: es una variante propia para validar el look.
+En el panel, los presets son una alternativa de prueba: se elige uno y se dibuja ese vinilo en la story. El CLI puede combinar varios presets para generar varias piezas de una vez. La variante personalizada es la que abre el catálogo de 34 colores y 9 acabados. `cherry` toma la idea de la página de VinylMockup que revisamos, pero no usa sus assets ni pretende ser una copia exacta: es una variante propia para validar el look.
 
 ## De dónde salen los datos
 
@@ -121,7 +123,7 @@ Los presets siguen siendo atajos curados para generar varias piezas de una vez. 
 ## Límites de este POC
 
 - La pantalla del admin ya existe, pero todavía no guarda el mockup como `Imagen` ni lo asocia a un producto.
-- No hay historial de versiones: si regenerás con otro fondo, quedan los archivos anteriores en la carpeta.
+- No hay historial de versiones: al regenerar la story se reemplaza el archivo; las piezas viejas con otro nombre quedan en la galería hasta borrarlas.
 - Los colores y acabados de los discos son procedurales; si se necesita calidad fotográfica, el siguiente paso es usar texturas PNG/PSD propias o un servicio de mockups con una plantilla de vinilo.
 - La story de pre-orden usa la plantilla oficial y el sticker extraído de la referencia; si se cambia el arte base, hay que volver a comparar contra la plantilla original. La story de venta sigue con el render dibujado.
 - La plantilla y el sticker son assets de marca: conviene revisarlos antes de publicarlos.

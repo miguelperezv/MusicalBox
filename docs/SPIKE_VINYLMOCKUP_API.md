@@ -21,18 +21,21 @@ Three.js. Este spike solo obtiene metadatos y, si se pide, una imagen puntual.
 ## Vista en el panel local
 
 Con `APP_CONFIG=development` (el valor por defecto) y `DEBUG` activo, en
-`/dashboard/mockups` aparece la sección **“Catálogo VinylMockup · solo local”**:
+`/dashboard/mockups` aparece la sección **“Elegí el vinilo”**:
 
 - busca variantes por nombre, color, tipo o estilo;
-- muestra 20 miniaturas por página;
-- al hacer clic en una, abre el detalle con la imagen grande, tipo, estilo,
-  colores, prensa e ID de Contentful;
-- el botón **“Usar en la pieza”** baja la imagen de 2160×2160 a
-  `instance/mockups/vm_cache/` (ignorado por git), la recorta en círculo y
-  genera con ella el mockup 1400×1400 y la pieza de preventa (ficha o story,
-  según el select “Plantilla”) en `instance/mockups/admin/<release>/`, con los
-  archivos sufijados `_vm`. La línea de formato usa el nombre real de la
-  variante VM (p. ej. “Vinilo · 2 Color Splatter 4”).
+- muestra hasta 8 sugerencias con miniatura en un desplegable;
+- al elegir una, cierra el desplegable, muestra la variante y habilita
+  **“Usar este vinilo en la story”**;
+- el botón baja la imagen de 2160×2160 a `instance/mockups/vm_cache/`
+  (ignorado por git), la recorta en círculo y genera solo la story 1080×1920
+  en `instance/mockups/admin/<release>/`, con el sufijo `_vm`. La línea de
+  formato usa el nombre real de la variante VM (p. ej. “Vinilo · 2 Color
+  Splatter 4”).
+
+El panel no busca el catálogo completo al cargar la página: las sugerencias se
+piden a medida que se escribe. Así no hay una llamada externa ni un error de
+VinylMockup antes de buscar.
 
 Las imágenes siguen siendo de VinylMockup o de las plantas: sirve para revisar
 el resultado en local, no para publicar en la tienda.
@@ -83,8 +86,8 @@ venv/bin/python scripts/spike_vinylmockup.py variante <id> --json
   (`tempfile.gettempdir()`, normalmente `/tmp`) y limita cada descarga a 12 MB.
 - El CLI solo permite escribir fuera del repo o dentro de `instance/`, para no
   meter assets en git.
-- No hay descarga masiva. La vista del panel solo previsualiza; no descarga ni
-  guarda las imágenes.
+- No hay descarga masiva. El panel solo descarga la variante elegida cuando se
+  genera la story.
 - La vista del panel no se muestra si `DEBUG` está apagado o si
   `VINYLMOCKUP_SPIKE=0`.
 

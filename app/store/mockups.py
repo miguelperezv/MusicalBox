@@ -1280,21 +1280,27 @@ def guardar_poc(lanzamiento: Lanzamiento, salida: Path,
                 disco: Image.Image | None = None) -> list[Path]:
     """Genera las piezas del POC y devuelve las rutas.
 
-    `plantilla="ficha"` mantiene el formato 1080×1350 original. `plantilla="story"`
-    agrega una versión vertical 1080×1920 para redes sociales. Con `disco` (p. ej.
-    la imagen de VinylMockup, solo modo local) se genera el mockup con esa foto
-    en lugar del vinilo procedural, archivado con el sufijo `_vm`.
+    `plantilla="story"` genera únicamente la story vertical 1080×1920: no crea
+    la ficha ni el mockup cuadrado con fondo claro. La ficha 1080×1350 queda
+    disponible con `plantilla="ficha"` para el CLI. Con `disco` (p. ej. la
+    imagen de VinylMockup, solo modo local) se usa esa foto en lugar del vinilo
+    procedural, con el sufijo `_vm`.
     """
     salida.mkdir(parents=True, exist_ok=True)
     productos = Producto.query.filter_by(k_lanzamiento=lanzamiento.id).all()
     portada = cargar_portada(lanzamiento, productos)
     datos = datos or datos_preventa(lanzamiento, productos)
     lps = max(1, int(datos.get("lps", 1)))
-    sufijo = "_claro" if fondo == "claro" else ""
-    sufijo_card = "_story" if plantilla == "story" else ""
     sufijo_vm = "_vm" if disco is not None else ""
-    rutas = []
 
+    if plantilla == "story":
+        card = generar_pieza_preventa_story(portada, datos, preset=presets[0], disco=disco)
+        ruta = salida / f"lanzamiento_{lanzamiento.id}_preventa_story{sufijo_vm}.png"
+        card.save(ruta, "PNG", optimize=True)
+        return [ruta]
+
+    sufijo = "_claro" if fondo == "claro" else ""
+    rutas = []
     if disco is None:
         rutas.extend(_guardar_mockups_presets(lanzamiento, salida, presets, fondo,
                                               portada, sufijo, lps=lps))
@@ -1305,12 +1311,9 @@ def guardar_poc(lanzamiento: Lanzamiento, salida: Path,
         img.convert("RGB").save(ruta, "PNG", optimize=True)
         rutas.append(ruta)
 
-    if plantilla == "story":
-        card = generar_pieza_preventa_story(portada, datos, preset=presets[0], disco=disco)
-    else:
-        card = generar_pieza_preventa(portada, datos, preset=presets[0], disco=disco,
-                                      lps=lps)
-    ruta_card = salida / f"lanzamiento_{lanzamiento.id}_preventa{sufijo_card}{sufijo_vm}.png"
+    card = generar_pieza_preventa(portada, datos, preset=presets[0], disco=disco,
+                                  lps=lps)
+    ruta_card = salida / f"lanzamiento_{lanzamiento.id}_preventa{sufijo_vm}.png"
     card.save(ruta_card, "PNG", optimize=True)
     rutas.append(ruta_card)
     return rutas

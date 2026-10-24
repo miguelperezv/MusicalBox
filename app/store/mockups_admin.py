@@ -60,43 +60,31 @@ def _producto_vinilo(productos):
 
 
 def _vinylmockup_local():
-    """Catálogo de VinylMockup para probar variantes dentro del panel.
+    """VinylMockup para elegir una variante dentro del panel local.
 
-    Es una sección de evaluación: no se muestra en producción y no se usa para
-    generar ni publicar piezas. Solo hace una búsqueda y, si se pide, abre el
-    detalle de una variante.
+    No se busca en el catálogo al cargar la página: el buscador pide las
+    sugerencias por AJAX y solo se resuelve el detalle de la variante elegida.
+    Así el panel no depende de la red ni muestra errores antes de buscar.
     """
     if not current_app.debug or not current_app.config.get("VINYLMOCKUP_SPIKE"):
         return {"activo": False}
 
-    from .vinylmockup_api import (VinylMockupError, buscar_variantes,
-                                  miniatura_url, obtener_variante)
+    from .vinylmockup_api import VinylMockupError, obtener_variante
 
     q = (request.args.get("vm_q") or "").strip()
-    page = max(1, request.args.get("vm_page", type=int) or 1)
     variant_id = (request.args.get("vm_id") or "").strip()
-    items, variante, error = [], None, None
-    total, has_next = 0, False
-    try:
-        if variant_id:
+    variante, error = None, None
+    if variant_id:
+        try:
             variante = obtener_variante(variant_id)
-        data = buscar_variantes(q=q or None, page=page)
-        items = data["items"]
-        for item in items:
-            item["thumb_url"] = miniatura_url(item["thumb_url"], 400)
-        total, has_next = data["total"], data["has_next"]
-    except VinylMockupError as e:
-        error = str(e)
+        except VinylMockupError as e:
+            error = str(e)
 
     return {
         "activo": True,
         "q": q,
-        "page": page,
-        "resultados": items,
         "variante": variante,
         "error": error,
-        "total": total,
-        "has_next": has_next,
     }
 
 
@@ -120,9 +108,9 @@ def mockups_admin():
         if not selected:
             flash("Elegí un lanzamiento para generar sus piezas.", "warning")
             return redirect(url_for("dashboard.mockups_admin", modo=modo))
-        fondo = request.form.get("fondo", "claro")
+        fondo = request.form.get("fondo", "estudio")
         if fondo not in ("estudio", "claro"):
-            fondo = "claro"
+            fondo = "estudio"
 
         productos = Producto.query.filter_by(k_lanzamiento=selected.id).all()
         precio = request.form.get("precio", type=int)
@@ -159,12 +147,12 @@ def mockups_admin():
                                         modo=modo))
             descripcion = ", ".join(PRESETS[p]["nombre"] for p in presets)
 
-        plantilla = (request.form.get("plantilla") or "ficha").strip().lower()
-        if plantilla not in ("ficha", "story"):
-            plantilla = "ficha"
+        # Por ahora el panel genera únicamente la story oficial de Halloween.
+        # La ficha 1080×1350 sigue disponible desde el CLI para pruebas puntuales.
+        plantilla = "story"
         # La story solo tiene plantilla oficial de pre-orden. Si el título queda
         # en automático, usamos esa variante para no caer en el render viejo.
-        if plantilla == "story" and preorden is None:
+        if preorden is None:
             preorden = True
             preorden_sel = "si"
         datos = datos_preventa(selected, productos, precio=precio,
@@ -181,7 +169,7 @@ def mockups_admin():
                                     modo=modo))
 
         registrar_evento("lanzamiento.mockup", "lanzamiento", selected.id,
-                         f"{len(rutas)} pieza(s) · {descripcion} · fondo {fondo}")
+                         f"{len(rutas)} pieza(s) · {descripcion} · story")
         flash(f"Listo: {len(rutas)} pieza(s) generadas para {selected.n_lanzamiento}.", "success")
         params = {"release": selected.id, "fondo": fondo, "modo": modo,
                   "plantilla": plantilla}
@@ -229,12 +217,6 @@ def mockups_admin():
     archivos = _archivos(selected.id) if selected else []
     presets_query = (request.args.get("presets") or "").split(",")
     presets_marcados = [p for p in presets_query if p in PRESETS] or ["negro", "cherry"]
-    fondo_actual = request.args.get("fondo", "claro")
-    if fondo_actual not in ("estudio", "claro"):
-        fondo_actual = "claro"
-    plantilla_actual = request.args.get("plantilla") or "ficha"
-    if plantilla_actual not in ("ficha", "story"):
-        plantilla_actual = "ficha"
     preorden_actual = request.args.get("preorden")
     if preorden_actual not in ("si", "no"):
         preorden_actual = "auto"
@@ -270,8 +252,6 @@ def mockups_admin():
         efecto_actual=efecto_actual,
         acentos_actuales=acentos_actuales,
         variante_actual=variante_actual,
-        fondo_actual=fondo_actual,
-        plantilla_actual=plantilla_actual,
         preorden_actual=preorden_actual,
         vm=_vinylmockup_local(),
     )
