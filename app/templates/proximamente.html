@@ -51,15 +51,14 @@
                 <i class="bi bi-box-seam me-1"></i>Encuentra tu pedido
             </a>
         </div>
-        {% if spotify %}
-        <div class="mb-pronto-spotify">
-            <p class="mb-pronto-spotify-titulo"><i class="bi bi-spotify me-1"></i>Escuchá algo de {{ spotify.titulo }}{% if spotify.artista %} · {{ spotify.artista }}{% endif %}</p>
-            <iframe title="Reproductor de Spotify" loading="lazy"
-                    src="https://open.spotify.com/embed/album/{{ spotify.spotify_id }}?utm_source=generator&theme=0"
-                    width="100%" height="152" frameborder="0" allowfullscreen
-                    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe>
+        {# reproductor: intenta sonar solo; si el navegador lo bloquea, arranca al primer gesto #}
+        <div class="mb-pronto-player" id="mbProntoPlayer" data-endpoint="{{ url_for('home.preview_cancion') }}" hidden>
+            <button type="button" class="mb-pronto-play" id="mbPlay" aria-label="Reproducir o pausar el adelanto"><i class="bi bi-play-fill"></i></button>
+            <span class="mb-pronto-eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+            <span class="mb-pronto-track"><strong id="mbTrack">—</strong><small id="mbArtist"></small></span>
+            <a class="mb-pronto-spotify-link" id="mbSpotify" href="#" target="_blank" rel="noopener" aria-label="Abrir la canción en Spotify" hidden><i class="bi bi-spotify"></i></a>
         </div>
-        {% endif %}
+        <p class="mb-pronto-sonido" id="mbSonido" hidden><i class="bi bi-volume-up-fill me-1"></i>Tocá la pantalla para escuchar el adelanto</p>
         <p class="mb-pronto-nota">
             Mientras tanto puedes pedir tu disco a la medida o revisar el estado de tu pedido.
         </p>
@@ -104,6 +103,46 @@
         i = (i + 1) % slides.length;
         slides[i].classList.add('is-active');
     }, 3200);
+})();
+
+//adelanto musical: el navegador no deja sonar solo en la 1ª visita; se intenta y, si lo
+//bloquea, arranca al primer scroll/tap. El tema lo elige el server (ver app/store/preview.py).
+(function () {
+    var player = document.getElementById('mbProntoPlayer');
+    if (!player) return;
+    var sonido = document.getElementById('mbSonido');
+    var btn = document.getElementById('mbPlay');
+    var audio = null, sonando = false;
+    function icono(c) { btn.innerHTML = '<i class="bi ' + c + '"></i>'; }
+    function intentar() { if (audio) audio.play().catch(pedirGesto); }
+    function pedirGesto() {
+        if (!sonido || !sonido.hidden) return;
+        sonido.hidden = false;
+        var eventos = ['pointerdown', 'keydown', 'scroll', 'touchstart'];
+        function arrancar() {
+            eventos.forEach(function (e) { window.removeEventListener(e, arrancar); });
+            sonido.hidden = true;
+            intentar();
+        }
+        eventos.forEach(function (e) { window.addEventListener(e, arrancar, { passive: true }); });
+    }
+    fetch(player.getAttribute('data-endpoint'), { headers: { 'Accept': 'application/json' } })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+            if (!d || !d.url) return;
+            player.hidden = false;
+            document.getElementById('mbTrack').textContent = d.titulo || '';
+            document.getElementById('mbArtist').textContent = d.artista || '';
+            if (d.spotify) { var l = document.getElementById('mbSpotify'); l.href = d.spotify; l.hidden = false; }
+            audio = new Audio(d.url);
+            audio.preload = 'auto';
+            audio.addEventListener('play', function () { sonando = true; player.classList.add('is-playing'); icono('bi-pause-fill'); });
+            audio.addEventListener('pause', function () { sonando = false; player.classList.remove('is-playing'); icono('bi-play-fill'); });
+            audio.addEventListener('ended', function () { sonando = false; player.classList.remove('is-playing'); icono('bi-play-fill'); });
+            btn.addEventListener('click', function () { sonando ? audio.pause() : audio.play(); });
+            intentar();
+        })
+        .catch(function () {});
 })();
 </script>
 {% endblock %}

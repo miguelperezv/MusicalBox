@@ -25,7 +25,7 @@ from . import carrito
 from .imagenes import imagen_producto
 from .redes import seleccion_para_inicio, leer_url
 from .secciones import SECCIONES, seccion_de, habilitada, mensaje_pronto, estado_secciones, guardar_secciones
-from .preview import spotify_destacado
+from .preview import cancion_destacada
 from ..db import db
 from ..limiter import limiter
 from .notificaciones import correo_activacion, usuario_de_token
@@ -83,7 +83,7 @@ def before_request():
         pronto_titulo, pronto_mensaje = mensaje_pronto()
         return render_template("proximamente.html", seccion_nombre=SECCIONES[slug]["nombre"],
                                portadas=portadas, pronto_titulo=pronto_titulo,
-                               pronto_mensaje=pronto_mensaje, spotify=spotify_destacado()), 200
+                               pronto_mensaje=pronto_mensaje), 200
 
     # Track page views automatically for analytics
     # Skip tracking for static files, favicons, and certain endpoints
@@ -290,6 +290,12 @@ def sugerencias():
         "artistas": artistas,
         "ver_todos": url_for("home.buscar", q=q),
     })
+
+@home.route("/preview")
+def preview_cancion():
+    #adelanto de 30 s de "la canción más popular" para la página "Pronto" (ver app/store/preview.py)
+    return jsonify(cancion_destacada() or {})
+
 
 @home.route("/robots.txt")
 def robots():
@@ -630,6 +636,17 @@ def secciones_guardar():
     guardar_secciones(estados, request.form.get("titulo"), request.form.get("mensaje"))
     registrar_evento("ajuste.secciones", detalle="Actualizó las secciones abiertas de la tienda")
     flash("Secciones actualizadas.", "success")
+    return redirect(url_for("dashboard.secciones_admin"))
+
+
+@dashboard.route("/preview/refrescar", methods=["POST"])
+def preview_refrescar():
+    #vuelve a elegir el adelanto (salta la caché de una semana) para probar el reproductor
+    datos = cancion_destacada(saltar_cache=True)
+    if datos:
+        flash(f"Adelanto elegido: {datos['titulo']} · {datos['artista']}", "success")
+    else:
+        flash("No se encontró un adelanto para los lanzamientos con Spotify.", "warning")
     return redirect(url_for("dashboard.secciones_admin"))
 
 
