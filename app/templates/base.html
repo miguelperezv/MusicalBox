@@ -41,7 +41,7 @@
     <!-- Plausible Analytics -->
     <script defer data-domain="musicalbox.com" src="https://plausible.io/js/script.js"></script>
 </head>
-<body{% if tema %} class="mb-tema-{{ tema }}{% endif %}{% if request.path.startswith('/dashboard') %} mb-admin-body{% endif %}">
+<body class="{% block body_class %}{% endblock %}{% if tema %} mb-tema-{{ tema }}{% endif %}{% if request.path.startswith('/dashboard') %} mb-admin-body{% endif %}">
     {% set ep = request.endpoint or '' %}
     {% set es_panel = request.path.startswith('/dashboard') %}
     {% if not es_panel %}

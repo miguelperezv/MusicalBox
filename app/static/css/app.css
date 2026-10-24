@@ -908,16 +908,21 @@ body.mb-tema-amor_amistad .hero-meta .hero-artist { color: #a4486b; }
 }
 .mb-pronto-contenido { position: relative; z-index: 2; color: #fff; max-width: 760px; }
 
-.mb-pronto-logo-caja {
-    width: clamp(140px, 24vw, 210px); height: clamp(140px, 24vw, 210px);
-    margin: 0 auto 1.4rem; border-radius: 50%; display: grid; place-items: center;
-    background: radial-gradient(circle at 50% 45%, rgba(58, 183, 205, .28), rgba(15, 28, 36, 0) 62%);
-}
-.mb-pronto-logo {
-    width: 100%; height: 100%; object-fit: contain;
-    filter: drop-shadow(0 14px 44px rgba(0, 0, 0, .55)) drop-shadow(0 0 26px rgba(255, 251, 37, .18));
+/* vinilo vivo del inicio como protagonista (surcos girando + nota que baila) */
+.mb-pronto-disco {
+    position: relative; width: clamp(240px, 40vw, 360px); aspect-ratio: 1;
+    margin: 0 auto 1.1rem;
     animation: mb-pronto-flota 6s ease-in-out infinite;
 }
+.mb-pronto-disco .mb-live { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+/* las portadas rotan en la etiqueta central del disco (centro real del SVG: 51.5%) */
+.mb-pronto-portadas {
+    position: absolute; left: 51.5%; top: 51.5%; width: 34%; aspect-ratio: 1;
+    transform: translate(-50%, -50%); border-radius: 50%; overflow: hidden;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, .45);
+}
+.pronto-slide { position: absolute; inset: 0; background-size: cover; background-position: center; opacity: 0; transition: opacity 1s ease; }
+.pronto-slide.is-active { opacity: 1; }
 @keyframes mb-pronto-flota { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
 
 .mb-pronto-etiqueta { text-transform: uppercase; letter-spacing: .22em; font-size: .74rem; font-weight: 700; color: var(--mb-sky); margin-bottom: .6rem; opacity: .9; }
@@ -929,6 +934,8 @@ body.mb-tema-amor_amistad .hero-meta .hero-artist { color: #a4486b; }
 }
 .mb-pronto-mensaje { font-size: clamp(1rem, 2.4vw, 1.25rem); color: #e7eef2; margin: 0 auto; max-width: 34rem; }
 .mb-pronto-nota { margin-top: 1.4rem; font-size: .85rem; color: var(--mb-muted); }
+/* el mosaico llega hasta el pie: sin la franja clara del margen del footer */
+.mb-pronto-page .mb-footer { margin-top: 0; }
 
 /* ---------- menos movimiento: todo quieto y nítido ---------- */
 /* Va al final a propósito: por orden de cascada tienen que ir después de las reglas de
@@ -943,7 +950,7 @@ body.mb-tema-amor_amistad .hero-meta .hero-artist { color: #a4486b; }
     .mb-tema-serpentina-trazo, .mb-tema-abanico { animation: none; }
     /* el estallido quedaría amontonado en el centro del disco: mejor no mostrarlo */
     .mb-tema-explota { animation: none; opacity: 0; }
-    /* el mosaico "Pronto" se queda quieto (pero visible) y el logo no flota */
-    .mb-pronto-logo { animation: none; }
+    /* el mosaico "Pronto" se queda quieto (pero visible) y el vinilo no flota */
+    .mb-pronto-disco { animation: none; }
     .mb-pronto-ficha { animation: none; opacity: .6; }
 }

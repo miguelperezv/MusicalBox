@@ -1,7 +1,9 @@
 {% extends "base.html" %}
 {# Página "Pronto" de una sección apagada (ver app/store/secciones.py).
-   Conserva la barra de arriba y el pie de base.html; el centro es un mosaico de portadas
-   que se enciende y se apaga. El admin la previsualiza con ?pronto=1 aunque la sección esté abierta. #}
+   Fondo: mosaico de portadas que se enciende y se apaga. Centro: el vinilo vivo del inicio
+   (surcos que giran + nota que baila) con las portadas cambiando en la etiqueta.
+   El admin la previsualiza con ?pronto=1 aunque la sección esté abierta. #}
+{% block body_class %}mb-pronto-page{% endblock %}
 {% block title %}{{ pronto_titulo }} · {{ seccion_nombre }}{% endblock %}
 {% block head %}
 <meta name="robots" content="noindex, follow">
@@ -25,10 +27,18 @@
     <div class="mb-pronto-velo" aria-hidden="true"></div>
 
     <div class="container mb-pronto-contenido text-center">
-        <div class="mb-pronto-logo-caja">
-            <img class="mb-pronto-logo" src="{{ url_for('static', filename='imgs/musicalbox.png') }}"
-                 alt="Musical Box" width="220" height="220">
+        {# el vinilo vivo del inicio, con las portadas rotando en su etiqueta #}
+        <div class="mb-pronto-disco">
+            {% include "_vinilo.html" %}
+            {% if portadas %}
+            <div class="mb-pronto-portadas" aria-hidden="true">
+                {% for p in portadas %}
+                <span class="pronto-slide{{ ' is-active' if loop.first }}" style="background-image:url('{{ p }}')"></span>
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
+
         <p class="mb-pronto-etiqueta"><i class="bi bi-vinyl me-1"></i>{{ seccion_nombre }}</p>
         <h1 class="mb-pronto-titulo">{{ pronto_titulo }}</h1>
         <p class="mb-pronto-mensaje">{{ pronto_mensaje }}</p>
@@ -72,6 +82,19 @@
         setTimeout(cambia, 260 + Math.random() * 900);
     }
     cambia();
+})();
+
+//la portada de la etiqueta del vinilo va rotando con un fundido
+(function () {
+    var slides = [].slice.call(document.querySelectorAll('.mb-pronto-portadas .pronto-slide'));
+    if (slides.length < 2) return;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var i = 0;
+    setInterval(function () {
+        slides[i].classList.remove('is-active');
+        i = (i + 1) % slides.length;
+        slides[i].classList.add('is-active');
+    }, 3200);
 })();
 </script>
 {% endblock %}
