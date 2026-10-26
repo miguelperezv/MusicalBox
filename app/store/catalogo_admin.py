@@ -137,6 +137,76 @@ def pedido_envio(k_invoice):
                     "guia": p.guia or "", "carrier": p.envio_carrier or "", "aviso_enviado": bool(aviso)})
 
 
+@dashboard.route("/pedido/<int:k_invoice>/datos-envio", methods=["POST"])
+def pedido_datos_envio(k_invoice):
+    #el cliente ya no puede editar la dirección desde /pedido/<token>: la corrige el admin.
+    #si el pedido aún no está pagado, cambiar el municipio recalcula el envío.
+    import re
+    from .municipios import canonico, mismo_municipio
+    from .envio import costo_envio
+
+    p = db.session.get(Invoice, k_invoice) or abort(404)
+    if p.estado_envio in ('ENVIADO', 'ENTREGADO'):
+        return jsonify({"error": "El pedido ya salió: la dirección no se puede cambiar"}), 400
+    f = request.form
+    nombre = (f.get("n_envio") or "").strip()[:100]
+    email = (f.get("email_envio") or "").strip().lower()[:100]
+    telefono = (f.get("tel_envio") or "").strip()[:20]
+    ciudad = canonico(f.get("lugar_envio")) or None
+    direccion = (f.get("dir_envio") or "").strip()[:200]
+    barrio = (f.get("barrio_envio") or "").strip()[:30] or None
+    if not nombre or not email or not telefono or not ciudad or len(direccion) < 5:
+        return jsonify({"error": "Completa nombre, correo, teléfono, municipio y dirección"}), 400
+    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+        return jsonify({"error": "Revisa el correo del comprador"}), 400
+    if len("".join(c for c in telefono if c.isdigit())) < 7:
+        return jsonify({"error": "Revisa el teléfono del comprador"}), 400
+
+    antes = {"n_envio": p.n_envio, "email_envio": p.email_envio, "tel_envio": p.tel_envio,
+             "lugar_envio": p.lugar_envio, "dir_envio": p.dir_envio, "barrio_envio": p.barrio_envio,
+             "p_envio": int(p.p_envio or 0)}
+    cambio_ciudad = not mismo_municipio(ciudad, p.lugar_envio or "")
+    p.n_envio, p.email_envio, p.tel_envio = nombre, email, telefono
+    p.lugar_envio, p.dir_envio, p.barrio_envio = ciudad, direccion, barrio
+
+    recalculado = False
+    aviso = None
+    #un envío fijado por la tienda (cotización) o corregido a mano manda: cambiar la ciudad
+    #no lo puede sobrescribir. Para eso está el ajuste explícito de costo de envío.
+    envio_fijado = bool(p.envio_manual) or 'fijado por la tienda' in (p.d_envio or '').lower()
+    if cambio_ciudad:
+        if envio_fijado:
+            p.envio_manual = True
+            aviso = "El envío está fijado manualmente: se mantiene el valor. Ajusta el costo abajo si hace falta."
+        elif p.estado in ('PENDIENTE', 'PENDIENTE_ABONO', 'ABONADO', 'RECHAZADO'):
+            lineas = [(it.producto, it.variante, int(it.cant_item or 1)) for it in p.items]
+            env = costo_envio(lineas, p.total, ciudad)
+            if env:
+                p.p_envio = env["p_envio"]
+                p.d_envio = (env.get("detalle") or "")[:100] or None
+                p.envio_carrier = env.get("carrier") or None
+                p.envio_id_rate = env.get("id_rate") or None
+                p.envio_manual = False
+            recalculado = True
+            aviso = f"Municipio actualizado y envío recalculado: {pesos(p.p_envio)}"
+        else:
+            aviso = "El pedido ya está pagado: el costo de envío no se recalculó. Ajusta el envío aparte si hace falta."
+    db.session.commit()
+
+    cambios = [f"{k}: {antes[k] or '—'} → {(getattr(p, k) or '—')}" for k in
+               ("n_envio", "lugar_envio", "dir_envio", "barrio_envio", "tel_envio", "email_envio")
+               if (antes[k] or None) != (getattr(p, k) or None)]
+    if antes["p_envio"] != int(p.p_envio or 0):
+        cambios.append(f"envío: ${antes['p_envio']:,} → ${int(p.p_envio or 0):,}".replace(",", "."))
+    if cambios:
+        registrar_evento("pedido.datos_envio", "pedido", p.id,
+                         f"Pedido #{p.id}: datos de envío corregidos", datos={"cambios": cambios})
+    return jsonify({"ok": True, "n_envio": p.n_envio, "email_envio": p.email_envio, "tel_envio": p.tel_envio,
+                    "lugar_envio": p.lugar_envio, "dir_envio": p.dir_envio, "barrio_envio": p.barrio_envio,
+                    "p_envio": int(p.p_envio or 0), "total_pago": int((p.total or 0) + (p.p_envio or 0)),
+                    "recalculado": recalculado, "aviso": aviso})
+
+
 @dashboard.route("/pedido/<int:k_invoice>/rotulo")
 def pedido_rotulo(k_invoice):
     p = db.session.get(Invoice, k_invoice)

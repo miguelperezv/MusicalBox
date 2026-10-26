@@ -110,7 +110,9 @@ def regla_eliminar(k):
 @dashboard.route("/pedido/<int:k_invoice>/costo_envio", methods=["POST"])
 def pedido_costo_envio(k_invoice):
     p = db.session.get(Invoice, k_invoice) or abort(404)
-    if p.estado not in ('PENDIENTE', 'PAGADO') or p.estado_envio in ('ENVIADO', 'ENTREGADO'):
+    #también aplica a preórdenes abonadas (el envío se cobra con el saldo) y a pedidos rechazados
+    if p.estado not in ('PENDIENTE', 'PENDIENTE_ABONO', 'ABONADO', 'PAGADO', 'RECHAZADO') \
+            or p.estado_envio in ('ENVIADO', 'ENTREGADO'):
         return jsonify({"error": "El costo de envío solo se corrige hasta que el pedido quede ENVIADO"}), 400
     try:
         p_envio = int(request.form.get("p_envio"))

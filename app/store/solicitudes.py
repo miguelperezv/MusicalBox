@@ -6,7 +6,7 @@ from flask import Blueprint, flash, request, g, render_template, redirect, url_f
 from .models import (create_solicitud, get_all_solicitudes, update_estado_solicitud, get_catalogo_solicitud, get_product_by_id,
                      cotizar_solicitud, get_solicitud_por_token, datos_envio_previos,
                      items_efectivos, get_all_releases, buscar_o_crear_lanzamiento,
-                     buscar_o_crear_lanzamiento_spotify,
+                     buscar_o_crear_lanzamiento_spotify, token_pedido,
                      ESTADOS_SOLICITUD, Solicitud, SolicitudItem, Lanzamiento)
 from .services.user_service import get_usuario_por_email
 from .services.order_service import crear_pedido
@@ -14,6 +14,8 @@ from .forms import RegistroSolicitudForm, CotizacionRapidaForm, CheckoutForm
 from .musicapi import buscar_albumes_spotify
 from .texto import titulo
 from .envio import costo_envio, lineas_desde_cats, aviso_envio_gratis
+from .municipios import canonico, mismo_municipio
+from .auditoria import registrar_evento
 from ..db import db
 from .views import before_request, admin_required, render_seccion
 from .notif_admin import aviso_solicitud, aviso_pedido_creado
@@ -80,7 +82,7 @@ def nueva():
             #se asocia a una cuenta si ya existe; si no, el comprador se crea al confirmar la compra
             usuario = get_usuario_por_email(g.user["email_usuario"]) if g.user else (get_usuario_por_email(email) if email else None)
             s, err = create_solicitud(usuario.id if usuario else None, items, form.celular.data.strip(), email,
-                                      lugar=form.ciudad.data)
+                                      lugar=canonico(form.ciudad.data) or form.ciudad.data)
             if s:
                 aviso_solicitud(s)
                 correo_solicitud_recibida(s)
@@ -156,8 +158,13 @@ def lanzamiento_spotify():
 @solicitud.route("/<int:id>/estado", methods=["POST"])
 @admin_required
 def estado(id):
+    s = db.session.get(Solicitud, id)
+    antes = s.estado if s else None
     s = update_estado_solicitud(id, request.form.get("estado"))
     if s:
+        if antes != s.estado:
+            registrar_evento("solicitud.estado", "solicitud", s.id,
+                             f"Solicitud #{s.id}: {antes or 'sin estado'} → {s.estado}")
         return jsonify({"id": s.id, "estado": s.estado})
     return jsonify({"error": "No se pudo actualizar la solicitud"}), 400
 
@@ -251,7 +258,7 @@ def nueva_admin():
     s, err = create_solicitud(usuario.id if usuario else None,
                               [{"nombre": nombre_limpio, "cantidad": form.cantidad.data or 1, "k_producto": k_producto}],
                               form.celular.data.strip(), email,
-                              lugar=(form.lugar.data or '').strip() or None)
+                              lugar=canonico(form.lugar.data) or (form.lugar.data or '').strip() or None)
     if not s:
         return jsonify({"error": err or "No se pudo registrar"}), 400
     if form.precio.data:
@@ -276,6 +283,12 @@ def cotizar(id):
     s = db.session.get(Solicitud, id)
     if not s:
         return jsonify({"error": "La solicitud no existe"}), 400
+    #el municipio es la base del envío: si la solicitud no lo trae (o quedó viejo),
+    #el admin lo puede escribir aquí mismo antes de fijar el costo
+    lugar_txt = (request.form.get("lugar_solicitud") or "").strip()
+    lugar = canonico(lugar_txt) if lugar_txt else None
+    if lugar_txt and not lugar:
+        return jsonify({"error": "Elige el municipio de la lista (Municipio, Departamento)"}), 400
     items = items_efectivos(s)
     #retirar los ítems que el admin marcó: se quitan de la solicitud y no van en la cotización
     retiros = [i for i in range(len(items)) if request.form.get(f"item_{i}_retirar") == "on"]
@@ -300,9 +313,15 @@ def cotizar(id):
                        "cantidad": request.form.get(f"item_{i}_cantidad", type=int),
                        "precio": request.form.get(f"item_{i}_precio", type=int),
                        "nombre": (request.form.get(f"item_{i}_nombre") or "").strip()})
-    #envío: vacío = se sigue calculando en el checkout; número = se fija (0 = gratis)
+    #envío: vacío = se calcula en el checkout; número = se fija (0 = gratis). Para fijarlo hace
+    #falta el municipio: si no, el cliente podría elegir otro y pagar de menos.
+    if "lugar_solicitud" in request.form:
+        s.lugar_solicitud = lugar
     envio_txt = (request.form.get("p_envio") or "").strip()
     p_envio = int(envio_txt) if envio_txt.isdigit() else None
+    if p_envio is not None and not (s.lugar_solicitud and canonico(s.lugar_solicitud)):
+        return jsonify({"error": "Escribe el municipio del cliente (o elige uno de la lista) para fijar el envío. "
+                                 "Si lo dejas vacío, se calcula al pagar."}), 400
     token, err = cotizar_solicitud(id, lineas, request.form.get("d_cotizacion"), p_envio=p_envio)
     if err:
         return jsonify({"error": err}), 400
@@ -331,9 +350,24 @@ def confirmar(token):
     if s.estado == 'COMPRADA':
         flash("Esta solicitud ya fue pagada. Revisa el enlace del pedido que llegó a tu correo.", "info")
         return redirect(url_for('home.index'))
+    if s.estado == 'CANCELADO':
+        flash("Esta cotización fue cancelada. Escríbenos si quieres retomarla.", "warning")
+        return redirect(url_for('home.index'))
     items = items_efectivos(s)
     if not s.token_hash or not all(it.precio_unit for it in items):
         abort(404)
+
+    #un enlace = un pedido: si ya se generó, se sigue desde su página (allí puede pagar o reintentar)
+    if s.k_invoice and s.pedido:
+        flash("Ya generamos un pedido con esta cotización. Lo puedes pagar o revisar aquí abajo.", "info")
+        return redirect(url_for('pedido.ver', token=token_pedido(s.pedido)))
+
+    #si el admin fijó el envío, el municipio queda bloqueado: de ahí sale la tarifa.
+    #una solicitud vieja con un municipio que ya no está en la lista se trata como "sin lugar".
+    ciudad_fijada = None
+    if s.p_envio_cotizado is not None and s.lugar_solicitud:
+        ciudad_fijada = canonico(s.lugar_solicitud)
+    envio_fijado_sin_lugar = s.p_envio_cotizado not in (None, 0) and not ciudad_fijada
 
     form = CheckoutForm()
     previos = datos_envio_previos(s.email_contacto or (s.usuario.email_usuario if s.usuario else None))
@@ -341,36 +375,47 @@ def confirmar(token):
         for campo, valor in (previos or {"email": s.email_contacto, "telefono": s.cel_contacto}).items():
             if valor and campo in form:
                 form[campo].data = valor
-        #si no había datos previos, se sugiere el municipio que dejó en la solicitud
-        if not form.ciudad.data and s.lugar_solicitud:
-            form.ciudad.data = s.lugar_solicitud
+        #el municipio cotizado manda sobre la última dirección usada (si no, cambiaría el envío)
+        if ciudad_fijada:
+            form.ciudad.data = ciudad_fijada
+        elif not form.ciudad.data and s.lugar_solicitud:
+            form.ciudad.data = canonico(s.lugar_solicitud) or s.lugar_solicitud
 
     if form.validate_on_submit():
-        datos = {campo: form[campo].data for campo in ["nombre", "email", "telefono", "ciudad", "direccion", "barrio"]}
-        #las cantidades las elige el cliente aquí; el precio por unidad es el cotizado por el admin.
-        #los ítems marcados "no lo quiero" quedan fuera del pedido
-        lineas = []
-        for i, it in enumerate(items):
-            if request.form.get(f"retirar_{i}") == "on":
-                continue
-            cantidad = request.form.get(f"cant_{i}", type=int) or int(it.cantidad or 1)
-            cantidad = max(1, min(99, cantidad))
-            lineas.append({"producto": it.producto, "cantidad": cantidad, "precio": int(it.precio_unit),
-                           "k_lanzamiento": it.k_lanzamiento,
-                           "n_item": None if it.producto else it.nombre})
-        if not lineas:
-            flash("Tienes que dejar al menos un ítem: desmarca el que ya no quieres", "warning")
+        ciudad = canonico(form.ciudad.data) or form.ciudad.data
+        if envio_fijado_sin_lugar:
+            flash("Esta cotización tiene un envío fijado pero no registra el municipio. "
+                  "Escríbenos para confirmarlo antes de pagar.", "warning")
+        elif ciudad_fijada and not mismo_municipio(ciudad, ciudad_fijada):
+            flash(f"El envío de esta cotización está fijado para {ciudad_fijada}. "
+                  "Si necesitas otra ciudad, escríbenos y lo ajustamos.", "warning")
         else:
-            pedido, token_pedido, errores = crear_pedido(None, datos, k_usuario=g.user["id"] if g.user else None, cotizacion=lineas,
-                                                         p_envio_fijado=s.p_envio_cotizado)
-            if errores:
-                for e in errores:
-                    flash(e, "warning")
+            datos = {campo: form[campo].data for campo in ["nombre", "email", "telefono", "ciudad", "direccion", "barrio"]}
+            datos["ciudad"] = ciudad
+            #las cantidades las elige el cliente aquí; el precio por unidad es el cotizado por el admin.
+            #los ítems marcados "no lo quiero" quedan fuera del pedido
+            lineas = []
+            for i, it in enumerate(items):
+                if request.form.get(f"retirar_{i}") == "on":
+                    continue
+                cantidad = request.form.get(f"cant_{i}", type=int) or int(it.cantidad or 1)
+                cantidad = max(1, min(99, cantidad))
+                lineas.append({"producto": it.producto, "cantidad": cantidad, "precio": int(it.precio_unit),
+                               "k_lanzamiento": it.k_lanzamiento,
+                               "n_item": None if it.producto else it.nombre})
+            if not lineas:
+                flash("Tienes que dejar al menos un ítem: desmarca el que ya no quieres", "warning")
             else:
-                s.k_invoice = pedido.id
-                db.session.commit()
-                aviso_pedido_creado(pedido, token_pedido)
-                return redirect(url_for('pedido.ver', token=token_pedido))
+                pedido, token_nuevo, errores = crear_pedido(None, datos, k_usuario=g.user["id"] if g.user else None,
+                                                            cotizacion=lineas, p_envio_fijado=s.p_envio_cotizado)
+                if errores:
+                    for e in errores:
+                        flash(e, "warning")
+                else:
+                    s.k_invoice = pedido.id
+                    db.session.commit()
+                    aviso_pedido_creado(pedido, token_nuevo)
+                    return redirect(url_for('pedido.ver', token=token_nuevo))
 
     #marcados "no lo quiero" en el último envío (para grisearlos si el formulario se repinta por errores)
     retiros = set()
@@ -396,7 +441,8 @@ def confirmar(token):
     return render_template("checkout.html", form=form, lineas=lineas_vista, total=total,
                            accion=url_for('solicitud.confirmar', token=token), previos=previos, solicitud=s,
                            cats="|".join(f"{k}:{v}" for k, v in sorted(cats.items())),
-                           envio_aviso=envio_aviso)
+                           envio_aviso=envio_aviso, ciudad_fijada=ciudad_fijada,
+                           envio_fijado_sin_lugar=envio_fijado_sin_lugar)
 
 
 @solicitud.route("/<int:id>/eliminar", methods=["POST"])

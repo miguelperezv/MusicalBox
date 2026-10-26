@@ -12,7 +12,15 @@
     </div>
 
     <div class="mb-panel mb-3">
-        <h3 class="h6 mb-3">Comprador y envío</h3>
+        <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+            <h3 class="h6 mb-0">Comprador y envío</h3>
+            {% if i.estado_envio not in ('ENVIADO', 'ENTREGADO') %}
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse"
+                    data-bs-target="#envio-edit-{{ i.id }}" aria-expanded="false" aria-controls="envio-edit-{{ i.id }}">
+                <i class="bi bi-pencil-square me-1"></i>Editar
+            </button>
+            {% endif %}
+        </div>
         <div class="small d-grid gap-2">
             <div><span class="text-body-secondary">Nombre:</span> {{ i.n_envio or ((i.usuario.n_usuario ~ ' ' ~ i.usuario.ape_usuario) if i.usuario else 'Sin nombre') }}</div>
             {% set correo = i.email_envio or (i.usuario.email_usuario if i.usuario) %}
@@ -21,6 +29,48 @@
             {% if tel %}<div><span class="text-body-secondary">Teléfono:</span> <a href="https://wa.me/57{{ tel|replace(' ', '') }}" target="_blank" rel="noopener">{{ tel }}</a></div>{% endif %}
             {% if i.dir_envio %}<div><span class="text-body-secondary">Dirección:</span> {{ i.dir_envio }}{% if i.barrio_envio %}, {{ i.barrio_envio }}{% endif %} · {{ i.lugar_envio }}</div>{% endif %}
         </div>
+
+        {% if i.estado_envio not in ('ENVIADO', 'ENTREGADO') %}
+        <div class="collapse mt-3" id="envio-edit-{{ i.id }}">
+            <form class="datos-envio row g-2" data-url="{{ url_for('dashboard.pedido_datos_envio', k_invoice=i.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="col-md-6">
+                    <label class="form-label small mb-1">Nombre</label>
+                    <input class="form-control form-control-sm" name="n_envio" value="{{ i.n_envio or '' }}" maxlength="100" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small mb-1">Correo</label>
+                    <input class="form-control form-control-sm" type="email" name="email_envio" value="{{ i.email_envio or '' }}" maxlength="100" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small mb-1">Teléfono</label>
+                    <input class="form-control form-control-sm" name="tel_envio" value="{{ i.tel_envio or '' }}" maxlength="20" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small mb-1">Municipio, Departamento</label>
+                    <input class="form-control form-control-sm" name="lugar_envio" value="{{ i.lugar_envio or '' }}"
+                           data-autocomplete="{{ url_for('home.colombia') }}" maxlength="80" required>
+                </div>
+                <div class="col-12">
+                    <label class="form-label small mb-1">Dirección</label>
+                    <input class="form-control form-control-sm" name="dir_envio" value="{{ i.dir_envio or '' }}" maxlength="200" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small mb-1">Barrio</label>
+                    <input class="form-control form-control-sm" name="barrio_envio" value="{{ i.barrio_envio or '' }}" maxlength="30">
+                </div>
+                <div class="col-12">
+                    <div class="form-text">
+                        Si cambias el municipio de un pedido sin pagar, el envío se recalcula.
+                        Si ya está pagado, el costo no cambia automáticamente: corrígelo abajo si hace falta.
+                    </div>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-save me-1"></i>Guardar datos de envío</button>
+                </div>
+            </form>
+        </div>
+        {% endif %}
     </div>
 
     <div class="mb-panel mb-3">
@@ -69,6 +119,7 @@
             {% for e in estados_envio %}<option value="{{ e }}" {{ 'selected' if e == i.estado_envio }}>{{ e }}</option>{% endfor %}
         </select>
         <form class="envio-guia d-grid gap-2" data-url="{{ url_for('dashboard.pedido_envio', k_invoice=i.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="estado_envio" value="{{ i.estado_envio or 'POR PREPARAR' }}">
             <input class="form-control form-control-sm" name="carrier" value="{{ i.envio_carrier or '' }}" placeholder="Transportadora" aria-label="Transportadora del pedido {{ i.id }}">
             <div class="d-flex gap-2">
@@ -120,8 +171,9 @@
             </form>
             {% endif %}
 
-            {% if i.estado in ('PENDIENTE', 'PAGADO') and i.estado_envio not in ('ENVIADO', 'ENTREGADO') %}
+            {% if i.estado in ('PENDIENTE', 'PENDIENTE_ABONO', 'ABONADO', 'PAGADO', 'RECHAZADO') and i.estado_envio not in ('ENVIADO', 'ENTREGADO') %}
             <form class="envio-override d-flex gap-1" data-url="{{ url_for('dashboard.pedido_costo_envio', k_invoice=i.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input class="form-control form-control-sm" type="number" name="p_envio" min="0" value="{{ i.p_envio|int if i.p_envio else 0 }}" style="width: 96px" aria-label="Costo de envío del pedido {{ i.id }}" title="Costo de envío">
                 <button class="btn btn-sm btn-outline-secondary" title="Actualizar el costo de envío"><i class="bi bi-pencil"></i></button>
             </form>

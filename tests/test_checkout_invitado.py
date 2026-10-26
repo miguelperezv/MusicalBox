@@ -31,7 +31,8 @@ def test_compra_completa_sin_login_ni_registro(client, app):
         assert pedido.estado == "PENDIENTE"
         assert pedido.total == 240000
         assert (pedido.n_envio, pedido.email_envio, pedido.tel_envio) == ("Laura Invitada Pérez", "laura@correo.com", "3001234567")
-        assert (pedido.dir_envio, pedido.lugar_envio, pedido.barrio_envio) == ("Cra 1 # 2-3", "Suba, Bogotá D.C.", "Niza")
+        #el municipio se guarda canónico (la localidad de Bogotá no cambia la tarifa)
+        assert (pedido.dir_envio, pedido.lugar_envio, pedido.barrio_envio) == ("Cra 1 # 2-3", "Bogotá D.C.", "Niza")
         #el método de pago lo escribe MercadoPago al confirmar (aquí todavía no hay pago)
         assert pedido.metodo_pago is None
         comprador = db.session.get(Usuario, pedido.k_usuario)

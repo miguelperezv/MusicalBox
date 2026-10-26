@@ -1,5 +1,7 @@
 <tr data-orden="{{ i.id }}" data-estado="{{ i.estado }}" data-envio="{{ i.estado_envio or '' }}"
     data-envio-url="{{ url_for('dashboard.pedido_envio', k_invoice=i.id) }}"
+    data-buscar="{{ i.id }} {{ i.n_envio or '' }} {{ i.email_envio or '' }} {{ i.tel_envio or '' }} {{ i.dir_envio or '' }} {{ i.barrio_envio or '' }} {{ i.lugar_envio or '' }} {{ i.guia or '' }} {{ i.mp_payment_id or '' }} {{ i.usuario.n_usuario if i.usuario else '' }} {{ i.usuario.ape_usuario if i.usuario else '' }} {{ i.usuario.email_usuario if i.usuario else '' }} {{ i.usuario.cel_usuario if i.usuario else '' }}"
+    {% if i.estado == 'PAGADO' %}data-rotulo-base="{{ url_for('dashboard.pedido_rotulo', k_invoice=i.id) }}"{% endif %}
     {% if i.estado == 'PAGADO' and i.estado_envio in con_rotulo %}data-rotulo-url="{{ url_for('dashboard.pedido_rotulo', k_invoice=i.id) }}"{% endif %}>
     <td class="ps-3">
         <input class="form-check-input mb-orden-check" type="checkbox" name="orden" value="{{ i.id }}" aria-label="Seleccionar pedido {{ i.id }}">
@@ -33,8 +35,14 @@
         {% else %}
         <span class="mb-estado mb-estado-RECHAZADO">RECHAZADO</span>
         {% endif %}
-        {% if i.estado == 'PAGADO' %}<br><small class="text-body-secondary">{{ i.estado_envio }}</small>{% endif %}
-        {% if i.metodo_pago %}<br><small class="text-body-secondary">{{ i.metodo_pago }}</small>{% endif %}
+        {% if i.estado == 'PAGADO' %}
+        <select class="form-select form-select-sm estado-envio mt-1" style="min-width: 138px"
+                data-url="{{ url_for('dashboard.pedido_envio', k_invoice=i.id) }}"
+                aria-label="Estado de envío del pedido {{ i.id }}">
+            {% for e in estados_envio %}<option value="{{ e }}" {{ 'selected' if e == i.estado_envio }}>{{ e }}</option>{% endfor %}
+        </select>
+        {% endif %}
+        {% if i.metodo_pago %}<small class="text-body-secondary">{{ i.metodo_pago }}</small>{% endif %}
     </td>
     <td class="text-end text-nowrap">
         <span class="total-pago fw-semibold">{{ ((i.total or 0) + (i.p_envio or 0))|cop }}</span>

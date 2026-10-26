@@ -2016,6 +2016,11 @@ def crear_pedido(cart, datos, k_usuario=None, cotizacion=None, p_envio_fijado=No
     if errores:
         return None, None, errores
 
+    #el municipio se guarda tal como está en la lista DIVIPOLA (si se puede resolver): es la
+    #entrada del cálculo de envío y la dirección que se imprime en el rótulo
+    from .municipios import canonico
+    ciudad_destino = canonico(datos.get("ciudad")) or (datos.get("ciudad") or "").strip()
+
     #costo de envío: gana el precio que el admin fijó al cotizar; si no, se calcula (regla de gratis, cotización real o tarifa por zona)
     from .envio import costo_envio
     envio = None
@@ -2024,7 +2029,7 @@ def crear_pedido(cart, datos, k_usuario=None, cotizacion=None, p_envio_fijado=No
         envio = {"p_envio": p, "detalle": "Envío gratis (fijado por la tienda)" if p == 0 else "Envío fijado por la tienda",
                  "carrier": None, "id_rate": None}
     else:
-        envio = costo_envio(lineas, total, datos["ciudad"])
+        envio = costo_envio(lineas, total, ciudad_destino)
 
     #pago parcial: el cliente lo elige en el checkout y solo aplica si todo el pedido son
     #preórdenes con el mismo porcentaje de abono. Una cotización a la medida se cobra completa.
@@ -2035,7 +2040,7 @@ def crear_pedido(cart, datos, k_usuario=None, cotizacion=None, p_envio_fijado=No
     email_envio = datos["email"].strip().lower()
     telefono_envio = datos["telefono"].strip()
     direccion_envio = datos["direccion"].strip()
-    ciudad_envio = datos["ciudad"].strip()
+    ciudad_envio = ciudad_destino
     barrio_envio = (datos.get("barrio") or "").strip() or None
     
     # Verificar si los datos de envío son válidos
@@ -2062,6 +2067,8 @@ def crear_pedido(cart, datos, k_usuario=None, cotizacion=None, p_envio_fijado=No
                              d_envio=(envio["detalle"][:100] if envio else None),
                              envio_carrier=(envio.get("carrier") or None) if envio else None,
                              envio_id_rate=(envio.get("id_rate") or None) if envio else None,
+                             #el envío fijado por la tienda no se recalcula al corregir la dirección
+                             envio_manual=p_envio_fijado is not None,
                              n_envio=nombre_envio if datos_validos else None,
                              email_envio=email_envio if datos_validos else None,
                              tel_envio=telefono_envio if datos_validos else None,
@@ -2409,7 +2416,10 @@ def eliminar_componente(k_componente):
 
 
 #pedidos a la medida: cotización -> enlace "confirmar compra" -> pedido normal
-def cotizar_solicitud(k_solicitud, lineas, d_cotizacion=None, p_envio=None):
+_SIN_CAMBIO_ENVIO = object()
+
+
+def cotizar_solicitud(k_solicitud, lineas, d_cotizacion=None, p_envio=_SIN_CAMBIO_ENVIO):
     #lineas: [{k_producto, k_lanzamiento, cantidad, precio}, ...] alineadas con los ítems de la solicitud
     s = db.session.get(Solicitud, k_solicitud)
     if not s or s.estado == 'COMPRADA':
@@ -2442,12 +2452,14 @@ def cotizar_solicitud(k_solicitud, lineas, d_cotizacion=None, p_envio=None):
         it.k_lanzamiento = db.session.get(Lanzamiento, k_lanzamiento).id if k_lanzamiento else None
     token = secrets.token_urlsafe(32)
     s.d_cotizacion = (d_cotizacion or '').strip()[:300] or None
-    #p_envio: None = no tocar el valor anterior; 0 = gratis; >0 = fijo (se suma al total en el checkout)
-    if p_envio is not None:
+    #p_envio: 0 = gratis; >0 = fijo (se suma al total en el checkout); None = se calcula al pagar.
+    #si el llamador no lo pasa (bot), se conserva el que hubiera; el panel sí manda None
+    #cuando el admin borra el campo, para volver a "se calcula al pagar".
+    if p_envio is not _SIN_CAMBIO_ENVIO:
         try:
-            s.p_envio_cotizado = max(0, int(p_envio))
+            s.p_envio_cotizado = max(0, int(p_envio)) if p_envio is not None else None
         except (TypeError, ValueError):
-            pass
+            s.p_envio_cotizado = None
     s.token_hash, s.estado = hash_token(token), 'COTIZADA'
     db.session.commit()
     return token, None

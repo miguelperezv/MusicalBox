@@ -3,9 +3,13 @@
 <p class="small text-body-secondary mb-4">Las compras de la tienda: revisa el pago, prepara el envío y guarda la guía.</p>
 
 <!-- Filtros chips reorganizados: prioridad a lo que requiere acción -->
-<div class="d-flex flex-wrap gap-2 mb-3" data-grupo-ordenes data-filtro-actual="prioridad" role="group" aria-label="Filtrar pedidos">
-    <input class="form-control form-control-sm" style="max-width: 220px" type="search" id="buscador-ordenes" value="{{ busca }}"
-           placeholder="Buscar por número, comprador, teléfono...">
+<div class="d-flex flex-wrap gap-2 mb-3" data-grupo-ordenes data-filtro-actual="{{ 'todas' if busca else 'prioridad' }}" role="group" aria-label="Filtrar pedidos">
+    <form class="d-flex gap-1" method="get" action="{{ url_for('dashboard.invoices') }}" role="search">
+        <input class="form-control form-control-sm" style="max-width: 220px" type="search" id="buscador-ordenes" name="busca" value="{{ busca }}"
+               placeholder="Buscar por número, comprador, teléfono...">
+        <button class="btn btn-sm btn-outline-secondary" type="submit" title="Buscar en todos los pedidos"><i class="bi bi-search"></i></button>
+        {% if busca %}<a class="btn btn-sm btn-outline-secondary" href="{{ url_for('dashboard.invoices') }}" title="Limpiar búsqueda"><i class="bi bi-x-lg"></i></a>{% endif %}
+    </form>
     <button type="button" class="chip-filtro btn btn-sm btn-success active" data-filtra="ordenes" data-filtro="prioridad"><i class="bi bi-truck me-1"></i>Requieren envío <span class="badge text-bg-light text-dark">{{ conteos.prioridad or 0 }}</span></button>
     <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="ordenes" data-filtro="pendientes">Pendientes <span class="badge text-bg-warning">{{ conteos['PENDIENTE'] }}</span></button>
     <button type="button" class="chip-filtro btn btn-sm btn-outline-secondary" data-filtra="ordenes" data-filtro="rechazadas">Rechazadas <span class="badge text-bg-danger">{{ conteos['RECHAZADO'] or 0 }}</span></button>
@@ -15,6 +19,7 @@
 <div class="mb-panel p-2 mb-3 d-flex flex-wrap align-items-center gap-2" id="mbOrdenBarra" data-rotulos-url="{{ url_for('dashboard.pedidos_rotulos') }}">
     <span class="small text-body-secondary px-1"><span id="mbOrdenSeleccion">0</span> seleccionados</span>
     <button type="button" class="btn btn-sm btn-outline-primary" id="mbMarcarEnviado" disabled><i class="bi bi-truck me-1"></i>Marcar enviado</button>
+    <button type="button" class="btn btn-sm btn-outline-success" id="mbMarcarEntregado" disabled><i class="bi bi-check2-circle me-1"></i>Marcar entregado</button>
     <button type="button" class="btn btn-sm btn-outline-secondary" id="mbImprimirRotulos" disabled><i class="bi bi-printer me-1"></i>Imprimir rótulos</button>
 </div>
 
@@ -173,7 +178,10 @@
         var q = document.getElementById('buscador-ordenes')?.value?.trim().toLowerCase() || '';
         document.querySelectorAll('#tabla-prioridad tbody tr, #tabla-entregados tbody tr, #tabla-pendientes tbody tr').forEach(function (tr) {
             if (tr.querySelector('td[colspan]')) return;
-            tr.classList.toggle('d-none', q && tr.textContent.toLowerCase().indexOf(q) === -1);
+            var coincideEstado = filtro !== 'rechazadas' || tr.dataset.estado === 'RECHAZADO';
+            if (filtro === 'pendientes') coincideEstado = tr.dataset.estado !== 'RECHAZADO';
+            var texto = (tr.dataset.buscar || tr.textContent).toLowerCase();
+            tr.classList.toggle('d-none', !coincideEstado || (q && texto.indexOf(q) === -1));
         });
         if (window.mbActualizarBarraOrdenes) window.mbActualizarBarraOrdenes();
     }
@@ -187,7 +195,7 @@
         aplicarFiltro(grupo.dataset.filtroActual || 'prioridad');
     });
 
-    aplicarFiltro('prioridad');
+    aplicarFiltro(grupo.dataset.filtroActual || 'prioridad');
 })();
 
 // Drawer, selección y acciones masivas. El listener se registra una sola vez aunque la
@@ -208,8 +216,10 @@
         var contador = document.getElementById('mbOrdenSeleccion');
         if (contador) contador.textContent = total;
         var enviar = document.getElementById('mbMarcarEnviado');
+        var entregar = document.getElementById('mbMarcarEntregado');
         var imprimir = document.getElementById('mbImprimirRotulos');
         if (enviar) enviar.disabled = total === 0;
+        if (entregar) entregar.disabled = total === 0;
         if (imprimir) imprimir.disabled = total === 0;
     };
 
@@ -235,7 +245,10 @@
         detalle.innerHTML = '<div class="mb-loading"><div class="spinner-border" role="status"></div></div>';
         bootstrap.Offcanvas.getOrCreateInstance(drawer).show();
         $.get(b.dataset.url)
-            .done(function (html) { detalle.innerHTML = html; })
+            .done(function (html) {
+                detalle.innerHTML = html;
+                if (window.mbAutocomplete) mbAutocomplete(detalle);
+            })
             .fail(function () {
                 detalle.innerHTML = '<div class="alert alert-danger mb-0">No se pudo cargar el pedido. <a href="' + b.getAttribute('href') + '">Ábrelo en una página nueva</a>.</div>';
             });
@@ -264,6 +277,29 @@
         b.disabled = true;
         $.when.apply($, posts).done(function () {
             showAlert('Pedidos marcados como enviados: ' + filas.length, 'success');
+            if (window.mbRecargarSeccion) window.mbRecargarSeccion();
+        }).fail(function (xhr) {
+            var error = xhr && xhr.responseJSON && xhr.responseJSON.error;
+            showAlert(error || 'No se pudieron actualizar todos los pedidos.', 'danger');
+        }).always(function () { b.disabled = false; });
+    });
+
+    document.addEventListener('click', function (e) {
+        var b = e.target.closest && e.target.closest('#mbMarcarEntregado');
+        if (!b) return;
+        var filas = seleccionados().map(function (c) { return c.closest('tr'); }).filter(function (tr) {
+            return tr && tr.dataset.estado === 'PAGADO' && tr.dataset.envio === 'ENVIADO';
+        });
+        if (!filas.length) {
+            showAlert('Selecciona pedidos que ya estén marcados como ENVIADOS.', 'warning');
+            return;
+        }
+        var posts = filas.map(function (tr) {
+            return $.post(tr.dataset.envioUrl, { estado_envio: 'ENTREGADO' });
+        });
+        b.disabled = true;
+        $.when.apply($, posts).done(function () {
+            showAlert('Pedidos marcados como entregados: ' + filas.length, 'success');
             if (window.mbRecargarSeccion) window.mbRecargarSeccion();
         }).fail(function (xhr) {
             var error = xhr && xhr.responseJSON && xhr.responseJSON.error;

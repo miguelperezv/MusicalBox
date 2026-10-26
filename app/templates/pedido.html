@@ -145,9 +145,8 @@
 
             <div class="mb-panel">
                 <h2 class="h5 mb-3">Envío</h2>
-                {% set datos_envio_validos = pedido.n_envio and pedido.dir_envio and pedido.lugar_envio and pedido.tel_envio and pedido.email_envio %}
-                {% if not datos_envio_validos %}
-                <!-- Formulario para actualizar información de envío -->
+                {% if puede_editar_envio %}
+                <!-- completar datos de un pedido viejo que llegó vacío: después queda bloqueado -->
                 <form method="POST" action="{{ url_for('pedido.actualizar_envio', token=token) }}" class="mb-3">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="row g-2">
@@ -161,7 +160,7 @@
                             {{ field(form_envio.telefono, placeholder="Teléfono de contacto") }}
                         </div>
                         <div class="col-md-6">
-                            {{ field(form_envio.ciudad, placeholder="Ciudad") }}
+                            {{ field(form_envio.ciudad, placeholder="Municipio, Departamento", help="Con este municipio se calcula el envío. Después no se podrá cambiar desde aquí.") }}
                         </div>
                         <div class="col-12">
                             {{ field(form_envio.direccion, placeholder="Dirección completa") }}
@@ -170,7 +169,7 @@
                             {{ field(form_envio.barrio, placeholder="Barrio (opcional)") }}
                         </div>
                         <div class="col-12">
-                            <button type="submit" class="btn btn-primary">Actualizar información de envío</button>
+                            <button type="submit" class="btn btn-primary">Guardar datos de envío</button>
                         </div>
                     </div>
                 </form>
@@ -189,6 +188,16 @@
                     <dt class="col-sm-4 text-body-secondary fw-normal">Contacto</dt><dd class="col-sm-8 mb-0">{{ pedido.tel_envio }} · {{ pedido.email_envio }}</dd>
                     {% endif %}
                 </dl>
+                {% if not datos_envio_validos %}
+                <p class="small text-warning-emphasis mb-2"><i class="bi bi-exclamation-triangle me-1"></i>Faltan datos de envío. Escríbenos y los completamos.</p>
+                {% endif %}
+                <p class="small text-body-secondary mb-2 mt-2"><i class="bi bi-shield-lock me-1"></i>La dirección y el municipio quedan fijados con el pedido para proteger el costo del envío. Si necesitas cambiarlos, escríbenos y lo ajustamos.</p>
+                {% set negocio = negocio_datos() %}
+                {% if negocio.telefono %}
+                <a class="btn btn-outline-secondary btn-sm" href="{{ whatsapp_enlace(negocio.telefono, 'Hola, necesito cambiar la dirección de mi pedido #' ~ pedido.id) }}" target="_blank" rel="noopener">
+                    <i class="bi bi-whatsapp me-1"></i>Pedir cambio de dirección
+                </a>
+                {% endif %}
                 {% endif %}
             </div>
         </div>

@@ -24,8 +24,10 @@ ACCIONES = {
     "pedido.eliminado": ("Pedido eliminado", "trash", "danger"),
     "pedido.rechazado": ("Pedido rechazado", "x-circle", "danger"),
     "pedido.envio": ("Envío actualizado", "truck", "primary"),
+    "pedido.datos_envio": ("Datos de envío corregidos", "geo-alt", "warning"),
     "pedido.costo_envio": ("Costo de envío corregido", "cash-coin", "warning"),
     "pedido.nota": ("Nota interna", "chat-left-text", "secondary"),
+    "solicitud.estado": ("Estado de solicitud", "arrow-repeat", "secondary"),
     "pago.recordatorio": ("Recordatorio de saldo", "bell", "warning"),
     "pago.recordatorio_masivo": ("Recordatorios masivos", "bell", "warning"),
 

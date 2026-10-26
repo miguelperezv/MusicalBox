@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms.validators import DataRequired, NumberRange, Length, Regexp, EqualTo, Optional
+from wtforms.validators import DataRequired, NumberRange, Length, Regexp, EqualTo, Optional, ValidationError
 from wtforms import StringField, SelectField, PasswordField, IntegerField, FileField, DateField, EmailField, BooleanField, HiddenField
 from datetime import date, datetime
 from wtforms import widgets as h5widgets
@@ -119,7 +119,14 @@ class CotizacionRapidaForm(FlaskForm):
                           render_kw={"placeholder": "Opcional: con precio, se cotiza ya"})
     cantidad = IntegerField("Cantidad", default=1, widget=h5widgets.NumberInput(min=1, max=99, step=1),
                             validators=[Optional(), NumberRange(min=1, max=99)])
-    lugar = StringField("Lugar / ciudad", render_kw={"placeholder": "Opcional: para estimar el envío"})
+    lugar = StringField("Lugar / ciudad", render_kw={"placeholder": "Opcional: para estimar el envío"},
+                        filters=[_limpiar])
+
+    def validate_lugar(self, field):
+        if field.data:
+            from .municipios import canonico
+            if not canonico(field.data):
+                raise ValidationError("Elige el municipio de la lista (Municipio, Departamento)")
 
 
 class editReleaseForm(FlaskForm):
@@ -143,6 +150,11 @@ class RegistroSolicitudForm(FlaskForm):
     email = EmailField('Correo', validators=[Optional(), Length(max=100), Regexp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", message="Revisa el correo")])
     ciudad = StringField('Municipio / ciudad', validators=[DataRequired(message="Escribe tu municipio"), Length(max=80)], filters=[_limpiar])
 
+    def validate_ciudad(self, field):
+        from .municipios import canonico
+        if field.data and not canonico(field.data):
+            raise ValidationError("Elige tu municipio de la lista (Municipio, Departamento)")
+
 
 class CheckoutForm(FlaskForm):
     #compra sin cuenta: solo lo necesario para enviar el pedido y cobrarlo
@@ -153,6 +165,11 @@ class CheckoutForm(FlaskForm):
     ciudad = StringField('Municipio | Ciudad, Departamento', validators=[DataRequired(message="Escribe el municipio"), Length(max=80)], filters=[_limpiar])
     direccion = StringField('Dirección', validators=[DataRequired(message="Escribe la dirección"), Length(max=200)], filters=[_limpiar])
     barrio = StringField('Barrio', validators=[Length(max=30)], filters=[_limpiar])
+
+    def validate_ciudad(self, field):
+        from .municipios import canonico
+        if field.data and not canonico(field.data):
+            raise ValidationError("Elige tu municipio de la lista (Municipio, Departamento)")
 
 
 class SuscriptorForm(FlaskForm):

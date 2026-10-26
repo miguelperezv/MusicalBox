@@ -930,6 +930,26 @@ def invoices():
     q_pendientes = (Invoice.query
                     .filter(Invoice.estado.in_(['PENDIENTE', 'PENDIENTE_ABONO', 'ABONADO', 'RECHAZADO']))
                     .order_by(db.desc(Invoice.f_compra)))
+    #la búsqueda se hace en el servidor (no solo entre las filas visibles): así un enlace
+    #a un pedido viejo lo encuentra aunque no esté en la primera página
+    busca = request.args.get("busca", "").strip()
+    if busca:
+        from sqlalchemy import or_
+        from .models import Usuario
+        patron = f"%{busca}%"
+        filtro = or_(Invoice.n_envio.ilike(patron), Invoice.email_envio.ilike(patron),
+                     Invoice.tel_envio.ilike(patron), Invoice.dir_envio.ilike(patron),
+                     Invoice.barrio_envio.ilike(patron), Invoice.lugar_envio.ilike(patron),
+                     Invoice.guia.ilike(patron),
+                     Invoice.usuario.has(or_(Usuario.n_usuario.ilike(patron),
+                                             Usuario.ape_usuario.ilike(patron),
+                                             Usuario.email_usuario.ilike(patron),
+                                             Usuario.cel_usuario.ilike(patron))))
+        if busca.isdigit():
+            filtro = or_(filtro, Invoice.id == int(busca))
+        q_prioridad = q_prioridad.filter(filtro)
+        q_entregados = q_entregados.filter(filtro)
+        q_pendientes = q_pendientes.filter(filtro)
     pendientes = Invoice.query.filter_by(estado='PENDIENTE').count()
     pendientes_abono = Invoice.query.filter_by(estado='PENDIENTE_ABONO').count()
     abonados = Invoice.query.filter_by(estado='ABONADO').count()
@@ -962,8 +982,7 @@ def invoices():
                            pag_entregados=pag_entregados, pag_pendientes=pag_pendientes,
                            get_items_by_id_factura=get_items_by_id_factura,
                            estados_envio=ESTADOS_ENVIO, con_rotulo=ESTADOS_CON_ROTULO,
-                           conteos=conteos, busca=request.args.get("busca", "").strip(),
-                           token_pedido=token_pedido)
+                           conteos=conteos, busca=busca, token_pedido=token_pedido)
 
 
 @dashboard.route("/invoices/<int:id>/eliminar", methods=["POST"])
@@ -1632,24 +1651,24 @@ def costo_envio_vista():
 @purchase.route('/process_checkout', methods=["POST"])
 @limiter.limit("30 per 15 minutes", methods=["POST"])
 def process_checkout():
-    # Obtener datos del formulario
-    datos = {
-        "nombre": request.form.get("nombre", "").strip(),
-        "email": request.form.get("email", "").strip().lower(),
-        "telefono": request.form.get("telefono", "").strip(),
-        "ciudad": request.form.get("ciudad", "").strip(),
-        "direccion": request.form.get("direccion", "").strip(),
-        "barrio": request.form.get("barrio", "").strip()
-        #el metodo de pago lo escribe MercadoPago al confirmar (franquicia en confirmar_pago)
-    }
-    
-    # Validar que los datos no estén vacíos
-    if not all([datos["nombre"], datos["email"], datos["telefono"], datos["ciudad"], datos["direccion"]]):
-        #se guarda lo escrito para devolverlo en el formulario (no hacer escribir todo otra vez)
-        session["checkout_intento"] = datos
-        flash("Revisa los datos marcados para continuar", "warning")
+    #mismo formulario que pinta el checkout: valida correo, longitudes y que el municipio
+    #exista en la lista (de ahí sale la tarifa de envío; el texto libre permitía pagar otra zona)
+    form = CheckoutForm()
+    if not form.validate_on_submit():
+        session["checkout_intento"] = {c: (form[c].data or "") for c in
+                                       ["nombre", "email", "telefono", "ciudad", "direccion", "barrio"]}
+        for errores_campo in form.errors.values():
+            for e in errores_campo:
+                flash(e, "warning")
+        if not form.errors:
+            flash("Revisa los datos marcados para continuar", "warning")
         return redirect(url_for('purchase.checkout'))
-    
+
+    from .municipios import canonico
+    datos = {campo: form[campo].data for campo in ["nombre", "email", "telefono", "ciudad", "direccion", "barrio"]}
+    datos["ciudad"] = canonico(datos["ciudad"]) or datos["ciudad"]
+    #el metodo de pago lo escribe MercadoPago al confirmar (franquicia en confirmar_pago)
+
     # Validar carrito
     lineas, total, errores = validar_carrito(session.get("purchase"))
     if errores:

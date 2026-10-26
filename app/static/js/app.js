@@ -768,6 +768,23 @@ document.addEventListener('change', function (e) {
 (function () {
     function pesos(n) { return '$' + Number(n || 0).toLocaleString('es-CO'); }
     function rotuloDe(tr) { return tr.querySelector('a.rotulo'); }
+    function quitarVacio(tbody) {
+        //al mover una fila a una tabla que estaba vacía, sobra el "sin pedidos"
+        if (!tbody) return;
+        tbody.querySelectorAll('tr').forEach(function (tr) {
+            if (tr.querySelector('td[colspan]')) tr.remove();
+        });
+    }
+    function actualizarConteos() {
+        var pri = document.querySelectorAll('#tbody-prioridad tr[data-orden]').length;
+        var ent = document.querySelectorAll('#tabla-entregados tbody tr[data-orden]').length;
+        var chip = document.querySelector('[data-filtro="prioridad"] .badge');
+        var cab = document.querySelector('#seccion-prioridad .mb-panel-header .badge');
+        var cabEnt = document.querySelector('#seccion-entregados .mb-panel-header .badge');
+        if (chip) chip.textContent = pri;
+        if (cab) cab.textContent = pri;
+        if (cabEnt) cabEnt.textContent = ent;
+    }
 
     //cambiar el estado de envío: POR PREPARAR -> EN PREPARACION -> ENVIADO -> ENTREGADO
     document.addEventListener('change', function (e) {
@@ -782,16 +799,33 @@ document.addEventListener('change', function (e) {
                 if (estadoOculto) estadoOculto.value = r.estado_envio;
                 var rot = cont ? rotuloDe(cont) : null;
                 if (rot) rot.classList.toggle('d-none', !r.rotulo);
-                //al quedar ENTREGADO deja de ser "requiere envío" y pasa al historial
-                if (r.estado_envio === 'ENTREGADO' && cont && cont.tagName === 'TR') {
-                    var destino = document.querySelector('#tabla-entregados tbody');
-                    if (destino) destino.appendChild(cont);
+                //el rótulo en lote depende de data-rotulo-url: se activa/desactiva con el estado
+                if (cont && cont.tagName === 'TR') {
+                    if (r.rotulo) cont.dataset.rotuloUrl = cont.dataset.rotuloBase || '';
+                    else cont.removeAttribute('data-rotulo-url');
+                }
+                //al quedar ENTREGADO deja de ser "requiere envío" y pasa al historial (y al revés)
+                if (cont && cont.tagName === 'TR') {
+                    if (r.estado_envio === 'ENTREGADO') {
+                        var destino = document.querySelector('#tabla-entregados tbody');
+                        quitarVacio(destino);
+                        if (destino) destino.appendChild(cont);
+                    } else {
+                        var prioridad = document.querySelector('#tbody-prioridad');
+                        if (prioridad && cont.closest('#tabla-entregados')) {
+                            quitarVacio(prioridad);
+                            prioridad.appendChild(cont);
+                        }
+                    }
+                    actualizarConteos();
                 }
                 if (r.estado_envio === 'ENVIADO') {
                     showAlert(r.aviso_enviado
                         ? 'Pedido marcado ENVIADO. Le avisamos al comprador por correo.'
                         : 'Pedido marcado ENVIADO, pero no se pudo enviar el correo de aviso: revisa el correo del comprador.',
                         r.aviso_enviado ? 'success' : 'warning');
+                } else if (r.estado_envio === 'ENTREGADO') {
+                    showAlert('Pedido marcado ENTREGADO.', 'success');
                 } else if (cont && cont.tagName !== 'TR' && window.mbRecargarSeccion) {
                     //en el drawer no hay fila que mover: se recarga la sección al cerrarlo
                     if (window.mbCerrarDetalleOrden) window.mbCerrarDetalleOrden();
@@ -841,6 +875,29 @@ document.addEventListener('change', function (e) {
         } else {
             guardar(false);
         }
+    });
+
+    //datos de envío corregidos por el admin desde el detalle del pedido
+    document.addEventListener('submit', function (e) {
+        var form = e.target.closest && e.target.closest('form.datos-envio');
+        if (!form) return;
+        e.preventDefault();
+        if (form.dataset.enviado) return;
+        var boton = form.querySelector('button[type="submit"]') || form.querySelector('button');
+        form.dataset.enviado = '1';
+        if (boton) boton.disabled = true;
+        $.post(form.dataset.url, $(form).serialize())
+            .done(function (r) {
+                showAlert(r.aviso || 'Datos de envío actualizados.', r.recalculado || !r.aviso ? 'success' : 'warning');
+                if (window.mbCerrarDetalleOrden) window.mbCerrarDetalleOrden();
+                if (window.mbRecargarSeccion) window.mbRecargarSeccion();
+                else window.location.reload();
+            })
+            .fail(function (xhr) {
+                form.dataset.enviado = '';
+                if (boton) boton.disabled = false;
+                showAlert((xhr.responseJSON && xhr.responseJSON.error) || 'No se pudieron guardar los datos de envío', 'danger');
+            });
     });
 
     //costo de envío de la orden (se corrige hasta que el pedido quede ENVIADO)
